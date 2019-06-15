@@ -1,4 +1,4 @@
- Require Import Mem.
+Require Import Mem.
 Require Import EquivDec.
 Require Import List.
 Require Import PeanoNat.
@@ -438,6 +438,21 @@ Proof.
     repeat (split; eauto).
     unfold equivalent; intros.
     destruct (key_dec a k); subst.
+    right; simpl.
+    repeat rewrite Mem.upd_eq; eauto.
+    do 2 eexists; eauto.
+    simpl.
+    repeat rewrite Mem.upd_ne; eauto.
+  }
+  { (** Alloc **)
+    specialize (H4 h) as Hx; intuition; cleanup; try congruence.
+    specialize (H1 r) as Hx; intuition; cleanup; try congruence.
+    simpl in *.
+    do 2 eexists; split.
+    econstructor; eauto.
+    repeat (split; eauto).
+    unfold equivalent; intros.
+    destruct (key_dec a r); subst.
     right; simpl.
     repeat rewrite Mem.upd_eq; eauto.
     do 2 eexists; eauto.
