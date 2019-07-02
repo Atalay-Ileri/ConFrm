@@ -119,11 +119,10 @@ Qed.
 Theorem hoare_triple_weaken_post_weak:
   forall T (p: prog T) pre (post post': postcond) crash,
   hoare_triple pre p post crash ->
-  (forall  u o d s o' d' s' r tr,
+  (forall  u o d s o' s' r,
       pre u o s d ->
-      exec u o d s p (Finished o' d' s' r) tr ->
-      post u o s o' s' r d' ->
-      post' u o s o' s' r d') ->
+      post u o s o' s' r =p=>
+      post' u o s o' s' r) ->
   hoare_triple pre p post' crash.
 Proof.
   unfold complete, can_exec, hoare_triple; intros;
@@ -131,6 +130,7 @@ Proof.
   split; eauto; destruct H3; eauto.
   cleanup.
   left; repeat eexists; eauto.
+  eapply H0; eauto.
 Qed.
 
 
@@ -161,7 +161,6 @@ Theorem hoare_triple_weaken_post_strong:
   hoare_triple pre p post' crash.
 Proof.
   intros; eapply hoare_triple_weaken_post_weak; eauto.
-  intros; eapply H0; eauto.
 Qed.
 
 
@@ -180,11 +179,10 @@ Qed.
 Theorem hoare_triple_weaken_crash_weak:
   forall T (p: prog T) pre post (crash crash': crashcond),
   hoare_triple pre p post crash ->
-  (forall  u o d s o' d' s' tr,
+  (forall  u o d s o' s',
       pre u o s d ->
-      exec u o d s p (Crashed _ o' d' s') tr ->
-      crash u o s o' s' d' ->
-      crash' u o s o' s' d') ->
+      crash u o s o' s' =p=>
+      crash' u o s o' s') ->
   hoare_triple pre p post crash'.
 Proof.
   unfold complete, can_exec, hoare_triple; intros;
@@ -192,6 +190,7 @@ Proof.
   split; eauto; destruct H3; eauto.
   cleanup.
   right; repeat eexists; eauto.
+  eapply H0; eauto.
 Qed.
 
 Theorem complete_weaken_crash_weak:
@@ -219,7 +218,6 @@ Theorem hoare_triple_weaken_crash_strong:
   hoare_triple pre p post crash'.
 Proof.
   intros; eapply hoare_triple_weaken_crash_weak; eauto.
-  intros; eapply H0; eauto.
 Qed.
 
 Theorem complete_weaken_crash_strong:
@@ -387,10 +385,12 @@ Theorem hoare_triple_pimpl :
     (forall u o d s o' s',
       pre1 u o s d ->
       crash1 u o s o' s' =p=> crash2 u o s o' s') ->
-    (forall  u o s o' d' s' o'' s'' r r2,
+    (forall  u o s d o' d' s' o'' s'' r r2,
+      pre1 u o s d ->
       post1 u o s o' s' r d' ->
       post2 u o' s' o'' s'' r2 =p=> post2 u o s o'' s'' r2) ->
-    (forall  u o s o' d' s' o'' s'' r,
+    (forall  u o s d o' d' s' o'' s'' r,
+      pre1 u o s d ->
       post1 u o s o' s' r d' ->
       crash2 u o' s' o'' s'' =p=> crash2 u o s o'' s'') ->
     hoare_triple pre1 (Bind p1 p2) post2 crash2.

@@ -415,3 +415,330 @@ Proof.
        norm; [cancel| intuition (eauto; try omega)]
            ].
 Qed.
+
+
+Theorem read_ok:
+  forall a dh,
+  << u, o, s >>
+   (rep dh)
+   (read a)
+  << o', s', r >>
+   (rep dh *
+     [[(r = None /\ (dh a = None \/ a = 0 \/ a > 2)) \/
+       (exists h v, r = Some h /\ dh a = Some v /\ s' h = Some v)%type]])
+   (rep dh).
+Proof.
+  intros.
+  unfold read; simpl.
+
+  destruct (addr_dec a 1); subst.
+  {
+    unfold rep.
+    repeat (apply hoare_triple_pre_ex; intros).
+  
+    eapply hoare_triple_pimpl;
+      try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+      [apply read_okay | intros; simpl; cancel].
+
+    intros; simpl.
+    eapply hoare_triple_pimpl;
+      try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+      [apply unseal_okay | intros; simpl; cancel].
+    apply upd_eq; eauto.
+    simpl; apply can_access_public.
+
+    intros; simpl.
+    destruct (addr_dec (value_to_nat r0) 1); simpl.
+    {
+    eapply hoare_triple_pimpl;
+    try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+    [apply read_okay | intros; simpl; cancel].
+
+    {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1;
+        destruct_lift H2;
+        cleanup;
+          cancel; eauto.
+      
+      right.
+      repeat eexists; intuition eauto.      
+      apply upd_eq'.
+    }
+    intros; simpl in *;
+      destruct_lift H;
+      destruct_lift H1; cleanup;
+        norm; [cancel| intuition (eauto; try omega)].
+    }
+
+    destruct (addr_dec (value_to_nat r0) 3); simpl.
+    {
+    eapply hoare_triple_pimpl;
+    try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+    [apply read_okay | intros; simpl; cancel].
+
+    {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1;
+        destruct_lift H2;
+        cleanup;
+          cancel; eauto.
+      
+      right.
+      repeat eexists; intuition eauto.      
+      apply upd_eq'.
+    }
+    intros; simpl in *;
+      destruct_lift H;
+      destruct_lift H1; cleanup;
+        norm; [cancel| intuition (eauto; try omega)].
+    }
+
+      {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+
+      eassign (F * rep dh * ⟦⟦ r0 = v ⟧⟧).
+      destruct_lift H;
+        destruct_lift H0;
+        cleanup.
+      intros; simpl in *; unfold rep; cancel.
+      
+      unfold rep; intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        cleanup.
+      norm; [cancel| intuition (eauto; try omega)].
+      
+
+      intros; simpl in *.
+      unfold rep;
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1;
+        cleanup;
+      norm; [cancel| intuition (eauto; try omega)].
+      
+      left; split; eauto.
+      left.
+      destruct (addr_dec (value_to_nat v) 0); intuition.
+      destruct (addr_dec (value_to_nat v) 2); intuition.
+    }
+    intros; simpl in *;
+      destruct_lift H;
+      destruct_lift H0; cleanup;
+        norm; [cancel| intuition (eauto; try omega)].
+    intros; simpl in *;
+      destruct_lift H;
+      cleanup;
+      norm; [cancel| intuition (eauto; try omega)].
+  }
+  
+
+  destruct (addr_dec a 2); subst.
+  {
+    unfold rep.
+    repeat (apply hoare_triple_pre_ex; intros).
+  
+    eapply hoare_triple_pimpl;
+      try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+      [apply read_okay | intros; simpl; cancel].
+
+    intros; simpl.
+    eapply hoare_triple_pimpl;
+      try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+      [apply unseal_okay | intros; simpl; cancel].
+    apply upd_eq; eauto.
+    simpl; apply can_access_public.
+
+    intros; simpl.
+    destruct (addr_dec (value_to_nat r0) 2); simpl.
+    {
+    eapply hoare_triple_pimpl;
+    try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+    [apply read_okay | intros; simpl; cancel].
+
+    {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1;
+        destruct_lift H2;
+        cleanup;
+          cancel; eauto.
+      
+      right.
+      repeat eexists; intuition eauto.      
+      apply upd_eq'.
+    }
+    intros; simpl in *;
+      destruct_lift H;
+      destruct_lift H1; cleanup;
+        norm; [cancel| intuition (eauto; try omega)].
+    }
+
+    destruct (addr_dec (value_to_nat r0) 3); simpl.
+    {
+    eapply hoare_triple_pimpl;
+    try solve [intros; simpl in *; eauto].
+    eapply hoare_triple_strengthen_pre;
+    [apply read_okay | intros; simpl; cancel].
+
+    {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+      
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1; cleanup;
+          cancel; eauto.
+
+      intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1;
+        destruct_lift H2;
+        cleanup;
+          cancel; eauto.
+      
+      right.
+      repeat eexists; intuition eauto.      
+      apply upd_eq'.
+    }
+    intros; simpl in *;
+      destruct_lift H;
+      destruct_lift H1; cleanup;
+        norm; [cancel| intuition (eauto; try omega)].
+    }
+
+      {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+
+      eassign (F * rep dh * ⟦⟦ r0 = v ⟧⟧).
+      destruct_lift H;
+        destruct_lift H0;
+        cleanup.
+      intros; simpl in *; unfold rep; cancel.
+      
+      unfold rep; intros; simpl in *.
+      destruct_lift H;
+        destruct_lift H0;
+        cleanup.
+      norm; [cancel| intuition (eauto; try omega)].
+      
+
+      intros; simpl in *.
+      unfold rep;
+      destruct_lift H;
+        destruct_lift H0;
+        destruct_lift H1;
+        cleanup;
+      norm; [cancel| intuition (eauto; try omega)].
+      
+      left; split; eauto.
+      left.
+      destruct (addr_dec (value_to_nat v) 0); intuition.
+      destruct (addr_dec (value_to_nat v) 1); intuition.
+    }
+    intros; simpl in *;
+      destruct_lift H;
+      destruct_lift H0; cleanup;
+        norm; [cancel| intuition (eauto; try omega)].
+    intros; simpl in *;
+      destruct_lift H;
+      cleanup;
+      norm; [cancel| intuition (eauto; try omega)].
+  }
+
+  {
+      intros; simpl.
+      eapply hoare_triple_weaken_post_weak.
+      eapply hoare_triple_weaken_crash_strong.
+      eapply hoare_triple_strengthen_pre.
+      apply ret_okay.
+
+      cancel.
+      cancel.
+      cancel.
+      left; intuition.      
+      right; omega.
+  }
+Qed.
