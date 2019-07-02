@@ -1,16 +1,21 @@
 Require Import SepLogic.
 (* For disk *)
-Axiom addr : Type.
+(* Axiom addr : Type. *)
+Definition addr := nat.
 Axiom value : Type.
 Axiom addr_eq_dec : forall (a b: addr), {a=b}+{a<>b}.
 
 (* For access control *) 
 Axiom user : Type.
 Axiom handle : Type.
-Axiom permission : Type.
+(* Axiom permission : Type. *)
+Inductive permission :=
+| Public
+| Owned (u: user).
 Axiom handle_eq_dec: forall (h1 h2: handle), {h1=h2}+{h1<>h2}.
 Axiom can_access : user -> permission -> Prop.
 Axiom can_access_dec : forall u p, can_access u p \/ ~can_access u p.
+Axiom can_access_public: forall u, can_access u Public.
 
 Definition sealed_value := (permission * value)%type.
 

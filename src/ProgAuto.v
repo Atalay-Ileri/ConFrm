@@ -1,5 +1,5 @@
 Require Import BaseTypes Prog.
-Require Import Mem.
+Require Import Memx.
 Require Import List.
 Require Import Eqdep.
 Import ListNotations.

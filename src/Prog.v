@@ -1,5 +1,5 @@
-Require Import List BaseTypes SepLogic Disk.
-Import ListNotations MemNotations.
+Require Import List BaseTypes Memx Disk.
+Import ListNotations.
 
 Set Implicit Arguments.
 
@@ -25,13 +25,13 @@ Section Prog.
   | ExecRead : 
       forall u o o' d s a v h,
         o = (Handle h)::o' ->
-        mem_read s h = None ->
+        s h = None ->
         read d a = Some v ->
         exec u o d s (Read a) (Finished o' d (upd_store s h v) h) []
              
   | ExecWrite :
       forall u o d s a v h,
-        mem_read s h = Some v ->
+        s h = Some v ->
         read d a <> None ->
         exec u o d s (Write a h) (Finished o (write d a v) s tt) []
              
@@ -48,12 +48,12 @@ Section Prog.
   | ExecSeal :
       forall u o o' d s p v h,
         o = (Handle h)::o' ->
-        mem_read s h = None ->
+        s h = None ->
         exec u o d s (Seal p v) (Finished o' d (upd_store s h (p, v)) h) []
 
   | ExecUnseal :
       forall u o d s v h,
-        mem_read s h = Some v ->
+        s h = Some v ->
         exec u o d s (Unseal h) (Finished o d s (snd v)) [Uns u (fst v)]
 
   | ExecRet :
@@ -102,4 +102,8 @@ Section Prog.
         u o d s o1 d1 s1 tr1,
         exec u o d s p1 (Crashed _ o1 d1 s1) tr1 ->
         exec u o d s (Bind p1 p2)  (Crashed _ o1 d1 s1) tr1.
+
+  
 End Prog.
+
+Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).

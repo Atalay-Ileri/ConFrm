@@ -1,22 +1,21 @@
-Require Import List BaseTypes SepLogic Prog ProgAuto Hoare.
-Import PredNotations.
-Import ListNotations.
+Require Import List BaseTypes Memx Predx SepAuto Prog ProgAuto Hoare.
+Open Scope pred_scope.
 
 Theorem read_can_exec:
   forall a v h o',
     << u, o, s >>
-     ([o = Handle h :: o'] *
-      [s h = None ] * a |-> v)
+     ([[o = Handle h :: o']] *
+      [[s h = None ]] * a |-> v)
      (Read a).
 Proof.
   intros.
   unfold can_exec; intros.
   repeat eexists.
-  norm_hyp H; subst.
+  destruct_lift' H; subst.
   instantiate (2:=h).
   eapply ExecRead; eauto.
   unfold Disk.read;
-    eapply ptsto_eq in H;
+    eapply ptsto_valid' in H;
     cleanup; eauto.  
 Qed.
 
@@ -26,43 +25,43 @@ Theorem read_okay:
      (a |-> v)
      (Read a)
     << o', s', r >>
-     ([o = Handle r :: o'] *
-      [s r = None] *
-      [s' = upd s r (fst v)] *
+     ([[o = Handle r :: o']] *
+      [[s r = None]] *
+      [[s' = upd s r (fst v)]] *
       a |-> v)
      (a |-> v).
 Proof.
   intros.
   unfold hoare_triple; intros.
-  norm_hyp H; subst.
+  destruct_lift H; subst.
   inv_exec_perm; cleanup.
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
     unfold Disk.read in *;
-    eapply ptsto_eq in H as Hx;
+    eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
     unfold Disk.upd_store.
-    pred_impl; cancel; eauto.
+    pred_apply; cancel; eauto.
   }
   {
-    right; eauto.
+    split; [|simpl]; auto; right; eauto.
   }
 Qed.
 
 Theorem write_can_exec:
   forall a v h v',
     << u, o, s >>
-     ([s h = Some v' ] * a |-> v)
+     ([[s h = Some v' ]] * a |-> v)
      (Write a h).
 Proof.
   intros.
   unfold can_exec; intros.
   repeat eexists.
-  norm_hyp H; subst.
+  destruct_lift H; subst.
   econstructor; eauto.
   unfold Disk.read;
-    eapply ptsto_eq in H;
+    eapply ptsto_valid' in H;
     cleanup; eauto.
   intro X; inversion X.
 Qed.
@@ -70,40 +69,39 @@ Qed.
 Theorem write_okay:
   forall a h v v',
     << u, o, s >>
-     ([s h = Some v' ] * a |-> v)
+     ([[s h = Some v' ]] * a |-> v)
      (Write a h)
     << o', s', r >>
-     ([s' = s] *
-      [o' = o] *
+     ([[s' = s]] *
+      [[o' = o]] *
       a |-> (v', (fst v::snd v)))
      (a |-> v).
 Proof.
   intros.
   unfold hoare_triple; intros.
-  norm_hyp H; subst.
+  destruct_lift H; subst.
   inv_exec_perm; cleanup.
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
     unfold Disk.read in *;
-    eapply ptsto_eq in H as Hx;
+    eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
     unfold Disk.write; cleanup.
     unfold Disk.upd_disk.
-    rewrite star_assoc.
-    eapply upd_ptsto.
-    pred_impl; cancel; eauto.
-    instantiate (1:=v); cancel.
+    apply sep_star_assoc.
+    eapply ptsto_upd'.
+    pred_apply; cancel; eauto.
   }
   {
-    right; eauto.
+    split; [|simpl]; auto; right; eauto.
   }
 Qed.
 
 Theorem auth_can_exec:
   forall p,
     << u, o, s >>
-     [True]
+     [[True]]
      (Auth p).
 Proof.
   intros.
@@ -118,43 +116,43 @@ Qed.
 Theorem auth_okay:
   forall p,
     << u, o, s >>
-     [True]
+     [[True]]
      (Auth p)
     << o', s', r >>
-     ([s' = s] *
-      [o' = o] *
-      [(r = true /\ can_access u p) \/
-       (r = false /\ ~can_access u p)])
-     [True].
+     ([[s' = s]] *
+      [[o' = o]] *
+      [[(r = true /\ can_access u p) \/
+       (r = false /\ ~can_access u p)]])
+     [[True]].
 Proof.
   intros.
   unfold hoare_triple; intros.
   inv_exec_perm; cleanup.
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
-    pred_impl; cancel; eauto.
+    pred_apply; cancel; eauto.
   }
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
-    pred_impl; cancel; eauto.
+    pred_apply; cancel; eauto.
   }
   {
-    right; eauto.
+    split; [|simpl]; auto; right; eauto.
   }
 Qed.
 
 Theorem seal_can_exec:
   forall h p v o',
     << u, o, s >>
-     ([o = Handle h:: o'] *
-      [s h = None])
+     ([[o = Handle h:: o']] *
+      [[s h = None]])
      (Seal p v).
 Proof.
   intros.
   unfold can_exec; intros.
-  norm_hyp H.
+  destruct_lift H.
   repeat eexists;
     econstructor; eauto.
 Qed.
@@ -162,36 +160,36 @@ Qed.
 Theorem seal_okay:
   forall p v,
     << u, o, s >>
-     [True]
+     [[True]]
      (Seal p v)
     << o', s', r >>
-     ([o = Handle r :: o'] *
-      [s r = None] *
-      [s' = upd s r (p,v)])
-     [True].
+     ([[o = Handle r :: o']] *
+      [[s r = None]] *
+      [[s' = upd s r (p,v)]])
+     [[True]].
 Proof.
   intros.
   unfold hoare_triple; intros.
   inv_exec_perm; cleanup.
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
-    pred_impl; cancel; eauto.
+    pred_apply; cancel; eauto.
   }
   {
-    right; eauto.
+    split; [|simpl]; auto; right; eauto.
   }
 Qed.
 
 Theorem unseal_can_exec:
   forall h v,
     << u, o, s >>
-     [s h = Some v]
+     [[s h = Some v]]
      (Unseal h).
 Proof.
   intros.
   unfold can_exec; intros.
-  norm_hyp H.
+  destruct_lift H.
   repeat eexists;
     econstructor; eauto.
 Qed.
@@ -199,35 +197,36 @@ Qed.
 Theorem unseal_okay:
   forall h v,
     << u, o, s >>
-     [s h = Some v]
+     ([[s h = Some v]] *
+      [[can_access u (fst v)]])           
      (Unseal h)
     << o', s', r >>
-     ([o' = o] *
-      [s' = s] *
-      [r = snd v])
-     [True].
+     ([[o' = o]] *
+      [[s' = s]] *
+      [[r = snd v]])
+     [[True]].
 Proof.
   intros.
   unfold hoare_triple; intros.
-  norm_hyp H.
+  destruct_lift H.
   inv_exec_perm; cleanup.
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
-    pred_impl; cancel; eauto.
+    pred_apply; cancel; eauto.
   }
   {
-    right; eauto.
+    split; [|simpl]; auto; right; eauto.
     do 3 eexists;
       split; eauto.
-    pred_impl; cancel.
+    pred_apply; cancel.
   }
 Qed.
 
 Theorem ret_can_exec:
   forall T (v: T),
     << u, o, s >>
-     [True]
+     [[True]]
      (Ret v).
 Proof.
   intros.
@@ -239,21 +238,23 @@ Qed.
 Theorem ret_okay:
   forall T (v: T),
     << u, o, s >>
-     [True]
+     [[True]]
      (Ret v)
     << o', s', r >>
-     [r = v]
-     [True].
+     ([[o' = o]] *
+      [[s' = s]] *
+      [[r = v]])
+     [[True]].
 Proof.
   intros.
   unfold hoare_triple; intros.
   inv_exec_perm; cleanup.
   {
-    left.
+    split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
-    pred_impl; cancel; eauto.
+    pred_apply; cancel; eauto.
   }
   {
-    right; eauto.
+    split; [|simpl]; auto; right; eauto.
   }
 Qed.
