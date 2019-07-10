@@ -76,15 +76,16 @@ Ltac logic_clean:=
   | [H: _ /\ _ |- _] => destruct H; repeat logic_clean
   end.
 
-Ltac some_subst :=
+Ltac invert_const :=
   match goal with
-  | [H: Some _ = Some _ |- _] => inversion H; subst; clear H; repeat some_subst
+  | [H: Some _ = Some _ |- _] => inversion H; subst; clear H; repeat invert_const
   | [H: Some _ = None |- _] => inversion H
   | [H: None = Some _ |- _] => inversion H
-  | [H: Finished _ _ _ _ = Finished _ _ _ _ |- _] => inversion H; subst; clear H; repeat some_subst
-  | [H: Crashed _ _ _ _ = Crashed _ _ _ _ |- _] => inversion H; subst; clear H; repeat some_subst
+  | [H: Finished _ _ _ _ = Finished _ _ _ _ |- _] => inversion H; subst; clear H; repeat invert_const
+  | [H: Crashed _ _ _ _ = Crashed _ _ _ _ |- _] => inversion H; subst; clear H; repeat invert_const
   | [H: Finished _ _ _ _ = Crashed _ _ _ _ |- _] => inversion H
   | [H: Crashed _ _ _ _ = Finished _ _ _ _ |- _] => inversion H
+  | [H: _ :: _ = _ :: _ |- _] => inversion H; subst; clear H; repeat invert_const
   end.
 
 Ltac clear_dup:=
@@ -95,7 +96,7 @@ Ltac clear_dup:=
 
 Ltac rewrite_upd_eq:=
   match goal with
-  |[H: upd _ ?x _ ?x = _ |- _] => rewrite upd_eq in H; repeat rewrite_upd_eq; try some_subst
+  |[H: upd _ ?x _ ?x = _ |- _] => rewrite upd_eq in H; repeat rewrite_upd_eq; try invert_const
   end.
 
 Ltac rewriteall :=
@@ -132,7 +133,7 @@ Ltac split_match:=
 
 Ltac cleanup:= try split_match; try logic_clean; subst; try rewriteall;
                try clear_dup; try rewrite_upd_eq;
-               try clear_dup; try some_subst;
+               try clear_dup; try invert_const;
                try clear_trace; try sigT_eq;
                subst; try rewriteall.
 

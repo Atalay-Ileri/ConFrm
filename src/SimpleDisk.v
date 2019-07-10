@@ -1,13 +1,6 @@
 Require Import Primitives Omega.
 Open Scope pred_scope.
 
-Axiom nat_to_value : nat -> value.
-Axiom value_to_nat : value -> nat.
-Axiom nat_to_value_to_nat:
-  forall n, value_to_nat (nat_to_value n) = n.
-Axiom value_to_nat_to_value:
-  forall v, nat_to_value (value_to_nat v) = v.
-
 Definition rep (dh: @mem addr addr_dec sealed_value) : @pred addr addr_dec Disk.valueset :=
   exists bitmap bl val1 val2,
     (0 |-> ((Public, bitmap), bl) *

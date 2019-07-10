@@ -1,24 +1,6 @@
 Require Import List BaseTypes Memx Predx SepAuto Prog ProgAuto Hoare.
 Open Scope pred_scope.
 
-Theorem read_can_exec:
-  forall a v h o',
-    << u, o, s >>
-     ([[o = Handle h :: o']] *
-      [[s h = None ]] * a |-> v)
-     (Read a).
-Proof.
-  intros.
-  unfold can_exec; intros.
-  repeat eexists.
-  destruct_lift' H; subst.
-  instantiate (2:=h).
-  eapply ExecRead; eauto.
-  unfold Disk.read;
-    eapply ptsto_valid' in H;
-    cleanup; eauto.  
-Qed.
-
 Theorem read_okay:
   forall a v,
     << u, o, s >>
@@ -47,23 +29,6 @@ Proof.
   {
     split; [|simpl]; auto; right; eauto.
   }
-Qed.
-
-Theorem write_can_exec:
-  forall a v h v',
-    << u, o, s >>
-     ([[s h = Some v' ]] * a |-> v)
-     (Write a h).
-Proof.
-  intros.
-  unfold can_exec; intros.
-  repeat eexists.
-  destruct_lift H; subst.
-  econstructor; eauto.
-  unfold Disk.read;
-    eapply ptsto_valid' in H;
-    cleanup; eauto.
-  intro X; inversion X.
 Qed.
 
 Theorem write_okay:
@@ -98,21 +63,6 @@ Proof.
   }
 Qed.
 
-Theorem auth_can_exec:
-  forall p,
-    << u, o, s >>
-     [[True]]
-     (Auth p).
-Proof.
-  intros.
-  unfold can_exec; intros.
-  destruct (can_access_dec u p).
-  repeat eexists;
-    econstructor; eauto.
-  repeat eexists;
-  eapply ExecAuthFail; eauto.
-Qed.
-
 Theorem auth_okay:
   forall p,
     << u, o, s >>
@@ -143,20 +93,6 @@ Proof.
   }
 Qed.
 
-Theorem seal_can_exec:
-  forall h p v o',
-    << u, o, s >>
-     ([[o = Handle h:: o']] *
-      [[s h = None]])
-     (Seal p v).
-Proof.
-  intros.
-  unfold can_exec; intros.
-  destruct_lift H.
-  repeat eexists;
-    econstructor; eauto.
-Qed.
-
 Theorem seal_okay:
   forall p v,
     << u, o, s >>
@@ -181,18 +117,6 @@ Proof.
   }
 Qed.
 
-Theorem unseal_can_exec:
-  forall h v,
-    << u, o, s >>
-     [[s h = Some v]]
-     (Unseal h).
-Proof.
-  intros.
-  unfold can_exec; intros.
-  destruct_lift H.
-  repeat eexists;
-    econstructor; eauto.
-Qed.
 
 Theorem unseal_okay:
   forall h v,
@@ -223,18 +147,6 @@ Proof.
   }
 Qed.
 
-Theorem ret_can_exec:
-  forall T (v: T),
-    << u, o, s >>
-     [[True]]
-     (Ret v).
-Proof.
-  intros.
-  unfold can_exec; intros.
-  repeat eexists;
-    econstructor; eauto.
-Qed.
-
 Theorem ret_okay:
   forall T (v: T),
     << u, o, s >>
@@ -258,3 +170,4 @@ Proof.
     split; [|simpl]; auto; right; eauto.
   }
 Qed.
+

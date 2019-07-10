@@ -30,18 +30,21 @@ Section Prog.
         exec u o d s (Read a) (Finished o' d (upd_store s h v) h) []
              
   | ExecWrite :
-      forall u o d s a v h,
+      forall u o o' d s a v h,
+        o = Cont::o' ->
         s h = Some v ->
         read d a <> None ->
         exec u o d s (Write a h) (Finished o (write d a v) s tt) []
              
   | ExecAuthSucc :
-      forall u o d s p,
+      forall u o o' d s p,
+        o = Cont::o' ->
         can_access u p ->
         exec u o d s (Auth p) (Finished o d s true) []
 
   | ExecAuthFail :
-      forall u o d s p,
+      forall u o o' d s p,
+        o = Cont::o' ->
         ~can_access u p ->
         exec u o d s (Auth p) (Finished o d s false) []
 
@@ -52,12 +55,14 @@ Section Prog.
         exec u o d s (Seal p v) (Finished o' d (upd_store s h (p, v)) h) []
 
   | ExecUnseal :
-      forall u o d s v h,
+      forall u o o' d s v h,
+        o = Cont::o' ->
         s h = Some v ->
         exec u o d s (Unseal h) (Finished o d s (snd v)) [Uns u (fst v)]
 
   | ExecRet :
-      forall T u o d s (v: T),
+      forall T u o o' d s (v: T),
+        o = Cont::o' ->
         exec u o d s (Ret v) (Finished o d s v) []
 
   | ExecBind :
@@ -101,7 +106,7 @@ Section Prog.
       forall T T' (p1: prog T) (p2: T -> prog T')
         u o d s o1 d1 s1 tr1,
         exec u o d s p1 (Crashed _ o1 d1 s1) tr1 ->
-        exec u o d s (Bind p1 p2)  (Crashed _ o1 d1 s1) tr1.
+        exec u o d s (Bind p1 p2) (Crashed _ o1 d1 s1) tr1.
 
   
 End Prog.
