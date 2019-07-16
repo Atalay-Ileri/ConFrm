@@ -9,50 +9,79 @@ Record Equivalence (T: Type) :=
     eq_trans: forall t t' t'', eq t t' -> eq t' t'' -> eq t t'';
   }.
 
+Inductive Result {State T: Type} :=
+|Finish : State -> T -> @Result State T
+|Crash : State -> @Result State T.
+
+Definition extract_state {State T} (res: @Result State T) :=
+  match res with
+  | Finish s _ | Crash s => s
+  end.
+
+Definition extract_ret {State T} def (res: @Result State T) :=
+  match res with
+  | Finish _ r => r
+  | Crash _ => def
+  end.
 
 Record LTS :=
   {
     State : Type;
-    Op : Type;
-    transition : State -> Op -> State -> Prop;
+    Op : Type -> Type;
+    transition : forall T, State -> Op T -> @Result State T -> Prop;
   }.
 
 Record Simulation (lts1 lts2 : LTS) (R: State lts1 -> State lts2 -> Prop):=
   {
     simulation_correct:
-      forall o1 s1 s1' s2,
-        transition lts1 s1 o1 s1' ->
+      forall T o1 s1 s1' s2,
+        (transition lts1) T s1 o1 s1' ->
         R s1 s2 ->
         exists o2 s2',
-          transition lts2 s2 o2 s2' /\
-          R s1' s2';
+          (transition lts2) T s2 o2 s2' /\
+          R (extract_state s1') (extract_state s2') /\
+          (forall def, extract_ret def s1' = extract_ret def s2');
   }.
 
+Record SelfSimulation (lts: LTS) (R: State lts -> State lts -> Prop):=
+  {
+    self_simulation_correct:
+      forall T o s1 s1' s2,
+        (transition lts) T s1 o s1' ->
+        R s1 s2 ->
+        exists s2',
+          (transition lts) T s2 o s2' /\ 
+          R (extract_state s1') (extract_state s2') /\
+          (forall def, extract_ret def s1' = extract_ret def s2');
+  }.
+
+Lemma self_simulation_is_simulation:
+  forall lts R,
+    SelfSimulation lts R -> Simulation lts lts R.
+Proof.
+  intros.
+  inversion H.
+  constructor; eauto.
+Qed.
 
 Record Bisimulation  (lts1 lts2 : LTS) (R: State lts1 -> State lts2 -> Prop):=
   {
     bisimulation_correct:
-      (forall o1 s1 s1' s2,
-        transition lts1 s1 o1 s1' ->
+      (forall T o1 s1 s1' s2,
+        (transition lts1) T s1 o1 s1' ->
         R s1 s2 ->
         exists o2 s2',
-          transition lts2 s2 o2 s2' /\
-          R s1' s2') /\
-      (forall o2 s1 s2 s2',
-        transition lts2 s2 o2 s2' ->
+          (transition lts2) T s2 o2 s2' /\
+          R (extract_state s1') (extract_state s2') /\
+          (forall def, extract_ret def s1' = extract_ret def s2')) /\
+      (forall T o2 s1 s2 s2',
+        (transition lts2) T s2 o2 s2' ->
         R s1 s2 ->
         exists o1 s1',
-          transition lts1 s1 o1 s1' /\
-          R s1' s2')
+          (transition lts1) T s1 o1 s1' /\
+          R (extract_state s1') (extract_state s2') /\
+          (forall def, extract_ret def s1' = extract_ret def s2'))
   }.
-
-Definition bisimilar (lts1 lts2 : LTS) s1 s2 :=
-  exists R, Bisimulation lts1 lts2 R /\ R s1 s2.
-
-Variable low high : LTS.
-
-Definition habited (T : Type):=
-  exists _ : T, True.
 
 Definition right_total {T1 T2: Type} (R: T1 -> T2 -> Prop) :=
   forall t2, exists t1, R t1 t2.
@@ -64,14 +93,14 @@ Definition simulation_preserving {T1 T2: Type} (S1: T1 -> T1 -> Prop) (S2: T2 ->
     S1 t1 t1' <-> S2 t2 t2'.
 
 Theorem transfer :
-  forall SL SH R,
+  forall low high SL SH R,
   Simulation low low SL ->
   Bisimulation low high R ->
   right_total R ->
   simulation_preserving SL SH R ->
   Simulation high high SH.
 Proof.
-  unfold right_total, simulation_preserving, habited; intros.
+  unfold right_total, simulation_preserving; intros.
   destruct H, H0.
   rename simulation_correct0 into simulation_correct.
   rename H2 into simulation_preserving.
@@ -90,7 +119,11 @@ Proof.
   repeat destruct H.
   eapply bisimulation_forward in H; eauto.
   repeat destruct H.
+  destruct H3, H4, H5.
   eapply simulation_preserving in H4; eauto.
+  do 2 eexists; split; eauto.
+  split; eauto.
+  intros; rewrite <- H6, H7; eauto.
 Qed.
 
 (*

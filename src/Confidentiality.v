@@ -1,6 +1,6 @@
 Require Import Primitives.
+Require Import Simulation.
 Close Scope pred_scope.
-Set Nested Proofs Allowed.
 
 Lemma deterministic_prog:
   forall T (p: prog T) u o s d ret1 ret2 tr1 tr2,
@@ -146,18 +146,18 @@ Proof.
 Qed.
 
 Definition ret_noninterference {T} (p: prog T) :=
-  forall u o d1 d2 s1 s2 o1' d1' s1' r1 tr1,
-    exec u o d1 s1 p (Finished o1' d1' s1' r1) tr1 ->
+  forall u o d1 d2 s1 s2 ret1 tr,
+    exec u o d1 s1 p ret1 tr ->
     equivalent_for u d1 d2 ->
     equivalent_for_store u s1 s2 ->
-    trace_ok tr1 ->
-    (exists o2' d2' s2' r2 tr2,
-      exec u o d2 s2 p (Finished o2' d2' s2' r2) tr2 /\
-      equivalent_for u d1' d2' /\
-      equivalent_for_store u s1' s2' /\
-      tr1 = tr2 /\
-      o1' = o2' /\
-      r1 = r2)%type.
+    trace_ok tr ->
+    (exists ret2,
+        exec u o d2 s2 p ret2 tr /\
+     (exists o' d1' s1' d2' s2',
+         ((exists r, ret1 = Finished o' d1' s1' r /\ ret2 = Finished o' d2' s2' r) \/
+          (ret1 = Crashed _ o' d1' s1' /\ ret2 = Crashed _ o' d2' s2')) /\
+         equivalent_for u d1' d2' /\
+         equivalent_for_store u s1' s2'))%type.
 
 Lemma equivalent_for_store_none:
   forall u s1 s2 h,
@@ -263,51 +263,110 @@ Proof.
   intros; try specialize H with (1:=H0) as Hx; inv_exec_perm.
   { (*Read*)
     eapply_fresh equivalent_for_read in H0 ; eauto; cleanup.
-    do 5 eexists; intuition eauto.
+    eexists; intuition eauto.
     econstructor; eauto.
     eapply equivalent_for_store_none; eauto.
+    do 5 eexists; intuition eauto.
     eapply equivalent_for_store_upd_store; eauto.
+  }
+  { (*Read Crash*)
+    eexists; intuition eauto.
+    eapply ExecReadCrash; eauto.
+    do 5 eexists; intuition eauto.
   }
   { (*Write*)
-    apply not_none_iff_some in H16; cleanup.
+    apply not_none_iff_some in H12; cleanup.
     eapply_fresh equivalent_for_read in H0; eauto; cleanup.
     eapply_fresh equivalent_for_store_some in H1; eauto; cleanup.
-    do 5 eexists; intuition eauto.
+    eexists; intuition eauto.
     econstructor; eauto.
     eapply not_none_iff_some; eauto.
+    do 5 eexists; intuition eauto.
     eapply equivalent_for_write; eauto.
   }
-  { (*Auth Success*)
+  { (*Write Crash*)
+    eexists; intuition eauto.
+    eapply ExecWriteCrash; eauto.
     do 5 eexists; intuition eauto.
+  }
+  { (*Auth Success*)
+    eexists; intuition eauto.
     econstructor; eauto.
+    do 5 eexists; intuition eauto.
   }
   { (*Auth Fail*)
-    do 5 eexists; intuition eauto.
+    eexists; intuition eauto.
     eapply ExecAuthFail; eauto.
+    do 5 eexists; intuition eauto.
+  }
+  { (*Auth Crash*)
+    eexists; intuition eauto.
+    eapply ExecAuthCrash; eauto.
+    do 5 eexists; intuition eauto.
   }
   { (*Seal*)
-    do 5 eexists; intuition eauto.
+    eexists; intuition eauto.
     econstructor; eauto.
     eapply equivalent_for_store_none; eauto.
+    do 5 eexists; intuition eauto.
     eapply equivalent_for_store_upd_store; eauto.
+  }
+  { (*Auth Crash*)
+    eexists; intuition eauto.
+    eapply ExecSealCrash; eauto.
+    do 5 eexists; intuition eauto.
   }
   { (*Unseal*)
     unfold trace_ok in H2; simpl in *; cleanup.
-    do 5 eexists; intuition eauto.
+    eexists; intuition eauto.
     econstructor; eauto.
     eapply equivalent_for_store_some in H1; eauto; cleanup.
     intuition; cleanup; eauto.
+    do 5 eexists; intuition eauto.
+  }
+  { (*Unseal Crash*)
+    eexists; intuition eauto.
+    eapply ExecUnsealCrash; eauto.
+    do 5 eexists; intuition eauto.
   }
   { (*Ret*)
-    do 5 eexists; intuition eauto.
+    eexists; intuition eauto.
     econstructor; eauto.
+    do 5 eexists; intuition eauto.
+  }
+  { (*Ret Crash*)
+    eexists; intuition eauto.
+    eapply ExecRetCrash; eauto.
+    do 5 eexists; intuition eauto.
   }
   { (*Bind*)
       apply trace_ok_app_split in H3; cleanup.
       edestruct IHp; eauto; cleanup.
+      destruct H7; cleanup.
       edestruct H; eauto; cleanup.
-      do 5 eexists; intuition eauto.
+      destruct H10; cleanup.
+      eexists; intuition eauto.
       econstructor; eauto.
+      do 5 eexists; intuition eauto.
+  }
+  { (*Bind Crash*)
+    destruct H0; cleanup;
+    edestruct IHp; eauto; cleanup.
+
+    - destruct H5; cleanup.
+      eexists; intuition eauto.
+      eapply ExecBindCrash; eauto.
+      do 5 eexists; intuition eauto.
+
+    - apply trace_ok_app_split in H3; cleanup; eauto.
+
+    - apply trace_ok_app_split in H3; cleanup; eauto.
+      destruct H6; cleanup.
+      edestruct H; eauto; cleanup.
+      destruct H10; cleanup.
+      eexists; intuition eauto.
+      econstructor; eauto.
+      do 5 eexists; intuition eauto.
   }
 Qed.
 
@@ -378,7 +437,10 @@ Proof.
   { (*Bind*)
     edestruct H0; eauto; cleanup.
     econstructor; eauto.
-    eapply trace_ok_to_ret_noninterference; eauto.
+Abort.
+(* 
+eapply trace_ok_to_ret_noninterference in H1; eauto.
     econstructor; eauto.
   }
 Qed.
+*)
