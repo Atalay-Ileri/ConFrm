@@ -50,7 +50,7 @@ Fixpoint trace_ok tr :=
     end
   end.
 
-Lemma trace_ok_app:
+Lemma trace_ok_app_merge:
   forall tr tr',
     trace_ok tr ->
     trace_ok tr' ->
@@ -58,6 +58,16 @@ Lemma trace_ok_app:
 Proof.
   induction tr; intros; simpl in *; eauto.
   destruct a; simpl in *; destruct H; eauto.
+Qed.
+
+Lemma trace_ok_app_split:
+  forall tr tr',
+    trace_ok (tr++tr') ->
+    trace_ok tr /\ trace_ok tr'.
+Proof.
+  induction tr; simpl; intros; eauto.
+  destruct a; simpl in *; intuition eauto.
+  all: specialize IHtr with (1:= H1); intuition eauto.
 Qed.
 
 Inductive token :=

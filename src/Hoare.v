@@ -1,4 +1,4 @@
-Require Import BaseTypes Prog ProgAuto.
+Require Import BaseTypes Simulation Prog ProgAuto CommonAutomation.
 Require Import Disk Memx Predx SepAuto.
 
 Set Implicit Arguments.
@@ -15,12 +15,12 @@ Definition crashcond := user -> oracle ->  store ->
 Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T) (crash: crashcond):=
   forall u o d s ret tr,
     pre u o s d ->
-    exec u o d s p ret tr ->
+    exec (u, o, d, s) p ret tr ->
     ((exists o' d' s' r,
-         ret = Finished o' d' s' r
+         ret = Finished (u, o', d', s') r
          /\ post u o s o' s' r d') \/
      (exists o' d' s',
-        ret = Crashed _ o' d' s' /\ crash u o s o' s' d'))%type /\
+        ret = Crashed (u, o', d', s') /\ crash u o s o' s' d'))%type /\
     trace_ok tr.
 
 
@@ -142,28 +142,28 @@ Theorem hoare_triple_pimpl_strong :
       (forall r, hoare_triple pre2 (p2 r) post2 crash2) ->
     (forall  u o d s o' d' s' r tr,
       pre1 u o s d ->
-      exec u o d s p1 (Finished o' d' s' r) tr ->
+      exec (u, o, d, s) p1 (Finished (u, o', d', s') r) tr ->
       post1 u o s o' s' r d' ->
       pre2 u o' s' d') ->
     (forall u o d s o' d' s' tr,
       pre1 u o s d ->
-      exec u o d s p1 (Crashed _ o' d' s') tr ->
+      exec (u, o, d, s) p1 (Crashed (u, o', d', s')) tr ->
       crash1 u o s o' s' d' ->
       crash2 u o s o' s' d') ->
     (forall  u o s o' d' s' o'' s'' d'' r r2 tr,
       post1 u o s o' s' r d' ->
       pre2 u o' s' d' ->
-      exec u o' d' s' (p2 r) (Finished o'' d'' s'' r2) tr ->
+      exec (u, o', d', s') (p2 r) (Finished (u, o'', d'', s'') r2) tr ->
       post2 u o s o'' s'' r2 d'') ->
     (forall  u o s o' d' s' o'' s'' d'' r tr,
       post1 u o s o' s' r d' ->
       pre2 u o' s' d' ->
-      exec u o' d' s' (p2 r) (Crashed _ o'' d'' s'') tr ->
+      exec (u, o', d', s') (p2 r) (Crashed (u, o'', d'', s'')) tr ->
       crash2 u o s o'' s'' d'') ->
     hoare_triple pre1 (Bind p1 p2) post2 crash2.
 Proof.
   unfold hoare_triple; intros.
-  inv_exec_perm.
+  invert_exec.
   {
       edestruct H; eauto.
       destruct H8; cleanup.
@@ -171,7 +171,7 @@ Proof.
       destruct H8; eauto; cleanup; eauto.
       split. left.
       repeat eexists; eauto.
-      apply trace_ok_app; eauto.
+      apply trace_ok_app_merge; eauto.
     }
     {
       destruct H6.
@@ -183,7 +183,7 @@ Proof.
         destruct H8; eauto; cleanup; eauto.
         split. right.
         repeat eexists; eauto.
-        apply trace_ok_app; eauto.
+        apply trace_ok_app_merge; eauto.
     }
 Qed.
 
@@ -193,21 +193,21 @@ Theorem hoare_triple_pimpl' :
       (forall r, hoare_triple (fun u o' s' => exists o s d, [[pre1 u o s d]] * post1 u o s o' s' r)%pred (p2 r) post2 crash2) ->
     (forall u o d s o' d' s' tr,
       pre1 u o s d ->
-      exec u o d s p1 (Crashed _ o' d' s') tr ->
+      exec (u, o, d, s) p1 (Crashed (u, o', d', s')) tr ->
       crash1 u o s o' s' d' ->
       crash2 u o s o' s' d') ->
     (forall  u o s o' d' s' o'' s'' d'' r r2 tr,
       post1 u o s o' s' r d' ->
-      exec u o' d' s' (p2 r) (Finished o'' d'' s'' r2) tr ->
+      exec (u, o', d', s') (p2 r) (Finished (u, o'', d'', s'') r2) tr ->
       post2 u o s o'' s'' r2 d'') ->
     (forall  u o s o' d' s' o'' s'' d'' r tr,
       post1 u o s o' s' r d' ->
-      exec u o' d' s' (p2 r) (Crashed _ o'' d'' s'') tr ->
+      exec (u, o', d', s') (p2 r) (Crashed (u, o'', d'', s'')) tr ->
       crash2 u o s o'' s'' d'') ->
     hoare_triple pre1 (Bind p1 p2) post2 crash2.
 Proof.
   unfold hoare_triple; intros.
-  inv_exec_perm.
+  invert_exec.
   {
       edestruct H; eauto.
       destruct H7; cleanup.
@@ -216,7 +216,7 @@ Proof.
       destruct H7; eauto; cleanup; eauto.
       split. left.
       repeat eexists; eauto.
-      apply trace_ok_app; eauto.
+      apply trace_ok_app_merge; eauto.
     }
     {
       destruct H5.
@@ -229,7 +229,7 @@ Proof.
         destruct H7; eauto; cleanup; eauto.
         split. right.
         repeat eexists; eauto.
-        apply trace_ok_app; eauto.
+        apply trace_ok_app_merge; eauto.
     }
 Qed.
 
@@ -241,21 +241,21 @@ Theorem hoare_triple_pimpl'' :
           hoare_triple (fun u' o' s' => [[u = u']] * post1 u' o s o' s' r)%pred (p2 r) post2 crash2) ->
     (forall u o d s o' d' s' tr,
       pre1 u o s d ->
-      exec u o d s p1 (Crashed _ o' d' s') tr ->
+      exec (u, o, d, s) p1 (Crashed (u, o', d', s')) tr ->
       crash1 u o s o' s' d' ->
       crash2 u o s o' s' d') ->
     (forall  u o s o' d' s' o'' s'' d'' r r2 tr,
       post1 u o s o' s' r d' ->
-      exec u o' d' s' (p2 r) (Finished o'' d'' s'' r2) tr ->
+      exec (u, o', d', s') (p2 r) (Finished (u, o'', d'', s'') r2) tr ->
       post2 u o s o'' s'' r2 d'') ->
     (forall  u o s o' d' s' o'' s'' d'' r tr,
       post1 u o s o' s' r d' ->
-      exec u o' d' s' (p2 r) (Crashed _ o'' d'' s'') tr ->
+      exec (u, o', d', s') (p2 r) (Crashed (u, o'', d'', s'')) tr ->
       crash2 u o s o'' s'' d'') ->
     hoare_triple pre1 (Bind p1 p2) post2 crash2.
 Proof.
   unfold hoare_triple; intros.
-  inv_exec_perm.
+  invert_exec.
   {
       edestruct H; eauto.
       destruct H7; cleanup.
@@ -264,7 +264,7 @@ Proof.
       destruct H7; eauto; cleanup; eauto.
       split. left.
       repeat eexists; eauto.
-      apply trace_ok_app; eauto.
+      apply trace_ok_app_merge; eauto.
     }
     {
       destruct H5.
@@ -277,7 +277,7 @@ Proof.
         destruct H7; eauto; cleanup; eauto.
         split. right.
         repeat eexists; eauto.
-        apply trace_ok_app; eauto.
+        apply trace_ok_app_merge; eauto.
     }
 Qed.
 
@@ -302,7 +302,7 @@ Theorem hoare_triple_pimpl :
     hoare_triple pre1 (Bind p1 p2) post2 crash2.
 Proof.
   unfold hoare_triple; intros.
-  inv_exec_perm.
+  invert_exec.
   {
       edestruct H; eauto.
       destruct H7; cleanup.
@@ -312,7 +312,7 @@ Proof.
       split. left.
       repeat eexists; eauto.
       eapply H2; eauto.
-      apply trace_ok_app; eauto.
+      apply trace_ok_app_merge; eauto.
     }
     {
       destruct H5.
@@ -327,7 +327,7 @@ Proof.
         split. right.
         repeat eexists; eauto.
         eapply H3; eauto.
-        apply trace_ok_app; eauto.
+        apply trace_ok_app_merge; eauto.
     }
 Qed.
 
@@ -356,3 +356,57 @@ Ltac monad_simpl_one :=
   end.
 
 Ltac monad_simpl := repeat monad_simpl_one.
+
+Lemma hoare_triple_to_trace_ok:
+  forall T (p: prog T) pre post crash,
+    hoare_triple pre p post crash ->
+    (forall u o s d,
+       pre u o s d ->
+       (forall ret tr,
+          exec (u, o, d, s) p ret tr ->
+          trace_ok tr)).
+Proof.
+  unfold hoare_triple; intros.
+  specialize H with (1:= H0) (2:= H1); cleanup; eauto.
+Qed.
+
+
+
+Lemma deterministic_prog:
+  forall T (p: prog T) st ret1 ret2 tr1 tr2,
+    exec st p ret1 tr1 ->
+    exec st p ret2 tr2 ->
+    ret1 = ret2 /\ tr1 = tr2.
+Proof.
+  unfold state; induction p; simpl; intros;
+  invert_exec; cleanup;
+  invert_exec; cleanup;
+  destruct_pairs; cleanup; eauto.
+  intuition.
+  intuition.
+
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  specialize H with (1:= H2)(2:=H3); cleanup.
+  eauto.
+  
+  destruct H0; cleanup.
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  specialize H with (1:= H2)(2:=H3); cleanup.
+
+  destruct H1; cleanup.
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  specialize H with (1:= H2)(2:=H3); cleanup.
+
+  destruct H0; cleanup; destruct H1; cleanup.
+  specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
+  
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+
+  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  specialize H with (1:= H2)(2:=H3); cleanup.
+  eauto.
+Qed.

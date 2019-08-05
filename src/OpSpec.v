@@ -1,4 +1,5 @@
-Require Import List BaseTypes Memx Predx SepAuto Prog ProgAuto Hoare.
+Require Import List BaseTypes Memx Predx.
+Require Import CommonAutomation SepAuto Prog ProgAuto Hoare.
 Open Scope pred_scope.
 
 Theorem read_okay:
@@ -16,7 +17,7 @@ Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
-  inv_exec_perm; cleanup.
+  invert_exec; cleanup.
   {
     split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
@@ -24,7 +25,7 @@ Proof.
     eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
     unfold Disk.upd_store.
-    pred_apply; cancel; eauto.
+    simpl in *; pred_apply; cancel; eauto.
   }
   {
     split; [|simpl]; auto; right; eauto.
@@ -45,7 +46,7 @@ Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
-  inv_exec_perm; cleanup.
+  invert_exec; cleanup; simpl in *.
   {
     split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
@@ -63,6 +64,23 @@ Proof.
   }
 Qed.
 
+Theorem write_okay_any:
+  forall P a h v,
+    << u, o, s >>
+     ([[s h = None ]] * a |-> v)
+     (Write a h)
+    << o', s', r >>
+     (P)
+     (a |-> v).
+Proof.
+  intros.
+  unfold hoare_triple; intros.
+  destruct_lift H; subst.
+  invert_exec; cleanup; simpl in *.
+  cleanup.
+  split; [|simpl]; auto; right; eauto.
+Qed.
+
 Theorem auth_okay:
   forall p,
     << u, o, s >>
@@ -77,7 +95,7 @@ Theorem auth_okay:
 Proof.
   intros.
   unfold hoare_triple; intros.
-  inv_exec_perm; cleanup.
+  invert_exec; cleanup; simpl in *.
   {
     split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
@@ -106,7 +124,7 @@ Theorem seal_okay:
 Proof.
   intros.
   unfold hoare_triple; intros.
-  inv_exec_perm; cleanup.
+  invert_exec; cleanup; simpl in *.
   {
     split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
@@ -133,9 +151,9 @@ Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H.
-  inv_exec_perm; cleanup.
+  invert_exec; cleanup; simpl in *; cleanup.
   {
-    split; [|simpl]; auto; left.
+    split; [|simpl]; eauto; left.
     do 4 eexists; split; eauto.
     pred_apply; cancel; eauto.
   }
@@ -160,7 +178,7 @@ Theorem ret_okay:
 Proof.
   intros.
   unfold hoare_triple; intros.
-  inv_exec_perm; cleanup.
+  invert_exec; cleanup; simpl in *.
   {
     split; [|simpl]; auto; left.
     do 4 eexists; split; eauto.
