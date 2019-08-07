@@ -31,7 +31,7 @@ Section ProgLimited.
       exec st1 (prog_limited_to_prog p) st2 tr ->
       exec_limited st1 p st2.
 
-  Definition prog2_LTS := {| State:= state; Op:= prog_limited; transition := exec_limited |}.
+  Definition prog_limited_LTS := {| State:= state; Op:= prog_limited; transition := exec_limited |}.
   
   Definition state_noninterference {T} (p: prog_limited T) (valid: state -> Prop):=
   forall viewer st1 st1' st2,

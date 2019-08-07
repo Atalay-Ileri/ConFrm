@@ -269,11 +269,18 @@ Definition invariant (lts: LTS) (inv: State lts -> Prop):=
 Theorem self_simulation_transfer :
   forall lts (S1 S2: State lts -> State lts -> Prop),
     SelfSimulation lts S1 ->
-    (forall s1 s2, S1 s1 s2 -> S2 s1 s2) ->
     (forall s1 s2,
        (exists T o s1', transition lts T s1 o s1') ->
          S2 s1 s2 ->
          S1 s1 s2) ->
+    (forall T s1 s1' s2 s2',
+        (exists o, transition lts T s1 o s1') ->
+        S2 s1 s2 ->
+        (exists o, transition lts T s2 o s2') ->
+        result_same s1' s2' ->
+        S1 (extract_state s1') (extract_state s2') ->
+        (forall def, extract_ret def s1' = extract_ret def s2') ->
+        S2 (extract_state s1') (extract_state s2')) ->
     SelfSimulation lts S2.
 Proof.
   intros; eapply Build_SelfSimulation; intros.

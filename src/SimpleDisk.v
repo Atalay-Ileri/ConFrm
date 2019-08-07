@@ -1,7 +1,7 @@
-Require Import Primitives Omega.
+Require Import Primitives Omega Disk.
 Open Scope pred_scope.
 
-Definition rep (dh: @mem addr addr_dec sealed_value) : @pred addr addr_dec Disk.valueset :=
+Definition rep (dh: disk) : @pred addr addr_dec Disk.valueset :=
   exists bitmap bl val1 val2,
     (0 |-> ((Public, bitmap), bl) *
      1 |-> val1 * 2 |-> val2 *
@@ -10,11 +10,11 @@ Definition rep (dh: @mem addr addr_dec sealed_value) : @pred addr addr_dec Disk.
      [[value_to_nat bitmap = 0 ->
       dh 1 = None /\ dh 2 = None]] *
      [[value_to_nat bitmap = 1 ->
-      dh 1 = Some (fst val1) /\ dh 2 = None]] *
+      dh 1 = Some val1 /\ dh 2 = None]] *
      [[value_to_nat bitmap = 2 ->
-      dh 1 = None /\ dh 2 = Some (fst val2)]] *
+      dh 1 = None /\ dh 2 = Some val2]] *
      [[value_to_nat bitmap = 3 ->
-      dh 1 = Some (fst val1) /\ dh 2 = Some (fst val2)]] *
+      dh 1 = Some val1 /\ dh 2 = Some val2]] *
      [[forall n, n > 2 -> dh n = None]]).
 
 Definition alloc : prog (option addr) :=
@@ -161,11 +161,11 @@ Theorem alloc_ok:
    (exists dh',
     rep dh' *
      [[(r = None /\ dh' = dh) \/
-       (exists h, r = Some h /\ dh' = upd dh h (Public, nat_to_value 0) /\ dh h = None)%type]])
+       (exists h, r = Some h /\ dh' = upd dh h ((Public, nat_to_value 0), nil) /\ dh h = None)%type]])
    (exists dh',
     rep dh' *
      [[(dh' = dh) \/
-       (exists h, dh' = upd dh h (Public, nat_to_value 0) /\ dh h = None)%type]]).
+       (exists h, dh' = upd dh h ((Public, nat_to_value 0), nil) /\ dh h = None)%type]]).
 Proof. Admitted. (*
   intros.
   unfold alloc; simpl.
@@ -418,7 +418,7 @@ Theorem read_ok:
   << o', s', r >>
    (rep dh *
      [[(r = None /\ (dh a = None \/ a = 0 \/ a > 2)) \/
-       (exists h v, r = Some h /\ dh a = Some v /\ s' h = Some v)%type]])
+       (exists h v, r = Some h /\ dh a = Some v /\ s' h = Some (fst v))%type]])
    (rep dh).
 Proof. Admitted. (*
   intros.
@@ -748,16 +748,17 @@ Qed.
 Theorem write_ok:
   forall dh a h v,
   << u, o, s >>
-   (rep dh * [[s h = Some v]])
+   (rep dh *
+    [[s h = Some v]])
    (write a h)
   << o', s', r >>
    (exists dh',
     rep dh' *
      [[(r = None /\ dh' = dh) \/
-       (r = Some tt /\ dh' = upd dh a v)%type]])
+       (r = Some tt /\ exists vs, dh a = Some vs /\ dh' = upd dh a (v, fst vs::snd vs))%type]])
    (exists dh',
     rep dh' *
-     [[dh' = dh \/ dh' = upd dh a v]]).
+     [[(dh' = dh \/ exists vs, dh a = Some vs /\ dh' = upd dh a (v, fst vs::snd vs))%type]]).
 Proof. Admitted. (*
   intros.
   unfold write; simpl.
