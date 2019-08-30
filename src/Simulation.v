@@ -187,6 +187,17 @@ Proof.
 Qed.
 
 
+Definition refines_to_related {T1 T2} refines_to eqv_h (st1 st2: T1) := exists (sr1 sr2: T2), refines_to st1 sr1 /\ refines_to st2 sr2 /\ eqv_h sr1 sr2.
+
+Definition deterministic_refinement {T1 T2} refines_to eqv_h :=
+  forall (s:T1) (sr1 sr2: T2),
+    refines_to s sr1 ->
+    refines_to s sr2 ->
+    eqv_h sr1 sr2.
+
+Definition transitive {T} (R: T -> T -> Prop) :=
+  forall t t' t'', R t t' -> R t' t'' -> R t t''.
+
 Record SelfSimulation (lts: LTS) (R: State lts -> State lts -> Prop):=
   {
     self_simulation_correct:
@@ -200,62 +211,59 @@ Record SelfSimulation (lts: LTS) (R: State lts -> State lts -> Prop):=
           (forall def, extract_ret def s1' = extract_ret def s2');
   }.
 
-  Record StrongBisimulation  (lts1 lts2 : LTS) (RP: forall T, Op lts1 T -> Op lts2 T -> Prop)(RS: State lts1 -> State lts2 -> Prop):=
+  Record StrongBisimulation  (lts1 lts2 : LTS) (compile: forall T, Op lts2 T -> Op lts1 T)(refines_to: State lts1 -> State lts2 -> Prop):=
   {
     strong_bisimulation_correct:
-      (forall T o1 o2 s1 s2,
-          RP T o1 o2 ->
-          RS s1 s2 ->
+      (forall T o2 s1 s2,
+          refines_to s1 s2 ->
           (forall s1',
-              (transition lts1) T s1 o1 s1' ->
+              (transition lts1) T s1 (compile T o2) s1' ->
               exists s2',
                 (transition lts2) T s2 o2 s2' /\
                 result_same s1' s2' /\
-                RS (extract_state s1') (extract_state s2') /\
+                refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')) /\
           (forall s2',
               (transition lts2) T s2 o2 s2' ->
               exists s1',
-                (transition lts1) T s1 o1 s1' /\
+                (transition lts1) T s1 (compile T o2) s1' /\
                 result_same s1' s2' /\
-                RS (extract_state s1') (extract_state s2') /\
+                refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')))
   }.
 
 Theorem transfer_low_to_high_self :
-  forall low high SL SH RS RP,
-  SelfSimulation low SL ->
-  StrongBisimulation low high RP RS ->
-  (forall T, right_total (RP T)) ->
-  right_total RS ->
-  simulation_preserving SL SH RS ->
-  SelfSimulation high SH.
+  forall low high eqv_h refines_to compile,
+  SelfSimulation low (refines_to_related refines_to eqv_h) ->
+  StrongBisimulation low high compile refines_to ->
+  right_total refines_to ->
+  deterministic_refinement refines_to eqv_h ->
+  transitive eqv_h ->
+  SelfSimulation high eqv_h.
 Proof.
-  unfold right_total, simulation_preserving; intros.
+  unfold right_total, refines_to_related, deterministic_refinement; intros.
   destruct H, H0.
   rename self_simulation_correct0 into self_simulation_correct.
-  rename H1 into right_total_op.
-  rename H2 into right_total_state.
-  rename H3 into simulation_preserving.
+  rename H1 into right_total_state.
   rename strong_bisimulation_correct0 into strong_bisimulation_correct.
   
   eapply Build_SelfSimulation;  intros.
   edestruct (right_total_state s1), (right_total_state s2).
-  edestruct (right_total_op T o).
-  eapply strong_bisimulation_correct in H3 as Hx; [| apply H1]; destruct Hx.
-  apply H5 in H.
-  repeat destruct H; destruct H6, H7.
-  eapply simulation_preserving in H0; eauto.
+  eapply strong_bisimulation_correct in H1 as Hx; destruct Hx.
+  apply H6 in H.
+  repeat destruct H. destruct H7, H8.
   
-  eapply self_simulation_correct in H; eauto; destruct H, H, H9, H10.
-  eapply strong_bisimulation_correct in H3 as Hx; [| apply H2]; destruct Hx.
-  apply H12 in H.
-  destruct H, H, H14, H15.
-  eapply simulation_preserving in H10; eauto.
+  eapply self_simulation_correct in H; eauto; repeat destruct H. destruct H10, H11.
+  repeat destruct H11.
+  destruct H13.
+  
+  eapply strong_bisimulation_correct in H4 as Hx; destruct Hx.
+  apply H15 in H.
+  destruct H, H, H17, H18.
   eexists; intuition eauto.
   do 2 (eapply result_same_transitive; eauto).
   apply result_same_symmetric; auto.
-  rewrite <- H8, H11; auto.
+  rewrite <- H9, H12; auto.
 Qed.
 
 
