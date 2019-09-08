@@ -5,25 +5,28 @@ Set Implicit Arguments.
 
 Section Disk.
   (* maybe rename better *)
-  Definition valueset := (sealed_value * list sealed_value)%type.
-  Definition disk := @mem addr addr_dec valueset.
+  Definition set V := (V * list V)%type.
+  Definition disk V := @mem addr addr_dec (set V).
+  
+  Definition store V := @mem handle handle_dec V.
+  Definition upd_store {V} := @upd handle V handle_dec.
 
-  Definition upd_disk := @upd addr valueset addr_dec.
+  Definition upd_disk {V} := @upd addr V addr_dec.
 
-  Definition read (d: disk) (a: addr) :=
+  Definition read {V} (d: disk V) (a: addr) :=
     match d a with
     | None => None
     | Some vs => Some (fst vs)
     end.
   
-  Definition write (d: disk) (a: addr) (v: sealed_value) : disk :=
+  Definition write {V} (d: disk V) (a: addr) (v: V) : disk V :=
     match d a with
     | None => d
     | Some vs => upd_disk d a (v, fst vs::snd vs)
     end.
 
 
-  Definition sync (d: disk) (a: addr) : disk :=
+  Definition sync {V} (d: disk V) (a: addr) : disk V :=
     match d a with
     | None => d
     | Some vs => upd_disk d a (fst vs, [])
@@ -33,10 +36,3 @@ Section Disk.
   Definition sync_all (d: disk) : disk := mem_read (sync d a) a.
    *)
 End Disk.
-
-Section Store.
-  
-  Definition store := @mem handle handle_dec sealed_value.
-  Definition upd_store := @upd handle sealed_value handle_dec.
-  
-End Store.

@@ -45,14 +45,18 @@ Ltac logic_clean:=
 
 Ltac invert_const :=
   match goal with
-  | [H: Some _ = Some _ |- _] => inversion H; subst; clear H; repeat invert_const
-  | [H: Some _ = None |- _] => inversion H
-  | [H: None = Some _ |- _] => inversion H
-  | [H: Finished _ _ = Finished _ _ |- _] => inversion H; subst; clear H; repeat invert_const
-  | [H: Crashed _ = Crashed _ |- _] => inversion H; subst; clear H; repeat invert_const
-  | [H: Finished _ _ = Crashed _ |- _] => inversion H
-  | [H: Crashed _ = Finished _ _ |- _] => inversion H
-  | [H: _ :: _ = _ :: _ |- _] => inversion H; subst; clear H; repeat invert_const
+  | [H: _ :: _ = _ :: _ |- _] =>
+    inversion H; subst; clear H; repeat invert_const
+  | [H: Some _ = _ |- _ ] =>
+    inversion H; subst; clear H; repeat invert_const
+  | [H: None = _ |- _ ] =>
+    inversion H; subst; clear H; repeat invert_const
+  | [H: Finished _ _ = _ |- _ ] =>
+    inversion H; subst; clear H; repeat invert_const
+  | [H: Crashed _ = _ |- _ ] =>
+    inversion H; subst; clear H; repeat invert_const
+  | [H: Failed _ = _ |- _ ] =>
+    inversion H; subst; clear H; repeat invert_const
   end.
 
 Ltac clear_dup:=
