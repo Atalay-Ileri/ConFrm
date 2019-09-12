@@ -5,7 +5,7 @@ Set Implicit Arguments.
 
 Section Layer1.
 
-  Definition state := (oracle * (disk value))%type.
+  Definition state := (oracle * (disk (set value)))%type.
   Definition get_oracle (st: state) := fst st.
   Definition get_disk (st: state) := snd st.
   

@@ -6,27 +6,28 @@ Set Implicit Arguments.
 Section Disk.
   (* maybe rename better *)
   Definition set V := (V * list V)%type.
-  Definition disk V := @mem addr addr_dec (set V).
+  Definition disk V := @mem addr addr_dec V.
+  Definition upd_disk {V} := @upd addr V addr_dec.
   
   Definition store V := @mem handle handle_dec V.
   Definition upd_store {V} := @upd handle V handle_dec.
 
-  Definition upd_disk {V} := @upd addr V addr_dec.
+  
 
-  Definition read {V} (d: disk V) (a: addr) :=
+  Definition read {V} (d: disk (set V)) (a: addr) :=
     match d a with
     | None => None
     | Some vs => Some (fst vs)
     end.
   
-  Definition write {V} (d: disk V) (a: addr) (v: V) : disk V :=
+  Definition write {V} (d: disk (set V)) (a: addr) (v: V) : disk (set V) :=
     match d a with
     | None => d
     | Some vs => upd_disk d a (v, fst vs::snd vs)
     end.
 
 
-  Definition sync {V} (d: disk V) (a: addr) : disk V :=
+  Definition sync {V} (d: disk (set V)) (a: addr) : disk (set V) :=
     match d a with
     | None => d
     | Some vs => upd_disk d a (fst vs, [])

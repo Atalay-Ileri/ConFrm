@@ -41,7 +41,7 @@ Axiom value_to_bits_to_value : forall v, bits_to_value (value_to_bits v) = v.
 Axiom bits_to_value_to_bits : forall l, value_to_bits (bits_to_value l) = l.                                                                   
 Open Scope pred_scope.
 
-Definition rep (dh: @mem addr addr_dec value) : @pred addr addr_dec (set value) :=
+Definition rep (dh: disk value) : @pred addr addr_dec (set value) :=
   fun d => (exists bitmap bl rest,
     let bits := bits (value_to_bits bitmap) in
     0 |-> (bitmap, bl) * rest *
