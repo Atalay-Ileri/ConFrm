@@ -1,65 +1,88 @@
 Require Import List CommonAutomation Simulation.
 
-Lemma result_same_transitive:
-  forall State1 State2 State3 T1 T2 T3
-    (res1: @Result State1 T1)
-    (res2: @Result State2 T2)
-    (res3: @Result State3 T3),
-    result_same res1 res2 ->
-    result_same res2 res3 ->
-    result_same res1 res3.
-Proof.
-  unfold result_same; intros.
-  destruct res1, res2, res3; intuition.
-Qed.
-
-Lemma result_same_symmetric:
-  forall State1 State2 T1 T2
-    (res1: @Result State1 T1)
-    (res2: @Result State2 T2),
-    result_same res1 res2 ->
-    result_same res2 res1.
-Proof.
-  unfold result_same; intros.
-  destruct res1, res2; intuition.
-Qed.
-
 Record LTS :=
   {
     Token : Type;
     State : Type;
-    Op : Type -> Type;
-    transition : forall T, list Token -> State -> Op T -> @Result State T -> Prop;
+    Prog : Type -> Type;
+    exec : forall T, list Token -> State -> Prog T -> @Result State T -> Prop;
   }.
 
-Definition refines_to_related {T1 T2} refines_to (R: T2 -> T2 -> Prop) (st1 st2: T1) :=
-  exists (sr1 sr2: T2),
-    refines_to st1 sr1 /\
-    refines_to st2 sr2 /\
-    R sr1 sr2.
 
-Definition refines_to_valid {T1 T2} (refines_to: T1 -> T2 -> Prop) (valid2: T2 -> Prop) (st1: T1) : Prop :=
-  forall (st2: T2),
-    refines_to st1 st2 ->
-    valid2 st2.
+(* 
+A relation that takes 
+   - two input states (sl1 and sl2), 
+   - a refinement realiton (refines_to), and
+   - a relation (related_h)
+and asserts that 
+    - there are two other states (sh1 and sh2) such that,
+    - sl1 (sl2) refines to sh1 (sh2) via refines_to relation, and
+    - sh1 and sh2 are related via related_h
+*)
+Definition refines_to_related {State_L State_H: Type}
+           (refines_to: State_L -> State_H -> Prop)
+           (related_h: State_H -> State_H -> Prop)
+           (sl1 sl2: State_L)
+  : Prop :=
+  exists (sh1 sh2: State_H),
+    refines_to sl1 sh1 /\
+    refines_to sl2 sh2 /\
+    related_h sh1 sh2.
+
+(* 
+A relation that takes 
+   - an input state (sl), 
+   - a refinement realiton (refines_to), and
+   - a validity predicate (valid_state_h)
+and asserts that 
+    - for all states sh,
+    - if sl refines to sh via refines_to relation,
+    - then sh is a valid state (satisfies valid_state_h)
+*)
+Definition refines_to_valid {State_L State_H: Type}
+           (refines_to: State_L -> State_H -> Prop)
+           (valid_state_h: State_H -> Prop)
+           (sl: State_L)
+  : Prop :=
+  forall (sh: State_H),
+    refines_to sl sh ->
+    valid_state_h sh.
+
+(* 
+A relation that takes 
+   - an input program (pl), 
+   - a refinement realiton (refines_to), and
+   - a validity predicate (valid_prog_h)
+and asserts that 
+    - there is a program ph such that,
+    - pl is compilation of ph, and
+    - ph is a valid program (satisafies valid_prog_h)
+*)
+Definition compiles_to_valid {Prog_L Prog_H: Type -> Type} 
+           (valid_prog_h: forall T, Prog_H T -> Prop)
+           (compilation_of: forall T, Prog_L T -> Prog_H T -> Prop)
+           (T: Type)
+           (pl: Prog_L T)
+  : Prop :=
+  exists (ph: Prog_H T),
+    compilation_of T pl ph /\
+    valid_prog_h T ph.
+
 
 Definition oracle_refines_to_valid
            {State1 State2 Oracle1 Oracle2: Type} {Op1 Op2: Type -> Type}
            (oracle_refines_to: forall T, State1 -> Op2 T -> Oracle1 -> Oracle2 -> Prop)
            (refines_to: State1 -> State2 -> Prop)
-           (compiles_to: forall T, Op2 T -> Op1 T -> Prop)
+           (compilation_of: forall T, Op1 T -> Op2 T -> Prop)
            (valid_oracle2: forall T, Oracle2 -> State2 -> Op2 T -> Prop)
            T (o1: Oracle1) (st1: State1) (p1: Op1 T) :=
   forall st2 p2,
     refines_to st1 st2 ->
-    compiles_to T p2 p1 ->
+    compilation_of T p1 p2 ->
     exists o2, oracle_refines_to T st1 p2 o1 o2 /\
     valid_oracle2 T o2 st2 p2.
 
-Definition compiles_to_valid {Op1 Op2: Type -> Type}
-           (valid_op2: forall T, Op2 T -> Prop)
-           (compiles_to: forall T, Op2 T -> Op1 T -> Prop)  T (o1: Op1 T) :=
-  exists o2, compiles_to T o2 o1 /\ valid_op2 T o2.
+
 
 Definition oracle_equal_with_respect_to
            {State Oracle1 Oracle2: Type} {Op: Type -> Type}
@@ -74,8 +97,8 @@ Definition oracle_equal_with_respect_to
 
 Record SelfSimulation (lts: LTS)
        (valid_state: State lts -> Prop)
-       (valid_op: forall T, Op lts T -> Prop)
-       (valid_oracle: forall T, list (Token lts) -> State lts -> Op lts T -> Prop)
+       (valid_op: forall T, Prog lts T -> Prop)
+       (valid_oracle: forall T, list (Token lts) -> State lts -> Prog lts T -> Prop)
        (R: State lts -> State lts -> Prop) :=
   {
     self_simulation_correct:
@@ -85,10 +108,10 @@ Record SelfSimulation (lts: LTS)
         valid_op T p ->
         valid_oracle T o s1 p ->
         valid_oracle T o s2 p ->
-        (transition lts) T o s1 p s1' ->
+        (exec lts) T o s1 p s1' ->
         R s1 s2 ->
         exists s2',
-          (transition lts) T o s2 p s2' /\
+          (exec lts) T o s2 p s2' /\
           result_same s1' s2' /\
           R (extract_state s1') (extract_state s2') /\
           (forall def, extract_ret def s1' = extract_ret def s2') /\
@@ -99,12 +122,12 @@ Record SelfSimulation (lts: LTS)
 Record StrongBisimulation
        (lts1 lts2 : LTS)
        (valid_state1 : State lts1 -> Prop)
-       (valid_op1: forall T, Op lts1 T -> Prop)
+       (valid_op1: forall T, Prog lts1 T -> Prop)
        (valid_state2 : State lts2 -> Prop)
-       (valid_op2: forall T, Op lts2 T -> Prop)
-       (compiles_to: forall T, Op lts2 T -> Op lts1 T -> Prop)
+       (valid_op2: forall T, Prog lts2 T -> Prop)
+       (compilation_of: forall T, Prog lts1 T -> Prog lts2 T -> Prop)
        (refines_to: State lts1 -> State lts2 -> Prop)
-       (oracle_refines_to: forall T, State lts1 -> Op lts2 T -> list (Token lts1) -> list (Token lts2) -> Prop)
+       (oracle_refines_to: forall T, State lts1 -> Prog lts2 T -> list (Token lts1) -> list (Token lts2) -> Prop)
   :=
   {
     strong_bisimulation_correct:
@@ -116,22 +139,22 @@ Record StrongBisimulation
           valid_op2 T p2 ->
           
           refines_to s1 s2 ->
-          compiles_to T p2 p1 ->
+          compilation_of T p1 p2 ->
           
           oracle_refines_to T s1 p2 o1 o2 ->
           
           (forall s1',
-              (transition lts1) T o1 s1 p1 s1' ->
+              (exec lts1) T o1 s1 p1 s1' ->
               exists s2',
-                (transition lts2) T o2 s2 p2 s2' /\
+                (exec lts2) T o2 s2 p2 s2' /\
                 result_same s1' s2' /\
                 refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2') /\
                 valid_state1 (extract_state s1') /\ valid_state2 (extract_state s2')) /\
           (forall s2',
-              (transition lts2) T o2 s2 p2 s2' ->
+              (exec lts2) T o2 s2 p2 s2' ->
               exists s1',
-                (transition lts1) T o1 s1 p1 s1' /\
+                (exec lts1) T o1 s1 p1 s1' /\
                 result_same s1' s2' /\
                 refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')/\
@@ -143,7 +166,7 @@ Theorem transfer_high_to_low :
 
     eqv_h
     refines_to
-    compiles_to
+    compilation_of
     oracle_refines_to
 
     valid_h
@@ -165,10 +188,10 @@ Theorem transfer_high_to_low :
          valid_h)
       (compiles_to_valid
          valid_op_h
-         compiles_to)
+         compilation_of)
       valid_h
       valid_op_h
-      compiles_to
+      compilation_of
       refines_to
       oracle_refines_to ->
 
@@ -185,11 +208,11 @@ Theorem transfer_high_to_low :
          valid_h)
       (compiles_to_valid
          valid_op_h
-         compiles_to)
+         compilation_of)
       (oracle_refines_to_valid
          oracle_refines_to
          refines_to
-         compiles_to
+         compilation_of
          valid_oracle_h)
       (refines_to_related
          refines_to
@@ -199,23 +222,30 @@ Proof.
   destruct H, H0.
   rename self_simulation_correct0 into self_simulation_correct.
   rename strong_bisimulation_correct0 into strong_bisimulation_correct.
+  rename H1 into oracle_equal.
   
   eapply Build_SelfSimulation;  intros; cleanup.
   repeat match goal with
-    | [H: forall (st2 : State high) (p2 : Op high T), _ |- _] =>
+    | [H: forall (_ : State high) (_ : Prog high _), _ |- _] =>
       edestruct H; eauto; cleanup; clear H
+         end.
+  
+  match goal with
+  | [H: oracle_refines_to _ _ _ _ _,
+     H0: oracle_refines_to _ _ _ _ _ |- _] =>
+    eapply_fresh oracle_equal in H;
+      try apply H0; eauto; cleanup
   end.
-  eapply_fresh H1 in H10; eauto; cleanup.
-
+  
   match goal with
   | [H: refines_to s1 _ |- _] =>
     eapply_fresh strong_bisimulation_correct in H; eauto; cleanup
   end.
 
   match goal with
-    | [H: forall _, transition low _ _ _ _ _ -> _,
-       H0: transition low _ _ _ _ _,
-       H1: forall _, transition high _ _ _ _ _ -> _ |- _] =>
+    | [H: forall _, exec low _ _ _ _ _ -> _,
+       H0: exec low _ _ _ _ _,
+       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
       eapply H in H0; cleanup; clear H H1
   end.
 
@@ -229,12 +259,12 @@ Proof.
   end.
 
   match goal with
-    | [H: transition high _ _ _ _ _ |- _] =>
+    | [H: exec high _ _ _ _ _ |- _] =>
       eapply self_simulation_correct in H; eauto; cleanup
   end.
 
   match goal with
-  | [H: transition high _ _ ?x2 _ _,
+  | [H: exec high _ _ ?x2 _ _,
      H0: refines_to ?s1 ?x1,
      H1: refines_to ?s2 ?x2,      
      H2: refines_to_valid _ _ ?s2 |- _] =>
@@ -242,9 +272,9 @@ Proof.
   end.
   
   match goal with
-    | [H: forall _, transition low _ _ _ _ _ -> _,
-       H0: transition high _ _ _ _ _,
-       H1: forall _, transition high _ _ _ _ _ -> _ |- _] =>
+    | [H: forall _, exec low _ _ _ _ _ -> _,
+       H0: exec high _ _ _ _ _,
+       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
       eapply H1 in H0; cleanup; clear H H1
   end.
 
