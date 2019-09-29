@@ -12,14 +12,15 @@ Definition crashcond := @pred addr addr_dec (set value).
 
 
 Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T) (crash: crashcond):=
-  forall o d ret,
+  forall o d,
     pre o d ->
-    exec o d p ret ->
-    ((exists d' r,
-         ret = Finished d' r
-         /\ post r d') \/
-     (exists d',
-        ret = Crashed d' /\ crash d'))%type.
+    (exists ret,
+        exec o d p ret /\
+        ((exists d' r,
+             ret = Finished d' r
+             /\ post r d') \/
+         (exists d',
+             ret = Crashed d' /\ crash d')))%type.
 
 
   
@@ -67,9 +68,11 @@ Theorem hoare_triple_weaken_post_weak:
 Proof.
   unfold hoare_triple; intros;
     edestruct H; intros; eauto.
-  cleanup.
+  cleanup; split_ors; cleanup.
+  eexists; split; eauto.  
   left; repeat eexists; eauto.
   eapply H0; eauto.
+  eexists; split; eauto.
 Qed.
 
 
@@ -95,9 +98,11 @@ Theorem hoare_triple_weaken_crash_weak:
 Proof.
   unfold  hoare_triple; intros;
     edestruct H; intros; eauto.
-  cleanup.
+  cleanup; split_ors; cleanup.
+  eexists; split; eauto.
+  eexists; split; eauto.  
   right; repeat eexists; eauto.
-  eapply H0; eauto.
+  eapply H0; eauto. 
 Qed.
 
 
