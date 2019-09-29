@@ -7,7 +7,7 @@ Theorem read_okay:
     << o >>
      (a |-> v)
      (Read a)
-    << o', r >>
+    << r >>
      (a |-> v * [[r = fst v]])
      (a |-> v).
 Proof.
@@ -17,7 +17,7 @@ Proof.
   invert_exec; cleanup.
   {
     left.
-    do 3 eexists; split; eauto.
+    do 2 eexists; split; eauto.
     unfold Disk.read in *;
     eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
@@ -33,7 +33,7 @@ Theorem write_okay:
     << o >>
      (a |-> v)
      (Write a v')
-    << o', r >>
+    << r >>
      (a |-> (v', (fst v::snd v)))
      (a |-> v).
 Proof.
@@ -43,7 +43,7 @@ Proof.
   invert_exec; cleanup; simpl in *.
   {
     left.
-    do 3 eexists; split; eauto.
+    do 2 eexists; split; eauto.
     unfold Disk.read in *;
     eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
@@ -62,7 +62,7 @@ Theorem ret_okay:
     << o >>
      emp
      (Ret v)
-    << o', r >>
+    << r >>
      (emp * [[r = v]])
      emp.
 Proof.
@@ -71,7 +71,7 @@ Proof.
   invert_exec; cleanup; simpl in *.
   {
     left.
-    do 3 eexists; split; eauto.
+    do 2 eexists; split; eauto.
     pred_apply; cancel; eauto.
   }
   {

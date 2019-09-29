@@ -5,9 +5,11 @@ Set Implicit Arguments.
 
 Section Layer1.
 
-  Definition state := (oracle * (disk (set value)))%type.
-  Definition get_oracle (st: state) := fst st.
-  Definition get_disk (st: state) := snd st.
+  Inductive token :=
+  | Crash : token
+  | Cont : token.
+
+  Definition state := disk (set value).
   
   Inductive prog : Type -> Type :=
   | Read : addr -> prog value
@@ -16,69 +18,57 @@ Section Layer1.
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
    
   Inductive exec :
-    forall T, state -> prog T -> @Result state T -> Prop :=
+    forall T, oracle token ->  state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
-      forall st o' a v,
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
+      forall o d a v,
+        o = [Cont] ->
         read d a = Some v ->
-        exec st (Read a) (Finished (o', d) v)
+        exec o d (Read a) (Finished d v)
              
   | ExecWrite :
-      forall st o' a v,
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
+      forall o d a v,
+        o = [Cont] ->
         read d a <> None ->
-        exec st (Write a v) (Finished (o', (write d a v)) tt)
+        exec o d (Write a v) (Finished (write d a v) tt)
              
   | ExecRet :
-      forall st o' T (v: T),
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
-        exec st (Ret v) (Finished (o', d) v)
+      forall o d T (v: T),
+        o = [Cont] ->
+        exec o d (Ret v) (Finished d v)
 
   | ExecBind :
       forall T T' (p1: prog T) (p2: T -> prog T')
-        st st1 r ret,
-        exec st p1 (Finished st1 r) ->
-        exec st1 (p2 r) ret ->
-        exec st (Bind p1 p2) ret
+        o1 d1 d1' o2 r ret,
+        exec o1 d1 p1 (Finished d1' r) ->
+        exec o2 d1' (p2 r) ret ->
+        exec (o1++o2) d1 (Bind p1 p2) ret
 
   | ExecReadCrash :
-      forall st o' a,
-        let o := fst st in
-        let d := snd st in
-        o = Crash::o' ->
-        exec st (Read a) (Crashed (o', d))
+      forall o d a,
+        o = [Crash] ->
+        exec o d (Read a) (Crashed d)
              
   | ExecWriteCrash :
-      forall st o' a v,
-        let o := fst st in
-        let d := snd st in
-        o = Crash::o' ->
-        exec st (Write a v) (Crashed (o', d))
+      forall o d a v,
+        o = [Crash] ->
+        exec o d (Write a v) (Crashed d)
              
   | ExecRetCrash :
-      forall st o' T (v: T),
-        let o := fst st in
-        let d := snd st in
-        o = Crash::o' ->
-        exec st (Ret v) (Crashed (o', d))
+      forall o d T (v: T),
+        o = [Crash] ->
+        exec o d (Ret v) (Crashed d)
              
   | ExecBindCrash :
       forall T T' (p1: prog T) (p2: T -> prog T')
-        st st1,
-        exec st p1 (Crashed st1) ->
-        exec st (Bind p1 p2) (Crashed st1)
+        o1 d1 d1',
+        exec o1 d1 p1 (Crashed d1') ->
+        exec o1 d1 (Bind p1 p2) (Crashed d1')
 
   | ExecBindFail :
       forall T T' (p1: prog T) (p2: T -> prog T')
-        st st1,
-        exec st p1 (Failed st1) ->
-        exec st (Bind p1 p2) (Failed st1).
+        o st st1,
+        exec o st p1 (Failed st1) ->
+        exec o st (Bind p1 p2) (Failed st1).
   (* TODO: add Failed cases *)
   
 End Layer1.

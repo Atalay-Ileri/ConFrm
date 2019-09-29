@@ -70,13 +70,7 @@ Proof.
   all: specialize IHtr with (1:= H1); intuition eauto.
 Qed.
 
-Inductive token :=
-| Handle : handle -> token
-| Crash : token
-| Cont : token
-.
-
-Definition oracle := list token.
+Definition oracle T := list T.
 
 Notation "'addr_dec'" := addr_eq_dec.
 Notation "'handle_dec'" := handle_eq_dec.

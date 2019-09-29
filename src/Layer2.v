@@ -12,12 +12,8 @@ Section Layer2.
   | DiskFull : token
   | Cont : token
   | Crash : token.
-
-  Definition oracle := list token.
   
-  Definition state := (oracle * (disk value))%type.
-  Definition get_oracle (st: state) := fst st.
-  Definition get_disk (st: state) := snd st.
+  Definition state := disk value.
   
   Inductive prog : Type -> Type :=
   | Read : addr -> prog (option value)
@@ -28,85 +24,69 @@ Section Layer2.
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
    
   Inductive exec :
-    forall T, state -> prog T -> @Result state T -> Prop :=
+    forall T, oracle token -> state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
-      forall st o' a,
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
-        exec st (Read a) (Finished (o', d) (d a))
+      forall o d a,
+        o = [Cont] ->
+        exec o d (Read a) (Finished d (d a))
              
   | ExecWriteSucc :
-      forall st o' a v,
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
+      forall o d a v,
+        o = [Cont] ->
         d a <> None ->
-        exec st (Write a v) (Finished (o', (upd d a v)) (Some tt))
+        exec o d (Write a v) (Finished (upd d a v) (Some tt))
 
   | ExecWriteFail :
-      forall st o' a v,
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
+      forall o d a v,
+        o = [Cont] ->
         d a = None ->
-        exec st (Write a v) (Finished (o', d) None)
+        exec o d (Write a v) (Finished d None)
 
   | ExecAllocSucc :
-      forall st o' a v,
-        let o := fst st in
-        let d := snd st in
-        o = BlockNum a::o' ->
+      forall o d a v,
+        o = [BlockNum a] ->
         d a = None ->
-        exec st (Alloc v) (Finished (o', (upd d a v)) (Some a))
+        exec o d (Alloc v) (Finished (upd d a v) (Some a))
 
   | ExecAllocFail :
-      forall st o' v,
-        let o := fst st in
-        let d := snd st in
-        o = DiskFull::o' ->
-        exec st (Alloc v) (Finished (o', d) None)
+      forall o d v,
+        o = [DiskFull] ->
+        exec o d (Alloc v) (Finished d None)
 
   | ExecFree :
-      forall st o' a,
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
-        exec st (Free a) (Finished (o', (delete d a)) tt)
+      forall o d a,
+        o = [Cont] ->
+        exec o d (Free a) (Finished (delete d a) tt)
              
   | ExecRet :
-      forall st o' T (v: T),
-        let o := fst st in
-        let d := snd st in
-        o = Cont::o' ->
-        exec st (Ret v) (Finished (o', d) v)
+      forall o d T (v: T),
+        o = [Cont] ->
+        exec o d (Ret v) (Finished d v)
 
   | ExecBind :
       forall T T' (p1: prog T) (p2: T -> prog T')
-        st st1 r ret,
-        exec st p1 (Finished st1 r) ->
-        exec st1 (p2 r) ret ->
-        exec st (Bind p1 p2) ret
+        o1 o2 d d1 r ret,
+        exec o1 d p1 (Finished d1 r) ->
+        exec o2 d1 (p2 r) ret ->
+        exec (o1++o2) d (Bind p1 p2) ret
              
   | ExecOpCrash :
-      forall T st o' (p: prog T),
-        let o := fst st in
-        let d := snd st in
-        o = Crash::o' ->
+      forall T (p: prog T) o d,
+        o = [Crash] ->
         (forall T1 (p1: prog T1) p2, p <> Bind p1 p2) ->
-        exec st p (Crashed (o', d))
+        exec o d p (Crashed d)
              
   | ExecBindCrash :
       forall T T' (p1: prog T) (p2: T -> prog T')
-        st st1,
-        exec st p1 (Crashed st1) ->
-        exec st (Bind p1 p2) (Crashed st1)
+        o d d1,
+        exec o d p1 (Crashed d1) ->
+        exec o d (Bind p1 p2) (Crashed d1)
 
   | ExecBindFail :
       forall T T' (p1: prog T) (p2: T -> prog T')
-        st st1,
-        exec st p1 (Failed st1) ->
-        exec st (Bind p1 p2) (Failed st1).
+        o d d1,
+        exec o d p1 (Failed d1) ->
+        exec o d (Bind p1 p2) (Failed d1).
   (* TODO: add Failed cases *)
   
 End Layer2.
