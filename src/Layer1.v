@@ -20,21 +20,18 @@ Section Layer1.
   Inductive exec :
     forall T, oracle token ->  state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
-      forall o d a v,
-        o = [Cont] ->
+      forall d a v,
         read d a = Some v ->
-        exec o d (Read a) (Finished d v)
+        exec [Cont] d (Read a) (Finished d v)
              
   | ExecWrite :
-      forall o d a v,
-        o = [Cont] ->
+      forall d a v,
         read d a <> None ->
-        exec o d (Write a v) (Finished (write d a v) tt)
+        exec [Cont] d (Write a v) (Finished (write d a v) tt)
              
   | ExecRet :
-      forall o d T (v: T),
-        o = [Cont] ->
-        exec o d (Ret v) (Finished d v)
+      forall d T (v: T),
+        exec [Cont] d (Ret v) (Finished d v)
 
   | ExecBind :
       forall T T' (p1: prog T) (p2: T -> prog T')
@@ -43,20 +40,10 @@ Section Layer1.
         exec o2 d1' (p2 r) ret ->
         exec (o1++o2) d1 (Bind p1 p2) ret
 
-  | ExecReadCrash :
-      forall o d a,
-        o = [Crash] ->
-        exec o d (Read a) (Crashed d)
-             
-  | ExecWriteCrash :
-      forall o d a v,
-        o = [Crash] ->
-        exec o d (Write a v) (Crashed d)
-             
-  | ExecRetCrash :
-      forall o d T (v: T),
-        o = [Crash] ->
-        exec o d (Ret v) (Crashed d)
+  | ExecOpCrash :
+      forall T d (p: prog T),
+        (forall T' (p1: prog T') p2, p <> Bind p1 p2) ->
+        exec [Crash] d p (Crashed d)
              
   | ExecBindCrash :
       forall T T' (p1: prog T) (p2: T -> prog T')
@@ -74,3 +61,4 @@ Section Layer1.
 End Layer1.
 
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
+Hint Constructors exec.

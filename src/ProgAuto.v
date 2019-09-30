@@ -47,6 +47,7 @@ Proof.
   do 2 eexists; eauto.
   right; do 2 eexists; eauto.
   right; do 2 eexists; eauto.
+  exfalso; intuition eauto.
 Qed.
 
 Ltac invert_exec :=
@@ -77,9 +78,10 @@ Ltac invert_exec :=
       split_ors.
       invert_exec; cleanup.
       split_ors; cleanup.
-      eapply ExecBindCrash; auto.      
+      eapply ExecBindCrash; auto.
+      
       econstructor; eauto.
-      eapply ExecBindCrash; eauto.
+      
       invert_exec.
       rewrite <- app_assoc.
       repeat econstructor; eauto.
@@ -87,9 +89,10 @@ Ltac invert_exec :=
       split_ors.
       invert_exec; cleanup.
       split_ors; cleanup.
-      eapply ExecBindFail; auto.      
+      eapply ExecBindFail; auto.
+      
       econstructor; eauto.
-      eapply ExecBindFail; eauto.
+      
       invert_exec.
       rewrite <- app_assoc.
       repeat econstructor; eauto.
@@ -100,21 +103,21 @@ Ltac invert_exec :=
       
       split_ors.
       eapply ExecBindCrash; eauto.
-      eapply ExecBindCrash; eauto.
+      
       invert_exec.
       split_ors.
       eapply ExecBindCrash; eauto.
-      econstructor; eauto.
+      
       rewrite app_assoc.
       repeat econstructor; eauto.
 
       split_ors.
       eapply ExecBindFail; eauto.
-      eapply ExecBindFail; eauto.
+      
       invert_exec.
       split_ors.
       eapply ExecBindFail; eauto.
-      econstructor; eauto.
+      
       rewrite app_assoc.
       repeat econstructor; eauto.
   Qed.
