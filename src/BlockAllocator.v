@@ -342,10 +342,11 @@ Theorem read_ok:
    (rep dh)
    (read a)
   << r >>
-   (rep dh *
-     [[(r = None /\ (dh a = None \/ a >= block_size)) \/
-       (exists v, r = Some v /\ dh a = Some v)%type]])
-   (rep dh).
+  (rep dh *
+   [[ ~In Crash o ]] *
+   [[(r = None /\ (dh a = None \/ a >= block_size)) \/
+     (exists v, r = Some v /\ dh a = Some v)%type]])
+   (rep dh * [[ In Crash o ]]).
 Proof. Admitted. (*
   intros.
   unfold read; simpl.

@@ -12,7 +12,13 @@ Section Layer2.
   | DiskFull : token
   | Cont : token
   | Crash : token.
-  
+
+  Record oracle :=
+    {
+      token_list : list token;
+      refinement_length : nat;
+    }.
+    
   Definition state := disk value.
   
   Inductive prog : Type -> Type :=
@@ -24,43 +30,43 @@ Section Layer2.
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
    
   Inductive exec :
-    forall T, oracle token -> state -> prog T -> @Result state T -> Prop :=
+    forall T, oracle -> state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
       forall o d a,
-        o = [Cont] ->
+        token_list o = [Cont] ->
         exec o d (Read a) (Finished d (d a))
              
   | ExecWriteSucc :
       forall o d a v,
-        o = [Cont] ->
+        token_list o = [Cont] ->
         d a <> None ->
         exec o d (Write a v) (Finished (upd d a v) (Some tt))
 
   | ExecWriteFail :
       forall o d a v,
-        o = [Cont] ->
+        token_list o = [Cont] ->
         d a = None ->
         exec o d (Write a v) (Finished d None)
 
   | ExecAllocSucc :
       forall o d a v,
-        o = [BlockNum a] ->
+        token_list o = [BlockNum a] ->
         d a = None ->
         exec o d (Alloc v) (Finished (upd d a v) (Some a))
 
   | ExecAllocFail :
       forall o d v,
-        o = [DiskFull] ->
+        token_list o = [DiskFull] ->
         exec o d (Alloc v) (Finished d None)
 
   | ExecFree :
       forall o d a,
-        o = [Cont] ->
+        token_list o = [Cont] ->
         exec o d (Free a) (Finished (delete d a) tt)
              
   | ExecRet :
       forall o d T (v: T),
-        o = [Cont] ->
+        token_list o = [Cont] ->
         exec o d (Ret v) (Finished d v)
 
   | ExecBind :
@@ -68,11 +74,12 @@ Section Layer2.
         o1 o2 d d1 r ret,
         exec o1 d p1 (Finished d1 r) ->
         exec o2 d1 (p2 r) ret ->
-        exec (o1++o2) d (Bind p1 p2) ret
+        exec {| token_list := token_list o1 ++ token_list o2;
+                refinement_length := refinement_length o1 + refinement_length o2; |} d (Bind p1 p2) ret
              
   | ExecOpCrash :
       forall T (p: prog T) o d,
-        o = [Crash] ->
+        token_list o = [Crash] ->
         (forall T1 (p1: prog T1) p2, p <> Bind p1 p2) ->
         exec o d p (Crashed d)
              
@@ -91,4 +98,4 @@ Section Layer2.
   
 End Layer2.
 
-Notation "x <- p1 ;; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
+Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).

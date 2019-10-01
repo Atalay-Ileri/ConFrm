@@ -13,6 +13,9 @@ Tactic Notation "destruct_fresh" constr(term) :=
 Tactic Notation "assert_fresh" constr(ass) :=
   let A := fresh "A" in assert ass as A.
 
+Tactic Notation "assume" "(" ident(label) ":" constr(type) ")" :=
+  assert (label: type); [shelve|].
+
 Lemma app_cons_nil:
   forall T (l: list T) a,
     a::l = (a::nil)++l.

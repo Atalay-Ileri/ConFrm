@@ -7,8 +7,8 @@ Set Implicit Arguments.
 
 (** ** Hoare logic *)
 Definition precond := oracle token -> @pred addr addr_dec (set value).
-Definition postcond {T: Type} := T -> @pred addr addr_dec (set value).
-Definition crashcond := @pred addr addr_dec (set value).
+Definition postcond {T: Type} := oracle token -> T -> @pred addr addr_dec (set value).
+Definition crashcond := oracle token -> @pred addr addr_dec (set value).
 
 
 Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T) (crash: crashcond):=
@@ -18,9 +18,9 @@ Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T)
         exec o d p ret /\
         ((exists d' r,
              ret = Finished d' r
-             /\ post r d') \/
+             /\ post o r d') \/
          (exists d',
-             ret = Crashed d' /\ crash d')))%type.
+             ret = Crashed d' /\ crash o d')))%type.
 
 
   
@@ -29,8 +29,8 @@ Notation
   (forall F, hoare_triple
           (fun (o:oracle token) => F * pre)%pred
           p
-          (fun  r => F * post)%pred
-          (F * crash)%pred)
+          (fun o r => F * post)%pred
+          (fun o => F * crash)%pred)
     (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
      format "'[v' '[  ' '<<' o '>>' '//' '[' pre ']' '//' '[' p ']' ']' '//' '[  ' '<<' r '>>' '//' '[' post ']' '//' '[' crash ']' ']' ']'").
 
@@ -39,8 +39,8 @@ Notation
    (exists e1, (forall F, hoare_triple
           (fun (o:oracle token) => F * pre)%pred
           p
-          (fun r => F * post)%pred
-          (F * crash)%pred))
+          (fun o r => F * post)%pred
+          (fun o => F * crash)%pred))
     (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
      format "'[v' '{{' e1 '}}' '//' '[  ' '<<' o '>>' '//' pre '//' p ']' '//' '[  ' '<<' r '>>' '//' post '//' crash ']' ']'").
 
@@ -62,8 +62,8 @@ Theorem hoare_triple_weaken_post_weak:
   hoare_triple pre p post crash ->
   (forall  o d r,
       pre o d ->
-      post r =p=>
-      post' r) ->
+      post o r =p=>
+      post' o r) ->
   hoare_triple pre p post' crash.
 Proof.
   unfold hoare_triple; intros;
@@ -79,9 +79,9 @@ Qed.
 Theorem hoare_triple_weaken_post_strong:
   forall T (p: prog T) pre (post post': postcond) crash,
   hoare_triple pre p post crash ->
-  (forall (r: T),
-      post r =p=>
-      post' r) ->
+  (forall o (r: T),
+      post o r =p=>
+      post' o r) ->
   hoare_triple pre p post' crash.
 Proof.
   intros; eapply hoare_triple_weaken_post_weak; eauto.
@@ -92,8 +92,8 @@ Theorem hoare_triple_weaken_crash_weak:
   hoare_triple pre p post crash ->
   (forall  o d,
       pre o d ->
-      crash =p=>
-      crash') ->
+      crash o =p=>
+      crash' o) ->
   hoare_triple pre p post crash'.
 Proof.
   unfold  hoare_triple; intros;
@@ -109,7 +109,7 @@ Qed.
 Theorem hoare_triple_weaken_crash_strong:
   forall T (p: prog T) pre post (crash crash': crashcond),
   hoare_triple pre p post crash ->
-  (crash =p=> crash') ->
+  (forall o, crash o =p=> crash' o) ->
   hoare_triple pre p post crash'.
 Proof.
   intros; eapply hoare_triple_weaken_crash_weak; eauto.

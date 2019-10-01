@@ -9,6 +9,8 @@ Section Layer1.
   | Crash : token
   | Cont : token.
 
+  Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}. decide equality. Defined.
+
   Definition state := disk (set value).
   
   Inductive prog : Type -> Type :=
