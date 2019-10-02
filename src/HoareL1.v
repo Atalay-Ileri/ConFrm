@@ -7,8 +7,8 @@ Set Implicit Arguments.
 
 (** ** Hoare logic *)
 Definition precond := oracle token -> @pred addr addr_dec (set value).
-Definition postcond {T: Type} := oracle token -> T -> @pred addr addr_dec (set value).
-Definition crashcond := oracle token -> @pred addr addr_dec (set value).
+Definition postcond {T: Type} := T -> @pred addr addr_dec (set value).
+Definition crashcond := @pred addr addr_dec (set value).
 
 
 Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T) (crash: crashcond):=
@@ -18,29 +18,29 @@ Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T)
         exec o d p ret /\
         ((exists d' r,
              ret = Finished d' r
-             /\ post o r d') \/
+             /\ post r d') \/
          (exists d',
-             ret = Crashed d' /\ crash o d')))%type.
+             ret = Crashed d' /\ crash d')))%type.
 
 
   
 Notation
   "<< o >> pre p << r >> post crash" :=
   (forall F, hoare_triple
-          (fun (o:oracle token) => F * pre)%pred
+          (fun o => F * pre)%pred
           p
-          (fun o r => F * post)%pred
-          (fun o => F * crash)%pred)
+          (fun r => F * post)%pred
+          (F * crash)%pred)
     (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
      format "'[v' '[  ' '<<' o '>>' '//' '[' pre ']' '//' '[' p ']' ']' '//' '[  ' '<<' r '>>' '//' '[' post ']' '//' '[' crash ']' ']' ']'").
 
 Notation
   "{{ e1 }} << o >> pre p << r >> post crash" :=
    (exists e1, (forall F, hoare_triple
-          (fun (o:oracle token) => F * pre)%pred
+          (fun o => F * pre)%pred
           p
           (fun o r => F * post)%pred
-          (fun o => F * crash)%pred))
+          (F * crash)%pred))
     (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
      format "'[v' '{{' e1 '}}' '//' '[  ' '<<' o '>>' '//' pre '//' p ']' '//' '[  ' '<<' r '>>' '//' post '//' crash ']' ']'").
 
@@ -62,8 +62,8 @@ Theorem hoare_triple_weaken_post_weak:
   hoare_triple pre p post crash ->
   (forall  o d r,
       pre o d ->
-      post o r =p=>
-      post' o r) ->
+      post r =p=>
+      post' r) ->
   hoare_triple pre p post' crash.
 Proof.
   unfold hoare_triple; intros;
@@ -79,9 +79,9 @@ Qed.
 Theorem hoare_triple_weaken_post_strong:
   forall T (p: prog T) pre (post post': postcond) crash,
   hoare_triple pre p post crash ->
-  (forall o (r: T),
-      post o r =p=>
-      post' o r) ->
+  (forall (r: T),
+      post r =p=>
+      post' r) ->
   hoare_triple pre p post' crash.
 Proof.
   intros; eapply hoare_triple_weaken_post_weak; eauto.
@@ -90,10 +90,10 @@ Qed.
 Theorem hoare_triple_weaken_crash_weak:
   forall T (p: prog T) pre post (crash crash': crashcond),
   hoare_triple pre p post crash ->
-  (forall  o d,
+  (forall o d,
       pre o d ->
-      crash o =p=>
-      crash' o) ->
+      crash =p=>
+      crash') ->
   hoare_triple pre p post crash'.
 Proof.
   unfold  hoare_triple; intros;
@@ -109,7 +109,7 @@ Qed.
 Theorem hoare_triple_weaken_crash_strong:
   forall T (p: prog T) pre post (crash crash': crashcond),
   hoare_triple pre p post crash ->
-  (forall o, crash o =p=> crash' o) ->
+  crash =p=> crash' ->
   hoare_triple pre p post crash'.
 Proof.
   intros; eapply hoare_triple_weaken_crash_weak; eauto.
@@ -163,7 +163,6 @@ Proof.
   }
 Qed.
 
-(*
 Theorem hoare_triple_pimpl' :
     forall T1 T2 (p1: prog T1) (p2: T1 -> prog T2) pre1 post1 post2 crash1 crash2,
       hoare_triple pre1 p1 post1 crash1 ->
@@ -257,51 +256,61 @@ Proof.
         apply trace_ok_app_merge; eauto.
     }
 Qed.
-*)
+ *)
 
-Theorem hoare_triple_pimpl :
-    forall T1 T2 (p1: prog T1) (p2: T1 -> prog T2) pre1 post1 post2 crash1 crash2,
-      hoare_triple pre1 p1 post1 crash1 ->
-      (forall o d r,
-          pre1 o d ->
-          hoare_triple (fun o' => post1 o o' r)%pred (p2 r) post2 crash2) ->
-    (forall o d o',
-      pre1 o d ->
-      crash1 o o' =p=> crash2 o o') ->
-    (forall o d o' d' o'' r r2,
-      pre1 o d ->
-      post1 o o' r d' ->
-      post2 o' o'' r2 =p=> post2 o o'' r2) ->
-    (forall o d o' d' o'' r,
-      pre1 o d ->
-      post1 o o' r d' ->
-      crash2 o' o'' =p=> crash2 o o'') ->
-    hoare_triple pre1 (Bind p1 p2) post2 crash2.
+Lemma exec_crash_in:
+  forall T (p: prog T) o d d',
+    exec o d p (Crashed d') ->
+    In Crash o.
 Proof.
-  unfold hoare_triple; intros.
-  invert_exec.
-  {
-    edestruct H; eauto; cleanup;
-    edestruct H0; eauto; cleanup.
-    left; repeat eexists; eauto.
-    eapply H2; eauto.
-  }
-  {
-    destruct H5; cleanup;
-    edestruct H; eauto; cleanup.
-    - right; repeat eexists; eauto.
-      eapply H1; eauto.
-    - edestruct H0; eauto; cleanup.
-      right; repeat eexists; eauto.
-      eapply H3; eauto.
-  }
-  {
-    destruct H5; cleanup;
-    edestruct H; eauto; cleanup;
-    edestruct H0; eauto; cleanup.
-  }
+  induction p; simpl in *; intros;
+    invert_exec; intuition; eauto.
+  cleanup.
+  apply in_app_iff; eauto.
 Qed.
 
+Theorem hoare_triple_pimpl :
+    forall T1 T2 (p1: prog T1) (p2: T1 -> prog T2) (pre: precond) pre1 post1 pre2 post2 crash1 crash2,
+      hoare_triple pre1 p1 post1 crash1 ->
+      (forall o d,
+          pre o d ->
+          exists o1 o2,
+            o = o1++o2 /\
+            (o2 = [] \/ ~In Crash o1) /\
+            pre1 o1 d) ->
+      (forall o1 d,
+         pre1 o1 d ->
+         (forall o2 r, post1 r =p=> pre2 o2)) ->
+      (forall o1 d r,
+         pre1 o1 d ->
+         (forall o2, post1 r =p=> pre2 o2) ->
+          hoare_triple pre2 (p2 r) post2 crash2) ->
+    (forall o d,
+      pre1 o d ->
+      crash1 =p=> crash2) ->
+    hoare_triple pre (Bind p1 p2) post2 crash2.
+Proof.
+  unfold hoare_triple; intros.
+  edestruct H0; eauto; cleanup.
+  edestruct H; eauto; cleanup.
+  specialize H1 with (1:=H7).
+  specialize H3 with (1:=H7).
+  split_ors.
+  - (* p1 Finished *)    
+    edestruct H2; eauto.
+    eapply H1; eauto.
+    cleanup.
+    split_ors; cleanup.
+    + (* p2 Finished *)
+      eexists. intuition eauto.
+    + (* p2 Crashed *)
+      eexists. intuition eauto.
+  - (* p1 Crashed *)
+    eexists. intuition eauto.
+    cleanup; rewrite app_nil_r;
+      econstructor; eauto.
+    apply exec_crash_in in H5; intuition.   
+Qed.
 
 
 Theorem hoare_triple_equivalence :
@@ -328,82 +337,114 @@ Ltac monad_simpl_one :=
 
 Ltac monad_simpl := repeat monad_simpl_one.
 
+Lemma exec_finished_deterministic:
+  forall T (p: prog T) o1 o2 st st1 st2 r1 r2,
+    exec o1 st p (Finished st1 r1)->
+    exec o2 st p (Finished st2 r2) ->
+    st1 = st2 /\ r1 = r2 /\ o1 = o2.
+Proof.
+    unfold state; induction p; simpl; intros;
+  invert_exec; cleanup;
+    invert_exec; cleanup;
+      destruct_pairs; cleanup; eauto.
+    specialize IHp with (1:=H0)(2:=H1); eauto; cleanup.
+    specialize H with (1:=H2)(2:=H3); cleanup.
+    repeat rewrite app_length; eauto.
+Qed.
+
+Lemma exec_finished_oracle_app:
+  forall T (p: prog T) o1 o2 st st1 r1 ret,
+    exec o1 st p (Finished st1 r1)->
+    exec (o1++o2) st p ret ->
+    o2 = [] /\ ret = Finished st1 r1.
+Proof.
+    unfold state; induction p; simpl; intros;
+  invert_exec; cleanup;
+    invert_exec; cleanup;
+      destruct_pairs; cleanup; eauto.
+    -
+      eapply exec_finished_deterministic in H0; eauto; cleanup.
+      eapply exec_finished_deterministic in H4; eauto; cleanup.
+      rewrite <- app_assoc in H3.
+      apply app_inv_head in H3; cleanup; eauto.
+      setoid_rewrite <- app_nil_r in H3 at 4.
+      apply app_inv_head in H3; cleanup; eauto.
+    - split_ors.
+      +
+        rewrite <- app_assoc in H1; eauto.
+        edestruct IHp; eauto; inversion H4.
+      +
+        eapply exec_finished_deterministic in H0; eauto; cleanup.
+        rewrite <- app_assoc in H4.
+        apply app_inv_head in H4; cleanup; eauto.
+    - split_ors.
+      +
+        rewrite <- app_assoc in H1; eauto.
+        edestruct IHp; eauto; inversion H4.
+      +
+        eapply exec_finished_deterministic in H0; eauto; cleanup.
+        rewrite <- app_assoc in H4.
+        apply app_inv_head in H4; cleanup; eauto.
+Qed.
 
 Lemma deterministic_prog:
-  forall T (p: prog T) st ret1 ret2,
-    exec st p ret1 ->
-    exec st p ret2 ->
+  forall T (p: prog T) o st ret1 ret2,
+    exec o st p ret1 ->
+    exec o st p ret2 ->
     ret1 = ret2.
 Proof.
   unfold state; induction p; simpl; intros;
   invert_exec; cleanup;
     invert_exec; cleanup;
       destruct_pairs; cleanup; eauto.
+  - eapply exec_finished_deterministic in H0; eauto; cleanup.
+    eapply exec_finished_deterministic in H3; eauto; cleanup; eauto.
   
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-  eauto.
+  - destruct H0; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
   
-  destruct H0; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
+  - destruct H0; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
 
-  destruct H0; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-  
-  destruct H1; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
+  - destruct H1; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
 
-  destruct H0; cleanup; destruct H1; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-  
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  - destruct H0; cleanup; destruct H1; cleanup.
+    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.      
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
 
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
+  - destruct H0; cleanup; destruct H1; cleanup.
+    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
 
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-  eauto.
+  - destruct H1; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
+      
+ - destruct H0; cleanup; destruct H1; cleanup.
+    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
 
-  destruct H0; cleanup; destruct H1; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-  
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-
-  destruct H1; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-  
-  destruct H0; cleanup; destruct H1; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-  
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-
-  destruct H0; cleanup; destruct H1; cleanup.
-  specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-  
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-
-  specialize IHp with (1:= H0)(2:=H1); cleanup.
-  specialize H with (1:= H2)(2:=H3); cleanup.
-  eauto.
+ - destruct H0; cleanup; destruct H1; cleanup.
+    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
+    + eapply exec_finished_deterministic in H0; eauto; cleanup.
+      apply app_inv_head in H4; cleanup; eauto.
 Qed.
-*)
