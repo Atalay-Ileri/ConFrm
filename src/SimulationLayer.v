@@ -285,10 +285,56 @@ Proof.
   end.
 Abort.
 
+Lemma bisimulation_weaken_valid_prog:
+  forall low high
 
+    refines_to
+    compilation_of
+    oracle_refines_to
 
+    valid_state_h
+    (valid_prog_h1
+    valid_prog_h2: forall T, Prog high T -> Prop),
 
+    (forall (T: Type) (p: Prog high T), valid_prog_h1 T p -> valid_prog_h2 T p) ->
+    
+  StrongBisimulation
+      low
+      high
+      (refines_to_valid
+         refines_to
+         valid_state_h)
+      (compiles_to_valid
+         valid_prog_h2
+         compilation_of)
+      valid_state_h
+      valid_prog_h2
+      compilation_of
+      refines_to
+      oracle_refines_to ->
 
+  StrongBisimulation
+      low
+      high
+      (refines_to_valid
+         refines_to
+         valid_state_h)
+      (compiles_to_valid
+         valid_prog_h1
+         compilation_of)
+      valid_state_h
+      valid_prog_h1
+      compilation_of
+      refines_to
+      oracle_refines_to.
+Proof.
+  intros.
+  destruct H0.
+  constructor; intros.
+  eapply strong_bisimulation_correct0; eauto.
+  unfold compiles_to_valid in *; cleanup.
+  eexists; eauto.
+Qed.
 
 
 (*

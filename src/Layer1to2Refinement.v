@@ -353,15 +353,15 @@ Abort.
   Qed.
     
   Theorem sbs :
-    forall valid_h valid_prog_h,
-    StrongBisimulation low high
-                       (refines_to_valid refines_to valid_h)
-                       (compiles_to_valid valid_prog_h compilation_of)
-                       valid_h
-                       valid_prog_h
-                       compilation_of refines_to
-                       oracle_refines_to.
-                      
+    forall valid_h,
+      StrongBisimulation
+        low high
+        (refines_to_valid refines_to valid_h)
+        (compiles_to_valid (fun _ _ => True) compilation_of)
+        valid_h
+        (fun _ _ => True)
+        compilation_of refines_to
+        oracle_refines_to.              
   Proof.
     constructor.
     intros T p1 p2.
@@ -406,8 +406,8 @@ Abort.
             intuition (cleanup; eauto).
             apply star_split in H0; cleanup.
             unfold rep in *.
-            destruct_lift H9.          
-            erewrite H13; eauto; simpl.
+            destruct_lift H7.          
+            erewrite H11; eauto; simpl.
             apply nth_overflow; simpl.
             destruct (value_to_bits dummy); simpl.
             unfold valid_bitlist in *; cleanup; eauto.
@@ -434,7 +434,7 @@ Abort.
           simpl in *.
           repeat split; eauto.
           intuition (cleanup; eauto).
-          eapply_fresh rep_eq in H3; eauto;
+          eapply_fresh rep_eq in H2; eauto;
             cleanup; eauto.
           
         * (* Finished *)
@@ -449,16 +449,16 @@ Abort.
             repeat split; eauto.
 
             intuition (cleanup; eauto).
-            apply star_split in H3; cleanup.
+            apply star_split in H2; cleanup.
             unfold rep in *.
-            destruct_lift H9.          
-            erewrite H13; eauto; simpl.
+            destruct_lift H7.          
+            erewrite H11; eauto; simpl.
             apply nth_overflow; simpl.
             destruct (value_to_bits dummy); simpl.
             unfold valid_bitlist in *; cleanup; eauto.
           
             intros; cleanup.
-            eapply_fresh rep_eq in H3; eauto;
+            eapply_fresh rep_eq in H2; eauto;
               cleanup; eauto.
           --
             destruct_lifts.
@@ -494,9 +494,6 @@ Abort.
             edestruct IHp2; eauto.
             unfold compiles_to_valid;
             eexists; split; eauto.
-            (* XXX: If bind is valid, then parts are valid too *)
-            admit.
-            admit.
             edestruct H5; eauto; simpl in *; cleanup; try tauto.
             clear H5 H6.
             simpl in *.
@@ -505,13 +502,10 @@ Abort.
             edestruct H; try reflexivity; eauto.
             unfold compiles_to_valid;
             eexists; split; eauto.
-            (* XXX: If bind is valid, then parts are valid too *)
-            admit.
-            admit.
             edestruct H5; eauto; simpl in *; cleanup; try tauto.
             clear H5 H6.
             simpl in *.
-            destruct H19; eauto; cleanup.
+            destruct H18; eauto; cleanup.
             
             eexists; split.
             econstructor; eauto.
@@ -526,9 +520,6 @@ Abort.
               edestruct IHp2; eauto.
               unfold compiles_to_valid;
               eexists; split; eauto.
-              (* XXX: If bind is valid, then parts are valid too *)
-              admit.
-              admit.
               edestruct H8; eauto; simpl in *; cleanup; try tauto.
               clear H8 H9.
               simpl in *.
@@ -551,9 +542,6 @@ Abort.
                edestruct IHp2; eauto.
                unfold compiles_to_valid;
                eexists; split; eauto.
-               (* XXX: If bind is valid, then parts are valid too *)
-               admit.
-               admit.
                edestruct H5; eauto; simpl in *; cleanup; try tauto.
                clear H5 H6.
                simpl in *.
@@ -562,9 +550,6 @@ Abort.
                edestruct H; try reflexivity; eauto.
                unfold compiles_to_valid;
                eexists; split; eauto.
-               (* XXX: If bind is valid, then parts are valid too *)
-               admit.
-               admit.
                edestruct H5; eauto; simpl in *; cleanup; try tauto.
                clear H5 H6.
                simpl in *.
@@ -596,9 +581,6 @@ Abort.
             edestruct IHp2; eauto.
             unfold compiles_to_valid;
             eexists; split; eauto.
-            (* XXX: If bind is valid, then parts are valid too *)
-            admit.
-            admit.
             edestruct H5; eauto; simpl in *; cleanup; try tauto.
             clear H5 H6.
             simpl in *.
@@ -607,9 +589,6 @@ Abort.
             edestruct H; try reflexivity; eauto.
             unfold compiles_to_valid;
             eexists; split; eauto.
-            (* XXX: If bind is valid, then parts are valid too *)
-            admit.
-            admit.
             edestruct H5; eauto; simpl in *; cleanup; try tauto.
             clear H5 H6.
             simpl in *.
@@ -626,6 +605,22 @@ Abort.
         + (* Finished *)
           split_ors; cleanup.
           (* XXX: HERE *)
-  Abort.
+  Admitted.
 
+  Theorem sbs_general:
+    forall valid_h valid_prog_h,
+      StrongBisimulation
+        low high
+        (refines_to_valid refines_to valid_h)
+        (compiles_to_valid valid_prog_h compilation_of)
+        valid_h
+        valid_prog_h
+        compilation_of refines_to
+        oracle_refines_to.  
+  Proof.
+    intros.
+    eapply bisimulation_weaken_valid_prog; [|apply sbs].
+    intuition.
+  Qed.
+    
 End Layer1to2Refinement.
