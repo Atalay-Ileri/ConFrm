@@ -1,9 +1,14 @@
-Require Import List BaseTypes Layer1 ProgAuto CommonAutomation.
-Require Import Disk Memx Predx SepAuto Simulation.
+Require Import PeanoNat List BaseTypes Layer1 ProgAuto CommonAutomation.
+Require Import Streams Disk Memx Predx SepAuto Simulation.
 Import ListNotations.
 
 Set Implicit Arguments.
 
+Fixpoint Str_firstn {T} n (s: Stream T) : list T :=
+  match n with
+  |0 => nil
+  |S n' => hd s :: Str_firstn n' (tl s)
+  end.
 
 (** ** Hoare logic *)
 Definition precond := oracle -> @pred addr addr_dec (set value).
@@ -21,8 +26,6 @@ Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T)
              /\ post o' r d') \/
          (exists d',
              ret = Crashed d' /\ crash o' d')))%type.
-
-
   
 Notation
   "<< o >> pre p << o' , r >> post crash" :=
@@ -269,24 +272,24 @@ Qed.
 Lemma exec_oracle_prefix:
   forall T (p: prog T) o o' d ret,
     exec o d p o' ret ->
-    exists o1, o = o1++o'.
+    exists n, o' = Str_nth_tl n o.
 Proof.
   induction p; simpl in *; intros;
     invert_exec; cleanup;
-      try solve [eexists; rewrite app_cons_nil; eauto].
+      try solve [exists 1; simpl; eauto].
   - edestruct IHp; eauto; cleanup.
     edestruct H; eauto; cleanup.
-    eexists; rewrite app_assoc; eauto.
+    eexists; rewrite Str_nth_tl_plus; eauto.
   - split_ors.
     + edestruct IHp; eauto; cleanup.
     + edestruct IHp; eauto; cleanup.
       edestruct H; eauto; cleanup.
-      eexists; rewrite app_assoc; eauto.
+      eexists; rewrite Str_nth_tl_plus; eauto.
   - split_ors.
     + edestruct IHp; eauto; cleanup.
     + edestruct IHp; eauto; cleanup.
       edestruct H; eauto; cleanup.
-      eexists; rewrite app_assoc; eauto.
+      eexists; rewrite Str_nth_tl_plus; eauto.
 Qed.
 
 (*
@@ -363,21 +366,60 @@ Ltac monad_simpl_one :=
 
 Ltac monad_simpl := repeat monad_simpl_one.
 
+Lemma Str_firstn_hd:
+  forall T (m : nat) (s2 s1 : Stream T),
+  Str_firstn m s1 = Str_firstn m s2 ->
+  hd (Str_nth_tl m s1) = hd (Str_nth_tl m s2) ->
+  hd s1 = hd s2 /\ Str_firstn m (tl s1) = Str_firstn m (tl s2).
+Proof.
+  induction m; simpl; intros; eauto.
+  cleanup.
+  edestruct IHm; eauto.
+  destruct s1, s2; simpl in *.
+  destruct m; simpl in *; cleanup; eauto.
+Qed.
+
+Lemma Str_firstn_Str_nth_tl_eq:
+  forall T n m (s1 s2: Stream T),
+    Str_firstn m s1 = Str_firstn m s2 ->
+    Str_firstn n (Str_nth_tl m s1) =
+    Str_firstn n (Str_nth_tl m s2) ->
+    Str_firstn (n + m) s1 = Str_firstn (n + m) s2.
+Proof.
+  induction n; simpl; intros; eauto.
+  cleanup.
+  repeat rewrite tl_nth_tl in H3.
+  erewrite IHn.
+  3: eauto.
+  destruct m; simpl in *; cleanup.
+  rewrite Nat.add_0_r; eauto.
+  eauto.
+
+  eapply Str_firstn_hd in H; eauto; cleanup; eauto.
+Qed.
+
 Lemma exec_finished_deterministic:
   forall T (p: prog T) o1 o1' o2 o2' st st1 st2 r1 r2,
     exec o1 st p o1' (Finished st1 r1)->
     exec o2 st p o2' (Finished st2 r2) ->
     st1 = st2 /\ r1 = r2 /\
-    exists ox, o1 = ox++o1' /\ o2=ox++o2'.
+    exists n,
+      Str_firstn n o1 = Str_firstn n o2 /\
+      Str_nth_tl n o1 = o1' /\
+      Str_nth_tl n o2 = o2'.
 Proof.
     unfold state; induction p; simpl; intros;
   invert_exec; cleanup;
     invert_exec; cleanup;
-      destruct_pairs; cleanup; eauto;
-    try rewrite app_cons_nil; eauto.
+    destruct_pairs; cleanup; eauto;
+    try solve [intuition;
+    exists 1; simpl; intuition].
     specialize IHp with (1:=H0)(2:=H1); eauto; cleanup.
     specialize H with (1:=H2)(2:=H3); cleanup.
-    repeat rewrite app_assoc; eauto.
+    repeat rewrite Str_nth_tl_plus; eauto.
+    intuition.
+    eexists; repeat split; try reflexivity.
+    eapply Str_firstn_Str_nth_tl_eq; eauto.
 Qed.
 
 (*
@@ -426,29 +468,27 @@ Proof.
   unfold state; induction p; simpl; intros;
   invert_exec; cleanup;
     invert_exec; cleanup;
-      destruct_pairs; cleanup; eauto ;
-  try solve [
+      destruct_pairs; cleanup; eauto;
+try solve [
               eapply exec_finished_deterministic in H0; eauto; cleanup;
-              eapply exec_finished_deterministic in H3; eauto; cleanup; eauto;
-              repeat rewrite app_assoc in H6;
-              apply app_inv_head in H6; cleanup; eauto];
-  try solve [
+              eapply exec_finished_deterministic in H3; eauto; cleanup; eauto];
+try solve [
           destruct H0; cleanup; eauto;
           [
             eapply IHp in H0; eauto; cleanup |
             eapply exec_finished_deterministic in H0; eauto; cleanup;
-            apply app_inv_head in H6; cleanup; eauto] ];
+            eauto] ];
   try solve [
           destruct H1; cleanup; eauto;
           [
             eapply IHp in H0; eauto; cleanup |
             eapply exec_finished_deterministic in H0; eauto; cleanup;
-            apply app_inv_head in H6; cleanup; eauto] ];
+            eauto] ];
   try solve [
         destruct H0; destruct H1; cleanup; [
           specialize IHp with (1:= H0)(2:=H1); cleanup; eauto |
           eapply IHp in H0; eauto; cleanup |
           eapply IHp in H0; eauto; cleanup |    
           eapply exec_finished_deterministic in H0; eauto; cleanup;
-          apply app_inv_head in H6; cleanup; eauto] ].
+          eauto] ].
 Qed.

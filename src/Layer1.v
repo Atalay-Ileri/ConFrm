@@ -1,5 +1,5 @@
-Require Import List BaseTypes Memx CommonAutomation Disk Simulation.
-Import ListNotations.
+Require Import Streams BaseTypes Memx.
+Require Import CommonAutomation Disk Simulation.
 
 Set Implicit Arguments.
 
@@ -11,7 +11,7 @@ Section Layer1.
 
   Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}. decide equality. Defined.
 
-  Definition oracle := list token.
+  Definition oracle := Stream token.
 
   Definition state := disk (set value).
   
@@ -26,16 +26,16 @@ Section Layer1.
   | ExecRead : 
       forall o' d a v,
         read d a = Some v ->
-        exec (Cont::o') d (Read a) o' (Finished d v)
+        exec (Cons Cont o') d (Read a) o' (Finished d v)
              
   | ExecWrite :
       forall o' d a v,
         read d a <> None ->
-        exec (Cont::o') d (Write a v) o' (Finished (write d a v) tt)
+        exec (Cons Cont o') d (Write a v) o' (Finished (write d a v) tt)
              
   | ExecRet :
       forall d T (v: T) o',
-        exec (Cont::o') d (Ret v) o' (Finished d v)
+        exec (Cons Cont o') d (Ret v) o' (Finished d v)
 
   | ExecBind :
       forall T T' (p1: prog T) (p2: T -> prog T')
@@ -47,7 +47,7 @@ Section Layer1.
   | ExecOpCrash :
       forall T o' d (p: prog T),
         (forall T' (p1: prog T') p2, p <> Bind p1 p2) ->
-        exec (Crash::o') d p o' (Crashed d)
+        exec (Cons Crash o') d p o' (Crashed d)
              
   | ExecBindCrash :
       forall T T' (p1: prog T) (p2: T -> prog T')
@@ -60,8 +60,7 @@ Section Layer1.
         o o' st st1,
         exec o st p1 o' (Failed st1) ->
         exec o st (Bind p1 p2) o' (Failed st1).
-  (* TODO: add Failed cases *)
-  
+  (* TODO: add Failed cases *) 
 End Layer1.
 
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
