@@ -3,82 +3,91 @@ Require Import CommonAutomation SepAuto Layer1 ProgAuto HoareL1.
 Open Scope pred_scope.
 
 Theorem read_okay:
-  forall a v t,
+  forall a v t ox,
     << o >>
-     (a |-> v * [[ o = t::nil ]])
+     (a |-> v * [[ o = t::ox ]])
      (Read a)
-    << r >>
-     (a |-> v * [[r = fst v]])
-     (a |-> v).
+    << o', r >>
+     (a |-> v *
+      [[ o' = ox ]] *
+      [[r = fst v]])
+     (a |-> v *
+     [[ o' = ox ]]).
 Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
-  destruct t; eexists;
-    intuition eauto;
+  eapply ptsto_valid' in H as Hx;
+    cleanup; eauto.
+  destruct t; do 2 eexists;
+    intuition eauto.
   econstructor; intuition eauto.
   inversion H0.
-  unfold Disk.read in *;
-    eapply ptsto_valid' in H as Hx;
-    cleanup; eauto.  
-  do 2 eexists; split; eauto.
-  unfold Disk.read in *;
-    eapply ptsto_valid' in H as Hx;
-    cleanup; eauto.  
-  simpl in *; pred_apply; cancel; eauto.
+  right; eexists; split; eauto.
+  pred_apply; cancel.
+  
+  econstructor; intuition eauto.
+  unfold Disk.read in *; cleanup; eauto.
+  left; do 2 eexists; split; eauto.
+  pred_apply; cancel.
 Qed.
 
 Theorem write_okay:
-  forall a v v' t,
+  forall a v v' t ox,
     << o >>
-     (a |-> v * [[ o = t::nil ]])
+     (a |-> v * [[ o = t::ox ]])
      (Write a v')
-    << r >>
-     (a |-> (v', (fst v::snd v)))
-     (a |-> v).
+    << o', r >>
+     (a |-> (v', (fst v::snd v)) *
+      [[ o' = ox ]])
+     (a |-> v *
+      [[ o' = ox ]]).
 Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
-  destruct t; eexists;
-    intuition eauto;
-    econstructor; intuition eauto.
-  inversion H0.
+  eapply ptsto_valid' in H as Hx;
+    cleanup; eauto.
   
-    unfold Disk.read in *;
-    eapply ptsto_valid' in H as Hx;
-    cleanup; eauto.  
-    do 2 eexists; split; eauto.
-    unfold Disk.read in *;
-    eapply ptsto_valid' in H as Hx;
-    cleanup; eauto.  
-    unfold Disk.write; cleanup.
-    unfold Disk.upd_disk.
-    eapply ptsto_upd'.
-    pred_apply; cancel; eauto.
+  destruct t; do 2 eexists;
+    intuition eauto.
+  econstructor; intuition eauto.
+  inversion H0.
+  right; eexists; split; eauto.
+  pred_apply; cancel.
+
+  econstructor; intuition eauto.
+  unfold Disk.read in *; cleanup; eauto.
+  left; do 2 eexists; split; eauto.
+  unfold Disk.write; cleanup.
+  unfold Disk.upd_disk.
+  eapply ptsto_upd' in H.
+  pred_apply' H; cancel; eauto.
 Qed.
 
 Theorem ret_okay:
-  forall T (v: T) t,
+  forall T (v: T) t ox,
     << o >>
-     (emp * [[ o = t::nil ]])
+     (emp * [[ o = t::ox ]])
      (Ret v)
-    << r >>
-     (emp * [[r = v]])
-     emp.
+    << o', r >>
+    (emp *
+     [[r = v]] *
+     [[ o' = ox ]])
+    (emp *
+     [[o' = ox]]).
 Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
-  destruct t; eexists;
-    intuition eauto.
-    econstructor; intuition eauto.
-    inversion H0.
-    simpl in *; cleanup; right; eexists; intuition eauto.
-    pred_apply; cancel.
+  destruct t; do 2 eexists;
+    intuition eauto.  
+  econstructor; intuition eauto.
+  inversion H0.
+  simpl in *; cleanup; right; eexists; intuition eauto.
+  pred_apply; cancel.
 
-    left.
-    do 2 eexists; split; eauto.
-    pred_apply; cancel; eauto.
+  left; do 2 eexists; split; eauto.
+  pred_apply; cancel; eauto.
 Qed.
 
