@@ -15,7 +15,7 @@ Section Layer1to2Refinement.
     end.
 
   
-  Fixpoint oracle_refines_to T (d1: Layer1.state) (p: Layer2.prog T)  (o1: BaseTypes.oracle Layer1.token) (o2: Layer2.oracle) : Prop :=
+  Fixpoint oracle_refines_to T (d1: Layer1.state) (p: Layer2.prog T)  (o1: Layer1.oracle) (o2: Layer2.oracle) : Prop :=
     match p with
     | Alloc v =>
       if (in_dec Layer1.token_dec Layer1.Crash o1) then
@@ -82,12 +82,10 @@ Section Layer1to2Refinement.
   Proof.
     intros.
     extensionality k.
-    apply star_split in H;
-      apply star_split in H0; cleanup.
     unfold rep in *; simpl in *.
     
-    destruct_lift H2. destruct_lift H5.
-    eapply_fresh ptsto_valid in H2.
+    destruct_lift H; destruct_lift H0.
+    eapply_fresh ptsto_valid' in H.
     eapply_fresh ptsto_valid in H5; cleanup.
     eapply mem_union_addr in Hx; eauto.
     eapply mem_union_addr in Hx0; eauto.

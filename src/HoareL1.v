@@ -6,7 +6,7 @@ Set Implicit Arguments.
 
 
 (** ** Hoare logic *)
-Definition precond := oracle token -> @pred addr addr_dec (set value).
+Definition precond := oracle -> @pred addr addr_dec (set value).
 Definition postcond {T: Type} := T -> @pred addr addr_dec (set value).
 Definition crashcond := @pred addr addr_dec (set value).
 
@@ -27,23 +27,24 @@ Definition hoare_triple {T: Type} (pre: precond) (p: prog T) (post: @postcond T)
 Notation
   "<< o >> pre p << r >> post crash" :=
   (forall F, hoare_triple
-          (fun o => F * pre)%pred
-          p
+          (fun o d => (F * pre * [[ oracle_ok p o d ]]) d)%pred
+          p%pred
           (fun r => F * post)%pred
           (F * crash)%pred)
     (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
      format "'[v' '[  ' '<<' o '>>' '//' '[' pre ']' '//' '[' p ']' ']' '//' '[  ' '<<' r '>>' '//' '[' post ']' '//' '[' crash ']' ']' ']'").
 
+(*
 Notation
   "{{ e1 }} << o >> pre p << r >> post crash" :=
    (exists e1, (forall F, hoare_triple
           (fun o => F * pre)%pred
           p
-          (fun o r => F * post)%pred
+          (fun r => F * post)%pred
           (F * crash)%pred))
     (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
      format "'[v' '{{' e1 '}}' '//' '[  ' '<<' o '>>' '//' pre '//' p ']' '//' '[  ' '<<' r '>>' '//' post '//' crash ']' ']'").
-
+*)
 
 Theorem hoare_triple_strengthen_pre:
   forall T (p: prog T) (pre pre': precond) post crash,
@@ -358,10 +359,11 @@ Lemma exec_finished_oracle_app:
     exec (o1++o2) st p ret ->
     o2 = [] /\ ret = Finished st1 r1.
 Proof.
-    unfold state; induction p; simpl; intros;
+  unfold state; induction p; simpl; intros;
   invert_exec; cleanup;
     invert_exec; cleanup;
       destruct_pairs; cleanup; eauto.
+  intuition.
     -
       eapply exec_finished_deterministic in H0; eauto; cleanup.
       eapply exec_finished_deterministic in H4; eauto; cleanup.
@@ -396,7 +398,7 @@ Proof.
   unfold state; induction p; simpl; intros;
   invert_exec; cleanup;
     invert_exec; cleanup;
-      destruct_pairs; cleanup; eauto.
+      destruct_pairs; cleanup; try solve [intuition eauto].
   - eapply exec_finished_deterministic in H0; eauto; cleanup.
     eapply exec_finished_deterministic in H3; eauto; cleanup; eauto.
   
@@ -447,4 +449,182 @@ Proof.
     + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
     + eapply exec_finished_deterministic in H0; eauto; cleanup.
       apply app_inv_head in H4; cleanup; eauto.
+Qed.
+
+Theorem bind_ok:
+  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2,
+  << o >>
+   pre1
+   p1
+  << r >>
+   (post1 r)
+   crash1 ->
+  (forall F d r,
+      (F * pre1)%pred d ->
+      post1 r =p=> pre2) ->
+  (forall F o d d' r,
+      (F * pre1)%pred d ->
+      exec o d p1 (Finished d' r) ->
+      (F * post1 r)%pred d' ->
+      << o >>
+         pre2
+         (p2 r)
+       << r >>
+       (post2 r)
+       crash2) ->
+  << o >>
+     pre1
+     (Bind p1 p2)
+  << r >>
+     (post2 r)
+     (crash1 \/ crash2).
+Proof.
+  unfold hoare_triple; intros.
+  simpl in *; destruct_lifts; cleanup.
+  edestruct H; eauto.
+  pred_apply' H2; norm.
+  cancel.
+  eauto.
+  cleanup.
+  split_ors; cleanup.
+  - specialize H5 with (1:=H3).
+    edestruct H1; eauto.
+    pred_apply' H9; norm.
+    cancel.
+    rewrite H0;
+      intuition eauto.
+    cancel.
+    intuition eauto.
+    cleanup.
+    split_ors; cleanup;
+      eexists; split; intuition eauto.
+    right; eexists; intuition eauto.
+    pred_apply; cancel.
+    apply pimpl_or_r; intuition eauto.
+  - specialize H6 with (1:=H3); cleanup.
+    rewrite app_nil_r.
+    eexists; split; intuition eauto.
+    right; eexists; intuition eauto.
+    pred_apply; cancel.
+    apply pimpl_or_r; intuition eauto.
+Qed.
+
+
+Theorem crash_weaken:
+  forall T (p: prog T) pre post crash1 crash2,
+  << o >>
+   pre
+   p
+  << r >>
+   (post r)
+   crash1 ->
+  (crash1 =p=> crash2) ->
+  << o >>
+     pre
+     p
+  << r >>
+     (post r)
+     crash2.
+Proof.
+  unfold hoare_triple; intros.
+  edestruct H; eauto.
+  cleanup.
+  split_ors; cleanup;
+    eexists; intuition eauto.
+  right; eexists; intuition eauto.
+  pred_apply; cancel; eauto.
+Qed.
+
+
+Theorem post_weaken:
+  forall T (p: prog T) pre post1 post2 crash,
+  << o >>
+   pre
+   p
+  << r >>
+   (post1 r)
+   crash ->
+  (forall r, post1 r =p=> post2 r) ->
+  << o >>
+     pre
+     p
+  << r >>
+     (post2 r)
+     crash.
+Proof.
+  unfold hoare_triple; intros.
+  edestruct H; eauto.
+  cleanup.
+  split_ors; cleanup;
+    eexists; intuition eauto.
+  left; do 2 eexists; intuition eauto.
+  pred_apply; cancel; eauto.
+Qed.
+
+Theorem pre_strengthen:
+  forall T (p: prog T) pre1 pre2 post crash,
+  << o >>
+   pre1
+   p
+  << r >>
+   (post r)
+   crash ->
+  (pre2 =p=> pre1) ->
+  << o >>
+     pre2
+     p
+  << r >>
+     (post r)
+     crash.
+Proof.
+  unfold hoare_triple; intros.
+  edestruct H; eauto.
+  pred_apply; cancel; eauto.
+Qed.
+
+Theorem add_frame:
+  forall T (p: prog T) pre post crash F,
+  << o >>
+   pre
+   p
+  << r >>
+   (post r)
+   crash ->
+  << o >>
+     (F * pre)
+     p
+  << r >>
+     (F * post r)
+     (F * crash).
+Proof.
+  unfold hoare_triple; intros.
+  edestruct H; eauto.
+  pred_apply' H0; cancel; eauto.
+  cleanup; split_ors; cleanup;
+    eexists; intuition eauto.
+  left; do 2 eexists; intuition eauto.
+  pred_apply; cancel; eauto.
+  right; eexists; intuition eauto.
+  pred_apply; cancel; eauto.
+Qed.
+
+Theorem extract_exists:
+  forall T V (p: prog T) pre post crash,
+  (forall (v:V), << o >>
+   (pre v)
+   p
+  << r >>
+   (post r)
+   crash) ->
+  << o >>
+     (exists v, pre v)
+     p
+  << r >>
+     (post r)
+     crash.
+Proof.
+  unfold hoare_triple; intros.
+  destruct_lifts.
+  eapply H; eauto.
+  pred_apply' H0; cancel; eauto.
 Qed.
