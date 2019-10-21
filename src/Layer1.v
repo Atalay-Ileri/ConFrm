@@ -1,4 +1,6 @@
-Require Import List BaseTypes Memx CommonAutomation Disk Simulation.
+Require Import List BaseTypes Memx.
+Require Import CommonAutomation Disk.
+Require Import Simulation SimulationLayer.
 Import ListNotations.
 
 Set Implicit Arguments.
@@ -9,7 +11,10 @@ Section Layer1.
   | Crash : token
   | Cont : token.
 
-  Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}. decide equality. Defined.
+  Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}.
+    decide equality.
+  Defined.
+
   Definition oracle := list token.
 
   Definition state := disk (set value).
@@ -89,21 +94,7 @@ Section Layer1.
       o = [Cont] \/ o = [Crash]
     end.
 
-  (*
-  Variable op : Type -> Type.
-  Inductive prog' : Type -> Type :=
-  | Ret' : forall T, T -> prog' T
-  | Bind' : forall T T', op T -> (T -> prog' T') -> prog' T'.
-
-  Fixpoint bind {T1} (p1 : prog' T1): forall T2, (T1 -> prog' T2) -> prog' T2 :=
-    match p1 with
-    | Ret' x =>
-      fun T p2 => p2 x
-    | Bind' o px =>
-      fun T p2 => Bind' o (fun x => bind (px x) p2)
-    end.
-   *)
-  
+  Definition layer1_lts := Build_LTS oracle state prog exec.
 End Layer1.
 
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).

@@ -7,7 +7,7 @@ Theorem read_ok:
     << o >>
      (a |-> v)
      (Read a)
-    << r >>
+    << d, r >>
      (a |-> v * [[r = fst v]])
      (a |-> v).
 Proof.
@@ -31,7 +31,7 @@ Theorem write_ok:
     << o >>
      (a |-> v)
      (Write a v')
-    << r >>
+    << d, r >>
      (a |-> (v', (fst v::snd v)))
      (a |-> v).
 Proof.
@@ -58,7 +58,7 @@ Theorem ret_ok:
     << o >>
      emp
      (Ret v)
-    << r >>
+    << d, r >>
      (emp * [[r = v]])
      emp.
 Proof.
