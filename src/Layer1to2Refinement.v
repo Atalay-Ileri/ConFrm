@@ -24,75 +24,6 @@ Section Layer1to2Refinement.
     eexists; eauto.
   Qed.
 
-  Lemma oracle_ok_app_exec_nil:
-    forall T (p: Layer1.prog T) o1 o2 s ret,
-      Layer1.exec o1 s p ret ->
-      oracle_ok p (o1++o2) s ->
-      o2=[].
-  Proof.
-     induction p; simpl; intros;
-       try solve [  unfold oracle_ok in *; intuition; apply app_eq_unit in H1;
-                    split_ors; cleanup; eauto; invert_exec ].
-     invert_exec;
-     unfold oracle_ok in H1; cleanup;
-    fold (@oracle_ok T) in *;
-    fold (@oracle_ok T') in *.
-    cleanup.
-      Search app nil.
-    split_ors; cleanup.
-    
-  Lemma oracle_ok_bind_split:
-    forall T T' (p1: Layer1.prog T) (p2: T -> Layer1.prog T') o1 o2 sl sl' r ret,
-      Layer1.exec o1 sl p1 (Finished sl' r) ->
-      Layer1.exec o2 sl' (p2 r) ret ->
-      oracle_ok (Layer1.Bind p1 p2) (o1 ++ o2) sl ->
-      oracle_ok p1 o1 sl /\
-      oracle_ok (p2 r) o2 sl'.      
-  Proof.
-    simpl; intros.
-    unfold oracle_ok in H1; cleanup;
-    fold (@oracle_ok T) in *;
-    fold (@oracle_ok T') in *.
-    destruct (lt_dec (length o1) (length x)).
-    -
-      eapply length_lt_prefix in H1; eauto; cleanup.
-      
-      Search app length lt.
-    specialize IHp with (1:= H0)(2:=H3).
-    repeat rewrite app_length; cleanup.
-Admitted.
-
-  Axiom oracle_ok_exec_app_nil:
-    forall T (p: Layer1.prog T) o1 o2 s ret,
-      Layer1.exec (o1++o2) s p ret ->
-      oracle_ok p o1 s ->
-      o2=[].
-
-  (* XXX: We need oracle lengths to extract oracle equalities *) 
-  Axiom layer1_exec_finished_then_oracle_length_eq :
-    forall T (p: Layer1.prog T) s o1 o2 s'1 s'2 r1 r2,
-      Layer1.exec o1 s p (Finished s'1 r1) ->
-      Layer1.exec o2 s p (Finished s'2 r2) ->
-      o1 = o2.
-
-  Axiom layer1_finished_not_crashed_app:
-    forall T (p1: Layer1.prog T) o1 o2 s s' s'' r,
-       Layer1.exec o1 s p1 (Finished s' r) ->
-       ~ Layer1.exec (o1++o2) s p1 (Crashed s'').
-
-  Axiom layer1_exec_preserves_refines_to:
-    forall T (p2: Layer2.prog T) o1 s1 s1',
-      Layer1.exec o1 s1 (compile p2) s1' ->
-      (exists s2, refines_to s1 s2) ->
-      (exists s2', refines_to (extract_state s1') s2').
-  
-
-  Axiom oracle_refines_to_deterministic:
-    forall T (p: Layer2.prog T) s o o1 o2,
-      oracle_refines_to T s p o o1 ->
-      oracle_refines_to T s p o o2 ->
-      o1 = o2.
-
   Lemma oracle_ok_nonempty:
     forall T (p: Layer1.prog T) s,
       ~oracle_ok p [] s.
@@ -102,6 +33,213 @@ Admitted.
     cleanup.
     symmetry in H0; apply app_eq_nil in H0; cleanup; eauto.
   Qed.
+
+  Lemma oracle_ok_bind_assoc:
+    forall T T' T'' (p1: Layer1.prog T) (p2: T -> Layer1.prog T') (p3: T' -> Layer1.prog T'') o sl,
+      oracle_ok (Layer1.Bind (Layer1.Bind p1 p2) p3) o sl ->
+      oracle_ok (Layer1.Bind p1 (fun x => (Layer1.Bind (p2 x) p3))) o sl.      
+  Proof.
+    intros;
+      unfold oracle_ok in *; intuition.
+    fold (@oracle_ok T) in *;
+      fold (@oracle_ok T') in *;
+      fold (@oracle_ok T'') in *.
+    cleanup.
+    exists x1, (x2++x0).
+    split.
+    rewrite app_assoc; eauto.
+    intuition eauto.
+    specialize H5 with (1:= H).
+    do 2 eexists; intuition eauto.
+    erewrite H6, H2; eauto.
+    erewrite H6; eauto.
+    rewrite app_nil_r.
+    eapply Layer1.ExecBindCrash; eauto.
+
+    erewrite H7, H3; eauto.
+    erewrite H7; eauto.
+    rewrite app_nil_r.
+    eapply Layer1.ExecBindFail; eauto.
+  Qed.
+  
+  Lemma oracle_ok_bind_finished_split:
+    forall T T' (p1: Layer1.prog T) (p2: T -> Layer1.prog T') o1 o2 sl sl' r ret,
+      Layer1.exec o1 sl p1 (Finished sl' r) ->
+      Layer1.exec o2 sl' (p2 r) ret ->
+      oracle_ok (Layer1.Bind p1 p2) (o1 ++ o2) sl ->
+      oracle_ok p1 o1 sl /\
+      oracle_ok (p2 r) o2 sl'.      
+  Proof.
+    induction p1; simpl; intros;
+    try solve [  pose proof H;
+      unfold oracle_ok in *; intuition;
+        invert_exec; simpl in *; cleanup;
+      split_ors; cleanup; inversion H1; subst; eauto;
+      specialize H3 with (1:= H); eauto].
+    apply oracle_ok_bind_assoc in H2.
+    invert_exec.
+    rewrite <- app_assoc in H2.
+    specialize (IHp1 (fun x => Layer1.Bind (p x) p2)) with (1:=H0)(3:= H2).
+    edestruct IHp1.
+    econstructor; eauto.
+    
+    specialize H with (1:=H3)(2:= H1)(3:= H5).
+    destruct H; intuition eauto.
+    
+    unfold oracle_ok in H5; cleanup;
+    fold (@oracle_ok T) in *;
+      fold (@oracle_ok T') in *;
+      fold (@oracle_ok T'0) in *.
+
+    unfold oracle_ok; cleanup;
+    fold (@oracle_ok T) in *;
+      fold (@oracle_ok T') in *;
+      fold (@oracle_ok T'0) in *.
+    do 2 eexists; intuition eauto.
+    eapply deterministic_prog in H0; eauto; cleanup; eauto.
+    eapply deterministic_prog in H0; eauto; cleanup.
+    eapply deterministic_prog in H0; eauto; cleanup.
+  Qed.
+
+  Lemma oracle_ok_finished_eq:
+    forall T (p: Layer1.prog T) o1 o2 o1' o2' s s' r,
+      Layer1.exec o1 s p (Finished s' r) ->
+      o1 ++ o2 = o1' ++ o2' ->
+      oracle_ok p o1' s ->
+      o1 = o1' /\ o2 = o2'.
+  Proof.
+    induction p; simpl; intros;
+    try solve [ unfold oracle_ok in *; intuition;
+                invert_exec; simpl in *; cleanup; eauto ].
+    invert_exec; cleanup.
+     unfold oracle_ok in H2; cleanup;
+         fold (@oracle_ok T) in *;
+         fold (@oracle_ok T') in *.
+     repeat rewrite <- app_assoc in H1.
+     specialize IHp with (1:= H0)(2:= H1)(3:=H4); cleanup.
+     specialize H5 with (1:= H0).
+     specialize H with (1:= H3)(2:= H8)(3:=H5); cleanup; eauto.
+  Qed.     
+
+  Lemma oracle_ok_exec_crashed_app_nil:
+    forall T (p: Layer1.prog T) o1 o2 s s',
+      Layer1.exec (o1++o2) s p (Crashed s') ->
+      oracle_ok p o1 s ->
+      o2=[].
+  Proof.
+     induction p; simpl; intros;
+     try solve [ unfold oracle_ok in *; intuition;
+        invert_exec; simpl in *; cleanup; eauto].
+     invert_exec; split_ors; cleanup.
+
+     -
+       unfold oracle_ok in H1; cleanup;
+         fold (@oracle_ok T) in *;
+         fold (@oracle_ok T') in *.
+       rewrite <- app_assoc in H0.
+       specialize IHp with (1:= H0)(2:=H2).
+       apply app_eq_nil in IHp; cleanup; eauto.
+
+     -
+       unfold oracle_ok in H1; cleanup;
+         fold (@oracle_ok T) in *;
+         fold (@oracle_ok T') in *.
+       rewrite <- app_assoc in H3.
+       symmetry in H3.
+       eapply_fresh oracle_ok_finished_eq in H0; eauto; cleanup.
+       specialize H5 with (1:=H0).
+       specialize H with (1:= H2)(2:=H5); eauto.
+  Qed.
+
+  Lemma oracle_ok_exec_failed_app_nil:
+    forall T (p: Layer1.prog T) o1 o2 s s',
+      Layer1.exec (o1++o2) s p (Failed s') ->
+      oracle_ok p o1 s ->
+      o2=[].
+  Proof.
+     induction p; simpl; intros;
+     try solve [ unfold oracle_ok in *; intuition;
+        invert_exec; simpl in *; cleanup; eauto].
+     invert_exec; split_ors; cleanup.
+
+     -
+       unfold oracle_ok in H1; cleanup;
+         fold (@oracle_ok T) in *;
+         fold (@oracle_ok T') in *.
+       rewrite <- app_assoc in H0.
+       specialize IHp with (1:= H0)(2:=H2).
+       apply app_eq_nil in IHp; cleanup; eauto.
+
+     -
+       unfold oracle_ok in H1; cleanup;
+         fold (@oracle_ok T) in *;
+         fold (@oracle_ok T') in *.
+       rewrite <- app_assoc in H3.
+       symmetry in H3.
+       eapply_fresh oracle_ok_finished_eq in H0; eauto; cleanup.
+       specialize H5 with (1:=H0).
+       specialize H with (1:= H2)(2:=H5); eauto.
+  Qed.
+
+   Lemma oracle_ok_bind_crashed_split:
+    forall T T' (p1: Layer1.prog T) (p2: T -> Layer1.prog T') o1 sl sl',
+      Layer1.exec o1 sl p1 (Crashed sl') ->
+      oracle_ok (Layer1.Bind p1 p2) o1 sl ->
+      oracle_ok p1 o1 sl.      
+  Proof.
+    intros; unfold oracle_ok in *; cleanup;
+    fold (@oracle_ok T) in *;
+    fold (@oracle_ok T') in *.
+    eapply_fresh oracle_ok_exec_crashed_app_nil in H; eauto; cleanup.
+    rewrite app_nil_r; eauto.
+  Qed.
+
+  Lemma oracle_ok_bind_failed_split:
+    forall T T' (p1: Layer1.prog T) (p2: T -> Layer1.prog T') o1 sl sl',
+      Layer1.exec o1 sl p1 (Failed sl') ->
+      oracle_ok (Layer1.Bind p1 p2) o1 sl ->
+      oracle_ok p1 o1 sl.      
+  Proof.
+    intros; unfold oracle_ok in *; cleanup;
+    fold (@oracle_ok T) in *;
+    fold (@oracle_ok T') in *.
+    eapply_fresh oracle_ok_exec_failed_app_nil in H; eauto; cleanup.
+    rewrite app_nil_r; eauto.
+  Qed.
+  
+  Lemma crash_in_oracle_then_crashed:
+    forall T (p: Layer1.prog T) s o,
+      In Layer1.Crash o ->
+      oracle_ok p o s ->
+      exists s', Layer1.exec o s p (Crashed s').
+  Proof.
+    induction p; simpl; intros; cleanup; eauto;
+    try (unfold oracle_ok in *; try split_ors; cleanup; simpl in *; try intuition congruence);
+    try (eexists; econstructor; eauto;
+         intros; congruence).
+    fold (@oracle_ok T) in *;
+    fold (@oracle_ok T') in *.
+    eexists; econstructor; eauto;
+    intros; congruence.
+    eexists; econstructor; eauto;
+    intros; congruence.
+  
+  Lemma oracle_refines_to_deterministic:
+    forall T (p: Layer2.prog T) s o o1 o2,
+      oracle_refines_to T s p o o1 ->
+      oracle_refines_to T s p o o2 ->
+      o1 = o2.
+  Proof.
+    induction p; simpl; intros; cleanup; eauto.
+    
+
+  
+  Axiom layer1_exec_compiled_preserves_refines_to:
+    forall T (p2: Layer2.prog T) o1 s1 s1',
+      Layer1.exec o1 s1 (compile p2) s1' ->
+      (exists s2, refines_to s1 s2) ->
+      (exists s2', refines_to (extract_state s1') s2').
+  
   Hint Resolve oracle_ok_nonempty.
   
   (*
@@ -220,7 +358,6 @@ Admitted.
       (exists sh, refines_to sl sh) ->
       oracle_ok p1 ol sl ->
       Layer1.exec ol sl p1 sl' ->
-      (forall d, sl' <> Failed d) ->
       compilation_of T p1 p2 ->
       exists oh, oracle_refines_to T sl p2 ol oh.
   Proof.
@@ -258,80 +395,202 @@ Admitted.
     - (* Bind *)
       invert_exec; cleanup.      
       + (* Finished *)
-        unfold oracle_ok in H1; cleanup.
-        fold (@oracle_ok T) in H5.
-        fold (@oracle_ok T') in H6.
-
-        eapply_fresh oracle_ok_finished_length in H2; eauto.
-        eapply ListUtils.app_split_length_eq_l in Hx; eauto; cleanup.
+        eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
         edestruct IHp2; eauto.
-        intros d Hx; inversion Hx.
-        edestruct layer1_exec_preserves_refines_to; try apply H2; eauto.
+        (* intros d Hx; inversion Hx. *)
+        edestruct layer1_exec_compiled_preserves_refines_to; try apply H2; eauto.
         unfold refines_to; eauto.
         edestruct H; eauto; simpl in *.
-        exists (x1++x7).
+        exists (x5++x7).
         unfold oracle_refines_to; simpl; fold oracle_refines_to.
-        split.
-        unfold oracle_ok; simpl;
-        fold (@oracle_ok T); fold (@oracle_ok T').
-
-        do 2 eexists; intuition eauto.
-        do 2 eexists; intuition eauto.
+        split; eauto.
         
-        exfalso; eapply layer1_finished_not_crashed_app in H2; eauto.
-        exfalso; eapply layer1_finished_not_crashed_app in H2; eauto.
-        eapply exec_finished_deterministic in H2; eauto; cleanup.
+        do 2 eexists; intuition eauto.
+        match goal with
+        | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
+          eapply_fresh oracle_ok_exec_crashed_app_nil in H;
+          eauto; cleanup
+        end.
+        exfalso; eapply oracle_ok_nonempty; eauto.
+        match goal with
+        | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
+          eapply_fresh oracle_ok_exec_crashed_app_nil in H;
+          eauto; cleanup
+        end.
+        repeat match goal with
+        | [H: Layer1.exec _ _ _ (Finished _ _),
+           H0: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
+          eapply deterministic_prog in H;
+          try apply H0; eauto; cleanup
+        end.
+        
         do 2 eexists; intuition eauto.
         
       + (* Crashed *)
-        unfold oracle_ok in H1; cleanup.
-        fold (@oracle_ok T) in H4.
-        fold (@oracle_ok T') in H5.
-
         split_ors; cleanup.
-        * eapply_fresh oracle_ok_exec_app_nil in H1; eauto; cleanup.
-          rewrite app_nil_r in *.
-          edestruct IHp2; eauto.
-          intros d Hx; inversion Hx.
-          exists x2.
-          unfold oracle_refines_to; simpl; fold oracle_refines_to.
-          split.
-          unfold oracle_ok; simpl;
-          fold (@oracle_ok T); fold (@oracle_ok T').
-
-          do 2 eexists; intuition eauto.
-          rewrite app_nil_r; eauto.
-          do 2 eexists; intuition eauto.
-          rewrite app_nil_r; eauto.
-          specialize H5 with (1:= H8).
+        *
+          match goal with
+          | [H: oracle_ok _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_bind_crashed_split in H;
+          eauto; cleanup
+          end.
           
-          exfalso; eapply oracle_ok_nonempty; eauto.
-        
-        * eapply_fresh oracle_ok_finished_length in H4; eauto.
-          eapply ListUtils.app_split_length_eq_l in Hx; eauto; cleanup.
           edestruct IHp2; eauto.
-          intros d Hx; inversion Hx.
-          edestruct layer1_exec_preserves_refines_to; try apply H1; eauto.
-          unfold refines_to; eauto.
-          edestruct H; eauto; simpl in *.
-          exists (x3++x7).
+          (* intros d Ha; inversion Ha. *)
+          exists x1.
           unfold oracle_refines_to; simpl; fold oracle_refines_to.
           split.
           unfold oracle_ok; simpl;
           fold (@oracle_ok T); fold (@oracle_ok T').
 
           do 2 eexists; intuition eauto.
+          rewrite app_nil_r; eauto.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Crashed _) |- _ ] =>
+            eapply deterministic_prog in H;
+            eauto; cleanup
+          end.
           do 2 eexists; intuition eauto.
+          rewrite app_nil_r; eauto.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Crashed _) |- _ ] =>
+            eapply deterministic_prog in H;
+            eauto; cleanup
+          end.
+        
+        *
+          match goal with
+          | [H: oracle_ok _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_bind_finished_split in H;
+          eauto; cleanup
+          end.
+          edestruct IHp2; eauto.
+          (* intros d Hx; inversion Hx. *)
+          
+          edestruct H;
+          try match goal with
+          | [H: oracle_ok (compile (_ _)) _ _ |- _ ] =>
+            apply H
+          end; eauto; simpl in *.
 
-          exfalso; eapply layer1_finished_not_crashed_app in H1; eauto.
-          exfalso; eapply layer1_finished_not_crashed_app in H1; eauto.
-          eapply exec_finished_deterministic in H1; eauto; cleanup.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
+            eapply layer1_exec_compiled_preserves_refines_to in H;
+            eauto; cleanup
+          end.
+          unfold refines_to; eauto.
+          
+          exists (x5++x6).
+          unfold oracle_refines_to; simpl; fold oracle_refines_to.
+          split; eauto.
+
+          do 2 eexists; intuition eauto.
+          match goal with
+          | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_exec_crashed_app_nil in H;
+            eauto; cleanup
+          end.
+          exfalso; eapply oracle_ok_nonempty; eauto.
+          match goal with
+          | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_exec_crashed_app_nil in H;
+            eauto; cleanup
+          end.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Finished _ _),
+             H0: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
+            eapply deterministic_prog in H;
+            try apply H0; eauto; cleanup
+          end.
           do 2 eexists; intuition eauto.
         
       + (* Failed *)
-        exfalso; eapply H3; eauto.
+        split_ors; cleanup.
+        *
+          match goal with
+          | [H: oracle_ok _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_bind_failed_split in H;
+          eauto; cleanup
+          end.
+          
+          edestruct IHp2; eauto.
+          (* intros d Ha; inversion Ha. *)
+          exists x1.
+          unfold oracle_refines_to; simpl; fold oracle_refines_to.
+          split.
+          unfold oracle_ok; simpl;
+          fold (@oracle_ok T); fold (@oracle_ok T').
+
+          do 2 eexists; intuition eauto.
+          rewrite app_nil_r; eauto.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Failed _) |- _ ] =>
+            eapply deterministic_prog in H;
+            eauto; cleanup
+          end.
+          do 2 eexists; intuition eauto.
+          rewrite app_nil_r; eauto.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Failed _) |- _ ] =>
+            eapply deterministic_prog in H;
+            eauto; cleanup
+          end.
+        
+        *
+          match goal with
+          | [H: oracle_ok _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_bind_finished_split in H;
+          eauto; cleanup
+          end.
+          edestruct IHp2; eauto.
+          (* intros d Hx; inversion Hx. *)
+          
+          edestruct H;
+          try match goal with
+          | [H: oracle_ok (compile (_ _)) _ _ |- _ ] =>
+            apply H
+          end; eauto; simpl in *.
+
+          match goal with
+          | [H: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
+            eapply layer1_exec_compiled_preserves_refines_to in H;
+            eauto; cleanup
+          end.
+          unfold refines_to; eauto.
+          
+          exists (x5++x6).
+          unfold oracle_refines_to; simpl; fold oracle_refines_to.
+          split; eauto.
+
+          do 2 eexists; intuition eauto.
+          match goal with
+          | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_exec_crashed_app_nil in H;
+            eauto; cleanup
+          end.
+          exfalso; eapply oracle_ok_nonempty; eauto.
+          match goal with
+          | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
+            eapply_fresh oracle_ok_exec_crashed_app_nil in H;
+            eauto; cleanup
+          end.
+          match goal with
+          | [H: Layer1.exec _ _ _ (Finished _ _),
+             H0: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
+            eapply deterministic_prog in H;
+            try apply H0; eauto; cleanup
+          end.
+          do 2 eexists; intuition eauto.
   Qed.
 
+  Lemma Axiom :
+     forall T p2 ol1 ol2 oh s1 s2,
+       oracle_refines_to T s1 p2 ol1 oh ->
+       oracle_refines_to T s2 p2 ol2 oh ->
+       ol1 = ol2.
+  Proof.
+    induction p2; simpl; intros.
+    unfold oracle_refines_to in *; simpl in *; cleanup.
 (*
   Lemma Axiom2:
     forall T p2 oh sl sh sh',
@@ -390,7 +649,7 @@ Abort.
       eapply_fresh deterministic_prog in H2; eauto; cleanup.        
       split_ors; cleanup;
       destruct_lifts;
-      match goal with
+      try match goal with
       |[H: oracle_refines_to _ _ _ ?o _,
         H0: oracle_refines_to _ _ _ ?o _ |- _] =>
        eapply oracle_refines_to_deterministic in H; eauto; cleanup
@@ -831,9 +1090,7 @@ Qed.
     split; intros.
     - (* Low to High *)
       invert_exec; cleanup; intuition.
-      eapply_fresh oracle_ok_finished_length in H9; eauto.
-      eapply ListUtils.app_split_length_eq_l in Hx; eauto; cleanup.
-      specialize H4 with (1:= H9).
+      eapply_fresh oracle_ok_finished_eq in H9; eauto; cleanup.
       (* Oct 18: Fix oracle_refines_to definition for Bind *)
   Admitted.
     
