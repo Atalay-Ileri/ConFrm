@@ -11,25 +11,23 @@ Record Equivalence (T: Type) :=
 
 Inductive Result {State T: Type} :=
 | Finished : State -> T -> @Result State T
-| Crashed : State -> @Result State T
-| Failed: State -> @Result State T.
+| Crashed : State -> @Result State T.
 
 Definition extract_state {State T} (res: @Result State T) :=
   match res with
-  | Finished s _ | Crashed s | Failed s => s
+  | Finished s _ | Crashed s => s
   end.
 
 Definition extract_ret {State T} def (res: @Result State T) :=
   match res with
   | Finished _ r => r
-  | Crashed _ | Failed _ => def
+  | Crashed _ => def
   end.
 
 Definition map_state {State1 State2 T} (f:State1 -> State2) (res: @Result State1 T) :=
   match res with
   | Finished s v => Finished (f s) v
   | Crashed s  => Crashed (f s)
-  | Failed s => Failed (f s)
   end.
 
 Lemma extract_state_map_state_elim:
@@ -48,7 +46,7 @@ Qed.
 
 Definition result_same {State1 State2 T1 T2} (res1: @Result State1 T1) (res2: @Result State2 T2) :=
   match res1, res2 with
-  | Finished _ _, Finished _ _ | Crashed _, Crashed _ | Failed _, Failed _=> True
+  | Finished _ _, Finished _ _ | Crashed _, Crashed _ => True
   | _, _ => False
   end.
 

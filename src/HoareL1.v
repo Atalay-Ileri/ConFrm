@@ -392,14 +392,9 @@ Proof.
       apply app_inv_head in H3; cleanup; eauto.
       setoid_rewrite <- app_nil_r in H3 at 4.
       apply app_inv_head in H3; cleanup; eauto.
-    - split_ors.
-      +
-        rewrite <- app_assoc in H1; eauto.
-        edestruct IHp; eauto; inversion H4.
-      +
-        eapply exec_finished_deterministic in H0; eauto; cleanup.
-        rewrite <- app_assoc in H4.
-        apply app_inv_head in H4; cleanup; eauto.
+    -
+      eapply exec_finished_deterministic in H0; eauto; cleanup.
+      eapply exec_finished_deterministic in H4; eauto; cleanup; eauto.
     - split_ors.
       +
         rewrite <- app_assoc in H1; eauto.
@@ -427,11 +422,6 @@ Proof.
     + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
     + eapply exec_finished_deterministic in H0; eauto; cleanup.
       apply app_inv_head in H4; cleanup; eauto.
-  
-  - destruct H0; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
 
   - destruct H1; cleanup.
     + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
@@ -445,31 +435,6 @@ Proof.
     + eapply exec_finished_deterministic in H0; eauto; cleanup.
       apply app_inv_head in H4; cleanup; eauto.
 
-  - destruct H0; cleanup; destruct H1; cleanup.
-    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
-
-  - destruct H1; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
-      
- - destruct H0; cleanup; destruct H1; cleanup.
-    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
-
- - destruct H0; cleanup; destruct H1; cleanup.
-    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
 Qed.
 
 Theorem bind_ok:
@@ -525,7 +490,7 @@ Proof.
   split_ors; cleanup.
   - specialize H9 with (1:=H7).
     edestruct H2; eauto.
-    pred_apply' H13; norm.
+    pred_apply' H12; norm.
     cancel.
     rewrite H1;
       intuition eauto.

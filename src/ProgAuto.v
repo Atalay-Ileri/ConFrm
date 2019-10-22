@@ -33,19 +33,12 @@ Lemma bind_sep:
         exec o1 d p1 (Finished d1 r1) /\
         exec o2 d1 (p2 r1) ret /\
         o = o1++o2))
-  | Failed d' =>
-    (exec o d p1 (Failed d') \/
-     (exists o1 o2 d1 r1,
-        exec o1 d p1 (Finished d1 r1) /\
-        exec o2 d1 (p2 r1) ret /\
-        o = o1++o2))
     end.
 Proof.
   intros.
   invert_exec'' H; eauto.
   destruct ret.
   do 2 eexists; eauto.
-  right; do 2 eexists; eauto.
   right; do 2 eexists; eauto.
   exfalso; intuition eauto.
 Qed.
@@ -85,17 +78,6 @@ Ltac invert_exec :=
       invert_exec.
       rewrite <- app_assoc.
       repeat econstructor; eauto.
-
-      split_ors.
-      invert_exec; cleanup.
-      split_ors; cleanup.
-      eapply ExecBindFail; auto.
-      
-      econstructor; eauto.
-      
-      invert_exec.
-      rewrite <- app_assoc.
-      repeat econstructor; eauto.
     
     - repeat invert_exec; cleanup.
       rewrite app_assoc.
@@ -107,16 +89,6 @@ Ltac invert_exec :=
       invert_exec.
       split_ors.
       eapply ExecBindCrash; eauto.
-      
-      rewrite app_assoc.
-      repeat econstructor; eauto.
-
-      split_ors.
-      eapply ExecBindFail; eauto.
-      
-      invert_exec.
-      split_ors.
-      eapply ExecBindFail; eauto.
       
       rewrite app_assoc.
       repeat econstructor; eauto.

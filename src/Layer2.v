@@ -105,13 +105,7 @@ Section Layer2.
         o d d1,
         exec o d p1 (Crashed d1) ->
         exec o d (Bind p1 p2) (Crashed d1)
-
-  | ExecBindFail :
-      forall T T' (p1: prog T) (p2: T -> prog T')
-        o d d1,
-        exec o d p1 (Failed d1) ->
-        exec o d (Bind p1 p2) (Failed d1).
-  (* TODO: add Failed cases *)
+.
 
   Definition layer2_lts := Build_LTS oracle state prog exec.
   

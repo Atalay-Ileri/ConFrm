@@ -1,6 +1,6 @@
 Require Import BaseTypes Simulation.
 Require Import Memx.
-Require Import List.
+Require Import List ListUtils.
 Require Import Eqdep.
 Import ListNotations.
 
@@ -57,8 +57,6 @@ Ltac invert_const :=
   | [H: Finished _ _ = _ |- _ ] =>
     inversion H; subst; clear H; repeat invert_const
   | [H: Crashed _ = _ |- _ ] =>
-    inversion H; subst; clear H; repeat invert_const
-  | [H: Failed _ = _ |- _ ] =>
     inversion H; subst; clear H; repeat invert_const
   end.
 

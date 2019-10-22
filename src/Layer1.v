@@ -57,23 +57,7 @@ Section Layer1.
       forall T T' (p1: prog T) (p2: T -> prog T')
         o1 d1 d1',
         exec o1 d1 p1 (Crashed d1') ->
-        exec o1 d1 (Bind p1 p2) (Crashed d1')
-
-  | ExecReadFail : 
-      forall d a,
-        read d a = None ->
-        exec [Cont] d (Read a) (Failed d)
-             
-  | ExecWriteFail :
-      forall d a v,
-        read d a = None ->
-        exec [Cont] d (Write a v) (Failed d)
-
-  | ExecBindFail :
-      forall T T' (p1: prog T) (p2: T -> prog T')
-        o st st1,
-        exec o st p1 (Failed st1) ->
-        exec o st (Bind p1 p2) (Failed st1).
+        exec o1 d1 (Bind p1 p2) (Crashed d1').
 
   Fixpoint oracle_ok {T} (p: prog T) o s :=
     match p with
@@ -86,9 +70,6 @@ Section Layer1.
           oracle_ok (p2 r) o2 s') /\
       (forall s',
           exec o1 s p1 (Crashed s') ->
-          o2 = []) /\
-      (forall s',
-          exec o1 s p1 (Failed s') ->
           o2 = [])
     | _ =>
       o = [Cont] \/ o = [Crash]
