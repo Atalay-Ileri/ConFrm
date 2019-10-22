@@ -1,5 +1,5 @@
-Require Import List BaseTypes Layer1 ProgAuto CommonAutomation.
-Require Import Disk Memx Predx SepAuto Simulation.
+Require Import List BaseTypes Simulation Layer1 ProgAuto CommonAutomation.
+Require Import Disk Memx Predx SepAuto.
 Import ListNotations.
 
 Set Implicit Arguments.

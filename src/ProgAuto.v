@@ -1,4 +1,4 @@
-Require Import BaseTypes Layer1Definitions Simulation.
+Require Import BaseTypes Simulation Layer1Definitions.
 Require Import Memx CommonAutomation.
 Require Import List.
 Require Import Eqdep.
