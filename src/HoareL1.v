@@ -259,17 +259,6 @@ Proof.
 Qed.
  *)
 
-Lemma exec_crash_in:
-  forall T (p: prog T) o d d',
-    exec o d p (Crashed d') ->
-    In Crash o.
-Proof.
-  induction p; simpl in *; intros;
-    invert_exec; intuition; eauto.
-  cleanup.
-  apply in_app_iff; eauto.
-Qed.
-
 
 Theorem hoare_triple_pimpl :
     forall T1 T2 (p1: prog T1) (p2: T1 -> prog T2) (pre: precond) pre1 post1 pre2 post2 crash1 crash2,
@@ -358,84 +347,6 @@ Ltac monad_simpl_one :=
   end.
 
 Ltac monad_simpl := repeat monad_simpl_one.
-
-Lemma exec_finished_deterministic:
-  forall T (p: prog T) o1 o2 st st1 st2 r1 r2,
-    exec o1 st p (Finished st1 r1)->
-    exec o2 st p (Finished st2 r2) ->
-    st1 = st2 /\ r1 = r2 /\ o1 = o2.
-Proof.
-    unfold state; induction p; simpl; intros;
-  invert_exec; cleanup;
-    invert_exec; cleanup;
-      destruct_pairs; cleanup; eauto.
-    specialize IHp with (1:=H0)(2:=H1); eauto; cleanup.
-    specialize H with (1:=H2)(2:=H3); cleanup.
-    repeat rewrite app_length; eauto.
-Qed.
-
-Lemma exec_finished_oracle_app:
-  forall T (p: prog T) o1 o2 st st1 r1 ret,
-    exec o1 st p (Finished st1 r1)->
-    exec (o1++o2) st p ret ->
-    o2 = [] /\ ret = Finished st1 r1.
-Proof.
-  unfold state; induction p; simpl; intros;
-  invert_exec; cleanup;
-    invert_exec; cleanup;
-      destruct_pairs; cleanup; eauto.
-  intuition.
-    -
-      eapply exec_finished_deterministic in H0; eauto; cleanup.
-      eapply exec_finished_deterministic in H4; eauto; cleanup.
-      rewrite <- app_assoc in H3.
-      apply app_inv_head in H3; cleanup; eauto.
-      setoid_rewrite <- app_nil_r in H3 at 4.
-      apply app_inv_head in H3; cleanup; eauto.
-    -
-      eapply exec_finished_deterministic in H0; eauto; cleanup.
-      eapply exec_finished_deterministic in H4; eauto; cleanup; eauto.
-    - split_ors.
-      +
-        rewrite <- app_assoc in H1; eauto.
-        edestruct IHp; eauto; inversion H4.
-      +
-        eapply exec_finished_deterministic in H0; eauto; cleanup.
-        rewrite <- app_assoc in H4.
-        apply app_inv_head in H4; cleanup; eauto.
-Qed.
-
-Lemma deterministic_prog:
-  forall T (p: prog T) o st ret1 ret2,
-    exec o st p ret1 ->
-    exec o st p ret2 ->
-    ret1 = ret2.
-Proof.
-  unfold state; induction p; simpl; intros;
-  invert_exec; cleanup;
-    invert_exec; cleanup;
-      destruct_pairs; cleanup; try solve [intuition eauto].
-  - eapply exec_finished_deterministic in H0; eauto; cleanup.
-    eapply exec_finished_deterministic in H3; eauto; cleanup; eauto.
-  
-  - destruct H0; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
-
-  - destruct H1; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.  
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
-
-  - destruct H0; cleanup; destruct H1; cleanup.
-    + specialize IHp with (1:= H0)(2:=H1); cleanup; eauto.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.
-    + exfalso; eapply exec_finished_oracle_app in H1; eauto; cleanup.      
-    + eapply exec_finished_deterministic in H0; eauto; cleanup.
-      apply app_inv_head in H4; cleanup; eauto.
-
-Qed.
 
 Theorem bind_ok:
   forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 crash3,

@@ -5232,3 +5232,23 @@ Proof.
   edestruct IHl2; eauto; subst; eauto.
   apply app_inj_tail in H1; destruct H1; subst; eauto.
 Qed.
+
+ Lemma length_lt_prefix:
+    forall T (l1 l2 l3 l4: list T),
+      l1++l2=l3++l4 ->
+      length l1 < length l3 ->
+      exists l1', l3 = l1++l1' /\ l1' <> [].
+  Proof.
+    induction l1; simpl in *; intros; eauto.
+    destruct l3; simpl in *.
+    inversion H0.
+    eexists; split; eauto.
+    congruence.
+    destruct l3; simpl in *.
+    inversion H0.
+    inversion H; subst.
+    edestruct IHl1; eauto.
+    omega.
+    destruct H1; subst.
+    eexists; eauto.
+  Qed.
