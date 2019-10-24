@@ -220,4 +220,27 @@ Qed.
     intros; simpl in *; cleanup.
     eapply_fresh oracle_ok_exec_crashed_app_nil in H; eauto; cleanup.
     rewrite app_nil_r; eauto.
-  Qed.    
+  Qed.
+
+   Lemma exec_then_oracle_ok:
+    forall T (p: prog T) o s r,
+      exec o s p r ->
+      oracle_ok p o s.
+  Proof.
+    induction p; simpl; intros; try solve [unfold oracle_ok; invert_exec; cleanup; simpl; eauto].
+    invert_exec.
+    - specialize IHp with (1:= H0).
+      specialize H with (1:=H1).
+      do 2 eexists; intuition; eauto;
+        eapply deterministic_prog in H0; eauto; cleanup; eauto.
+    -
+      split_ors; cleanup.
+      specialize IHp with (1:= H0).
+      do 2 eexists; intuition; eauto;
+        eapply deterministic_prog in H0; eauto; cleanup; eauto.
+
+      specialize IHp with (1:= H0).
+      specialize H with (1:=H1).
+      do 2 eexists; intuition; eauto;
+        eapply deterministic_prog in H0; eauto; cleanup; eauto.
+  Qed.

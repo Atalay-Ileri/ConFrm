@@ -16,121 +16,15 @@ Section Layer1to2Refinement.
       Layer1.exec o1 s1 (compile p2) s1' ->
       (exists s2, refines_to s1 s2) ->
       (exists s2', refines_to (extract_state s1') s2').
-  
+
   Hint Resolve oracle_ok_nonempty.
-  
-  (*
-  Lemma oracle_refinement_deterministic:
-    forall T p2 ol1 ol2 oh sl1 sl2 p1 sl1' sl2', (* sh1 sh2 sh1' sh2' ,
-      refines_to sl1 sh1 ->
-      refines_to sl2 sh2 ->
-      *)
-      compilation_of T p1 p2 ->
-      Layer1.exec ol1 sl1 p1 sl1' ->
-      Layer1.exec ol2 sl2 p1 sl2' ->
-      result_same sl1' sl2' ->
-      (forall def, extract_ret def sl1' = extract_ret def sl2') ->
-      (*
-      Layer2.exec oh sh1 p2 sh1' ->
-      Layer2.exec oh sh2 p2 sh2' ->
-      result_same sl1' sh1' ->
-      result_same sl2' sh2' ->
-      result_same sh1' sh2' ->
-                                *)
-      oracle_refines_to T sl1 p2 ol1 oh ->
-      oracle_refines_to T sl2 p2 ol2 oh ->
-      ol1 = ol2.
-  Proof.
-    unfold compilation_of; induction p2; simpl; intros.
-    - (* Read *)
-      cleanup.
-      + (* Crashed *)
-        admit.
-      + (* Finished *)
-        clear D D0 H0 H1 H4.
-        generalize dependent ol2.
-        induction ol1; destruct ol2; simpl in *; intros; eauto; try omega.
-        intuition; cleanup.
-        destruct a0, t; try tauto.
-        erewrite H1; eauto.
-    - (* Write *)
-        cleanup.
-      + (* Crashed *)
-        admit.
-      + (* Finished *)
-        clear D D0 H0 H1 H4.
-        generalize dependent ol2.
-        induction ol1; destruct ol2; simpl in *; intros; eauto; try omega.
-        intuition; cleanup.
-        destruct a0, t; try tauto.
-        erewrite H1; eauto.
-    - (* Alloc *)
-      destruct (in_dec token_dec Layer1.Crash ol1), (in_dec token_dec Layer1.Crash ol2);
-        try solve [cleanup; tauto].
-      cleanup.
-      + (* Crashed *)
-        admit.
-      + destruct H4, H5.
-        clear H0 H1 H6 H7; cleanup.
-        clear H4.
-        generalize dependent ol2.
-        induction ol1; destruct ol2; simpl in *; intros; eauto; try omega.
-        intuition; cleanup.
-        destruct a, t; try tauto.
-        erewrite H1; eauto.
-    - (* Free *)
-      cleanup.
-      + (* Crashed *)
-        admit.
-      + (* Finished *)
-        clear D D0 H0 H1 H4.
-        generalize dependent ol2.
-        induction ol1; destruct ol2; simpl in *; intros; eauto; try omega.
-        intuition; cleanup.
-        destruct a0, t; try tauto.
-        erewrite H1; eauto.
-    - (* Ret *)
-      cleanup.
-      + (* Crashed *)
-        admit.
-      + (* Finished *)
-        clear D D0 H0 H1 H4.
-        generalize dependent ol2.
-        induction ol1; destruct ol2; simpl in *; intros; eauto; try omega.
-        intuition; cleanup.
-        destruct a, t0; try tauto.
-        erewrite H1; eauto.
-    - (* Bind *)
-      cleanup.
-      invert_exec; invert_exec; try tauto.
-      + (* Both Finished *)
-        specialize (H8 x1).
-        specialize (H7 x5).
-        cleanup.
-        edestruct H10; eauto; cleanup.
-        edestruct H11; eauto; cleanup.
-        specialize IHp2 with (2:= H0)(3:=H2); simpl in *.
-        edestruct IHp2; eauto.
-        specialize H with (2:= H1)(3:=H9); simpl in *.
-        
-      destruct oh; simpl in *.
-        cleanup; try tauto.
-        unfold refines_to in *; cleanup.
-        eapply read_ok in H; cleanup.
-        split_ors; destruct_lifts; cleanup.
-        edestruct H4.
-        
-        split_ors; cleanup.
-        
-        edestruct read_ok.
-        pred_apply' H; cancel.
-        eassign
-   *)
 
   Arguments oracle_ok T p o s : simpl never.
   Arguments oracle_refines_to T d1 p o1 o2 : simpl never.
+
+ 
   
-  Lemma Axiom1:
+  Lemma high_oracle_exists_ok':
     forall T p2 p1 ol sl sl',
       (exists sh, refines_to sl sh) ->
       oracle_ok p1 ol sl ->
@@ -179,7 +73,7 @@ Section Layer1to2Refinement.
         unfold refines_to; eauto.
         edestruct H; eauto; simpl in *.
         exists (x5++x7).
-        unfold oracle_refines_to; simpl; fold oracle_refines_to.
+        unfold oracle_refines_to; simpl; fold oracle_refines_to; eauto.
         split; eauto.
         
         do 2 eexists; intuition eauto.
@@ -216,17 +110,8 @@ Section Layer1to2Refinement.
           (* intros d Ha; inversion Ha. *)
           exists x1.
           unfold oracle_refines_to; simpl; fold oracle_refines_to.
-          split.
-          unfold oracle_ok; simpl;
-          fold (@oracle_ok T); fold (@oracle_ok T').
+          split; eauto.
 
-          do 2 eexists; intuition eauto.
-          rewrite app_nil_r; eauto.
-          match goal with
-          | [H: Layer1.exec _ _ _ (Crashed _) |- _ ] =>
-            eapply deterministic_prog in H;
-            eauto; cleanup
-          end.
           do 2 eexists; intuition eauto.
           rewrite app_nil_r; eauto.
           match goal with
@@ -279,10 +164,17 @@ Section Layer1to2Refinement.
             eapply deterministic_prog in H;
             try apply H0; eauto; cleanup
           end.
-          do 2 eexists; intuition eauto.
-    
+          do 2 eexists; intuition eauto.    
   Qed.
 
+  Lemma high_oracle_exists_ok :
+    @high_oracle_exists layer1_lts layer2_lts refines_to compilation_of oracle_refines_to. 
+  Proof.
+    unfold high_oracle_exists; intros.
+    eapply high_oracle_exists_ok'; eauto.
+    eapply exec_then_oracle_ok; eauto.
+  Qed.
+    
   Theorem sbs_read :
     forall a,
       StrongBisimulationForProgram
@@ -301,6 +193,7 @@ Section Layer1to2Refinement.
     
     + (* Low to High *)
       intros; cleanup.
+      eapply_fresh exec_then_oracle_ok in H2.
       edestruct (read_ok a); eauto.
       pred_apply' H. norm.
       cancel.
@@ -742,16 +635,45 @@ Qed.
     intros.
     edestruct H.
     constructor; intros.
-    unfold compilation_of, oracle_refines_to in *;
-    simpl in *; cleanup;
-    fold oracle_refines_to in *.
-    unfold oracle_ok in *; simpl in *; cleanup.
-    fold (@oracle_ok T1) in *; fold (@oracle_ok T2) in *.
+    unfold compilation_of in *;
+    simpl in *; cleanup.
 
     split; intros.
     - (* Low to High *)
       invert_exec; cleanup; intuition.
-      eapply_fresh oracle_ok_finished_eq in H9; eauto; cleanup.
+      
+      +
+        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
+        simpl in *.
+        eapply oracle_ok_bind_finished_split in H3 as Hx; eauto; cleanup.
+        admit.
+      +
+        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
+        simpl in *.
+        specialize H5 with (1:=H4); cleanup.
+        rewrite app_nil_r in *.
+        clear H6.
+        eapply oracle_ok_bind_crashed_split in H2; eauto.
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H5; eauto; cleanup; clear H5 H6.
+        destruct x0; simpl in *; intuition.
+        eexists; split.        
+        econstructor; eauto.
+        simpl; eauto.
+      +
+        cleanup.
+        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
+        simpl in *.
+        eapply oracle_ok_bind_finished_split in H3 as Hx; eauto; cleanup.
+        admit.
+
+    - (* High to Low *)
+      inversion H2; sigT_eq; cleanup; clear H2.
+      unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
+        unfold oracle_ok in *; cleanup.
+        
+
+        
       (* Oct 18: Fix oracle_refines_to definition for Bind *)
   Admitted.
     
@@ -771,7 +693,7 @@ Qed.
 
   Theorem sbs_general:
     forall valid_state_h valid_prog_h,
-      exec_compiled_preserves_validity layer1_lts layer2_lts
+    exec_compiled_preserves_validity layer1_lts layer2_lts
     compilation_of (refines_to_valid refines_to valid_state_h) ->
     exec_preserves_validity layer2_lts valid_state_h ->
       StrongBisimulationForValidStates

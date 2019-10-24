@@ -1,5 +1,122 @@
 Require Import List CommonAutomation Simulation.
 
+Theorem transfer_high_to_low:
+  forall low high
+
+    related_states_h
+    refines_to
+    compilation_of
+    oracle_refines_to
+
+    valid_state_h
+    valid_prog_h,
+    
+    SelfSimulation
+      high
+      valid_state_h
+      valid_prog_h
+      related_states_h ->
+    
+    StrongBisimulation
+      low
+      high
+      compilation_of
+      refines_to
+      oracle_refines_to ->
+
+    high_oracle_exists refines_to compilation_of oracle_refines_to ->
+    
+    oracle_refines_to_same_from_related refines_to related_states_h oracle_refines_to ->
+
+    exec_compiled_preserves_validity
+    low
+    high
+    compilation_of                               
+    (refines_to_valid
+       refines_to
+       valid_state_h) ->
+    
+    SelfSimulation
+      low
+      (refines_to_valid
+         refines_to
+         valid_state_h)
+      (compiles_to_valid
+         valid_prog_h
+         compilation_of)
+      (refines_to_related
+         refines_to
+         related_states_h).
+Proof.
+  unfold refines_to_related, compiles_to_valid; intros.
+  destruct H, H0.
+  
+  eapply Build_SelfSimulation;  intros; cleanup.
+  match goal with
+  | [H: high_oracle_exists _ _ _,
+     H0: exec low _ _ _ _ _ |- _] =>
+    edestruct H; try apply H0; eauto
+  end.
+  
+  match goal with
+  | [H: refines_to s1 _ |- _] =>
+    eapply_fresh strong_bisimulation_correct in H; eauto; cleanup
+  end.
+
+  match goal with
+    | [H: forall _, exec low _ _ _ _ _ -> _,
+       H0: exec low _ _ _ _ _,
+       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
+      eapply_fresh H in H0; cleanup; clear H H1
+  end.
+
+  match goal with
+  | [H: refines_to_valid _ _ ?s,
+     H0: refines_to ?s _,
+     H1: refines_to_valid _ _ ?t,
+     H2: refines_to ?t _ |- _] =>
+    eapply_fresh H in H0;
+      eapply_fresh H1 in H2; cleanup
+  end.
+
+  match goal with
+    | [H: exec high _ _ _ _ _ |- _] =>
+      eapply_fresh self_simulation_correct in H; eauto; cleanup
+  end.
+  
+  match goal with
+  | [H: exec high _ _ ?x2 _ _,
+     H0: refines_to ?s1 ?x1,
+     H1: refines_to ?s2 ?x2,      
+     H2: refines_to_valid _ _ ?s2 |- _] =>
+      eapply_fresh strong_bisimulation_correct in H1; eauto; cleanup
+  end.
+  
+  match goal with
+    | [H: forall _, exec low _ _ _ _ _ -> _,
+       H0: exec high _ _ _ _ _,
+       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
+      eapply_fresh H1 in H0; cleanup; clear H H1
+  end.  
+  
+  do 2 eexists; intuition eauto.
+  do 2 (eapply result_same_transitive; eauto).
+  apply result_same_symmetric; auto.
+  
+  repeat match goal with
+  | [H: forall _, extract_ret _ ?a = _ |- extract_ret _ ?a = _] =>
+    rewrite H; auto
+         end.
+
+  match goal with
+  |[ H0: oracle_refines_to_same_from_related _ _ _ |- _] =>
+      eapply H0; eauto
+  end.
+  unfold refines_to_related; eauto. 
+Qed.
+
+
+
 
 Theorem transfer_high_to_low_for_valid_states :
   forall low high
@@ -32,6 +149,8 @@ Theorem transfer_high_to_low_for_valid_states :
       compilation_of
       refines_to
       oracle_refines_to ->
+
+    high_oracle_exists refines_to compilation_of oracle_refines_to ->
     
     SelfSimulation
       low
@@ -143,127 +262,6 @@ Abort.
 
 
 
-Theorem transfer_high_to_low_for_valid_states :
-  forall low high
-
-    related_states_h
-    refines_to
-    compilation_of
-    oracle_refines_to
-
-    valid_state_h
-    valid_prog_h,
-    
-    SelfSimulation
-      high
-      valid_state_h
-      valid_prog_h
-      related_states_h ->
-    
-    StrongBisimulation
-      low
-      high
-      compilation_of
-      refines_to
-      oracle_refines_to ->
-
-    exec_compiled_preserves_validity
-    low
-    high
-    compilation_of                               
-    (refines_to_valid
-       refines_to
-       valid_state_h) ->
-    
-    SelfSimulation
-      low
-      (refines_to_valid
-         refines_to
-         valid_state_h)
-      (compiles_to_valid
-         valid_prog_h
-         compilation_of)
-      (refines_to_related
-         refines_to
-         related_states_h).
-Proof.
-  unfold refines_to_related, compiles_to_valid; intros.
-  destruct H, H0.
-  
-  eapply Build_SelfSimulation;  intros; cleanup.
-
-  (* PROBLEM: this requires for us to know that low oracle refines to some high oracle for s1 *)
-  (* SUGGESTION : exec low -> existence of high oracle *)
-  assume (Axiom1 : (forall T o1 s1 s1' p1 p2,
-             (exists s2, refines_to s1 s2) ->
-             exec low T o1 s1 p1 s1' ->
-             compilation_of T p1 p2 ->
-             exists o2, oracle_refines_to T s1 p2 o1 o2)).
-  edestruct Axiom1; try apply H2; eauto.
-  
-  match goal with
-  | [H: refines_to s1 _ |- _] =>
-    eapply_fresh strong_bisimulation_correct in H; eauto; cleanup
-  end.
-
-  match goal with
-    | [H: forall _, exec low _ _ _ _ _ -> _,
-       H0: exec low _ _ _ _ _,
-       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
-      eapply_fresh H in H0; cleanup; clear H H1
-  end.
-
-  match goal with
-  | [H: refines_to_valid _ _ ?s,
-     H0: refines_to ?s _,
-     H1: refines_to_valid _ _ ?t,
-     H2: refines_to ?t _ |- _] =>
-    eapply_fresh H in H0;
-      eapply_fresh H1 in H2; cleanup
-  end.
-
-  match goal with
-    | [H: exec high _ _ _ _ _ |- _] =>
-      eapply_fresh self_simulation_correct in H; eauto; cleanup
-  end.
-
-  (* PROBLEM: this requires for us to know that low oracle refines to same high oracle for s2 *)
-  assume (Axiom4 : (forall T o oh s1 s2 p2,
-             refines_to_related refines_to related_states_h s1 s2 ->
-             oracle_refines_to T s1 p2 o oh ->
-             oracle_refines_to T s2 p2 o oh)).
-  match goal with
-    | [H: oracle_refines_to _ _ _ _ _ |- _] =>
-      specialize Axiom4 with (2:=H); cleanup
-  end.
-  
-  match goal with
-  | [H: exec high _ _ ?x2 _ _,
-     H0: refines_to ?s1 ?x1,
-     H1: refines_to ?s2 ?x2,      
-     H2: refines_to_valid _ _ ?s2 |- _] =>
-      eapply_fresh strong_bisimulation_correct in H1; eauto; cleanup
-  end.
-  
-  match goal with
-    | [H: forall _, exec low _ _ _ _ _ -> _,
-       H0: exec high _ _ _ _ _,
-       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
-      eapply_fresh H1 in H0; cleanup; clear H H1
-  end.  
-  
-  do 2 eexists; intuition eauto.
-  do 2 (eapply result_same_transitive; eauto).
-  apply result_same_symmetric; auto.
-  
-  repeat match goal with
-  | [H: forall _, extract_ret _ ?a = _ |- extract_ret _ ?a = _] =>
-    rewrite H; auto
-         end.
-
-  apply Axiom4; eauto.
-  unfold refines_to_related; eauto. 
-Abort.
 
 
 Lemma bisimulation_weaken_valid_prog:
@@ -343,7 +341,7 @@ Lemma bisimulation_restrict_state:
        refines_to
        valid_state_h) ->
 
-  exec_preserves_validity high valid_state_h ->
+  exec_preserves_validity high valid_state_h -> 
   
   StrongBisimulationForValidStates
       low
