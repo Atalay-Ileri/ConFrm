@@ -3,13 +3,106 @@ Require Import Layer2 SimulationLayer Layer1to2RefinementDefinitions.
 Require Import FunctionalExtensionality Omega.
 
 Section Layer1to2Refinement.
-
   
-  Axiom oracle_refines_to_deterministic:
-    forall T (p: Layer2.prog T) s o o1 o2,
+  Lemma oracle_refines_to_deterministic:
+    forall T (p: Layer2.prog T) s s' o o1 o2,
+      Layer1.exec o s (compile p) s' ->
       oracle_refines_to T s p o o1 ->
       oracle_refines_to T s p o o2 ->
       o1 = o2.
+  Proof.
+    induction p; simpl; intros; cleanup; eauto.
+    -
+      destruct s'; simpl in *.
+      apply finished_crash_not_in in H; congruence.
+      specialize H2 with (1:= H);
+        specialize H3 with (1:= H);
+        cleanup; intuition eauto.
+      destruct (set_dec value_dec s0 s2); subst; intuition; cleanup; eauto.
+    -
+      destruct s'; simpl in *; intuition.
+      apply finished_crash_not_in in H; intuition congruence.
+      specialize H3 with (1:= H);
+        cleanup; intuition eauto.
+    -
+      destruct s'; simpl in *.
+      apply finished_crash_not_in in H; congruence.
+      specialize H2 with (1:= H);
+        specialize H3 with (1:= H);
+        cleanup; intuition eauto.
+      destruct (value_dec v0 v1); subst; intuition; cleanup; eauto.
+    -
+      destruct s'; simpl in *; intuition.
+      apply finished_crash_not_in in H; intuition congruence.
+      specialize H3 with (1:= H);
+        cleanup; intuition eauto.
+
+    -
+      intuition.
+      
+    -
+      invert_exec.
+      +
+        repeat split_ors; cleanup; try rewrite app_nil_r in *; cleanup;
+          eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
+        
+        eapply oracle_ok_exec_crashed_app_nil in H4; eauto; cleanup.
+        exfalso; eauto.
+        eapply oracle_ok_nonempty; eauto.
+
+        eapply oracle_ok_exec_crashed_app_nil in H6; eauto; cleanup.
+        exfalso; eauto.
+        eapply oracle_ok_nonempty; eauto.
+        eapply_fresh exec_finished_deterministic in H0; eauto; cleanup.
+        eapply_fresh exec_finished_deterministic in H0; eauto; cleanup.
+        apply app_inv_head in H5; cleanup.
+        apply app_inv_head in H3; cleanup.
+        eapply_fresh deterministic_prog in H2; eauto; cleanup.
+        eapply_fresh deterministic_prog in H2; eauto; cleanup.
+        specialize IHp with (1:=H0)(2:=H11)(3:=H8); cleanup.
+        specialize H with (1:=H2)(2:=H12)(3:=H9); cleanup; eauto.
+      +
+        destruct H0; cleanup.
+        *
+          repeat split_ors; cleanup; try rewrite app_nil_r in *; cleanup.
+
+          eapply_fresh deterministic_prog in H0; eauto; cleanup.
+
+          eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
+          eapply oracle_ok_exec_crashed_app_nil in H0; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+
+          eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
+          eapply oracle_ok_exec_crashed_app_nil in H0; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+
+          eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
+          eapply oracle_ok_exec_crashed_app_nil in H0; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+
+        *
+          repeat split_ors; cleanup; try rewrite app_nil_r in *; cleanup;
+          eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
+        
+          eapply oracle_ok_exec_crashed_app_nil in H4; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+          
+          eapply oracle_ok_exec_crashed_app_nil in H6; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+          eapply_fresh exec_finished_deterministic in H0; eauto; cleanup.
+          eapply_fresh exec_finished_deterministic in H0; eauto; cleanup.
+          apply app_inv_head in H5; cleanup.
+          apply app_inv_head in H3; cleanup.
+          eapply_fresh deterministic_prog in H2; eauto; cleanup.
+          eapply_fresh deterministic_prog in H2; eauto; cleanup.
+          specialize IHp with (1:=H0)(2:=H11)(3:=H8); cleanup.
+          specialize H with (1:=H2)(2:=H12)(3:=H9); cleanup; eauto.
+  Qed.
   
   Axiom layer1_exec_compiled_preserves_refines_to:
     forall T (p2: Layer2.prog T) o1 s1 s1',
@@ -75,27 +168,8 @@ Section Layer1to2Refinement.
         exists (x5++x7).
         unfold oracle_refines_to; simpl; fold oracle_refines_to; eauto.
         split; eauto.
-        
         do 2 eexists; intuition eauto.
-        match goal with
-        | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
-          eapply_fresh oracle_ok_exec_crashed_app_nil in H;
-          eauto; cleanup
-        end.
-        exfalso; eapply oracle_ok_nonempty; eauto.
-        match goal with
-        | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
-          eapply_fresh oracle_ok_exec_crashed_app_nil in H;
-          eauto; cleanup
-        end.
-        repeat match goal with
-        | [H: Layer1.exec _ _ _ (Finished _ _),
-           H0: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
-          eapply deterministic_prog in H;
-          try apply H0; eauto; cleanup
-        end.
-        
-        do 2 eexists; intuition eauto.
+        right; do 3 eexists; intuition eauto.
         
       + (* Crashed *)
         split_ors; cleanup.
@@ -112,13 +186,8 @@ Section Layer1to2Refinement.
           unfold oracle_refines_to; simpl; fold oracle_refines_to.
           split; eauto.
 
-          do 2 eexists; intuition eauto.
+          do 2 eexists; intuition eauto.          
           rewrite app_nil_r; eauto.
-          match goal with
-          | [H: Layer1.exec _ _ _ (Crashed _) |- _ ] =>
-            eapply deterministic_prog in H;
-            eauto; cleanup
-          end.
         
         *
           match goal with
@@ -147,24 +216,7 @@ Section Layer1to2Refinement.
           split; eauto.
 
           do 2 eexists; intuition eauto.
-          match goal with
-          | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
-            eapply_fresh oracle_ok_exec_crashed_app_nil in H;
-            eauto; cleanup
-          end.
-          exfalso; eapply oracle_ok_nonempty; eauto.
-          match goal with
-          | [H: Layer1.exec (_++_) _ _ _ |- _ ] =>
-            eapply_fresh oracle_ok_exec_crashed_app_nil in H;
-            eauto; cleanup
-          end.
-          match goal with
-          | [H: Layer1.exec _ _ _ (Finished _ _),
-             H0: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
-            eapply deterministic_prog in H;
-            try apply H0; eauto; cleanup
-          end.
-          do 2 eexists; intuition eauto.    
+          right; do 3 eexists; intuition eauto. 
   Qed.
 
   Lemma high_oracle_exists_ok :
@@ -630,7 +682,7 @@ Qed.
         compilation_of refines_to oracle_refines_to 
         (p2 t)) ->
     StrongBisimulationForProgram layer1_lts layer2_lts
-          compilation_of refines_to oracle_refines_to (Layer2.Bind p1 p2).
+          compilation_of refines_to oracle_refines_to (Bind p1 p2).
   Proof.
     intros.
     edestruct H.
@@ -646,35 +698,127 @@ Qed.
         unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
         simpl in *.
         eapply oracle_ok_bind_finished_split in H3 as Hx; eauto; cleanup.
-        admit.
+        split_ors; cleanup.
+        *
+          eapply oracle_ok_exec_crashed_app_nil in H6; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+        *
+          eapply_fresh exec_finished_deterministic in H6; eauto; cleanup.
+          apply app_inv_head in H5; cleanup.
+          eapply_fresh deterministic_prog in H9; eauto; cleanup.
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+          edestruct H0.
+          edestruct strong_bisimulation_for_program_correct0; eauto.
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+          cleanup.
+          eexists; eauto.
+
       +
         unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        simpl in *.
-        specialize H5 with (1:=H4); cleanup.
-        rewrite app_nil_r in *.
-        clear H6.
-        eapply oracle_ok_bind_crashed_split in H2; eauto.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H5; eauto; cleanup; clear H5 H6.
-        destruct x0; simpl in *; intuition.
-        eexists; split.        
-        econstructor; eauto.
-        simpl; eauto.
+        split_ors; cleanup.
+        *
+          rewrite app_nil_r in *.
+          eapply_fresh deterministic_prog in H3; eauto; cleanup.
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
+          eexists; eauto.
+
+        *
+          eapply oracle_ok_bind_finished_split in H2 as Hx; eauto; cleanup.
+          eapply oracle_ok_exec_crashed_app_nil in H4; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+          
       +
         cleanup.
         unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
         simpl in *.
         eapply oracle_ok_bind_finished_split in H3 as Hx; eauto; cleanup.
-        admit.
+        split_ors; cleanup.
+        *
+          eapply oracle_ok_exec_crashed_app_nil in H6; eauto; cleanup.
+          exfalso; eauto.
+          eapply oracle_ok_nonempty; eauto.
+        *
+          eapply_fresh exec_finished_deterministic in H6; eauto; cleanup.
+          apply app_inv_head in H5; cleanup.
+          eapply_fresh deterministic_prog in H9; eauto; cleanup.
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+          edestruct H0.
+          edestruct strong_bisimulation_for_program_correct0; eauto.
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+          cleanup; eexists; eauto.
 
     - (* High to Low *)
       inversion H2; sigT_eq; cleanup; clear H2.
-      unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        unfold oracle_ok in *; cleanup.
-        
+      +
+        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
+        split_ors; cleanup.
 
-        
-      (* Oct 18: Fix oracle_refines_to definition for Bind *)
+        *
+          rewrite app_nil_r in *.
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H5; eauto; simpl in *; cleanup; intuition; clear H5 H6.
+          (* Need some Layer2 facts here to prove contradiction *)
+          assume (Axiom_x:
+                    (forall T (p: Layer2.prog T) o1 o2 s s1 s2 r1,
+                        Layer2.exec o1 s p (Finished s1 r1) ->
+                        ~Layer2.exec (o1++o2) s p (Crashed s2))).
+          exfalso; eapply Axiom_x; eauto.
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H8; eauto; simpl in *; cleanup; intuition.
+
+          (* Need some Layer2 facts here *)
+          assume (Axiom1:
+                    (forall T (p: Layer2.prog T) o1 o2 s s1 s2 r1 r2,
+                        Layer2.exec o1 s p (Finished s1 r1) ->
+                        Layer2.exec o2 s p (Finished s2 r2) ->
+                        length o1 = length o2)).
+          eapply_fresh Axiom1 in H9; eauto.
+          symmetry in Hx; eapply app_split_length_eq_l in Hx; eauto; cleanup.
+
+          assume (Axiom2:
+                    (forall T (p: Layer2.prog T) o s r1 r2,
+                        Layer2.exec o s p r1 ->
+                        Layer2.exec o s p r2 ->
+                        r1 = r2)).
+          eapply Axiom2 in H11; eauto; cleanup.
+          edestruct H10; eauto; simpl in *; cleanup; intuition; clear H8 H10.
+          simpl in *; cleanup.
+          destruct x6; simpl in *; intuition; cleanup.
+          eapply deterministic_prog in H3; eauto; cleanup.
+
+          edestruct H0.
+          edestruct strong_bisimulation_for_program_correct0; eauto.
+          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H3 H8.
+          cleanup; eexists; eauto.
+
+      +
+        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
+        split_ors; cleanup.
+        *
+          rewrite app_nil_r in *.
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H6; eauto; simpl in *; cleanup; intuition; clear H5 H6.
+          eapply deterministic_prog in H3; eauto; cleanup.
+          eexists; intuition eauto.
+
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H7; eauto; simpl in *; cleanup; intuition.
+          (* Need some Layer2 facts here to prove contradiction *)
+          assume (Axiom_x:
+                    (forall T (p: Layer2.prog T) o1 o2 s s1 s2 r1,
+                        Layer2.exec o1 s p (Finished s1 r1) ->
+                        ~Layer2.exec (o1++o2) s p (Crashed s2))).
+          exfalso; eapply Axiom_x; eauto.
+          
   Admitted.
     
   Hint Resolve sbs_alloc sbs_free sbs_read sbs_ret sbs_write sbs_bind.

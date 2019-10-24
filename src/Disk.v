@@ -6,6 +6,12 @@ Set Implicit Arguments.
 Section Disk.
   (* maybe rename better *)
   Definition set V := (V * list V)%type.
+
+  Definition set_dec {V} (value_dec : forall (v v': V),{v=v'}+{v<>v'}): forall s s': set V, {s=s'}+{s<>s'}.
+    decide equality.
+    decide equality.
+  Defined.
+    
   Definition disk V := @mem addr addr_dec V.
   Definition upd_disk {V} := @upd addr V addr_dec.
   

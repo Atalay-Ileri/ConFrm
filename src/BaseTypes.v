@@ -12,6 +12,7 @@ Axiom nat_to_value_to_nat:
   forall n, value_to_nat (nat_to_value n) = n.
 Axiom value_to_nat_to_value:
   forall v, nat_to_value (value_to_nat v) = v.
+Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
 
 (* For access control *) 
 Axiom user : Type.

@@ -244,3 +244,12 @@ Qed.
       do 2 eexists; intuition; eauto;
         eapply deterministic_prog in H0; eauto; cleanup; eauto.
   Qed.
+
+  Lemma finished_crash_not_in:
+    forall T (p: prog T) s s' o r,
+      exec o s p (Finished s' r) ->
+      ~In Crash o.
+  Proof.
+    induction p; simpl; intros; invert_exec; cleanup; simpl; intuition eauto; try congruence.
+    apply in_app_iff in H2; intuition eauto.
+  Qed.
