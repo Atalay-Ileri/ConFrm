@@ -115,7 +115,6 @@ Section Layer1to2Refinement.
   Arguments oracle_ok T p o s : simpl never.
   Arguments oracle_refines_to T d1 p o1 o2 : simpl never.
 
- 
   
   Lemma high_oracle_exists_ok':
     forall T p2 p1 ol sl sl',
@@ -764,34 +763,15 @@ Qed.
           rewrite app_nil_r in *.
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H5; eauto; simpl in *; cleanup; intuition; clear H5 H6.
-          (* Need some Layer2 facts here to prove contradiction *)
-          assume (Axiom_x:
-                    (forall T (p: Layer2.prog T) o1 o2 s s1 s2 r1,
-                        Layer2.exec o1 s p (Finished s1 r1) ->
-                        ~Layer2.exec (o1++o2) s p (Crashed s2))).
-          exfalso; eapply Axiom_x; eauto.
+          exfalso; eapply layer2_finished_not_crashed_oracle_app; eauto.
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H8; eauto; simpl in *; cleanup; intuition.
+          eapply_fresh layer2_exec_finished_deterministic in H9; eauto; cleanup.
+          eapply app_inv_head in H7; cleanup.
 
-          (* Need some Layer2 facts here *)
-          assume (Axiom1:
-                    (forall T (p: Layer2.prog T) o1 o2 s s1 s2 r1 r2,
-                        Layer2.exec o1 s p (Finished s1 r1) ->
-                        Layer2.exec o2 s p (Finished s2 r2) ->
-                        length o1 = length o2)).
-          eapply_fresh Axiom1 in H9; eauto.
-          symmetry in Hx; eapply app_split_length_eq_l in Hx; eauto; cleanup.
-
-          assume (Axiom2:
-                    (forall T (p: Layer2.prog T) o s r1 r2,
-                        Layer2.exec o s p r1 ->
-                        Layer2.exec o s p r2 ->
-                        r1 = r2)).
-          eapply Axiom2 in H11; eauto; cleanup.
           edestruct H10; eauto; simpl in *; cleanup; intuition; clear H8 H10.
           simpl in *; cleanup.
-          destruct x6; simpl in *; intuition; cleanup.
           eapply deterministic_prog in H3; eauto; cleanup.
 
           edestruct H0.
@@ -812,14 +792,9 @@ Qed.
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H7; eauto; simpl in *; cleanup; intuition.
-          (* Need some Layer2 facts here to prove contradiction *)
-          assume (Axiom_x:
-                    (forall T (p: Layer2.prog T) o1 o2 s s1 s2 r1,
-                        Layer2.exec o1 s p (Finished s1 r1) ->
-                        ~Layer2.exec (o1++o2) s p (Crashed s2))).
-          exfalso; eapply Axiom_x; eauto.
+          exfalso; eapply layer2_finished_not_crashed_oracle_app; eauto.
           
-  Admitted.
+  Qed.
     
   Hint Resolve sbs_alloc sbs_free sbs_read sbs_ret sbs_write sbs_bind.
   
