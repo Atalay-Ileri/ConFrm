@@ -25,13 +25,21 @@ Theorem upd_valid_zero:
   forall i l,
     valid_bitlist l ->
     valid_bitlist (updN l i 0).
-Proof. Admitted.
+Proof.
+  unfold valid_bitlist in *; intros; cleanup.
+  rewrite length_updN; intuition.
+  apply in_updN in H1; intuition; eauto.
+Qed.
 
 Theorem upd_valid_one:
   forall i l,
     valid_bitlist l ->
     valid_bitlist (updN l i 1).
-Proof. Admitted.
+Proof.
+  unfold valid_bitlist in *; intros; cleanup.
+  rewrite length_updN; intuition.
+  apply in_updN in H1; intuition; eauto.
+Qed.
 
 Axiom value_to_bits: value -> bitlist.
 Axiom bits_to_value: bitlist -> value.
