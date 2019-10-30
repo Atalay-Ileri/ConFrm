@@ -1,7 +1,7 @@
 Require Import Arith.
 Require Import Omega.
 Require Import List.
-Require Import Predx.
+Require Import Pred.
 Require Import Errno.
 Require Import DestructPair DestructVarname.
 Require Import Disk.

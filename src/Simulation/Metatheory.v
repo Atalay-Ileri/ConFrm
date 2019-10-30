@@ -1,4 +1,4 @@
-Require Import List CommonAutomation Simulation.
+Require Import List Primitives Simulation.Definitions.
 
 Theorem transfer_high_to_low:
   forall low high

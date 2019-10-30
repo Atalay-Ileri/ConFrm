@@ -1,10 +1,9 @@
-Require Import Primitives Omega Disk.
-Require Import BlockAllocatorDefinitions BlockAllocatorFacts.
-Require Import Layer2 Layer1to2RefinementDefinitions.
+Require Import Primitives Layer1 Omega.
+Require Import BlockAllocator.Definitions BlockAllocator.Facts.
 
 Arguments oracle_ok T p o s : simpl never.
-
-
+Arguments rep dh : simpl never.
+(*
 Theorem alloc_ok:
   forall dh v,
   << o >>
@@ -14,66 +13,52 @@ Theorem alloc_ok:
    (exists dh',
     rep dh' *
      [[(r = None /\ dh' = dh /\ oracle_refines_to _ d (Alloc v) o (DiskFull::nil)) \/
-       (exists a, r = Some a /\ dh a = None /\ dh' = upd dh a v /\ oracle_refines_to _ d (Alloc v) o (BlockNum a::nil))%type]])
+       (exists a, r = Some a /\ dh a = None /\ dh' = upd dh a v /\
+             oracle_refines_to _ d (Alloc v) o (BlockNum a::nil))%type]])
    (exists dh',
     rep dh' *
      [[(dh' = dh /\ oracle_refines_to _ d (Alloc v) o (Crash1::nil)) \/
-       (exists a, dh a = None /\ dh' = upd dh a v /\ oracle_refines_to _ d (Alloc v) o (CrashAlloc a::nil) )%type]]).
-Proof. Admitted. (*
+       (exists a, dh a = None /\ dh' = upd dh a v /\
+             oracle_refines_to _ d (Alloc v) o (CrashAlloc a::nil) )%type]]).
+Proof.
   unfold alloc; intros dh v.
-  unfold rep.
-  repeat (apply extract_exists; intros).
+  eapply pre_strengthen.
+  2: eapply rep_extract_bitmap.
+  apply extract_exists.
+  intro v0.
+  eapply post_weaken.
   eapply crash_weaken.
   eapply bind_ok.  
   eapply pre_strengthen.
   eapply add_frame.
   apply read_ok.
-  eassign (ptsto_bits dh (bits (value_to_bits v0)) *
-           [[ forall i : nat, i >= block_size -> dh i = None ]]).
   cancel.
   simpl; intros; cancel.
- 
-  intros; destruct_lifts.
-  destruct (lt_dec (get_first_zero (bits (value_to_bits v0))) block_size); simpl in *.
+  simpl; intros; cancel.
+  rewrite sep_star_comm, rep_merge; eauto.
+  eassign (fun (_: Layer1.oracle) => rep dh); simpl; eauto.
+
+  intros; simpl; cancel.
+  
+  intros F o d d' r H H0; destruct_lifts.
+  destruct (lt_dec (get_first_zero (bits (value_to_bits v0_cur))) block_size); simpl in *.
   {
-    eapply hoare_triple_strengthen_pre.
-    2: {
-      unfold ptsto_bits.
-      intros.
-      
-      instantiate (1:= (fun o0 => (fun d0 => ( F2 * (exists vs, (S (get_first_zero (bits (value_to_bits v0)))|-> vs) * 0 |-> (v0, v1) * ((S (get_first_zero (bits (value_to_bits v0)))|-> vs) --* ptsto_bits' dh (bits (value_to_bits v0)) 0))
-    ✶ ⟦⟦ oracle_ok
-           (_ <- Write (S (get_first_zero (bits (value_to_bits v0)))) v;
-            _ <-
-            Write 0
-              (bits_to_value
-                 {|
-                 bits := ListUtils.updN (bits (value_to_bits v0)) (get_first_zero (bits (value_to_bits v0))) 1;
-                 valid := upd_valid_one (get_first_zero (bits (value_to_bits v0))) (bits (value_to_bits v0))
-                            (valid (value_to_bits v0)) |}); Ret (Some (get_first_zero (bits (value_to_bits v0)))))
-           o0 d0 ⟧⟧) d0)%pred)).
-      simpl.
-      intros m Hm; simpl in *;
-        pred_apply; clear Hm.
-      erewrite (ptsto_bits'_extract (bits (value_to_bits v0))) at 1.
-      norml.
-      cancel.
-      eauto.
-      rewrite Nat.add_0_r.
-      destruct (value_to_bits v0); simpl in *.
-      destruct valid.
-      rewrite H2; eauto.
-      omega.
-    }    
-    repeat (apply extract_exists; intros).
-    destruct v2.
-    eapply crash_weaken.    
     eapply pre_strengthen.
+    2: eapply rep_extract_block_size with (a:= get_first_zero (bits (value_to_bits v0_cur))); eauto.
+    apply extract_exists.
+    intro v0.
+    destruct v0.
+    eapply crash_weaken.   
     eapply bind_ok.
     eapply add_frame.
     apply write_ok.
 
     simpl; intros; eauto.
+    
+
+    simpl; intros.
+    (* We need rep_upd_merge here *)
+    admit.
 
     simpl; intros.
     eapply hoare_triple_strengthen_pre.
@@ -83,6 +68,9 @@ Proof. Admitted. (*
     eapply write_ok.
 
     simpl; intros; eauto.
+    simpl; intros.
+    (* We need rep_upd_bitmap_merge here *)
+    admit.
 
     simpl in *; intros.
     eapply hoare_triple_strengthen_pre.
@@ -94,19 +82,15 @@ Proof. Admitted. (*
     - (* post *)
       simpl; intros.
       shelve.
-    - eauto.
-    - simpl; intros.
-      cancel.
-      intros m Hm; simpl in *;
-        pred_apply; clear Hm.
-      shelve.
-    - eauto.
+    - simpl; intros; eauto.
+      apply pimpl_refl.
     - simpl; intros; cancel.
       intros m Hm; simpl in *;
         pred_apply; clear Hm.
       cancel.
       shelve.
     - cancel.
+      left; intuition eauto.
     - instantiate (1:= 
         (exists dh',
             rep dh' *
@@ -178,7 +162,7 @@ Proof. Admitted. (*
     omega.
   }  
 Admitted.
-*)
+
 Theorem read_ok:
   forall a dh,
   << o >>
@@ -1083,4 +1067,5 @@ Proof. Admitted. (*
     rewrite delete_ne; eauto.
   }
 Qed.
+                  *)
 *)

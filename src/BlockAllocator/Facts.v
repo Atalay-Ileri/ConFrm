@@ -1,5 +1,5 @@
-Require Import Primitives Omega Disk FunctionalExtensionality.
-Require Import BlockAllocatorDefinitions ListUtils.
+Require Import Primitives Layer1 BlockAllocator.Definitions.
+Require Import Omega FunctionalExtensionality.
 
 
 Lemma delete_eq:
@@ -217,6 +217,86 @@ Proof.
   apply star_split in Hm; cleanup.
   destruct_lift H3.
   eapply ptsto_complete in H3; eauto; subst; eauto.
+Qed.
+
+Lemma rep_merge:
+  forall dh a vs,
+    ((a |-> vs) --* rep dh) * (a |-> vs) =p=> rep dh.
+Proof.
+  intros.
+  unfold septract; intros.
+  intros m Hm.
+  apply star_split in Hm; cleanup.
+  destruct_lift H3.
+  eapply ptsto_complete in H3; eauto; subst; eauto.
+Qed.
+
+Lemma rep_extract:
+  forall dh a,
+    dh a <> None ->
+    rep dh =p=> exists vs, (((S a |-> vs) --* rep dh) * (S a |-> vs)).
+Proof.
+  intros.
+  unfold rep, ptsto_bits.
+  norml.
+  unfold stars; simpl.
+  erewrite ptsto_bits'_extract with (a:= a).
+  norm.
+  intros m Hm.  
+  eapply septract_sep_star_extract'.
+  pred_apply; cancel.
+  pred_apply; cancel.
+  rewrite sep_star_comm.
+  erewrite ptsto_bits'_merge; eauto.
+  eauto.
+  destruct (value_to_bits bitmap); simpl.
+  inversion valid.
+  rewrite H0.
+  rewrite Nat.add_0_r.
+  destruct (lt_dec a block_size); eauto; intuition.
+  exfalso; apply H; apply H2; omega.
+  omega.
+Qed.
+
+Lemma rep_extract_block_size:
+  forall dh a,
+    a < block_size ->
+    rep dh =p=> exists vs, (((S a |-> vs) --* rep dh) * (S a |-> vs)).
+Proof.
+  intros.
+  unfold rep, ptsto_bits.
+  norml.
+  unfold stars; simpl.
+  erewrite ptsto_bits'_extract with (a:= a).
+  norm.
+  intros m Hm.  
+  eapply septract_sep_star_extract'.
+  pred_apply; cancel.
+  pred_apply; cancel.
+  rewrite sep_star_comm.
+  erewrite ptsto_bits'_merge; eauto.
+  eauto.
+  destruct (value_to_bits bitmap); simpl.
+  inversion valid.
+  rewrite H0.
+  rewrite Nat.add_0_r; eauto.
+  omega.
+Qed.
+
+Lemma rep_extract_bitmap:
+  forall dh,
+    rep dh =p=> exists vs, (((0 |-> vs) --* rep dh) * (0 |-> vs)).
+Proof.
+  intros.
+  unfold rep, ptsto_bits.
+  norml.
+  unfold stars; simpl.
+  norm.
+  intros m Hm.  
+  eapply septract_sep_star_extract'.
+  pred_apply; cancel.
+  pred_apply; cancel.
+  eauto.
 Qed.
 
 Lemma rep_eq:

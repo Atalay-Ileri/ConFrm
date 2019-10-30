@@ -1,5 +1,4 @@
-Require Import List BaseTypes Memx Predx.
-Require Import CommonAutomation SepAuto Layer1 ProgAuto HoareL1.
+Require Import Primitives Layer1.Definitions HoareLogic ProgAuto.
 Open Scope pred_scope.
 
 Theorem read_ok:
@@ -7,7 +6,7 @@ Theorem read_ok:
     << o >>
      (a |-> v)
      (Read a)
-    << d, r >>
+    << r >>
      (a |-> v * [[r = fst v]])
      (a |-> v).
 Proof.
@@ -31,7 +30,7 @@ Theorem write_ok:
     << o >>
      (a |-> v)
      (Write a v')
-    << d, r >>
+    << r >>
      (a |-> (v', (fst v::snd v)))
      (a |-> v).
 Proof.
@@ -58,7 +57,7 @@ Theorem ret_ok:
     << o >>
      emp
      (Ret v)
-    << d, r >>
+    << r >>
      (emp * [[r = v]])
      emp.
 Proof.

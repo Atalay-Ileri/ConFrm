@@ -1,6 +1,4 @@
-Require Import List CommonAutomation Disk ListUtils.
-Require Import Simulation SimulationLayer.
-Require Import Layer1Definitions ProgAuto.
+Require Import Primitives Simulation Layer1.Definitions ProgAuto.
 Import ListNotations.
 
 Lemma exec_crash_in:

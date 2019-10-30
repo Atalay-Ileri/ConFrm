@@ -1,6 +1,5 @@
-Require Import Primitives Disk Simulation SimulationLayer.
-Require Import Layer1.
-Require Import Omega FunctionalExtensionality Memx.
+Require Import Primitives Simulation Layer1.
+Require Import Omega FunctionalExtensionality.
 Import ListNotations.
 Close Scope pred_scope.
 Set Implicit Arguments.

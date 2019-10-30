@@ -71,8 +71,71 @@ Proof.
   all: specialize IHtr with (1:= H1); intuition eauto.
 Qed.
 
-Definition oracle T := list T.
-
 Notation "'addr_dec'" := addr_eq_dec.
 Notation "'handle_dec'" := handle_eq_dec.
 Notation "'permission_dec'" := permission_eq_dec.
+
+Inductive Result {State T: Type} :=
+| Finished : State -> T -> @Result State T
+| Crashed : State -> @Result State T.
+
+Definition extract_state {State T} (res: @Result State T) :=
+  match res with
+  | Finished s _ | Crashed s => s
+  end.
+
+Definition extract_ret {State T} def (res: @Result State T) :=
+  match res with
+  | Finished _ r => r
+  | Crashed _ => def
+  end.
+
+Definition map_state {State1 State2 T} (f:State1 -> State2) (res: @Result State1 T) :=
+  match res with
+  | Finished s v => Finished (f s) v
+  | Crashed s  => Crashed (f s)
+  end.
+
+Lemma extract_state_map_state_elim:
+  forall ST1 ST2 T (R:ST1 -> ST2) (r : @Result ST1 T),
+    extract_state (map_state R r) = R (extract_state r).
+Proof.
+  intros; destruct r; simpl; eauto.
+Qed.
+
+Lemma extract_ret_map_state_elim:
+  forall ST1 ST2 T (R:ST1 -> ST2) (r : @Result ST1 T) def,
+    extract_ret def (map_state R r) = extract_ret def r.
+Proof.
+  intros; destruct r; simpl; eauto.
+Qed.
+
+Definition result_same {State1 State2 T1 T2} (res1: @Result State1 T1) (res2: @Result State2 T2) :=
+  match res1, res2 with
+  | Finished _ _, Finished _ _ | Crashed _, Crashed _ => True
+  | _, _ => False
+  end.
+
+Lemma result_same_transitive:
+  forall State1 State2 State3 T1 T2 T3
+    (res1: @Result State1 T1)
+    (res2: @Result State2 T2)
+    (res3: @Result State3 T3),
+    result_same res1 res2 ->
+    result_same res2 res3 ->
+    result_same res1 res3.
+Proof.
+  unfold result_same; intros.
+  destruct res1, res2, res3; intuition.
+Qed.
+
+Lemma result_same_symmetric:
+  forall State1 State2 T1 T2
+    (res1: @Result State1 T1)
+    (res2: @Result State2 T2),
+    result_same res1 res2 ->
+    result_same res2 res1.
+Proof.
+  unfold result_same; intros.
+  destruct res1, res2; intuition.
+Qed.

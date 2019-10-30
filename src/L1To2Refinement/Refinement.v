@@ -1,5 +1,5 @@
-Require Import Primitives Layer1 BlockAllocator ListUtils.
-Require Import Layer2 SimulationLayer Layer1to2RefinementDefinitions.
+Require Import Primitives Simulation Layer1.
+Require Import BlockAllocator Layer2 L1To2Refinement.Definitions.
 Require Import FunctionalExtensionality Omega.
 
 Section Layer1to2Refinement.

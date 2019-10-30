@@ -1,4 +1,4 @@
-Require Import List Memx BaseTypes.
+Require Import List Mem BaseTypes.
 Import ListNotations.
 
 Set Implicit Arguments.

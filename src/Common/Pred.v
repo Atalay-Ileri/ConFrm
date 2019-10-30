@@ -1,7 +1,7 @@
 Require Import Arith.
 Require Import Omega.
 Require Import FunctionalExtensionality.
-Require Import Memx.
+Require Import Mem.
 Require Import RelationClasses.
 Require Import Morphisms.
 Require Import List.

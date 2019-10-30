@@ -1,4 +1,4 @@
-Require Import Primitives Simulation Layer2Definitions.
+Require Import Primitives Simulation Layer2.Definitions.
 
 Lemma layer2_exec_finished_deterministic:
   forall T (p: prog T) o1 o2 o3 o4 s s1 s2 r1 r2,

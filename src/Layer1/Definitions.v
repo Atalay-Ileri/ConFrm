@@ -1,6 +1,4 @@
-Require Import List BaseTypes Memx.
-Require Import CommonAutomation Disk.
-Require Import Simulation SimulationLayer.
+Require Import Primitives Simulation.
 Import ListNotations.
 
 Set Implicit Arguments.

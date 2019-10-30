@@ -1,5 +1,5 @@
-Require Import BaseTypes Simulation.
-Require Import Memx.
+Require Import BaseTypes.
+Require Import Mem.
 Require Import List ListUtils.
 Require Import Eqdep.
 Import ListNotations.
