@@ -3,91 +3,164 @@ Require Import BlockAllocator.Definitions BlockAllocator.Facts.
 
 Arguments oracle_ok T p o s : simpl never.
 Arguments rep dh : simpl never.
-
+(*
 Theorem alloc_ok:
   forall dh v,
   << o >>
    (rep dh)
    (alloc v)
-  << r >>
+  << d, r >>
    (exists dh',
     rep dh' *
-     [[(r = None /\ dh' = dh) \/
-       (exists a, r = Some a /\ dh a = None /\ dh' = upd dh a v)%type]])
+     [[(r = None /\ dh' = dh /\ oracle_refines_to _ d (Alloc v) o (DiskFull::nil)) \/
+       (exists a, r = Some a /\ dh a = None /\ dh' = upd dh a v /\
+             oracle_refines_to _ d (Alloc v) o (BlockNum a::nil))%type]])
    (exists dh',
     rep dh' *
-     [[(dh' = dh) \/
-       (exists a, dh a = None /\ dh' = upd dh a v)%type]]).
+     [[(dh' = dh /\ oracle_refines_to _ d (Alloc v) o (Crash1::nil)) \/
+       (exists a, dh a = None /\ dh' = upd dh a v /\
+             oracle_refines_to _ d (Alloc v) o (CrashAlloc a::nil) )%type]]).
 Proof.
   unfold alloc; intros dh v.
   eapply pre_strengthen.
   2: eapply rep_extract_bitmap.
   apply extract_exists.
   intro v0.
+  eapply post_weaken.
+  eapply crash_weaken.
   eapply bind_ok.  
+  eapply pre_strengthen.
   eapply add_frame.
   apply read_ok.
-  all: try solve [ simpl; intros; try setoid_rewrite rep_merge; apply pimpl_refl].
-  all: try solve [ simpl; intros; apply pimpl_refl].
-  all: try solve [ simpl; intros; try setoid_rewrite rep_merge; cancel].
+  cancel.
+  simpl; intros; cancel.
+  simpl; intros; cancel.
+  rewrite sep_star_comm, rep_merge; eauto.
+  eassign (fun (_: Layer1.oracle) => rep dh); simpl; eauto.
 
-  intros F d d' r H H0; destruct_lifts.
+  intros; simpl; cancel.
+  
+  intros F o d d' r H H0; destruct_lifts.
   destruct (lt_dec (get_first_zero (bits (value_to_bits v0_cur))) block_size); simpl in *.
   {
     eapply pre_strengthen.
-    2: erewrite rep_extract_block_size_double with (a:= get_first_zero (bits (value_to_bits v0_cur))); eauto.
-    eapply pre_strengthen; [|apply pimpl_exists_l_star_r].
+    2: eapply rep_extract_block_size with (a:= get_first_zero (bits (value_to_bits v0_cur))); eauto.
     apply extract_exists.
     intro v0.
     destruct v0.
+    eapply crash_weaken.   
     eapply bind_ok.
     eapply add_frame.
     apply write_ok.
 
-    all: try solve [ simpl; intros; apply pimpl_refl].
-    cancel.
-    simpl; intros; try setoid_rewrite rep_merge; cancel.
-    shelve.
+    simpl; intros; eauto.
     
-    simpl; intros F0 d0 d'0 r H1 H2; destruct_lifts.    
+
+    simpl; intros.
+    (* We need rep_upd_merge here *)
+    admit.
+
+    simpl; intros.
+    eapply hoare_triple_strengthen_pre.
+    eapply crash_weaken.
     eapply bind_ok.
     eapply add_frame.
     eapply write_ok.
-    all: try solve [ simpl; intros; apply pimpl_refl].
-    cancel.
-    intros; simpl.
-    (* we need folding magic here *)
-    shelve.
-   
-    simpl; intros F1 d1 d'1 r H3 H4; destruct_lifts.
 
-    eapply pre_strengthen.
+    simpl; intros; eauto.
+    simpl; intros.
+    (* We need rep_upd_bitmap_merge here *)
+    admit.
+
+    simpl in *; intros.
+    eapply hoare_triple_strengthen_pre.
     eapply crash_weaken.
     eapply post_weaken.
     eapply add_frame.
     apply ret_ok.
-    
+
     - (* post *)
       simpl; intros.
+      shelve.
+    - simpl; intros; eauto.
+      apply pimpl_refl.
+    - simpl; intros; cancel.
+      intros m Hm; simpl in *;
+        pred_apply; clear Hm.
       cancel.
-      right; eexists; intuition eauto.
       shelve.
     - cancel.
-      right; eexists; intuition eauto.
-      shelve.
-    - setoid_rewrite <- rep_merge with (a:= 0) at 2.
-      cancel.
+      left; intuition eauto.
+    - instantiate (1:= 
+        (exists dh',
+            rep dh' *
+            [[(dh' = dh) \/
+              (exists h, dh' = upd dh h v)%type]])).
+      unfold rep.
+      unfold ptsto_bits.
       shelve.
   }
   {
-    eapply pre_strengthen.
+    simpl in *; intros.
+    eapply hoare_triple_strengthen_pre.
     eapply crash_weaken.
     eapply post_weaken.
     eapply add_frame.
     apply ret_ok.
-    all: try solve [ simpl; intros; try setoid_rewrite rep_merge; cancel].
-    rewrite sep_star_comm, rep_merge; cancel.
+
+    - destruct_lift H.
+      simpl; safecancel.
+      eauto.
+      eauto.
+    - unfold rep; simpl; cancel.
+    - intros.
+      intros m Hm; simpl in *;
+        pred_apply; clear Hm.
+      simpl; cancel.
   }
+  {
+    unfold rep; cancel.
+    cleanup.
+    right.
+    do 2 eexists; eauto.
+  }
+  Unshelve.
+  {
+    safecancel.
+    2: right; eauto.
+    erewrite upd_ne.
+    eauto.
+    omega.
+  }
+  {
+    cancel.
+  }
+  shelve.
+  {
+    rewrite bits_to_value_to_bits; simpl.
+    cancel.
+    unfold ptsto_bits.
+    rewrite ptsto_bits'_update.
+    rewrite Nat.sub_0_r; eauto.
+    destruct (value_to_bits v0); simpl in *.
+    destruct valid.
+    rewrite e; eauto.
+    omega.
+    omega.
+  }
+  {
+    safecancel; eauto.
+    rewrite sep_star_comm.
+    apply ptsto_bits'_merge.
+        
+    rewrite bits_to_value_to_bits; simpl.
+    unfold ptsto_bits.
+    
+    admit.
+    erewrite upd_ne.
+    eauto.
+    omega.
+  }  
 Admitted.
 
 Theorem read_ok:
@@ -95,11 +168,11 @@ Theorem read_ok:
   << o >>
    (rep dh)
    (read a)
-  << r >>
-  (rep dh *
+  << d, r >>
+  (rep dh * [[ oracle_refines_to _ d (Read a) o (Cont::nil) ]] *
    [[(r = None /\ (dh a = None \/ a >= block_size)) \/
      (exists v, r = Some v /\ dh a = Some v)%type]])
-   (rep dh).
+   (rep dh * [[ oracle_refines_to _ d (Read a) o (Crash1::nil) ]]).
 Proof. Admitted. (*
   intros.
   unfold read; simpl.
@@ -363,15 +436,15 @@ Theorem write_ok:
   << o >>
    (rep dh)
    (write a v)
-  << r >>
+  << d, r >>
    (exists dh',
-    rep dh' * 
+    rep dh' * [[ oracle_refines_to _ d (Write a v) o (Cont::nil) ]] *
      [[(r = None /\ dh' = dh /\ dh a = None) \/
        (r = Some tt /\ dh a <> None /\ dh' = upd dh a v)%type]])
    (exists dh',
     rep dh' *
-    [[((dh' = dh) \/
-       (dh a <> None /\ dh' = upd dh a v))%type]]).
+    [[((dh' = dh /\ oracle_refines_to _ d (Write a v) o (Crash1::nil)) \/
+       (dh a <> None /\ dh' = upd dh a v /\ oracle_refines_to _ d (Write a v) o (Crash2::nil)))%type]]).
 Proof. Admitted. (*
   intros.
   unfold write; simpl.
@@ -650,12 +723,13 @@ Theorem free_ok:
   << o >>
    (rep dh)
    (free a)
-  << r >>
-   (rep (delete dh a))
+  << d, r >>
+   (rep (delete dh a) *
+    [[ oracle_refines_to _ d (Free a) o (Cont::nil) ]])
    (exists dh',
        rep dh' *
-       [[ (dh' = dh) \/
-          (dh' = (delete dh a))]]).
+       [[ (dh' = dh /\ oracle_refines_to _ d (Free a) o (Crash1::nil)) \/
+          (dh' = (delete dh a) /\ oracle_refines_to _ d (Free a) o (Crash2::nil))]]).
 Proof. Admitted. (*
   intros.
   unfold free; simpl.
@@ -994,3 +1068,4 @@ Proof. Admitted. (*
   }
 Qed.
                   *)
+*)

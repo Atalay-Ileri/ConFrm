@@ -194,16 +194,22 @@ Ltac monad_simpl_one :=
 Ltac monad_simpl := repeat monad_simpl_one.
 
 Theorem bind_ok:
-  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 crash3,
+  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 pre3 post3 crash3,
   << o >>
    pre1
    p1
   << r >>
    (post1 r)
    crash1 ->
+  ( pre3 =p=> pre1 ) ->
   (forall F d r,
       (F * pre1)%pred d ->
       post1 r =p=> pre2) ->
+  (forall F d1 d2 r1 r2,
+      (F * pre1)%pred d1 ->
+      (F * post1 r1)%pred d2 ->
+      (F * pre2)%pred d2 ->
+      post2 r2 =p=> post3 r2) ->
   (forall F d,
       (F * pre1)%pred d ->
       crash1 =p=> crash3) ->
@@ -222,35 +228,41 @@ Theorem bind_ok:
        (post2 r)
        crash2) ->
   << o >>
-     pre1
+     pre3
      (Bind p1 p2)
   << r >>
-     (post2 r)
+     (post3 r)
      crash3.
 Proof.
   unfold hoare_triple; intros.
   simpl in *; destruct_lifts; cleanup.
+  rewrite H0 in H6.
   edestruct H; eauto.
-  pred_apply' H4; cancel; eauto.
+  pred_apply' H6; cancel; eauto.
   
   cleanup.
   split_ors; cleanup.
-  - specialize H7 with (1:=H5).
-    edestruct H3; eauto.
-    pred_apply' H10; norm.
+  - specialize H9 with (1:=H7).
+    edestruct H5; eauto.
+    pred_apply' H12; norm.
     cancel.
-    erewrite H0; eauto; cancel.
+    erewrite H1; eauto; cancel.
     intuition eauto.
 
     cleanup.
     split_ors; cleanup;
-    eexists; split; intuition eauto.
+      eexists; split; intuition eauto.
+
+    left; do 2 eexists; intuition eauto.
+    pred_apply; cancel; eauto.
+    eapply H2; eauto.
+    erewrite <- H1; eauto.
     
     right; eexists; intuition eauto.
     pred_apply; cancel; eauto.
-    eapply H2; eauto.
-    erewrite <- H0; eauto.
-  - specialize H8 with (1:=H5); cleanup.
+    eapply H4; eauto.
+    erewrite <- H1; eauto.
+  - specialize H10 with (1:=H7); cleanup.
     rewrite app_nil_r.
     eexists; split; intuition eauto.
     right; eexists; intuition eauto.

@@ -283,6 +283,55 @@ Proof.
   omega.
 Qed.
 
+Lemma rep_extract_block_size_double:
+  forall dh a v,
+    a < block_size ->
+    (0 |-> v --* rep dh) =p=> exists vs, (((0 |-> v * S a |-> vs) --* rep dh) * (S a |-> vs)).
+Proof.
+  intros.
+  unfold rep, ptsto_bits.
+  norml.
+  unfold stars; simpl.
+  intros m Hm.
+  unfold septract in Hm; simpl in *; cleanup.
+  destruct_lift Hm; cleanup.
+  destruct_lift H2.
+  apply star_split in H2; cleanup.
+  eapply ptsto_bits'_extract with (a:= a) in H4.
+  destruct_lift H4.
+  apply star_split in H4; cleanup.
+  exists (dummy1_cur, dummy1_old).
+  unfold sep_star; rewrite sep_star_is.
+  unfold sep_star_impl.
+  unfold septract in *; cleanup.
+  eapply ptsto_complete in H8; eauto; cleanup.
+  do 2 eexists; intuition.
+  shelve.
+  shelve.  
+  eexists; intuition.
+  shelve.
+  exists x, x1; intuition eauto.
+  shelve.
+
+  do 2 eexists; intuition.
+  eexists; exists empty_mem; intuition.
+  shelve.
+  apply mem_disjoint_comm; apply mem_disjoint_empty_mem.
+  exists x0, (mem_union x2 x1); intuition eauto.
+  shelve.
+  apply emp_star.
+  apply sep_star_lift_apply'; eauto.
+  apply emp_empty_mem.
+  eauto.
+  destruct (value_to_bits dummy); simpl.
+  inversion valid.
+  rewrite H7.
+  rewrite Nat.add_0_r; eauto.
+  omega.
+  Unshelve.
+  apply x2.
+Admitted.
+
 Lemma rep_extract_bitmap:
   forall dh,
     rep dh =p=> exists vs, (((0 |-> vs) --* rep dh) * (0 |-> vs)).
