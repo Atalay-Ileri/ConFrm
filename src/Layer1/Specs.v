@@ -2,8 +2,8 @@ Require Import Primitives Layer1.Definitions HoareLogic ProgAuto.
 Open Scope pred_scope.
 
 Theorem read_ok:
-  forall a v,
-    << o >>
+  forall o d a v,
+    << o, d >>
      (a |-> v)
      (Read a)
     << r >>
@@ -11,7 +11,7 @@ Theorem read_ok:
      (a |-> v).
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, any; intros.
   destruct_lift H; subst.
   eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
@@ -20,14 +20,14 @@ Proof.
   econstructor; intuition eauto.
   unfold Disk.read in *; cleanup; eauto.
   
-  do 2 eexists; split; eauto.
+  do 2 eexists; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
   inversion H0.
 Qed.
 
 Theorem write_ok:
-  forall a v v',
-    << o >>
+  forall o d a v v',
+    << o, d >>
      (a |-> v)
      (Write a v')
     << r >>
@@ -35,7 +35,7 @@ Theorem write_ok:
      (a |-> v).
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, any; intros.
   destruct_lift H; subst.
   eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
@@ -45,7 +45,7 @@ Proof.
   
     unfold Disk.read in *;
     cleanup; eauto.  
-    do 2 eexists; split; eauto.
+    do 2 eexists; intuition eauto.
     unfold Disk.write; cleanup.
     unfold Disk.upd_disk.
     eapply ptsto_upd'; eauto.
@@ -53,8 +53,8 @@ Proof.
 Qed.
 
 Theorem ret_ok:
-  forall T (v: T),
-    << o >>
+  forall o d T (v: T),
+    << o, d >>
      emp
      (Ret v)
     << r >>
@@ -62,12 +62,12 @@ Theorem ret_ok:
      emp.
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, any; intros.
   destruct_lift H; subst.
   split_ors; eexists;
     intuition eauto.
   
-  left; do 2 eexists; split; eauto.
+  left; do 2 eexists; intuition eauto.
   pred_apply; cancel; eauto.
 
   econstructor; intuition eauto.

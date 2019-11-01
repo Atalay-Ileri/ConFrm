@@ -1,12 +1,14 @@
-Require Import Primitives Layer1 Omega.
-Require Import BlockAllocator.Definitions BlockAllocator.Facts.
+Require Import Primitives Layer2 Layer1 Omega.
+Require Import BlockAllocator.
+Require Import L1To2Refinement.Definitions.
 
 Arguments oracle_ok T p o s : simpl never.
+Arguments oracle_refines_to T d1 p o1 o2 : simpl never.
 Arguments rep dh : simpl never.
 
 Theorem alloc_ok:
-  forall dh v,
-  << o >>
+  forall o d dh v,
+  << o, d >>
    (rep dh)
    (alloc v)
   << r >>
@@ -17,50 +19,65 @@ Theorem alloc_ok:
    (exists dh',
     rep dh' *
      [[(dh' = dh) \/
-       (exists a, dh a = None /\ dh' = upd dh a v)%type]]).
+       (exists a, dh a = None /\ dh' = upd dh a v)%type]])
+   (exists dh',
+    rep dh' *
+     [[(r = None /\ dh' = dh /\ oracle_refines_to _ d (Alloc v) o (DiskFull::nil)) \/
+       (exists a, r = Some a /\ dh a = None /\ dh' = upd dh a v /\
+             oracle_refines_to _ d (Alloc v) o (BlockNum a::nil))%type]])%pred
+   (exists dh',
+    rep dh' *
+     [[(dh' = dh /\ oracle_refines_to _ d (Alloc v) o (Crash1::nil)) \/
+       (exists a, dh a = None /\ dh' = upd dh a v /\
+             oracle_refines_to _ d (Alloc v) o (CrashAlloc a::nil) )%type]])%pred.
 Proof.
-  unfold alloc; intros dh v.
-  eapply pre_strengthen.
+  unfold alloc; intros.
+  apply remember_oracle_ok; intros.
+  eapply pre_strengthen_aug.
   2: eapply rep_extract_bitmap.
-  apply extract_exists.
+  apply extract_exists_aug.
   intro v0.
-  eapply bind_ok.  
+  eapply bind_ok_aug.
+  intros.
   eapply add_frame.
   apply read_ok.
-  all: try solve [ simpl; intros; try setoid_rewrite rep_merge; apply pimpl_refl].
-  all: try solve [ simpl; intros; apply pimpl_refl].
+  all: try solve [ simpl; intros; try apply pimpl_refl; cancel].
   all: try solve [ simpl; intros; try setoid_rewrite rep_merge; cancel].
 
-  intros F d d' r H H0; destruct_lifts.
+  intros; destruct_lifts.
   destruct (lt_dec (get_first_zero (bits (value_to_bits v0_cur))) block_size); simpl in *.
   {
-    eapply pre_strengthen.
+    eapply pre_strengthen_aug.
     2: erewrite rep_extract_block_size_double with (a:= get_first_zero (bits (value_to_bits v0_cur))); eauto.
-    eapply pre_strengthen; [|apply pimpl_exists_l_star_r].
-    apply extract_exists.
+    eapply pre_strengthen_aug; [|apply pimpl_exists_l_star_r].
+    apply extract_exists_aug.
     intro v0.
-    destruct v0.
-    eapply bind_ok.
-    eapply add_frame.
+    eapply bind_ok_aug.
+    intros; eapply add_frame.
     apply write_ok.
 
-    all: try solve [ simpl; intros; apply pimpl_refl].
+    all: try solve [ simpl; intros; apply pimpl_refl; cancel].
     cancel.
-    simpl; intros; try setoid_rewrite rep_merge; cancel.
-    shelve.
-    
-    simpl; intros F0 d0 d'0 r H1 H2; destruct_lifts.    
-    eapply bind_ok.
-    eapply add_frame.
+    intros; cancel.
+    rewrite septract_double_split.
+    rewrite sep_star_assoc.
+    setoid_rewrite sep_star_comm at 2.
+    rewrite septract_sep_star_merge.
+    rewrite sep_star_comm, rep_merge; eauto.
+    apply ptsto_complete.
+        
+    simpl; intros; destruct_lifts.
+    intros.
+    eapply bind_ok_aug.
+    intros; eapply add_frame.
     eapply write_ok.
-    all: try solve [ simpl; intros; apply pimpl_refl].
-    cancel.
-    intros; simpl.
+    all: try solve [ simpl; intros; try apply pimpl_refl; cancel].
+    intros; simpl; cancel.
     (* we need folding magic here *)
     shelve.
    
-    simpl; intros F1 d1 d'1 r H3 H4; destruct_lifts.
-
+    simpl; intros; destruct_lifts.
+    apply remove_augcons.
     eapply pre_strengthen.
     eapply crash_weaken.
     eapply post_weaken.
@@ -75,11 +92,112 @@ Proof.
     - cancel.
       right; eexists; intuition eauto.
       shelve.
-    - setoid_rewrite <- rep_merge with (a:= 0) at 2.
-      cancel.
+    - (* Again, folding magic *)
       shelve.
+      
+    - (* Finished oracle refinement *)
+      simpl; intros; destruct_lifts; cleanup.
+      invert_exec.
+      unfold addr in *; sigT_eq.
+      split_ors; cleanup; try congruence.
+      pred_apply; cancel.
+      
+      right; eexists; intuition eauto.
+      unfold oracle_refines_to; simpl.
+      intuition eauto.
+      destruct (in_dec Layer1.token_dec Layer1.Crash (o1 ++ o0 ++ o2 ++ [Layer1.Cont])).
+      repeat invert_exec; simpl in *.
+      intuition congruence.
+      
+      unfold Disk.read.
+      erewrite ptsto_valid; [| pred_apply; cancel].
+      simpl.
+      destruct (lt_dec (get_first_zero (bits (value_to_bits v0_cur))) block_size); try omega; eauto.
+
+    - simpl; intros; destruct_lifts; cleanup.
+      intuition; cleanup; pred_apply; cancel.
+
+      + left; intuition.
+        unfold oracle_refines_to; simpl.
+        intuition eauto.
+        unfold alloc in *.
+        repeat invert_exec; cleanup.
+        simpl; intuition.
+        repeat invert_exec; cleanup.
+        repeat (try split_ors; invert_exec; simpl in *; cleanup; try congruence).
+        unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+        rewrite upd_eq'; split; intros; eauto.
+        admit. (* solvable by H11 *)
+        congruence.
+        congruence.
+      
+      + right.
+        unfold oracle_refines_to; simpl.
+        repeat invert_exec; cleanup.
+        unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+        simpl; intuition.
+        assume (A : (x = get_first_zero (bits (value_to_bits (fst s))))); cleanup.
+        eexists; intuition eauto.
+        unfold alloc in *.
+        repeat invert_exec; cleanup.
+        repeat (try split_ors; invert_exec; simpl in *; cleanup; try congruence).
+        unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+        rewrite upd_eq'; split; intros; eauto.
+        admit.
+        congruence.
+        congruence.
+        congruence.
+        congruence.
+
+    - simpl; intros; destruct_lifts; cleanup.
+      pred_apply; cancel.
+      rewrite septract_double_split.
+      setoid_rewrite sep_star_comm at 2.
+      rewrite septract_sep_star_merge.
+      eassign dh. admit.
+      apply ptsto_complete.
+      
+      left; intuition.
+      unfold oracle_refines_to; simpl.
+      repeat invert_exec; cleanup.
+      unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+      simpl; intuition.
+      unfold alloc in *.
+      repeat invert_exec; cleanup.
+      repeat (try split_ors; invert_exec; simpl in *; cleanup; try congruence).
+      unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+      rewrite upd_ne; eauto.
+      cleanup.
+      split; intros; eauto.
+      congruence.
+      congruence.
+      congruence.
+
+    - simpl; intros; destruct_lifts; cleanup.
+      pred_apply; cancel.
+      rewrite septract_double_split.
+      rewrite sep_star_assoc.
+      setoid_rewrite sep_star_comm at 2.
+      rewrite septract_sep_star_merge.
+      rewrite sep_star_comm, rep_merge; eauto.
+      apply ptsto_complete.
+      
+      left; intuition.
+      unfold oracle_refines_to; simpl.
+      repeat invert_exec; cleanup.
+      unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+      simpl; intuition.
+      unfold alloc in *.
+      repeat invert_exec; cleanup.
+      repeat (try split_ors; invert_exec; simpl in *; cleanup; try congruence).
+      unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+      split; intros; eauto.
+      congruence.
+      split; intros; eauto.
+      congruence.
   }
   {
+    apply remove_augcons.
     eapply pre_strengthen.
     eapply crash_weaken.
     eapply post_weaken.
@@ -87,9 +205,59 @@ Proof.
     apply ret_ok.
     all: try solve [ simpl; intros; try setoid_rewrite rep_merge; cancel].
     rewrite sep_star_comm, rep_merge; cancel.
+
+    - simpl; intros; destruct_lifts; cleanup.
+      invert_exec; unfold addr in *; sigT_eq.
+      split_ors; cleanup; try congruence.
+      pred_apply; cancel.
+      left; eexists; intuition eauto.
+      unfold oracle_refines_to; simpl.
+      repeat invert_exec; simpl in *.
+      intuition eauto.
+      cleanup.
+      destruct (lt_dec (get_first_zero (bits (value_to_bits v0_cur))) block_size); try omega; eauto.
+
+    - simpl; intros; destruct_lifts; cleanup.
+      intuition; cleanup; pred_apply; cancel.
+
+      + left; intuition.
+        unfold oracle_refines_to; simpl.
+        intuition eauto.
+        unfold alloc in *.
+        repeat invert_exec; cleanup.
+        simpl; intuition.
+        repeat invert_exec; cleanup.
+        repeat (try split_ors; invert_exec; simpl in *; cleanup; try congruence).
+        unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+        split; intros; eauto.
+        congruence.
+      
+      + right.
+        unfold oracle_refines_to; simpl.
+        repeat invert_exec; cleanup.
+        admit.
+  }
+  {
+    simpl; intros; destruct_lifts; cleanup.
+    invert_exec.
+    pred_apply; cancel.
+    rewrite sep_star_comm, rep_merge; eauto.
+    
+    left; intuition eauto.
+    unfold oracle_refines_to; simpl.
+    intuition eauto.
+    unfold alloc in *.
+    repeat invert_exec; cleanup.
+    simpl; intuition.
+    repeat invert_exec; cleanup.
+    unfold Disk.read, Disk.write, upd_disk in *; cleanup.
+    erewrite ptsto_valid; [| pred_apply; cancel].
+    split; intros; eauto; congruence.
+    
+    cleanup; repeat invert_exec; simpl in *; cleanup.
   }
 Admitted.
-
+(*
 Theorem read_ok:
   forall a dh,
   << o >>
@@ -993,4 +1161,5 @@ Proof. Admitted. (*
     rewrite delete_ne; eauto.
   }
 Qed.
-                  *)
+ *)
+*)

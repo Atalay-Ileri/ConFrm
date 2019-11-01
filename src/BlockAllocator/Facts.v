@@ -31,38 +31,6 @@ Lemma star_split:
     do 2 eexists; intuition eauto.
   Qed.
 
-Theorem hoare_triple_pre_ex':
-  forall T V (p: prog T) pre post crash,
-  (forall (v: V), hoare_triple (fun a d => pre v a d) p post crash) ->
-  hoare_triple (fun a d => (exists (v: V), pre v a) d) p post crash.
-Proof.
-  unfold hoare_triple; intros.
-  destruct_lift H0; cleanup.
-  eapply H; eauto.
-Qed.
-
-Theorem hoare_triple_pre_ex:
-  forall T V (p: prog T) pre post crash F P,
-  (forall (v: V), hoare_triple (fun a d => ((F * (fun d' => pre v a d')) * [[ P a d ]]) d) p post crash) ->
-  hoare_triple (fun a d => ((F * (fun d' => (exists (v: V), pre v a) d')) * [[ P a d ]]) d) p post crash.
-Proof.
-  intros.
-  eapply hoare_triple_strengthen_pre.
-  apply hoare_triple_pre_ex'.
-  instantiate (1:= fun v a d => ((F * (pre v a)) * [[ P a d ]]) d).
-  simpl; eauto.
-  intros; norm.
-  unfold stars; simpl.
-  intros mx Hmx; simpl in *.
-  destruct_lift Hmx.
-  destruct_lift H0.
-  destruct_lift H0.
-  exists dummy.
-  pred_apply' H0; norm.
-  cancel.
-  all: eauto.
-Qed.
-
 Lemma upd_eq':
   forall (A V : Type) (AEQ : EqDec A) (m : mem) (a : A) (v : V),
     @upd _ _ AEQ m a v a = Some v.
@@ -186,6 +154,53 @@ Proof.
   erewrite (H x0); eauto.
 Qed.
 
+Lemma septract_exists_extract :
+  forall T AT AEQ V (p: @pred AT AEQ V) (q: T ->  @pred AT AEQ V),
+    (p --* exists a, q a) =p=> exists a, (p --* q a).
+Proof.
+  unfold septract; intros.
+  intros m Hm; cleanup.
+  destruct_lift H1.
+  eexists; eauto.
+Qed.
+
+Lemma septract_double_merge :
+  forall AT AEQ V (p q r: @pred AT AEQ V),
+    r --* (p --* q) =p=> (r * p) --* q.
+Proof.
+  unfold septract; intros.
+  intros m Hm; cleanup.
+  exists (mem_union x x0); intuition.
+  apply mem_disjoint_assoc_1; eauto.
+  unfold sep_star; rewrite sep_star_is.
+  unfold sep_star_impl.
+  do 2 eexists; intuition.
+  eapply mem_disjoint_union; eauto.
+  rewrite <- mem_union_assoc; eauto.
+Qed.
+
+Lemma septract_double_split :
+  forall AT AEQ V (p q r: @pred AT AEQ V),
+    (r * p) --* q =p=> r --* (p --* q).
+Proof.
+  unfold septract; intros.
+  intros m Hm; cleanup.
+  apply star_split in H0; cleanup.
+  exists x0; intuition eauto.
+  eapply mem_disjoint_union; eauto.
+  apply mem_disjoint_comm; eauto.
+  apply mem_disjoint_assoc_1; eauto.
+  apply mem_disjoint_comm; eauto.
+  exists x1; intuition eauto.
+  apply mem_disjoint_assoc_2; eauto.
+  rewrite mem_union_assoc; eauto.
+  eapply mem_disjoint_union; eauto.
+  apply mem_disjoint_comm; eauto.
+  apply mem_disjoint_assoc_1; eauto.
+  apply mem_disjoint_comm; eauto.
+  apply mem_disjoint_assoc_2; eauto.
+Qed.
+
 Lemma ptsto_bits'_extract:
   forall l n dh a,
     a < length l + n ->
@@ -283,11 +298,12 @@ Proof.
   omega.
 Qed.
 
+
 Lemma rep_extract_block_size_double:
   forall dh a v,
     a < block_size ->
     (0 |-> v --* rep dh) =p=> exists vs, (((0 |-> v * S a |-> vs) --* rep dh) * (S a |-> vs)).
-Proof.
+Proof. Admitted. (*
   intros.
   unfold rep, ptsto_bits.
   norml.
@@ -296,11 +312,10 @@ Proof.
   unfold septract in Hm; simpl in *; cleanup.
   destruct_lift Hm; cleanup.
   destruct_lift H2.
-  apply star_split in H2; cleanup.
-  eapply ptsto_bits'_extract with (a:= a) in H4.
-  destruct_lift H4.
-  apply star_split in H4; cleanup.
+  erewrite ptsto_bits'_extract with (a:= a) in H2.
+  destruct_lift H2.
   exists (dummy1_cur, dummy1_old).
+  rewrite <- septract_double_merge.
   unfold sep_star; rewrite sep_star_is.
   unfold sep_star_impl.
   unfold septract in *; cleanup.
@@ -331,6 +346,7 @@ Proof.
   Unshelve.
   apply x2.
 Admitted.
+ *)
 
 Lemma rep_extract_bitmap:
   forall dh,

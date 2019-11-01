@@ -1,8 +1,10 @@
 Require Import Primitives Simulation Layer1.
-Require Import BlockAllocator Layer2 L1To2Refinement.Definitions.
+Require Import BlockAllocator BlockAllocator.Specs Layer2 L1To2Refinement.Definitions.
 Require Import FunctionalExtensionality Omega.
 
 Section Layer1to2Refinement.
+
+  Opaque read write alloc free.
   
   Lemma oracle_refines_to_deterministic:
     forall T (p: Layer2.prog T) s s' o o1 o2,
@@ -11,7 +13,7 @@ Section Layer1to2Refinement.
       oracle_refines_to T s p o o2 ->
       o1 = o2.
   Proof.
-    induction p; simpl; intros; cleanup; eauto.
+    unfold oracle_refines_to; induction p; simpl; intros; cleanup; eauto.
     -
       destruct s'; simpl in *.
       apply finished_crash_not_in in H; congruence.
@@ -41,6 +43,7 @@ Section Layer1to2Refinement.
       intuition.
       
     -
+      fold oracle_refines_to in *.
       invert_exec.
       +
         repeat split_ors; cleanup; try rewrite app_nil_r in *; cleanup;
@@ -125,8 +128,7 @@ Section Layer1to2Refinement.
       exists oh, oracle_refines_to T sl p2 ol oh.
   Proof.
     unfold refines_to, compilation_of;
-    induction p2; simpl; intros; cleanup.
-
+      induction p2; simpl; intros; cleanup.
     - (* Read *)
       edestruct read_ok.
       pred_apply' H; cancel; eauto.
@@ -138,12 +140,11 @@ Section Layer1to2Refinement.
       cleanup; split_ors;
         cleanup; destruct_lifts; eauto.
       split_ors; cleanup; eauto.
-        
     - (* Alloc *)
       edestruct alloc_ok.
       pred_apply' H; cancel; eauto.
       cleanup; split_ors;
-        cleanup; destruct_lifts; 
+        cleanup; destruct_lifts; eauto;
           split_ors; cleanup; eauto.
     - (* Free *)
       edestruct free_ok.
@@ -552,7 +553,7 @@ Qed.
       try congruence;
       unfold oracle_refines_to, oracle_ok in *;
       cleanup; simpl in *;
-      repeat (split_ors; cleanup; simpl in *);
+      repeat (split_ors; cleanup; simpl in * );
       intuition; try congruence.
 
       * (* Finished *)
@@ -568,7 +569,7 @@ Qed.
         simpl in *.
         repeat split; eauto.
   Qed.
-
+*)
    Theorem sbs_alloc :
      forall v,
       StrongBisimulationForProgram
@@ -591,7 +592,7 @@ Qed.
       intuition eauto.
       cleanup.
       eapply_fresh deterministic_prog in H2; eauto; cleanup.        
-      split_ors; cleanup;
+      repeat (split_ors; cleanup);
       destruct_lifts;
       try split_ors; cleanup;
       match goal with
