@@ -1,4 +1,4 @@
-Require Import Primitives Layer1.Definitions HoareLogic ProgAuto.
+Require Import Primitives Layer1.Definitions Layer1.HoareLogic ProgAuto.
 Open Scope pred_scope.
 
 Theorem read_ok:
@@ -62,7 +62,7 @@ Theorem ret_ok:
      emp.
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
+  unfold hoare_triple, any, exec; intros.
   destruct_lift H; subst.
   split_ors; eexists;
     intuition eauto.

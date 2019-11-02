@@ -14,7 +14,7 @@ Fixpoint compile {T} (p2: Layer2.prog T) : Layer1.prog T :=
 
 (* October 12: I need oracle_ok in here because specifications of block allocator requires it as a precondition *)
 Fixpoint oracle_refines_to T (d1: State layer1_lts) (p: Layer2.prog T)  (o1: Oracle layer1_lts) (o2: Layer2.oracle) : Prop :=
-  oracle_ok (compile p) o1 d1 /\
+  oracle_ok _ (compile p) o1 d1 /\
     match p with
     | Alloc v =>
       if (in_dec Layer1.token_dec Layer1.Crash o1) then

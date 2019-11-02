@@ -122,12 +122,12 @@ Section Layer1to2Refinement.
   Lemma high_oracle_exists_ok':
     forall T p2 p1 ol sl sl',
       (exists sh, refines_to sl sh) ->
-      oracle_ok p1 ol sl ->
+      oracle_ok _ p1 ol sl ->
       Layer1.exec ol sl p1 sl' ->
       compilation_of T p1 p2 ->
       exists oh, oracle_refines_to T sl p2 ol oh.
   Proof.
-    unfold refines_to, compilation_of;
+    unfold refines_to, compilation_of, oracle_ok;
       induction p2; simpl; intros; cleanup.
     - (* Read *)
       edestruct read_ok.
@@ -175,7 +175,7 @@ Section Layer1to2Refinement.
         split_ors; cleanup.
         *
           match goal with
-          | [H: oracle_ok _ _ _ |- _ ] =>
+          | [H: Layer1.oracle_ok _ _ _ |- _ ] =>
             eapply_fresh oracle_ok_bind_crashed_split in H;
           eauto; cleanup
           end.
@@ -191,7 +191,7 @@ Section Layer1to2Refinement.
         
         *
           match goal with
-          | [H: oracle_ok _ _ _ |- _ ] =>
+          | [H: Layer1.oracle_ok _ _ _ |- _ ] =>
             eapply_fresh oracle_ok_bind_finished_split in H;
           eauto; cleanup
           end.
@@ -200,10 +200,10 @@ Section Layer1to2Refinement.
           
           edestruct H;
           try match goal with
-          | [H: oracle_ok (compile (_ _)) _ _ |- _ ] =>
+          | [H: Layer1.oracle_ok (compile (_ _)) _ _ |- _ ] =>
             apply H
           end; eauto; simpl in *.
-
+          
           match goal with
           | [H: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
             eapply layer1_exec_compiled_preserves_refines_to in H;
@@ -246,7 +246,7 @@ Section Layer1to2Refinement.
     + (* Low to High *)
       intros; cleanup.
       eapply_fresh exec_then_oracle_ok in H2.
-      edestruct (read_ok a); eauto.
+      edestruct (read_ok o1 s1 a); eauto.
       pred_apply' H. norm.
       cancel.
       unfold oracle_refines_to in *; cleanup;
@@ -280,7 +280,7 @@ Section Layer1to2Refinement.
           
     + (*High to low*)
       intros; cleanup.
-      edestruct (read_ok a); cleanup.
+      edestruct (read_ok o1 s1 a); cleanup.
       pred_apply' H; norm.
       cancel.
       unfold oracle_refines_to in *.
@@ -569,7 +569,7 @@ Qed.
         simpl in *.
         repeat split; eauto.
   Qed.
-*)
+
    Theorem sbs_alloc :
      forall v,
       StrongBisimulationForProgram

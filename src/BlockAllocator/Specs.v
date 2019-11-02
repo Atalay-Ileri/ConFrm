@@ -31,7 +31,7 @@ Theorem alloc_ok:
        (exists a, dh a = None /\ dh' = upd dh a v /\
              oracle_refines_to _ d (Alloc v) o (CrashAlloc a::nil) )%type]])%pred.
 Proof.
-  unfold alloc; intros.
+  unfold alloc, exec; intros.
   apply remember_oracle_ok; intros.
   eapply pre_strengthen_aug.
   2: eapply rep_extract_bitmap.
@@ -83,7 +83,7 @@ Proof.
     eapply post_weaken.
     eapply add_frame.
     apply ret_ok.
-    
+    all: unfold exec in *.
     - (* post *)
       simpl; intros.
       cancel.
@@ -205,7 +205,7 @@ Proof.
     apply ret_ok.
     all: try solve [ simpl; intros; try setoid_rewrite rep_merge; cancel].
     rewrite sep_star_comm, rep_merge; cancel.
-
+    all: unfold exec in *.
     - simpl; intros; destruct_lifts; cleanup.
       invert_exec; unfold addr in *; sigT_eq.
       split_ors; cleanup; try congruence.
@@ -238,6 +238,7 @@ Proof.
         admit.
   }
   {
+    unfold exec in *.
     simpl; intros; destruct_lifts; cleanup.
     invert_exec.
     pred_apply; cancel.
@@ -257,17 +258,21 @@ Proof.
     cleanup; repeat invert_exec; simpl in *; cleanup.
   }
 Admitted.
-(*
+
 Theorem read_ok:
-  forall a dh,
-  << o >>
+  forall o d a dh,
+  << o, d >>
    (rep dh)
    (read a)
   << r >>
   (rep dh *
    [[(r = None /\ (dh a = None \/ a >= block_size)) \/
      (exists v, r = Some v /\ dh a = Some v)%type]])
-   (rep dh).
+   (rep dh)
+  (rep dh * [[ oracle_refines_to _ d (Layer2.Read a) o (Layer2.Cont::nil) ]] *
+   [[(r = None /\ (dh a = None \/ a >= block_size)) \/
+     (exists v, r = Some v /\ dh a = Some v)%type]])
+   (rep dh * [[ oracle_refines_to _ d (Layer2.Read a) o (Crash1::nil) ]]).
 Proof. Admitted. (*
   intros.
   unfold read; simpl.
@@ -527,8 +532,8 @@ Qed.
 *)
 
 Theorem write_ok:
-  forall dh a v,
-  << o >>
+  forall o d dh a v,
+  << o, d >>
    (rep dh)
    (write a v)
   << r >>
@@ -539,7 +544,15 @@ Theorem write_ok:
    (exists dh',
     rep dh' *
     [[((dh' = dh) \/
-       (dh a <> None /\ dh' = upd dh a v))%type]]).
+       (dh a <> None /\ dh' = upd dh a v))%type]])
+   (exists dh',
+    rep dh' * [[ oracle_refines_to _ d (Layer2.Write a v) o (Layer2.Cont::nil) ]] *
+     [[(r = None /\ dh' = dh /\ dh a = None) \/
+       (r = Some tt /\ dh a <> None /\ dh' = upd dh a v)%type]])
+   (exists dh',
+      rep dh' *
+      [[((dh' = dh /\ oracle_refines_to _ d (Layer2.Write a v) o (Crash1::nil)) \/
+       (dh a <> None /\ dh' = upd dh a v /\ oracle_refines_to _ d (Layer2.Write a v) o (Crash2::nil)))%type]]).
 Proof. Admitted. (*
   intros.
   unfold write; simpl.
@@ -814,8 +827,8 @@ Qed.
 
 
 Theorem free_ok:
-  forall dh a,
-  << o >>
+  forall o d dh a,
+  << o, d >>
    (rep dh)
    (free a)
   << r >>
@@ -823,7 +836,13 @@ Theorem free_ok:
    (exists dh',
        rep dh' *
        [[ (dh' = dh) \/
-          (dh' = (delete dh a))]]).
+          (dh' = (delete dh a))]])
+   (rep (delete dh a) *
+    [[ oracle_refines_to _ d (Free a) o (Layer2.Cont::nil) ]])
+   (exists dh',
+      rep dh' *
+      [[ (dh' = dh /\ oracle_refines_to _ d (Free a) o (Crash1::nil)) \/
+         (dh' = (delete dh a) /\ oracle_refines_to _ d (Free a) o (Crash2::nil))]]).
 Proof. Admitted. (*
   intros.
   unfold free; simpl.
@@ -1162,4 +1181,3 @@ Proof. Admitted. (*
   }
 Qed.
  *)
-*)
