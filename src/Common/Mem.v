@@ -33,11 +33,6 @@ Section GenMem.
       | Some _ => m a'
       end else m a'.
 
-  Definition subset (m1 m2: @mem A AEQ V) :=
-    forall a,
-      (m2 a = None -> m1 a = None) /\
-      (forall v, m1 a = Some v -> m2 a = Some v).
-
   Theorem upd_eq : forall m (a : A) (v : V) a',
     a' = a -> upd m a v a' = Some v.
   Proof.
