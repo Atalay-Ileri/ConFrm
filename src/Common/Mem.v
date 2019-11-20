@@ -38,6 +38,9 @@ Section GenMem.
       (m2 a = None -> m1 a = None) /\
       (forall v, m1 a = Some v -> m2 a = Some v).
 
+  Definition consistent (m: @mem A AEQ V) a v :=
+    m a = None \/ m a = Some v.
+
   Theorem upd_eq : forall m (a : A) (v : V) a',
     a' = a -> upd m a v a' = Some v.
   Proof.

@@ -12,6 +12,9 @@ Ltac invert_exec' :=
     | Bind _ _ => idtac
     | Read _ => invert_exec'' H
     | Write _ _ => invert_exec'' H
+    | Hash _ _ => invert_exec'' H
+    | Encrypt _ _ => invert_exec'' H
+    | Decrypt _ _ => invert_exec'' H
     | Ret _ => invert_exec'' H
     end
   end.

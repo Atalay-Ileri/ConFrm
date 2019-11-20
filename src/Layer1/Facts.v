@@ -7,7 +7,7 @@ Lemma exec_crash_in:
     In Crash o.
 Proof.
   induction p; simpl in *; intros;
-    invert_exec; intuition; eauto.
+    try invert_exec; intuition; eauto.
   cleanup.
   apply in_app_iff; eauto.
 Qed.
@@ -22,6 +22,8 @@ Proof.
   invert_exec; cleanup;
     invert_exec; cleanup;
       cleanup; eauto.
+    apply encrypt_ext in H5; cleanup;
+    intuition eauto.
     specialize IHp with (1:=H0)(2:=H1); eauto; cleanup.
     specialize H with (1:=H2)(2:=H3); cleanup.
     repeat rewrite app_length; eauto.
@@ -45,6 +47,18 @@ Proof.
             repeat rewrite <- app_cons_nil in *;
             inversion H1; congruence] ].
 
+  invert_exec; cleanup;
+          invert_exec; cleanup; 
+          [ match goal with
+            | [H: [_] = [_] ++ _ |- _] =>
+              rewrite app_nil_end in H at 1;
+              apply app_inv_head in H; eauto
+            end|
+            repeat rewrite <- app_cons_nil in *;
+            inversion H1; congruence].
+  apply encrypt_ext in H6; cleanup;
+    intuition eauto.
+  
   invert_exec; cleanup;
     invert_exec; cleanup.
     -
@@ -75,6 +89,8 @@ Proof.
   invert_exec; cleanup;
     invert_exec; cleanup;
       try solve [intuition eauto].
+  - apply encrypt_ext in H6; cleanup; intuition eauto.
+    
   - eapply exec_finished_deterministic in H0; eauto; cleanup.
     eapply exec_finished_deterministic in H3; eauto; cleanup; eauto.
   

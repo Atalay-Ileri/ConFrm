@@ -3,8 +3,19 @@ Import ListNotations.
 
 Set Implicit Arguments.
 
-Section Layer1.
 
+Variable hash : Type.
+Variable hash_dec: forall h1 h2: hash, {h1 = h2}+{h1<>h2}.
+Variable hash_function: hash -> value -> hash.
+
+Variable encrypt: hash -> value -> value.
+Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
+
+Definition hashmap := @mem hash hash_dec (hash * value).
+Definition encryptionmap := @mem value value_dec (hash * value).
+  
+Section Layer1.  
+  
   Inductive token :=
   | Crash : token
   | Cont : token.
@@ -15,25 +26,46 @@ Section Layer1.
 
   Definition oracle := list token.
 
-  Definition state := disk (set value).
+  Definition state := ((encryptionmap * hashmap) * disk (set value))%type.
   
   Inductive prog : Type -> Type :=
   | Read : addr -> prog value
   | Write : addr -> value -> prog unit
+  | Hash : hash -> value -> prog hash
+  | Encrypt : hash -> value -> prog value
+  | Decrypt : hash -> value -> prog value
   | Ret : forall T, T -> prog T
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
    
   Inductive exec :
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
-      forall d a v,
+      forall m d a v,
         read d a = Some v ->
-        exec [Cont] d (Read a) (Finished d v)
+        exec [Cont] (m, d) (Read a) (Finished (m, d) v)
              
   | ExecWrite :
-      forall d a v,
+      forall m d a v,
         read d a <> None ->
-        exec [Cont] d (Write a v) (Finished (write d a v) tt)
+        exec [Cont] (m, d) (Write a v) (Finished (m, (write d a v)) tt)
+
+  | ExecHash : 
+      forall em hm d h v,
+        let hv := hash_function h v in
+        consistent hm hv (h, v) ->
+        exec [Cont] (em, hm, d) (Hash h v) (Finished (em, (upd hm hv (h, v)), d) hv)
+             
+  | ExecEncrypt : 
+      forall em hm d k v,
+        let ev := encrypt k v in
+        consistent em ev (k, v) ->
+        exec [Cont] (em, hm, d) (Encrypt k v) (Finished ((upd em ev (k, v)), hm, d) ev)
+
+  | ExecDecrypt : 
+      forall em hm d ev k v,
+        ev = encrypt k v ->
+        consistent em ev (k, v) ->
+        exec [Cont] (em, hm, d) (Decrypt k ev) (Finished ((upd em ev (k, v)), hm, d) v)
              
   | ExecRet :
       forall d T (v: T),
