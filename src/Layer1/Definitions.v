@@ -3,37 +3,32 @@ Import ListNotations.
 
 Set Implicit Arguments.
 
-
-Variable hash : Type.
-Variable hash_dec: forall h1 h2: hash, {h1 = h2}+{h1<>h2}.
-Variable hash_function: hash -> value -> hash.
-
-Variable encrypt: hash -> value -> value.
-Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
-
 Definition hashmap := @mem hash hash_dec (hash * value).
-Definition encryptionmap := @mem value value_dec (hash * value).
+Definition encryptionmap := @mem value value_dec (key * value).
   
 Section Layer1.  
   
   Inductive token :=
+  | Key : key -> token
   | Crash : token
   | Cont : token.
 
   Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}.
     decide equality.
+    apply key_dec.
   Defined.
 
   Definition oracle := list token.
 
-  Definition state := ((encryptionmap * hashmap) * disk (set value))%type.
+  Definition state := (((list key * encryptionmap)* hashmap) * disk (set value))%type.
   
   Inductive prog : Type -> Type :=
   | Read : addr -> prog value
   | Write : addr -> value -> prog unit
+  | GetKey : prog key
   | Hash : hash -> value -> prog hash
-  | Encrypt : hash -> value -> prog value
-  | Decrypt : hash -> value -> prog value
+  | Encrypt : key -> value -> prog value
+  | Decrypt : key -> value -> prog value
   | Ret : forall T, T -> prog T
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
    
@@ -56,16 +51,21 @@ Section Layer1.
         exec [Cont] (em, hm, d) (Hash h v) (Finished (em, (upd hm hv (h, v)), d) hv)
              
   | ExecEncrypt : 
-      forall em hm d k v,
+      forall kl em hm d k v,
         let ev := encrypt k v in
         consistent em ev (k, v) ->
-        exec [Cont] (em, hm, d) (Encrypt k v) (Finished ((upd em ev (k, v)), hm, d) ev)
+        exec [Cont] (kl, em, hm, d) (Encrypt k v) (Finished (kl, (upd em ev (k, v)), hm, d) ev)
 
   | ExecDecrypt : 
-      forall em hm d ev k v,
+      forall kl em hm d ev k v,
         ev = encrypt k v ->
-        consistent em ev (k, v) ->
-        exec [Cont] (em, hm, d) (Decrypt k ev) (Finished ((upd em ev (k, v)), hm, d) v)
+        em ev = Some (k, v) ->
+        exec [Cont] (kl, em, hm, d) (Decrypt k ev) (Finished (kl, em, hm, d) v)
+
+  | ExecGetKey : 
+      forall kl em hm d k,
+        ~In k kl ->
+        exec [Key k] (kl, em, hm, d) (GetKey) (Finished ((k::kl), em, hm, d) k)
              
   | ExecRet :
       forall d T (v: T),
@@ -101,8 +101,25 @@ Section Layer1.
       (forall s',
           exec o1 s p1 (Crashed s') ->
           o2 = [])
+    | GetKey =>
+      (exists k, ~In k (fst(fst(fst s))) /\
+            o = [Key k]) \/ o = [Crash]
     | _ =>
       o = [Cont] \/ o = [Crash]
+    end.
+
+  Fixpoint oracles_match o1 o2 :=
+    match o1, o2 with
+    | nil, nil => True
+    | h1::t1, h2::t2 =>
+      oracles_match t1 t2 /\
+      match h1, h2 with
+      | Cont, Cont => True
+      | Crash, Crash => True
+      | Key _, Key _ => True
+      | _, _ => False
+      end
+    | _, _ => False
     end.
 
   Definition layer1_lts := Build_LTS oracle state prog exec.

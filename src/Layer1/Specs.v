@@ -2,64 +2,75 @@ Require Import Primitives Layer1.Definitions Layer1.HoareLogic ProgAuto.
 Open Scope pred_scope.
 
 Theorem read_ok:
-  forall o d a v,
-    << o, d >>
+  forall o d a v ax,
+    << o, d, ax>>
      (a |-> v)
      (Read a)
-    << r >>
-     (a |-> v * [[r = fst v]])
-     (a |-> v).
+    << r, axr >>
+     (a |-> v * [[r = fst v]] * [[axr = ax]])
+     (a |-> v * [[axr = ax]]).
 Proof.
   intros.
   unfold hoare_triple, any; intros.
   destruct_lift H; subst.
   eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
-  split_ors; eexists;
-    intuition eauto;
+  split_ors.
+  eexists; intuition eauto;
   econstructor; intuition eauto.
   unfold Disk.read in *; cleanup; eauto.
   
   do 2 eexists; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
+
+  eexists; intuition eauto.
+  econstructor; intuition eauto.
   inversion H0.
+  right; eexists; intuition eauto.
+  simpl in *; pred_apply; cancel; eauto.
 Qed.
 
 Theorem write_ok:
-  forall o d a v v',
-    << o, d >>
+  forall o d ax a v v',
+    << o, d, ax >>
      (a |-> v)
      (Write a v')
-    << r >>
-     (a |-> (v', (fst v::snd v)))
-     (a |-> v).
+    << r, axr >>
+     ([[axr = ax]] * a |-> (v', (fst v::snd v)))
+     ([[axr = ax]] * a |-> v).
 Proof.
   intros.
   unfold hoare_triple, any; intros.
   destruct_lift H; subst.
   eapply ptsto_valid' in H as Hx;
     cleanup; eauto.  
-  split_ors; eexists;
-    intuition eauto;
+  split_ors.
+  eexists; intuition eauto;
     econstructor; intuition eauto.
   
     unfold Disk.read in *;
     cleanup; eauto.  
     do 2 eexists; intuition eauto.
     unfold Disk.write; cleanup.
-    unfold Disk.upd_disk.
-    eapply ptsto_upd'; eauto.
+    unfold Disk.upd_disk; simpl.
+    apply sep_star_assoc; eapply ptsto_upd'; eauto.
+    pred_apply; cancel.
+
+    eexists; intuition eauto.
+    econstructor; intuition eauto.
     inversion H0.
+    right; eexists; intuition eauto.
+    simpl in *; pred_apply; cancel; eauto.
 Qed.
 
 Theorem ret_ok:
-  forall o d T (v: T),
-    << o, d >>
+  forall o d ax T (v: T),
+    << o, d, ax >>
      emp
      (Ret v)
-    << r >>
-     (emp * [[r = v]])
-     emp.
+    << r, axr >>
+     ([[r = v]] * [[axr = ax]])
+     ([[axr = ax]]).
 Proof.
   intros.
   unfold hoare_triple, any, exec; intros.
@@ -68,12 +79,125 @@ Proof.
     intuition eauto.
   
   left; do 2 eexists; intuition eauto.
-  pred_apply; cancel; eauto.
+  simpl; pred_apply; cancel; eauto.
 
   econstructor; intuition eauto.
   inversion H0.
   
   simpl in *; cleanup; right; eexists; intuition eauto.
-  pred_apply; cancel.    
+  simpl; pred_apply; cancel.    
 Qed.
 
+
+Theorem getkey_ok:
+  forall o d ax,
+    let '(kl, em, hm) := ax in
+    << o, d, ax >>
+     (emp)
+     (GetKey)
+    << r, axr >>
+     ([[~In r kl]] * [[axr = (r::kl, em, hm)]])
+     ([[axr = ax]]).
+Proof.
+  intros.
+  unfold hoare_triple, any, exec; intros.
+  destruct ax, p; simpl; intros.
+  destruct_lift H; subst.
+  split_ors; eexists;
+    intuition eauto.
+  
+  left; do 2 eexists; intuition eauto.
+  simpl; pred_apply; cancel; eauto.
+
+  econstructor; intuition eauto.
+  inversion H0.
+  
+  simpl in *; cleanup; right; eexists; intuition eauto.
+  simpl; pred_apply; cancel.    
+Qed.  
+
+
+Theorem hash_ok:
+  forall o d ax h v,
+    let hv := hash_function h v in
+    let '(kl, em, hm) := ax in
+    << o, d, ax >>
+     ([[ consistent hm hv (h, v) ]])
+     (Hash h v)
+    << r, axr >>
+     ([[r = hv]] * [[axr = (kl, em, upd hm hv (h, v))]])
+     ([[axr = ax]]).
+Proof.
+  intros.
+  unfold hoare_triple, any, exec; intros.
+  destruct ax, p; simpl; intros.
+  destruct_lift H; subst.
+  split_ors; eexists;
+    intuition eauto.
+  
+  left; do 2 eexists; intuition eauto.
+  simpl; pred_apply; cancel; eauto.
+
+  econstructor; intuition eauto.
+  inversion H0.
+  
+  simpl in *; cleanup; right; eexists; intuition eauto.
+  simpl; pred_apply; cancel.    
+Qed.
+
+
+Theorem encrypt_ok:
+  forall o d ax k v,
+    let ev := encrypt k v in
+    let '(kl, em, hm) := ax in
+    << o, d, ax >>
+     ([[ consistent em ev (k, v) ]])
+     (Encrypt k v)
+    << r, axr >>
+     ([[r = ev]] * [[axr = (kl, upd em ev (k, v), hm)]])
+     ([[axr = ax]]).
+Proof.
+  intros.
+  unfold hoare_triple, any, exec; intros.
+  destruct ax, p; simpl; intros.
+  destruct_lift H; subst.
+  split_ors; eexists;
+    intuition eauto.
+  
+  left; do 2 eexists; intuition eauto.
+  simpl; pred_apply; cancel; eauto.
+
+  econstructor; intuition eauto.
+  inversion H0.
+  
+  simpl in *; cleanup; right; eexists; intuition eauto.
+  simpl; pred_apply; cancel.    
+Qed.
+
+
+Theorem decrypt_ok:
+  forall o d ax k ev v,
+    let '(kl, em, hm) := ax in
+    << o, d, ax >>
+     ([[ev = encrypt k v ]] * [[ em ev = Some (k, v) ]])
+     (Decrypt k ev)
+    << r, axr >>
+     ([[r = v]] * [[axr = ax]])
+     ([[axr = ax]]).
+Proof.
+  intros.
+  unfold hoare_triple, any, exec; intros.
+  destruct ax, p; simpl; intros.
+  destruct_lift H; subst.
+  split_ors; eexists;
+    intuition eauto.
+  
+  left; do 2 eexists; intuition eauto.
+  simpl; pred_apply; cancel; eauto.
+
+  econstructor; intuition eauto.
+  inversion H0.
+  
+  simpl in *; cleanup; right; eexists; intuition eauto.
+  simpl; pred_apply; cancel.    
+Qed.

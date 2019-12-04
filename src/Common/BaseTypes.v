@@ -14,6 +14,16 @@ Axiom value_to_nat_to_value:
   forall v, nat_to_value (value_to_nat v) = v.
 Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
 
+(* For Crypto *)
+Axiom hash : Type.
+Axiom hash_dec: forall h1 h2: hash, {h1 = h2}+{h1<>h2}.
+Axiom hash_function: hash -> value -> hash.
+
+Axiom key: Type.
+Axiom key_dec: forall k1 k2: key, {k1 = k2}+{k1<>k2}.
+Axiom encrypt: key -> value -> value.
+Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
+
 (* For access control *) 
 Axiom user : Type.
 
