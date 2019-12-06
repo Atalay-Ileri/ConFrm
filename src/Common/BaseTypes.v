@@ -18,6 +18,7 @@ Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
 Axiom hash : Type.
 Axiom hash_dec: forall h1 h2: hash, {h1 = h2}+{h1<>h2}.
 Axiom hash_function: hash -> value -> hash.
+Axiom hash0 : hash.
 
 Axiom key: Type.
 Axiom key_dec: forall k1 k2: key, {k1 = k2}+{k1<>k2}.

@@ -106,7 +106,7 @@ Theorem crash_weaken:
   << r, ar >>
    (post r ar)
    (crash1 ar) ->
-  (forall ar, crash1 ar =p=> crash2 ar) ->
+  (forall ar, crash1 ar =*=> crash2 ar) ->
   << o, d, a >>
      (pre a)
      p
@@ -132,7 +132,7 @@ Theorem post_weaken:
   << r, ar >>
    (post1 r ar)
    (crash ar)  ->
-  (forall r ar, post1 r ar =p=> post2 r ar) ->
+  (forall r ar, post1 r ar =*=> post2 r ar) ->
   << o, d, a >>
      (pre a)
      p
@@ -157,7 +157,7 @@ Theorem pre_strengthen:
   << r, ar >>
    (post r ar)
    (crash ar) ->
-  (pre2 a =p=> pre1 a) ->
+  (pre2 a =*=> pre1 a) ->
   << o, d, a >>
      (pre2 a)
      p
@@ -180,7 +180,7 @@ Theorem pre_strengthen_aug:
    (crash ar)
    (ap o a d r)
    (ac o a d) ->
-  (pre2 a =p=> pre1 a ) ->
+  (pre2 a =*=> pre1 a ) ->
   << o, d, a >>
      (pre2 a)
      p
@@ -232,7 +232,7 @@ Theorem extract_exists:
    (post r ar)
    (crash ar)) ->
   << o, d, a >>
-     (exists v, pre a v)
+     (exists* v, pre a v)
      p
   << r, ar >>
      (post r ar)
@@ -256,7 +256,7 @@ Theorem extract_exists_aug:
    (ap o a d r)
    (ac o a d)) ->
   << o, d, a >>
-     (exists v, pre a v)
+     (exists* v, pre a v)
      p
   << r, ar >>
      (post r ar)

@@ -52,23 +52,23 @@ Theorem bind_ok:
   << r, ar >>
    (post1 r ar)
    (crash1 ar)) ->
-  ( pre3 a =p=> pre1 a) ->
+  ( pre3 a =*=> pre1 a) ->
   (forall F r ar,
       (F * pre1 a)%pred d ->
-      post1 r ar =p=> pre2 ar) ->
+      post1 r ar =*=> pre2 ar) ->
   (forall F d2 r1 ar1 r2 ar2,
       (F * pre1 a)%pred d ->
       (F * post1 r1 ar1)%pred d2 ->
       (F * pre2 ar1)%pred d2 ->
-      post2 r2 ar2 =p=> post3 r2 ar2) ->
+      post2 r2 ar2 =*=> post3 r2 ar2) ->
   (forall F ar,
       (F * pre1 a)%pred d ->
-      crash1 ar =p=> crash3 ar) ->
+      crash1 ar =*=> crash3 ar) ->
   (forall F d2 r1 ar1 ar2,
       (F * pre1 a)%pred d ->
       (F * post1 r1 ar1)%pred d2 ->
       (F * pre2 ar1)%pred d2 ->
-      crash2 ar2 =p=> crash3 ar2) ->
+      crash2 ar2 =*=> crash3 ar2) ->
   (forall F o2 d2 r a2,
       (F * pre1 a)%pred d ->
       (F * post1 r a2)%pred d2 ->
@@ -146,23 +146,23 @@ Theorem bind_ok_aug:
   << r, ar >>
    (post1 r ar)
    (crash1 ar)) ->
-  ( pre3 a =p=> pre1 a) ->
+  ( pre3 a =*=> pre1 a) ->
   (forall F r ar,
       (F * pre1 a)%pred d ->
-      post1 r ar =p=> pre2 ar) ->
+      post1 r ar =*=> pre2 ar) ->
   (forall F d2 r1 ar1 r2 ar2,
       (F * pre1 a )%pred d ->
       (F * post1 r1 ar1)%pred d2 ->
       (F * pre2 ar1)%pred d2 ->
-      post2 r2 ar2 =p=> post3 r2 ar2) ->
+      post2 r2 ar2 =*=> post3 r2 ar2) ->
   (forall F ar,
       (F * pre1 a)%pred d ->
-      crash1 ar =p=> crash3 ar) ->
+      crash1 ar =*=> crash3 ar) ->
   (forall F d2 r1 ar1 ar2,
       (F * pre1 a)%pred d ->
       (F * post1 r1 ar1)%pred d2 ->
       (F * pre2 ar1)%pred d2 ->
-      crash2 ar2 =p=> crash3 ar2) ->
+      crash2 ar2 =*=> crash3 ar2) ->
   (forall o1 o2 F d' r1,
       let a1 := fst d' in
       let d1 := snd d' in
