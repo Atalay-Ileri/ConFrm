@@ -1,4 +1,4 @@
-Require Import Primitives Simulation Layer1.Definitions ProgAuto.
+Require Import Primitives Simulation Layer1.Definitions Layer1.Automation.
 Import ListNotations.
 
 Lemma layer1_exec_crash_in:

@@ -1,4 +1,4 @@
-Require Export Layer1.Definitions Layer1.ProgAuto.
+Require Export Layer1.Definitions Layer1.Automation.
 Require Export  Layer1.Facts Layer1.HoareLogic Layer1.Specs.
 Notation "'Layer1.state'" := Layer1.Definitions.state.
 Notation "'Layer1.oracle'" := Layer1.Definitions.oracle.

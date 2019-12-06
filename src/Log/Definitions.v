@@ -1,4 +1,7 @@
-Require Import PeanoNat Primitives Layer1.
+Require Import PeanoNat Primitives Layer1 BatchOperations.
+Require Import LogParameters.
+
+
 
 Fixpoint arrayN {V} (a : addr) (vs : list V) : @pred addr addr_eq_dec V :=
   match vs with
@@ -6,13 +9,9 @@ Fixpoint arrayN {V} (a : addr) (vs : list V) : @pred addr addr_eq_dec V :=
   | v :: vs' => a |-> v * arrayN (S a) vs'
   end%pred.
 
-
 Infix "|=>" := arrayN (at level 35) : pred_scope.
 
 
-Variable hdr_block_num: addr.
-Variable log_start : addr.
-Variable log_length : nat.
 
 Record txn_record :=
   {
@@ -79,13 +78,6 @@ Definition old_txns_valid (hdr: header) (log_blocks: list value) (kl: list key) 
     (forall ev, In ev (firstn (ta+td) (skipn ts log_blocks)) ->
            exists v, em ev = Some (tk, v) /\ ev = encrypt tk v))%type.
                                                                            
-
-Fixpoint rolling_hash h vl :=
-  match vl with
-  | nil => h
-  | v::vl' => rolling_hash (hash_function h v) vl'
-  end.
-
 Fixpoint hashes_in_hashmap hm h vl :=
   match vl with
   | nil => True
@@ -127,13 +119,6 @@ Definition log_rep (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap
     [[ old_txns_valid hdr log_blocks kl em ]].
 
 
-Axiom encrypt_all : key -> list value -> prog (list value).
-Axiom decrypt_all : key -> list value -> prog (list value).
-Axiom write_consecutive : addr -> list value -> prog unit.
-Axiom write_batch : list addr -> list value -> prog unit.
-Axiom read_consecutive : addr -> nat -> prog (list value).
-Axiom hash_all : hash -> list value -> prog hash.
-
 (* Programs *)
 Definition read_header :=
   hd <- Read hdr_block_num;
@@ -154,7 +139,7 @@ Definition commit (addr_l data_l: list value) :=
     new_key <- GetKey;
     enc_data <- encrypt_all new_key (addr_l ++ data_l);
     _ <- write_consecutive (log_start + cur_count) enc_data;
-    let new_hash := rolling_hash cur_hash enc_data in
+    new_hash <- hash_all cur_hash enc_data;
     let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
     let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
     _ <- write_header new_hdr;
@@ -191,6 +176,14 @@ Definition flush_txns txns log_blocks :=
   _ <- write_header header0;
   Ret tt.
 
+Definition check_and_flush txns log hash :=
+  log_hash <- hash_all hash0 log;
+  if (hash_dec log_hash hash) then
+    _ <- flush_txns txns log;
+    Ret true
+  else
+    Ret false.
+
 Definition apply_log :=
   hdr <- read_header;
   let old_hash := old_hash hdr in
@@ -200,16 +193,11 @@ Definition apply_log :=
   let cur_count := cur_count hdr in
   let txns := txn_records hdr in
   log <- read_consecutive log_start cur_count;
-  log_hash <- hash_all hash0 log;
-  if (hash_dec log_hash cur_hash) then
-    _ <- flush_txns txns log;
+  success <- check_and_flush txns log cur_hash;
+  if success then
     Ret true
   else
     let old_txns := firstn old_txn_count txns in
     let old_log := firstn old_count log in
-    old_log_hash <- hash_all hash0 old_log;
-    if (hash_dec old_log_hash old_hash) then
-      _ <- flush_txns old_txns old_log;
-      Ret true
-    else
-      Ret false.
+    success <- check_and_flush old_txns old_log old_hash;
+    Ret success.

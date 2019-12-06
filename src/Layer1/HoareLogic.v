@@ -1,4 +1,4 @@
-Require Import Primitives Simulation Layer1.Definitions ProgAuto.
+Require Import Primitives Simulation Layer1.Definitions Layer1.Automation.
 
 Module Layer1 <: Layer.
   Definition oracle := oracle.

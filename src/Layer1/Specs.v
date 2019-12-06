@@ -1,4 +1,5 @@
-Require Import Primitives Layer1.Definitions Layer1.HoareLogic ProgAuto.
+Require Import Primitives.
+Require Import Layer1.Definitions Layer1.HoareLogic Layer1.Automation.
 Open Scope pred_scope.
 
 Theorem read_ok:
