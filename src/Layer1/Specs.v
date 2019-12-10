@@ -91,13 +91,17 @@ Qed.
 
 
 Theorem getkey_ok:
-  forall o d ax,
-    let '(kl, em, hm) := ax in
+  forall vl o d ax,
+    let kl := fst (fst ax) in
+    let em := snd (fst ax) in
+    let hm := snd ax in
     << o, d, ax >>
-     (emp)
-     (GetKey)
+     emp
+     (GetKey vl)
     << r, axr >>
-     ([[~In r kl]] * [[axr = (r::kl, em, hm)]])
+     ([[~In r kl]] *
+      [[consistent_with_upds em (map (encrypt r) vl) (map (fun v => (r, v)) vl) ]] *
+      [[axr = (r::kl, em, hm)]])
      ([[axr = ax]]).
 Proof.
   intros.
@@ -121,7 +125,9 @@ Qed.
 Theorem hash_ok:
   forall o d ax h v,
     let hv := hash_function h v in
-    let '(kl, em, hm) := ax in
+    let kl := fst (fst ax) in
+    let em := snd (fst ax) in
+    let hm := snd ax in
     << o, d, ax >>
      ([[ consistent hm hv (h, v) ]])
      (Hash h v)
@@ -150,7 +156,9 @@ Qed.
 Theorem encrypt_ok:
   forall o d ax k v,
     let ev := encrypt k v in
-    let '(kl, em, hm) := ax in
+    let kl := fst (fst ax) in
+    let em := snd (fst ax) in
+    let hm := snd ax in
     << o, d, ax >>
      ([[ consistent em ev (k, v) ]])
      (Encrypt k v)
@@ -178,9 +186,11 @@ Qed.
 
 Theorem decrypt_ok:
   forall o d ax k ev v,
-    let '(kl, em, hm) := ax in
+    let kl := fst (fst ax) in
+    let em := snd (fst ax) in
+    let hm := snd ax in
     << o, d, ax >>
-     ([[ev = encrypt k v ]] * [[ em ev = Some (k, v) ]])
+     ([[ ev = encrypt k v ]] * [[ em ev = Some (k, v) ]])
      (Decrypt k ev)
     << r, axr >>
      ([[r = v]] * [[axr = ax]])

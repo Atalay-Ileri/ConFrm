@@ -1,4 +1,4 @@
-Require Import FunctionalExtensionality.
+Require Import List FunctionalExtensionality.
 
 Set Implicit Arguments.
 
@@ -33,6 +33,12 @@ Section GenMem.
       | Some _ => m a'
       end else m a'.
 
+  Fixpoint upd_batch m al vl :=
+    match al, vl with
+    | a::al', v::vl' => upd_batch (upd m a v) al' vl'
+    | _, _ => m
+    end.
+
   Definition subset (m1 m2: @mem A AEQ V) :=
     forall a,
       (m2 a = None -> m1 a = None) /\
@@ -41,6 +47,25 @@ Section GenMem.
   Definition consistent (m: @mem A AEQ V) a v :=
     m a = None \/ m a = Some v.
 
+  Fixpoint consistent_with_upds m al vl :=
+    match al, vl with
+    | nil, nil => True
+    | a::al', v::vl' =>
+      consistent m a v /\
+      consistent_with_upds (upd m a v) al' vl'
+    | _, _ => False
+    end.
+
+  Fixpoint get_all_existing (m: @mem A AEQ V) al :=
+    match al with
+    | nil => nil
+    | a::al' =>
+      match m a with
+      | None => get_all_existing m al'
+      | Some v => v::get_all_existing m al'
+      end
+    end.
+  
   Theorem upd_eq : forall m (a : A) (v : V) a',
     a' = a -> upd m a v a' = Some v.
   Proof.

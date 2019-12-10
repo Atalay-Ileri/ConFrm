@@ -119,6 +119,7 @@ Hint Unfold pimpl.
 Hint Unfold piff.
 
 Infix "|->" := ptsto (at level 35) : pred_scope.
+
 Bind Scope pred_scope with pred.
 Delimit Scope pred_scope with pred.
 
@@ -161,6 +162,15 @@ Arguments sep_star {AT AEQ V} _ _ _.
 
 Infix "*" := sep_star : pred_scope.
 Notation "p --* q" := (septract p%pred q%pred) (at level 40) : pred_scope.
+
+
+Fixpoint pred_array {AT AEQ V} (next: AT -> AT) a (vs: list V) :=
+  match vs with
+  | nil => emp
+  | v :: vs' => sep_star (@ptsto _ AEQ _ a v) (pred_array next (next a) vs')
+  end.
+
+Infix "|=>" := (pred_array S) (at level 35) : pred_scope.
 
 Ltac safedeex :=
   match goal with

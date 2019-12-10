@@ -1,3 +1,4 @@
+Require Import String.
 Require Import Primitives Simulation Layer1.Definitions Layer1.Automation.
 
 Module Layer1 <: Layer.
@@ -43,7 +44,7 @@ Ltac monad_simpl := repeat monad_simpl_one.
 
 
 Theorem bind_ok:
-  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 pre3 post3 crash3 o d a,
+  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 o d a,
   (forall o1,
    (exists o2, o = o1++o2) ->      
    << o1, d, a >>
@@ -52,23 +53,15 @@ Theorem bind_ok:
   << r, ar >>
    (post1 r ar)
    (crash1 ar)) ->
-  ( pre3 a =*=> pre1 a) ->
   (forall F r ar,
+      Marker "bind_ok post1 =*=> pre2 for" (Bind p1 p2) ->
       (F * pre1 a)%pred d ->
       post1 r ar =*=> pre2 ar) ->
-  (forall F d2 r1 ar1 r2 ar2,
-      (F * pre1 a)%pred d ->
-      (F * post1 r1 ar1)%pred d2 ->
-      (F * pre2 ar1)%pred d2 ->
-      post2 r2 ar2 =*=> post3 r2 ar2) ->
   (forall F ar,
+      Marker "bind_ok crash1 =*=> crash2 for" (Bind p1 p2) ->
       (F * pre1 a)%pred d ->
-      crash1 ar =*=> crash3 ar) ->
-  (forall F d2 r1 ar1 ar2,
-      (F * pre1 a)%pred d ->
-      (F * post1 r1 ar1)%pred d2 ->
-      (F * pre2 ar1)%pred d2 ->
-      crash2 ar2 =*=> crash3 ar2) ->
+      crash1 ar =*=> crash2 ar) ->
+
   (forall F o2 d2 r a2,
       (F * pre1 a)%pred d ->
       (F * post1 r a2)%pred d2 ->
@@ -80,64 +73,43 @@ Theorem bind_ok:
        (post2 r ar)
        (crash2 ar)) ->
   << o, d, a >>
-     (pre3 a)
+     (pre1 a)
      (Bind p1 p2)
   << r, ar >>
-     (post3 r ar)
-     (crash3 ar).
+     (post2 r ar)
+     (crash2 ar).
 Proof.
-  unfold hoare_triple, exec; intros.
+  unfold Marker, hoare_triple, exec; intros.
   simpl in *; destruct_lifts; cleanup.
   (* rewrite H0 in H6. *)
   edestruct H; eauto.
-  pred_apply' H6; cancel; eauto.
-  eassign F; cancel; eauto.
+  pred_apply' H3; cancel; eauto.
   
   cleanup.
   split_ors; cleanup.
-  - specialize H9 with (1:=H7).
-    edestruct H5; eauto.
+  - specialize H6 with (1:=H4).
+    edestruct H2; eauto.
+    clear H10.
     pred_apply; cancel; eauto.
-    pred_apply' H12; norm.
-    cancel.
     eassign F; cancel.
-    eapply H1.
-    pred_apply; eassign F; cancel; eauto.
-    intuition eauto.
+    eapply H0; eauto.
     destruct x2; simpl in *; eauto.
 
     cleanup.
     destruct x2; simpl in *.
     split_ors; cleanup;
       eexists; split; intuition eauto.
-
-    left; do 2 eexists; intuition eauto.
-    pred_apply; cancel; eauto.
-    eapply H2; eauto.
-    pred_apply; cancel; eauto.
-    pred_apply' H12; cancel; eauto.
-    eapply H1.
-    pred_apply; eassign F; cancel; eauto.
     
-    right; eexists; intuition eauto.
-    pred_apply; cancel; eauto.
-    eapply H4; eauto.
-    pred_apply; cancel; eauto.
-    pred_apply' H12; cancel; eauto.
-    eapply H1.
-    pred_apply; eassign F; cancel; eauto.
-    
-  - specialize H10 with (1:=H7); cleanup.
+  - specialize H7 with (1:=H4); cleanup.
     rewrite app_nil_r.
     eexists; split; intuition eauto.
     right; eexists; intuition eauto.
-    pred_apply' H12; cancel.
-    eapply H3.
-    pred_apply; eassign F; cancel; eauto.
+    pred_apply' H9; cancel.
+    eapply H1; eauto.
 Qed.
 
 Theorem bind_ok_aug:
-  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 pre3 post3 crash3 augpost augcrash o d a,
+  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 augpost augcrash o d a,
   (forall o1,
    (exists o2, o = o1++o2) ->
    << o1, d, a >>
@@ -146,23 +118,14 @@ Theorem bind_ok_aug:
   << r, ar >>
    (post1 r ar)
    (crash1 ar)) ->
-  ( pre3 a =*=> pre1 a) ->
   (forall F r ar,
+     Marker "bind_ok_aug post1 =*=> pre2 for" (Bind p1 p2) ->
       (F * pre1 a)%pred d ->
       post1 r ar =*=> pre2 ar) ->
-  (forall F d2 r1 ar1 r2 ar2,
-      (F * pre1 a )%pred d ->
-      (F * post1 r1 ar1)%pred d2 ->
-      (F * pre2 ar1)%pred d2 ->
-      post2 r2 ar2 =*=> post3 r2 ar2) ->
   (forall F ar,
+     Marker "bind_ok_aug crash1 =*=> crash2 for" (Bind p1 p2) ->
       (F * pre1 a)%pred d ->
-      crash1 ar =*=> crash3 ar) ->
-  (forall F d2 r1 ar1 ar2,
-      (F * pre1 a)%pred d ->
-      (F * post1 r1 ar1)%pred d2 ->
-      (F * pre2 ar1)%pred d2 ->
-      crash2 ar2 =*=> crash3 ar2) ->
+      crash1 ar =*=> crash2 ar) ->
   (forall o1 o2 F d' r1,
       let a1 := fst d' in
       let d1 := snd d' in
@@ -180,69 +143,50 @@ Theorem bind_ok_aug:
        (augcrash o a d)
        ) ->
   (forall F o1 d',
+     Marker "bind_ok_aug crash1 =*=> augcrash for" (Bind p1 p2) ->
       (F * pre1 a)%pred d ->
       exec o1 (a, d) p1 (Crashed d') ->
-      (F * crash1 (fst d'))%pred (snd d') ->
       (exists o2, o = o1++o2) ->
-      (F * augcrash o a d)%pred (snd d')) ->
+      crash1 (fst d') =*=> augcrash o a d) ->
   << o, d, a >>
-     (pre3 a)
+     (pre1 a)
      (Bind p1 p2)
   << r, ar >>
-     (post3 r ar)
-     (crash3 ar)
+     (post2 r ar)
+     (crash2 ar)
      (augpost o a d r)
      (augcrash o a d)
      .
 Proof.
-  unfold hoare_triple, exec; intros.
+  unfold Marker, hoare_triple, exec; intros.
   simpl in *; destruct_lifts; cleanup.
   (* rewrite H0 in H7. *)
   edestruct H; eauto.
-  pred_apply' H7; cancel; eauto.
-  eassign F; cancel; eauto.  
+  pred_apply' H4; cancel; eauto.
   
   cleanup.
   split_ors; cleanup; destruct x2; simpl in *.
-  - specialize H10 with (1:=H8).
-    edestruct H5; eauto.
-    pred_apply; cancel; eauto.
-    pred_apply' H13; norm.
+  - specialize H7 with (1:=H5).
+    edestruct H2; eauto.
+    simpl; pred_apply' H10; norm.
     eassign F; cancel.
-    eapply H1.
-    pred_apply; eassign F; cancel; eauto.
+    eapply H0; eauto.
     intuition eauto.
 
     cleanup.
     split_ors; cleanup;
       eexists; split; intuition eauto.
-
-    left; do 2 eexists; intuition eauto.
-    pred_apply' H16; cancel; eauto.
-    eapply H2; eauto.    
-    pred_apply; cancel; eauto.
-    pred_apply' H13; norm. cancel.
-    eapply H1.
-    pred_apply; eassign F; cancel; eauto.
-    intuition.
     
-    right; eexists; intuition eauto.
-    pred_apply' H16; cancel; eauto.
-    eapply H4; eauto.
-    pred_apply; cancel; eauto.
-    pred_apply' H13; norm. cancel.
-    eapply H1.
-    pred_apply; eassign F; cancel; eauto.
-    intuition.
-    
-  - specialize H11 with (1:=H8); cleanup.
+  - specialize H8 with (1:=H5); cleanup.
     rewrite app_nil_r in *.
     eexists; split; intuition eauto.
     right; eexists; intuition eauto.
-    pred_apply' H13; cancel.
-    eapply H3; eauto.    
-    pred_apply; eassign F; cancel; eauto.
-    eapply H6; eauto.
-    pred_apply; cancel; eauto.
+    pred_apply' H10; cancel.
+    eapply H1; eauto.    
+    simpl; pred_apply' H10; cancel; eauto.
+    specialize (H3 F x (a0, d0)); simpl in *.
+    eapply H3; eauto.
     exists nil; rewrite app_nil_r; eauto.
 Qed.
+
+Global Opaque Marker.

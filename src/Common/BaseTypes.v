@@ -18,10 +18,27 @@ Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
 Axiom hash : Type.
 Axiom hash_dec: forall h1 h2: hash, {h1 = h2}+{h1<>h2}.
 Axiom hash_function: hash -> value -> hash.
+
 Fixpoint rolling_hash h vl :=
   match vl with
   | nil => h
   | cons v vl' => rolling_hash (hash_function h v) vl'
+  end.
+
+Fixpoint rolling_hash_list h vl :=
+  match vl with
+  | nil => nil
+  | cons v vl' =>
+    let h':= hash_function h v in
+    cons h' (rolling_hash_list h' vl')
+  end.
+
+Fixpoint hash_and_pair h vl :=
+  match vl with
+  | nil => nil
+  | cons v vl' =>
+    let h':= hash_function h v in
+    cons (h, v) (hash_and_pair h' vl')
   end.
 Axiom hash0 : hash.
 

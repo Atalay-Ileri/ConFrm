@@ -1,18 +1,6 @@
 Require Import PeanoNat Primitives Layer1 BatchOperations.
 Require Import LogParameters.
 
-
-
-Fixpoint arrayN {V} (a : addr) (vs : list V) : @pred addr addr_eq_dec V :=
-  match vs with
-  | nil => emp
-  | v :: vs' => a |-> v * arrayN (S a) vs'
-  end%pred.
-
-Infix "|=>" := arrayN (at level 35) : pred_scope.
-
-
-
 Record txn_record :=
   {
     txn_key : key;

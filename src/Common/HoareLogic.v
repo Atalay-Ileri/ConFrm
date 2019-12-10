@@ -1,4 +1,7 @@
+Require Import String.
 Require Import BaseTypes Mem Pred Disk CommonAutomation SepAuto.
+
+
 
 Set Implicit Arguments.
 
@@ -16,6 +19,10 @@ Instance addr_eq_dec: EqDec addr := addr_dec.
 
 Module HoareLogic (l: Layer).
   Import l.
+
+Definition Marker {T} (s: string) (p: prog T) := True.
+
+
 (** ** Hoare logic *)
 Definition precond := oracle -> aux_state -> @pred addr addr_dec data.
 Definition postcond {T: Type} := T -> aux_state -> @pred addr addr_dec data.
@@ -98,7 +105,7 @@ Proof.
 Qed.
 
 
-Theorem crash_weaken:
+Theorem crash_impl:
   forall T (p: prog T) pre post crash1 crash2 o d a,
   << o, d, a >>
    (pre a)
@@ -106,7 +113,9 @@ Theorem crash_weaken:
   << r, ar >>
    (post r ar)
    (crash1 ar) ->
-  (forall ar, crash1 ar =*=> crash2 ar) ->
+   (forall F ar, Marker "crash_impl implication for" p ->
+      (F * pre a)%pred d ->
+      crash1 ar =*=> crash2 ar) ->
   << o, d, a >>
      (pre a)
      p
@@ -114,17 +123,18 @@ Theorem crash_weaken:
      (post r ar)
      (crash2 ar).
 Proof.
-  unfold hoare_triple; intros.
+  unfold Marker, hoare_triple; intros.
   edestruct H; eauto.
   cleanup.
   split_ors; cleanup;
     eexists; intuition eauto.
   right; eexists; intuition eauto.
   clear H5; pred_apply; cancel; eauto.
+  eapply H0; eauto; pred_apply; cancel.
 Qed.
 
 
-Theorem post_weaken:
+Theorem post_impl:
   forall T (p: prog T) pre post1 post2 crash o d a,
   << o, d, a >>
    (pre a)
@@ -132,7 +142,9 @@ Theorem post_weaken:
   << r, ar >>
    (post1 r ar)
    (crash ar)  ->
-  (forall r ar, post1 r ar =*=> post2 r ar) ->
+   (forall F r ar, Marker "post_impl implication for" p ->
+       (F * pre a)%pred d ->          
+       post1 r ar =*=> post2 r ar) ->
   << o, d, a >>
      (pre a)
      p
@@ -140,16 +152,17 @@ Theorem post_weaken:
      (post2 r ar)
      (crash ar).
 Proof.
-  unfold hoare_triple; intros.
+  unfold Marker, hoare_triple; intros.
   edestruct H; eauto.
   cleanup.
   split_ors; cleanup;
     eexists; intuition eauto.
   left; do 2 eexists; intuition eauto.
   clear H5; pred_apply; cancel; eauto.
+  eapply H0; eauto; pred_apply; cancel.
 Qed.
 
-Theorem pre_strengthen:
+Theorem pre_impl:
   forall T (p: prog T) pre1 pre2 post crash o d a,
   << o, d, a >>
    (pre1 a)
@@ -157,7 +170,8 @@ Theorem pre_strengthen:
   << r, ar >>
    (post r ar)
    (crash ar) ->
-  (pre2 a =*=> pre1 a) ->
+   (Marker "pre_impl implication for" p ->
+    pre2 a =*=> pre1 a) ->
   << o, d, a >>
      (pre2 a)
      p
@@ -165,12 +179,12 @@ Theorem pre_strengthen:
      (post r ar)
      (crash ar).
 Proof.
-  unfold hoare_triple; intros.
+  unfold Marker, hoare_triple; intros.
   edestruct H; eauto.
   pred_apply; cancel; eauto.
 Qed.
 
-Theorem pre_strengthen_aug:
+Theorem pre_impl_aug:
   forall T (p: prog T) pre1 pre2 post crash ap ac o d a,
   << o, d, a >>
    (pre1 a)
@@ -180,7 +194,8 @@ Theorem pre_strengthen_aug:
    (crash ar)
    (ap o a d r)
    (ac o a d) ->
-  (pre2 a =*=> pre1 a ) ->
+   (Marker "pre_impl_aug implication for" p ->
+           pre2 a =*=> pre1 a ) ->
   << o, d, a >>
      (pre2 a)
      p
@@ -190,7 +205,7 @@ Theorem pre_strengthen_aug:
      (ap o a d r)
      (ac o a d).
 Proof.
-  unfold hoare_triple; intros.
+  unfold Marker, hoare_triple; intros.
   edestruct H; eauto.
   pred_apply; cancel; eauto.
 Qed.
@@ -279,11 +294,13 @@ Theorem remove_augcons:
    (post r ar)
    (crash ar) ->
   (forall F d' r,
+     Marker "augpost for" p ->
       (F * pre a)%pred d ->
       exec o (a, d) p (Finished d' r) ->
       (F * post r (fst d'))%pred (snd d') ->
       (F * augpost o a d r)%pred (snd d')) ->
   (forall F d',
+      Marker "augcrash for" p ->
       (F * pre a)%pred d ->
       exec o (a, d) p (Crashed d') ->
       (F * crash (fst d'))%pred (snd d') ->
@@ -297,7 +314,7 @@ Theorem remove_augcons:
      (augpost o a d r)
      (augcrash o a d).
 Proof.
-  unfold hoare_triple; intros.
+  unfold Marker, hoare_triple; intros.
   edestruct H; eauto; cleanup.
   
   split_ors; cleanup.

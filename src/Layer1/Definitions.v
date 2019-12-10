@@ -25,7 +25,7 @@ Section Layer1.
   Inductive prog : Type -> Type :=
   | Read : addr -> prog value
   | Write : addr -> value -> prog unit
-  | GetKey : prog key
+  | GetKey : list value -> prog key
   | Hash : hash -> value -> prog hash
   | Encrypt : key -> value -> prog value
   | Decrypt : key -> value -> prog value
@@ -63,9 +63,11 @@ Section Layer1.
         exec [Cont] (kl, em, hm, d) (Decrypt k ev) (Finished (kl, em, hm, d) v)
 
   | ExecGetKey : 
-      forall kl em hm d k,
+      forall vl kl em hm d k,
         ~In k kl ->
-        exec [Key k] (kl, em, hm, d) (GetKey) (Finished ((k::kl), em, hm, d) k)
+        consistent_with_upds em
+             (map (encrypt k) vl) (map (fun v => (k, v)) vl) ->
+        exec [Key k] (kl, em, hm, d) (GetKey vl) (Finished ((k::kl), em, hm, d) k)
              
   | ExecRet :
       forall d T (v: T),
@@ -101,25 +103,13 @@ Section Layer1.
       (forall s',
           exec o1 s p1 (Crashed s') ->
           o2 = [])
-    | GetKey =>
+    | GetKey vl =>
       (exists k, ~In k (fst(fst(fst s))) /\
+            consistent_with_upds (snd(fst (fst s)))
+                (map (encrypt k) vl) (map (fun v => (k,v)) vl) /\
             o = [Key k]) \/ o = [Crash]
     | _ =>
       o = [Cont] \/ o = [Crash]
-    end.
-
-  Fixpoint oracles_match o1 o2 :=
-    match o1, o2 with
-    | nil, nil => True
-    | h1::t1, h2::t2 =>
-      oracles_match t1 t2 /\
-      match h1, h2 with
-      | Cont, Cont => True
-      | Crash, Crash => True
-      | Key _, Key _ => True
-      | _, _ => False
-      end
-    | _, _ => False
     end.
 
   Definition layer1_lts := Build_LTS oracle state prog exec.

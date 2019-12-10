@@ -15,7 +15,7 @@ Ltac invert_exec' :=
     | Hash _ _ => invert_exec'' H
     | Encrypt _ _ => invert_exec'' H
     | Decrypt _ _ => invert_exec'' H
-    | GetKey => invert_exec'' H
+    | GetKey _ => invert_exec'' H
     | Ret _ => invert_exec'' H
     end
   end.
