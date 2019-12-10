@@ -124,7 +124,7 @@ Definition commit (addr_l data_l: list value) :=
   let txns := txn_records hdr in
   let new_count := cur_count + (length addr_l + length data_l) in
   if (new_count <=? log_length) then
-    new_key <- GetKey;
+    new_key <- GetKey (addr_l++data_l);
     enc_data <- encrypt_all new_key (addr_l ++ data_l);
     _ <- write_consecutive (log_start + cur_count) enc_data;
     new_hash <- hash_all cur_hash enc_data;
