@@ -223,9 +223,8 @@ Definition compiles_to_valid {Prog_L Prog_H: Type -> Type}
 This definition ties notion of validity with restricting transitions by stating that any reachable state from a valid state is also valid.
 
 ```haskell
-Definition exec_compiled_preserves_validity 
-					 lts1 lts2 
-					 (compilation_of: forall T, Prog lts1 T -> Prog lts2 T -> Prop) valid_state :=
+Definition exec_compiled_preserves_validity lts1 lts2 
+	   (compilation_of: forall T, Prog lts1 T -> Prog lts2 T -> Prop) valid_state :=
     forall T (p1: Prog lts1 T) (p2: Prog lts2 T) o s ret,
       compilation_of T p1 p2 ->
       valid_state s ->
@@ -559,7 +558,7 @@ Which takes blocks to be encrypted and encrypts them with a new key, returning b
 
 ```
 -------------------------------------------------
-| 		  |      TXN 1      |  TXN 2  |         |
+|         |      TXN 1      |  TXN 2  |         |
 |  Header |  Addr  |  Data  |         |  . . .  |
 |         | Blocks | Blocks |         |         |
 -------------------------------------------------
