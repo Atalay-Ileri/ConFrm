@@ -81,14 +81,17 @@ Definition old_hash_valid hdr log_blocks :=
   let old_count := old_count hdr in
   old_hash hdr = rolling_hash hash0 (firstn old_count log_blocks).
 
-Definition log_rep (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap) :=
-  exists* (log_blocks free: list value),
+Definition log_inner_rep (log_blocks: list value) (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap) :=
+  exists* hdr_block (log_blockset free: list data),
     (* Header *)
-    hdr_block_num |-> (encode_header hdr) *
+    hdr_block_num |-> hdr_block *
     (* Valid Region *)
-    log_start |=> log_blocks *
+    log_start |=> log_blockset *
     (* Free Region *)
     (log_start + length log_blocks) |=> free *
+    (* Hdr is correct representation *)
+    [[ hdr = decode_header (fst hdr_block) ]] *
+    [[ log_blocks = map fst log_blockset ]] *
     (* Header log_count is correct *)
     [[ length log_blocks = cur_count hdr ]] *
     (* Old count is always leq *)
@@ -106,6 +109,11 @@ Definition log_rep (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap
     [[ cur_txns_valid hdr log_blocks kl em ]] *
     [[ old_txns_valid hdr log_blocks kl em ]].
 
+
+Definition log_rep (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap) :=
+  exists* (log_blocks: list value), log_inner_rep log_blocks hdr kl em hm.
+
+Axiom blocks_to_addr_list : list value -> list addr.
 
 (* Programs *)
 Definition read_header :=
@@ -144,7 +152,7 @@ Definition apply_txn txn log_blocks :=
   plain_blocks <- decrypt_all key txn_blocks;
   let addr_blocks := firstn addr_count plain_blocks in
   let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := nil (*TODO*) in
+  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks)in
   _ <- write_batch addr_list data_blocks;
   Ret tt.
 

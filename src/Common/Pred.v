@@ -163,6 +163,7 @@ Arguments sep_star {AT AEQ V} _ _ _.
 Infix "*" := sep_star : pred_scope.
 Notation "p --* q" := (septract p%pred q%pred) (at level 40) : pred_scope.
 
+(*******************************)
 
 Fixpoint pred_array {AT AEQ V} (next: AT -> AT) a (vs: list V) :=
   match vs with
@@ -170,7 +171,26 @@ Fixpoint pred_array {AT AEQ V} (next: AT -> AT) a (vs: list V) :=
   | v :: vs' => sep_star (@ptsto _ AEQ _ a v) (pred_array next (next a) vs')
   end.
 
+Fixpoint ptsto_list {A AEQ V} (al: list A) (vl: list V) :=
+  match al, vl with
+  | a::al', v::vl' =>
+    sep_star (@ptsto A AEQ V a v) (ptsto_list al' vl')
+  | _, _ => emp
+  end.
+
+Definition vsupd {V} (v: V) (vs: V * list V) := (v, fst vs::snd vs).
+
+Fixpoint map_pointwise {A B} (fl : list (A -> B)) (al : list A) :=
+  match fl, al with
+  | f::fl', a::al' =>
+    (f a)::map_pointwise fl' al'
+  | _, _ => nil
+  end.
+  
 Infix "|=>" := (pred_array S) (at level 35) : pred_scope.
+Infix "|L>" := (ptsto_list) (at level 35) : pred_scope.
+
+(*********************************)
 
 Ltac safedeex :=
   match goal with

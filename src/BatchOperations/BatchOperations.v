@@ -1,1 +1,1 @@
-Require Export BatchOperations.Definitions.
+Require Export BatchOperations.Definitions BatchOperations.Specs.

@@ -369,7 +369,10 @@ Ltac flatten :=
 Definition okToUnify {AT AEQ V} (p1 p2 : @pred AT AEQ V) := p1 = p2.
 
 Hint Extern 0 (okToUnify (?p |-> _) (?p |-> _)) => constructor : okToUnify.
+Hint Extern 0 (okToUnify (?p |=> _) (?p |=> _)) => constructor : okToUnify.
+Hint Extern 0 (okToUnify (?p |L> _) (?p |L> _)) => constructor : okToUnify.
 Hint Extern 0 (okToUnify ?a ?a) => constructor : okToUnify.
+
 
 (* Try to unify any two [ptsto] predicates.  Since ring does not unify
  * existential variables, this is safe to do; they will be unified only

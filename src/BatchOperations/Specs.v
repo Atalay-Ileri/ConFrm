@@ -1,4 +1,4 @@
-Require Import String Omega.
+Require Import String Datatypes Omega.
 Require Import Primitives Layer1.
 Require Import BatchOperations.Definitions.
 
@@ -59,15 +59,6 @@ Proof.
       { intros; simpl; cancel. }
     }
   }
-Qed.
-
-Lemma get_all_existing_length_le:
-  forall A AEQ V (m: @mem A AEQ V) al,
-    length (get_all_existing m al) <= length al.
-Proof.
-  induction al; intros; simpl in *; eauto.
-  destruct (m a); simpl in *; eauto.
-  omega.
 Qed.
 
 Theorem decrypt_all_ok :
@@ -144,24 +135,6 @@ Proof.
       omega.
     }
   }
-Qed.
-
-Lemma firstn_rolling_hash_list_comm:
-  forall n h vl,
-    firstn n (rolling_hash_list h vl) = rolling_hash_list h (firstn n vl).
-Proof.
-  induction n; intros; simpl in *; eauto.
-  destruct vl; simpl; eauto.
-  rewrite IHn; eauto.
-Qed.
-
-Lemma firstn_hash_and_pair_comm:
-  forall n h vl,
-    firstn n (hash_and_pair h vl) = hash_and_pair h (firstn n vl).
-Proof.
-  induction n; intros; simpl in *; eauto.
-  destruct vl; simpl; eauto.
-  rewrite IHn; eauto.
 Qed.
 
 Theorem hash_all_ok :
@@ -276,7 +249,6 @@ Proof.
         eapply add_frame; try apply IHn.
         intros; simpl in *.
         repeat destruct_lifts; cleanup; cancel.
-        eassign vl; cancel.
         destruct_lift H; cleanup; eauto.
       }
       { intros; simpl in *; cancel.
@@ -301,15 +273,6 @@ Proof.
       { intros; simpl; cancel. }
     }
 Qed.
-
-Definition vsupd {V} (v: V) (vs: V * list V) := (v, fst vs::snd vs).
-
-Fixpoint map_pointwise {A B} (fl : list (A -> B)) (al : list A) :=
-  match fl, al with
-  | f::fl', a::al' =>
-    (f a)::map_pointwise fl' al'
-  | _, _ => nil
-  end.
 
 Theorem write_consecutive_ok :
   forall vl start vsl o d a,
@@ -383,3 +346,71 @@ Proof.
     }
 Qed.
 
+Theorem write_batch_ok :
+  forall al vl vsl o d a,
+    << o, d, a >>
+      (al |L> vsl *
+       [[ length vsl = length vl ]] *
+       [[ length al = length vl ]])
+      (write_batch al vl)
+    << r, ar >>
+      (al |L> (map_pointwise (map vsupd vl) vsl) *
+       [[ ar = a ]])%pred
+      (exists* n, (firstn n al) |L> (map_pointwise (map vsupd (firstn n vl)) (firstn n vsl)) *
+             (skipn n al) |L> (skipn n vsl) *  
+      [[ ar = a ]]).
+Proof.
+  unfold vsupd; induction al; intros; cleanup.
+  {
+    eapply post_impl.
+    eapply crash_impl.
+    eapply pre_impl.
+    eapply add_frame.
+    apply ret_ok.
+    all: simpl in *; intros; repeat destruct_lifts; cancel; cleanup.
+    eassign 0; simpl; cancel.
+  }
+
+  
+  cleanup.
+  destruct vl.
+  {
+    unfold hoare_triple; simpl; intros.
+    repeat destruct_lifts; congruence.
+  }
+  destruct vsl.
+  {
+    unfold hoare_triple; simpl; intros.
+    repeat destruct_lifts; congruence.
+  }
+  
+  simpl write_batch; simpl fst; simpl snd.
+  eapply bind_ok.
+  { intros; eapply pre_impl.
+    eapply add_frame; apply write_ok.
+    simpl; cancel.
+  }
+  { intros; simpl.
+    instantiate (1:= fun ar => al |L> vsl * a |-> (v, fst d0 :: snd d0)); simpl; cancel. }
+  { intros; simpl; cancel.
+    eassign 0; simpl; cancel. }    
+  
+  intros.
+  eapply pre_impl.
+  eapply post_impl.
+  eapply crash_impl.
+  eapply add_frame.
+  apply IHal.
+  { intros; cancel.
+    eassign (S n); eassign vsl; simpl.
+    cancel.
+      simpl in *; destruct_lift H;
+        destruct_lift H0; destruct_lift H2;
+          cleanup; eauto. }
+  { intros; simpl in *; destruct_lift H;
+      destruct_lift H0; destruct_lift H2;
+        cleanup; cancel. }
+  { intros; simpl in *; destruct_lift H;
+      destruct_lift H0; destruct_lift H2;
+        cleanup; cancel. }
+Qed.
