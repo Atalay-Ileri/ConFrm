@@ -212,3 +212,11 @@ Proof.
   simpl in *; cleanup; right; eexists; intuition eauto.
   simpl; pred_apply; cancel.    
 Qed.
+
+Hint Extern 1 (hoare_triple _ (Read _) _ _ _ _ _ _ _) => eapply read_ok : specs.
+Hint Extern 1 (hoare_triple _ (Write _ _) _ _ _ _ _ _ _) => eapply write_ok : specs.
+Hint Extern 1 (hoare_triple _ (Ret _) _ _ _ _ _ _ _) => eapply ret_ok : specs.
+Hint Extern 1 (hoare_triple _ (Hash _ _) _ _ _ _ _ _ _) => eapply hash_ok : specs.
+Hint Extern 1 (hoare_triple _ (GetKey _) _ _ _ _ _ _ _) => eapply getkey_ok : specs.
+Hint Extern 1 (hoare_triple _ (Encrypt _ _) _ _ _ _ _ _ _) => eapply encrypt_ok : specs.
+Hint Extern 1 (hoare_triple _ (Decrypt _ _) _ _ _ _ _ _ _) => eapply decrypt_ok : specs.

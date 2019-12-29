@@ -23,7 +23,8 @@ Fixpoint write_consecutive a vl :=
   | nil => Ret tt
   | v::vl' =>
     _ <- Write a v;
-    write_consecutive (S a) vl'
+    _ <- write_consecutive (S a) vl';
+    Ret tt
   end.
 
 Fixpoint read_consecutive a count:=
@@ -39,7 +40,8 @@ Fixpoint write_batch al vl :=
   match al, vl with
   | a::al', v::vl' =>
     _ <- Write a v;
-    write_batch al' vl'
+    _ <- write_batch al' vl';
+    Ret tt            
   | _, _ => Ret tt
   end.
 

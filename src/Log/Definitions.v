@@ -1,4 +1,4 @@
-Require Import PeanoNat Primitives Layer1 BatchOperations.
+Require Import Datatypes PeanoNat Primitives Layer1 BatchOperations.
 Require Import LogParameters.
 
 Record txn_record :=
@@ -81,7 +81,10 @@ Definition old_hash_valid hdr log_blocks :=
   let old_count := old_count hdr in
   old_hash hdr = rolling_hash hash0 (firstn old_count log_blocks).
 
-Definition log_inner_rep (log_blocks: list value) (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap) :=
+Definition log_inner_rep (log_blocks: list value) (hdr: header) (ax: list key * encryptionmap * hashmap) :=
+  let kl := fst (fst ax) in
+  let em := snd (fst ax) in
+  let hm := snd ax in
   exists* hdr_block (log_blockset free: list data),
     (* Header *)
     hdr_block_num |-> hdr_block *
@@ -110,8 +113,12 @@ Definition log_inner_rep (log_blocks: list value) (hdr: header) (kl: list key) (
     [[ old_txns_valid hdr log_blocks kl em ]].
 
 
-Definition log_rep (hdr: header) (kl: list key) (em: encryptionmap) (hm: hashmap) :=
-  exists* (log_blocks: list value), log_inner_rep log_blocks hdr kl em hm.
+Definition log_rep (hdr: header) (ax: list key * encryptionmap * hashmap) :=
+  exists* (log_blocks: list value), log_inner_rep log_blocks hdr ax.
+
+Hint Extern 0 (okToUnify (log_inner_rep _ _ ?a) (log_inner_rep _ _ ?a)) => constructor : okToUnify.
+Hint Extern 0 (okToUnify (log_rep _ ?a) (log_rep _ ?a)) => constructor : okToUnify.
+
 
 Axiom blocks_to_addr_list : list value -> list addr.
 

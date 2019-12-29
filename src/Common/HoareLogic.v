@@ -1,4 +1,4 @@
-Require Import String.
+Require Export String Datatypes.
 Require Import BaseTypes Mem Pred Disk CommonAutomation SepAuto.
 
 
@@ -80,6 +80,27 @@ Notation
 *)
 
 Theorem remember_oracle_ok :
+  forall T (p: prog T) o d a pre post crash,
+ (oracle_ok p o (a, d) ->
+  << o, d, a >>
+   (pre o a)
+   p
+  << r, ar >>
+   (post r ar)
+   (crash ar)) ->
+  << o, d, a >>
+   (pre o a)
+   p
+  << r, ar >>
+   (post r ar)
+   (crash ar).
+Proof.
+  unfold hoare_triple; intros.
+  eapply H; eauto.
+  destruct_lift  H0; eauto.
+Qed.
+
+Theorem remember_oracle_ok_aug :
   forall T (p: prog T) o d a pre post crash (ap: augpostcond) ac,
  (oracle_ok p o (a, d) ->
   << o, d, a >>
@@ -108,16 +129,16 @@ Qed.
 Theorem crash_impl:
   forall T (p: prog T) pre post crash1 crash2 o d a,
   << o, d, a >>
-   (pre a)
+   (pre o a)
    p
   << r, ar >>
    (post r ar)
    (crash1 ar) ->
    (forall F ar, Marker "crash_impl implication for" p ->
-      (F * pre a)%pred d ->
+      (F * pre o a)%pred d ->
       crash1 ar =*=> crash2 ar) ->
   << o, d, a >>
-     (pre a)
+     (pre o a)
      p
   << r, ar >>
      (post r ar)
@@ -137,16 +158,16 @@ Qed.
 Theorem post_impl:
   forall T (p: prog T) pre post1 post2 crash o d a,
   << o, d, a >>
-   (pre a)
+   (pre o a)
    p
   << r, ar >>
    (post1 r ar)
    (crash ar)  ->
    (forall F r ar, Marker "post_impl implication for" p ->
-       (F * pre a)%pred d ->          
+       (F * pre o a)%pred d ->          
        post1 r ar =*=> post2 r ar) ->
   << o, d, a >>
-     (pre a)
+     (pre o a)
      p
   << r, ar >>
      (post2 r ar)
@@ -165,15 +186,15 @@ Qed.
 Theorem pre_impl:
   forall T (p: prog T) pre1 pre2 post crash o d a,
   << o, d, a >>
-   (pre1 a)
+   (pre1 o a)
    p
   << r, ar >>
    (post r ar)
    (crash ar) ->
    (Marker "pre_impl implication for" p ->
-    pre2 a =*=> pre1 a) ->
+    pre2 o a =*=> pre1 o a) ->
   << o, d, a >>
-     (pre2 a)
+     (pre2 o a)
      p
   << r, ar >>
      (post r ar)
@@ -187,7 +208,7 @@ Qed.
 Theorem pre_impl_aug:
   forall T (p: prog T) pre1 pre2 post crash ap ac o d a,
   << o, d, a >>
-   (pre1 a)
+   (pre1 o a)
    p
   << r, ar >>
    (post r ar)
@@ -195,9 +216,9 @@ Theorem pre_impl_aug:
    (ap o a d r)
    (ac o a d) ->
    (Marker "pre_impl_aug implication for" p ->
-           pre2 a =*=> pre1 a ) ->
+           pre2 o a =*=> pre1 o a ) ->
   << o, d, a >>
-     (pre2 a)
+     (pre2 o a)
      p
   << r, ar >>
      (post r ar)
@@ -214,13 +235,13 @@ Qed.
 Theorem add_frame:
   forall T (p: prog T) pre post crash F o d a,
   << o, d, a >>
-   (pre a)
+   (pre o a)
    p
   << r, ar >>
    (post r ar)
    (crash ar)  ->
   << o, d, a >>
-     (F * pre a)
+     (F * pre o a)
      p
   << r, ar >>
      (F * post r ar)
@@ -241,13 +262,13 @@ Theorem extract_exists:
   forall T V (p: prog T) pre post crash o d a,
     (forall (v:V),
   << o, d, a >>
-   (pre a v)
+   (pre o a v)
    p
   << r, ar >>
    (post r ar)
    (crash ar)) ->
   << o, d, a >>
-     (exists* v, pre a v)
+     (exists* v, pre o a v)
      p
   << r, ar >>
      (post r ar)
@@ -263,7 +284,7 @@ Theorem extract_exists_aug:
   forall T V (p: prog T) pre post crash ap ac o d a,
     (forall (v:V),
   << o, d, a >>
-   (pre a v)
+   (pre o a v)
    p
   << r, ar >>
    (post r ar)
@@ -271,7 +292,7 @@ Theorem extract_exists_aug:
    (ap o a d r)
    (ac o a d)) ->
   << o, d, a >>
-     (exists* v, pre a v)
+     (exists* v, pre o a v)
      p
   << r, ar >>
      (post r ar)
@@ -288,25 +309,25 @@ Qed.
 Theorem remove_augcons:
   forall T (p: prog T) pre post crash (augpost: augpostcond) (augcrash: augcrashcond) o d a,
   << o, d, a >>
-   (pre a)
+   (pre o a)
    p
   << r, ar >>
    (post r ar)
    (crash ar) ->
   (forall F d' r,
      Marker "augpost for" p ->
-      (F * pre a)%pred d ->
+      (F * pre o a)%pred d ->
       exec o (a, d) p (Finished d' r) ->
       (F * post r (fst d'))%pred (snd d') ->
       (F * augpost o a d r)%pred (snd d')) ->
   (forall F d',
       Marker "augcrash for" p ->
-      (F * pre a)%pred d ->
+      (F * pre o a)%pred d ->
       exec o (a, d) p (Crashed d') ->
       (F * crash (fst d'))%pred (snd d') ->
       (F * augcrash o a d)%pred (snd d')) ->
   << o, d, a >>
-     (pre a)
+     (pre o a)
      p
   << r, ar >>
      (post r ar)

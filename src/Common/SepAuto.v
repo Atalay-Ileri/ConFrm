@@ -4,7 +4,7 @@ Require Import List.
 Require Import Pred.
 Require Import Errno.
 Require Import DestructPair DestructVarname.
-Require Import Disk.
+Require Import Disk CommonAutomation.
 
 Set Implicit Arguments.
 
@@ -649,8 +649,17 @@ Ltac destruct_lift H :=
   simpl in *;
   repeat clear_varname.
 
-Ltac destruct_lifts := try progress match goal with 
-  | [ H : sep_star _ _  _ |- _ ] => destruct_lift H
+Ltac destruct_lifts :=
+  repeat
+    match goal with 
+    | [ H : context [ lift_empty ] |- _ ] =>
+      destruct_lift H
+    | [ H : context [ exis ] |- _ ] =>
+      destruct_lift H
+    | [ H : context [ and ] |- _ ] =>
+      destruct_lift H
+    | [ H : context [ or ] |- _ ] =>
+      destruct_lift H                           
 end.
 
 Ltac norm'l := eapply start_normalizing_left; [ flatten | ];
@@ -808,6 +817,13 @@ end.
 
 Ltac cancel_by H :=
   eapply pimpl_ext; [ eapply H | cancel | cancel ].
+
+Ltac crush_pimpl :=
+  intros; simpl in *;
+  destruct_lifts;
+  cleanup; simpl;
+  cancel; eauto.
+
 
 (*
 

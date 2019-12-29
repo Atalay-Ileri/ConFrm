@@ -44,36 +44,43 @@ Ltac monad_simpl := repeat monad_simpl_one.
 
 
 Theorem bind_ok:
-  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 o d a,
-  (forall o1,
-   (exists o2, o = o1++o2) ->      
+  forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 o d a, 
+   (forall o1 o2,
+    Marker "bind_ok spec for" p1 ->
+    o = o1++o2 ->
    << o1, d, a >>
-   (pre1 a)
+   (pre1 o1 a)
    p1
   << r, ar >>
    (post1 r ar)
    (crash1 ar)) ->
-  (forall F r ar,
-      Marker "bind_ok post1 =*=> pre2 for" (Bind p1 p2) ->
-      (F * pre1 a)%pred d ->
-      post1 r ar =*=> pre2 ar) ->
-  (forall F ar,
-      Marker "bind_ok crash1 =*=> crash2 for" (Bind p1 p2) ->
-      (F * pre1 a)%pred d ->
+  (forall o1 o2,
+     o = o1++o2 ->
+     pre1 o a =*=> pre1 o1 a) ->
+  (forall F r ar o1 o2,
+     Marker "bind_ok post1 =*=> pre2 for" (Bind p1 p2) ->
+     o = o1++o2 ->
+      (F * pre1 o1 a)%pred d ->
+      post1 r ar =*=> pre2 o2 ar) ->
+  (forall F ar o1 o2,
+     Marker "bind_ok crash1 =*=> crash2 for" (Bind p1 p2) ->
+     o = o1++o2 ->
+      (F * pre1 o1 a)%pred d ->
       crash1 ar =*=> crash2 ar) ->
 
-  (forall F o2 d2 r a2,
-      (F * pre1 a)%pred d ->
-      (F * post1 r a2)%pred d2 ->
-      (exists o1, o = o1++o2) ->   
+  (forall F d2 r a2 o1 o2,
+     Marker "bind_ok after" p1 ->
+     o = o1++o2 ->
+      (F * pre1 o1 a)%pred d ->
+      (F * post1 r a2)%pred d2 ->  
       << o2, d2, a2 >>
-         (pre2 a2)
+         (pre2 o2 a2)
          (p2 r)
        << r, ar >>
        (post2 r ar)
        (crash2 ar)) ->
   << o, d, a >>
-     (pre1 a)
+     (pre1 o a)
      (Bind p1 p2)
   << r, ar >>
      (post2 r ar)
@@ -83,16 +90,21 @@ Proof.
   simpl in *; destruct_lifts; cleanup.
   (* rewrite H0 in H6. *)
   edestruct H; eauto.
-  pred_apply' H3; cancel; eauto.
+  pred_apply' H4; cancel; eauto.
+  eassign F; cancel; eauto.
   
   cleanup.
   split_ors; cleanup.
-  - specialize H6 with (1:=H4).
-    edestruct H2; eauto.
-    clear H10.
+  - specialize H7 with (1:=H5).
+    edestruct H3; eauto.
+    pred_apply' H4; cancel; eauto.
+    clear H11.
     pred_apply; cancel; eauto.
     eassign F; cancel.
-    eapply H0; eauto.
+    eapply H1; eauto.
+    pred_apply' H4; cancel; eauto.
+    eassign F; cancel; eauto.
+      
     destruct x2; simpl in *; eauto.
 
     cleanup.
@@ -100,17 +112,20 @@ Proof.
     split_ors; cleanup;
       eexists; split; intuition eauto.
     
-  - specialize H7 with (1:=H4); cleanup.
+  - specialize H8 with (1:=H5); cleanup.
     rewrite app_nil_r.
     eexists; split; intuition eauto.
     right; eexists; intuition eauto.
-    pred_apply' H9; cancel.
-    eapply H1; eauto.
+    pred_apply' H10; cancel.
+    eapply H2; eauto.
+    pred_apply' H4; cancel; eauto.
+    eassign F; cancel; eauto.  
 Qed.
 
 Theorem bind_ok_aug:
   forall T T' (p1: prog T) (p2: T -> prog T') pre1 post1 crash1 pre2 post2 crash2 augpost augcrash o d a,
-  (forall o1,
+    (forall o1,
+   Marker "bind_ok_aug spec for" p1 ->  
    (exists o2, o = o1++o2) ->
    << o1, d, a >>
    (pre1 a)
@@ -129,10 +144,11 @@ Theorem bind_ok_aug:
   (forall o1 o2 F d' r1,
       let a1 := fst d' in
       let d1 := snd d' in
+      Marker "bind_ok_aug after" p1 ->
       (F * pre1 a)%pred d ->
       exec o1 (a, d) p1 (Finished d' r1) ->
       (F * post1 r1 a1)%pred d1 ->
-      (o = o1++o2) ->
+      (exists o1, o = o1++o2) ->
       << o2, d1, a1 >>
          (pre2 a1)
          (p2 r1)
@@ -190,3 +206,43 @@ Proof.
 Qed.
 
 Global Opaque Marker.
+
+Create HintDb specs.
+
+
+
+Local Ltac ret_step :=
+  eapply post_impl;
+    [eapply crash_impl;
+     [eapply pre_impl;
+      [eapply add_frame;
+       eauto with specs
+      |]
+     |]
+    |];
+    try solve [crush_pimpl].
+
+Local Ltac bind_step :=
+  eapply bind_ok;
+  [ intros;
+    eapply pre_impl;
+    [ eapply add_frame;
+      eauto with specs
+    |]
+  | | | | ];
+  try solve [simpl; crush_pimpl].
+
+Ltac step :=
+  intros;
+  match goal with
+  | [ |- hoare_triple _ ?p _ _ _ _ _ _ _ ] => 
+    simpl p
+  end;
+  match goal with
+  | [ |- hoare_triple _ (Ret _) _ _ _ _ _ _ _ ] => 
+    ret_step
+  | [ |- hoare_triple _ (Bind _ _) _ _ (fun _ _ _ _ => any) (fun _ _ _ => any) _ _ _ ] => 
+    bind_step
+  | [ |- hoare_triple _ (Bind _ _) _ _ _ _ _ _ _ ] => 
+    bind_step
+  end.

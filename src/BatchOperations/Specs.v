@@ -1,6 +1,7 @@
-Require Import String Datatypes Omega.
+Require Import Omega.
 Require Import Primitives Layer1.
 Require Import BatchOperations.Definitions.
+Require Import Datatypes.
 
 Theorem encrypt_all_ok :
   forall vl k o d a,
@@ -18,46 +19,30 @@ Theorem encrypt_all_ok :
 Proof.
   induction vl; do 5 intro; cleanup.
   {
-    eapply pre_impl.
-    eapply post_impl.
-    eapply crash_impl.
-    apply ret_ok.
+    step.
     intros; cancel.
     exists 0; simpl; eauto.
-    intros; cancel.
-    simpl; cancel.
   }
 
   {
     cleanup. destruct a0, p.
-    simpl encrypt_all; simpl fst; simpl snd.
-    eapply bind_ok.
-    { intros; eapply pre_impl; [ apply (@encrypt_ok _ _ _ k a) |intros; simpl in *; cancel]. }
-    { intros; simpl. instantiate(1:= fun _ => emp); simpl; cancel. }
+    simpl fst; simpl snd.
+    step.
+    { intros; simpl. instantiate(1:= fun _ _ => emp); simpl; cancel. }
     { intros; simpl; cancel; exists 0; simpl; eauto. }
     
     intros; cleanup.
-    eapply bind_ok.
-    { intros; eapply pre_impl; try apply IHvl.
-      intros; simpl in *.
-      repeat destruct_lifts; cleanup; cancel. }
-    { intros; simpl in *; cancel.
-      instantiate (1:= fun _ => emp); simpl; cancel.  }
-    { intros; simpl in *; repeat destruct_lifts; cleanup;
-      simpl; cancel; simpl; exists (S n); eauto. }
-    { intros.
-      eapply pre_impl.
-      eapply post_impl.
-      eapply crash_impl.
-      apply ret_ok.
-      { intros; cancel.
-        simpl in *; repeat destruct_lifts; cleanup.
-        exists (S (length vl)); simpl.
-        rewrite firstn_map_comm.
-        rewrite firstn_exact; eauto. }
-      { intros; simpl in *; repeat destruct_lifts; cleanup; cancel. }
-      { intros; simpl; cancel. }
-    }
+    step.
+    { apply IHvl. }
+    { crush_pimpl. }
+    { crush_pimpl. instantiate (1:= fun _ _ => emp); simpl; cancel.  }
+    { crush_pimpl. simpl; exists (S n); eauto. }
+    
+    step.
+    { crush_pimpl.
+      exists (S (length vl)); simpl.
+      rewrite firstn_map_comm.
+      rewrite firstn_exact; eauto. }
   }
 Qed.
 
@@ -77,49 +62,27 @@ Theorem decrypt_all_ok :
        [[ ar = a ]])%pred
       ([[ ar = a ]]).
 Proof.
-  induction evl; intros; cleanup.
-  {
-    eapply pre_impl.
-    eapply post_impl.
-    eapply crash_impl.
-    apply ret_ok.
-    all: intros; cancel.
-  }
-
+  induction evl; intros; cleanup.  
+  { step. }
   {
     cleanup. destruct a0, p.
     destruct_fresh (m a).
     {
       destruct p.
-      simpl decrypt_all; simpl fst; simpl snd.
-      eapply bind_ok.
-      { intros; eapply pre_impl; [ apply (@decrypt_ok _ _ _ k a) |intros; simpl in *; cancel].
-        cleanup; simpl in *.
-        inversion H2; eauto.
-        cleanup; simpl in *.
-        inversion H2; inversion H3; eauto. }
-      { intros; simpl. instantiate(1:= fun _ => emp); simpl; cancel. }
-      { intros; simpl; cancel. }
+      simpl fst; simpl snd.
+      step.
+      { crush_pimpl; cleanup; simpl in *; eauto. }
+      { instantiate (1:= fun _ _ => emp); simpl; cancel. }
       
       intros; cleanup.
-      eapply bind_ok.
-      { intros; eapply pre_impl; try apply IHevl.
-        intros; simpl in *.
-        repeat destruct_lifts; cleanup; cancel. }
-      { intros; simpl in *; cancel.
-        instantiate (1:= fun _ => emp); simpl; cancel.  }
-      { intros; simpl in *; repeat destruct_lifts; cleanup;
-        simpl; cancel. }
+      step.
+      { apply IHevl. }
+      { crush_pimpl. }
+      { crush_pimpl.
+        instantiate (1:= fun _ _ => emp); simpl; cancel. }
+      { crush_pimpl. }
 
-      intros.
-      eapply pre_impl.
-      eapply post_impl.
-      eapply crash_impl.
-      apply ret_ok.
-      { intros; cancel.
-        simpl in *; repeat destruct_lifts; cleanup; eauto. }
-      { intros; simpl in *; repeat destruct_lifts; cleanup; cancel. }
-      { intros; simpl; cancel. }
+      step.
     }
     
     {
@@ -154,48 +117,32 @@ Theorem hash_all_ok :
 Proof.
   induction vl; intros; cleanup.
   {
-    eapply pre_impl.
-    eapply post_impl.
-    eapply crash_impl.
-    apply ret_ok.
+    step.
     intros; cancel.
     exists 0; simpl; eauto.
-    intros; cancel.
-    simpl; cancel.
   }
 
   {
     cleanup. destruct a0, p.
-    simpl hash_all; simpl fst; simpl snd.
-    eapply bind_ok.
-    { intros; eapply pre_impl; [ apply (@hash_ok _ _ _ h a) |intros; simpl in *; cancel]. }
-    { intros; simpl. instantiate(1:= fun _ => emp); simpl; cancel. }
+    simpl fst; simpl snd.
+    step.
+    { intros; simpl. instantiate(1:= fun _ _ => emp); simpl; cancel. }
     { intros; simpl; cancel; exists 0; simpl; eauto. }
   
     intros; cleanup.
-    eapply bind_ok.
-    { intros; eapply pre_impl; try apply IHvl.
-      intros; simpl in *.
-      repeat destruct_lifts; cleanup; cancel. }
-    { intros; simpl in *; cancel.
-      instantiate (1:= fun _ => emp); simpl; cancel.  }
-    { intros; simpl in *; repeat destruct_lifts; cleanup;
-      simpl; cancel; simpl; exists (S n); eauto. }
+    step.
+    {  apply IHvl. }
+    { crush_pimpl. }
+    { crush_pimpl.
+      instantiate (1:= fun _ _ => emp); simpl; cancel.  }
+    { crush_pimpl; simpl; exists (S n); eauto. }
 
-    { intros.
-      eapply pre_impl.
-      eapply post_impl.
-      eapply crash_impl.
-      apply ret_ok.
-      { intros; cancel.
-        simpl in *; repeat destruct_lifts; cleanup.
-        exists (S (length vl)); simpl.
-        rewrite firstn_rolling_hash_list_comm.
-        rewrite firstn_hash_and_pair_comm.
-        rewrite firstn_exact; eauto. }
-      { intros; simpl in *; repeat destruct_lifts; cleanup; cancel. }
-      { intros; simpl; cancel. }
-    }
+    step.
+    { crush_pimpl.
+      exists (S (length vl)); simpl.
+      rewrite firstn_rolling_hash_list_comm.
+      rewrite firstn_hash_and_pair_comm.
+      rewrite firstn_exact; eauto. } 
   }
 Qed.
 
@@ -213,18 +160,7 @@ Theorem read_consecutive_ok :
       [[ ar = a ]]).
 Proof.
   induction n; intros; cleanup.
-  {
-    eapply post_impl.
-    eapply crash_impl.
-    eapply pre_impl.
-    apply ret_ok.
-    all: simpl in *; intros; repeat destruct_lifts; cancel.
-    all: match goal with
-         |[H: length _ = 0 |- _] =>
-          apply length_zero_iff_nil in H
-         end; cleanup; simpl; eauto.
-  }
-
+  { step. }
   {
     cleanup.
     destruct vl.
@@ -233,45 +169,21 @@ Proof.
       repeat destruct_lifts; congruence.
     }
     
-    simpl read_consecutive; simpl fst; simpl snd.
-    eapply bind_ok.
-    { intros; eapply pre_impl.
-      eapply add_frame; apply (@read_ok _ _ start).
-      simpl; cancel.
-    }
+    simpl fst; simpl snd.
+    step.
     { intros; simpl.
-      instantiate (1:= fun ar => start |=> (d0::vl)); simpl; cancel. }
-    { intros; simpl; cancel. }
+      instantiate (1:= fun _ _ => start |=> (d0::vl)); simpl; cancel. }
     
     intros; cleanup.
-      eapply bind_ok.
-      { intros; eapply pre_impl.
-        eapply add_frame; try apply IHn.
-        intros; simpl in *.
-        repeat destruct_lifts; cleanup; cancel.
-        destruct_lift H; cleanup; eauto.
-      }
-      { intros; simpl in *; cancel.
-        instantiate (1:= fun _ => start |=> (d0::vl)); simpl; cancel.  }
-      { intros; simpl in *; repeat destruct_lifts; cleanup;
-        simpl; cancel.
-      destruct_lift H0; eauto. }
-
-      intros.
-      eapply pre_impl.
-      eapply post_impl.
-      eapply crash_impl.
-      eapply add_frame.
-      apply ret_ok.
-      { intros; cancel.
-        simpl in *; destruct_lift H;
-        destruct_lift H0; destruct_lift H2;
-        cleanup; eauto. }
-      { intros; simpl in *; destruct_lift H;
-        destruct_lift H0; destruct_lift H2;
-        cleanup; cancel. }
-      { intros; simpl; cancel. }
-    }
+    step.
+    { apply IHn. }
+    { crush_pimpl. }
+    { crush_pimpl.
+      instantiate (1:= fun _ _ => start |=> (d0::vl)); simpl; cancel. }
+    { crush_pimpl. }
+    
+    step.
+  }
 Qed.
 
 Theorem write_consecutive_ok :
@@ -289,19 +201,10 @@ Theorem write_consecutive_ok :
 Proof.
   unfold vsupd; induction vl; intros; cleanup.
   {
-    eapply post_impl.
-    eapply crash_impl.
-    eapply pre_impl.
-    apply ret_ok.
-    all: simpl in *; intros; repeat destruct_lifts; cancel.
-    all: match goal with
-         |[H: length _ = 0 |- _] =>
-          apply length_zero_iff_nil in H
-         end; cleanup; simpl; eauto.
-    rewrite firstn_nil, skipn_nil; simpl.
-    cancel.
+    step.
+    crush_pimpl.
+    rewrite firstn_nil, skipn_nil; simpl; cancel.
   }
-
   {
     cleanup.
     destruct vsl.
@@ -310,40 +213,35 @@ Proof.
       repeat destruct_lifts; congruence.
     }
     
-    simpl write_consecutive; simpl fst; simpl snd.
-    eapply bind_ok.
-    { intros; eapply pre_impl.
-      eapply add_frame; apply write_ok.
-      simpl; cancel.
-    }
+    simpl fst; simpl snd.
+    step.
     { intros; simpl.
-      instantiate (1:= fun ar => S start |=> vsl * start |-> (a, fst d0 :: snd d0)); simpl; cancel. }
+      instantiate (1:= fun _ _ => S start |=> vsl * start |-> (a, fst d0 :: snd d0)); simpl; cancel. }
     { intros; simpl; cancel.
       eassign 0; simpl; cancel.
       rewrite Nat.add_0_r; cancel. }
     
+    step.
+    { apply IHvl. }
+    { crush_pimpl. }
+    { intros; simpl.
+      instantiate (1:= fun _ _ => S start |=> map_pointwise
+        (map (fun v vs => (v, fst vs :: snd vs)) vl) vsl *
+         start |-> (a, fst d0 :: snd d0)); simpl; cancel. }
+    { crush_pimpl.
+      eassign (S n); simpl.
+      rewrite Nat.add_succ_r; cancel. }
 
-      intros.
-      eapply pre_impl.
-      eapply post_impl.
-      eapply crash_impl.
-      eapply add_frame.
-      apply IHvl.
-      { intros; cancel.
-        eassign (S n); eassign vsl; simpl.
-        rewrite Nat.add_succ_r; cancel.
-        simpl in *; destruct_lift H;
-        destruct_lift H0; destruct_lift H2;
-        cleanup; eauto. }
-      { intros; simpl in *; destruct_lift H;
-        destruct_lift H0; destruct_lift H2;
-        cleanup; cancel. }
-      { intros; simpl in *; destruct_lift H;
-        destruct_lift H0; destruct_lift H2;
-        cleanup; cancel. }
-      Unshelve.
-      eauto.
+    step.
+    { crush_pimpl.
+      eassign (S (length vsl)); simpl; cancel.
+      repeat rewrite firstn_oob; try omega.
+      rewrite skipn_oob; try omega.
+      simpl; cancel.
     }
+  }
+  Unshelve.
+  eauto.
 Qed.
 
 Theorem write_batch_ok :
@@ -362,12 +260,8 @@ Theorem write_batch_ok :
 Proof.
   unfold vsupd; induction al; intros; cleanup.
   {
-    eapply post_impl.
-    eapply crash_impl.
-    eapply pre_impl.
-    eapply add_frame.
-    apply ret_ok.
-    all: simpl in *; intros; repeat destruct_lifts; cancel; cleanup.
+    step.
+    crush_pimpl.
     eassign 0; simpl; cancel.
   }
 
@@ -384,33 +278,36 @@ Proof.
     repeat destruct_lifts; congruence.
   }
   
-  simpl write_batch; simpl fst; simpl snd.
-  eapply bind_ok.
-  { intros; eapply pre_impl.
-    eapply add_frame; apply write_ok.
-    simpl; cancel.
-  }
+  simpl fst; simpl snd.
+  step.
   { intros; simpl.
-    instantiate (1:= fun ar => al |L> vsl * a |-> (v, fst d0 :: snd d0)); simpl; cancel. }
-  { intros; simpl; cancel.
+    instantiate (1:= fun _ _ => al |L> vsl * a |-> (v, fst d0 :: snd d0)); simpl; cancel. }
+  { crush_pimpl.
     eassign 0; simpl; cancel. }    
   
-  intros.
-  eapply pre_impl.
-  eapply post_impl.
-  eapply crash_impl.
-  eapply add_frame.
-  apply IHal.
-  { intros; cancel.
-    eassign (S n); eassign vsl; simpl.
-    cancel.
-      simpl in *; destruct_lift H;
-        destruct_lift H0; destruct_lift H2;
-          cleanup; eauto. }
-  { intros; simpl in *; destruct_lift H;
-      destruct_lift H0; destruct_lift H2;
-        cleanup; cancel. }
-  { intros; simpl in *; destruct_lift H;
-      destruct_lift H0; destruct_lift H2;
-        cleanup; cancel. }
+  step.
+  { apply IHal. }
+  { crush_pimpl. }
+  { crush_pimpl.
+    instantiate (1:= fun _ _ =>
+       al |L> map_pointwise
+             (map (fun v0 vs => (v0, fst vs :: snd vs)) vl) vsl *
+              a |-> (v, fst d0 :: snd d0)); simpl; cancel. }
+  { crush_pimpl.
+    eassign (S n); simpl; cancel. }
+
+  step.
+  { crush_pimpl.
+    eassign (S (length vl)); simpl; cancel.
+    repeat rewrite firstn_oob; try omega.
+    rewrite skipn_oob; try omega.
+    simpl; cancel.
+  }
 Qed.
+
+Hint Extern 1 (hoare_triple _ (encrypt_all _ _) _ _ _ _ _ _ _) => eapply encrypt_all_ok : specs.
+Hint Extern 1 (hoare_triple _ (decrypt_all _ _) _ _ _ _ _ _ _) => eapply decrypt_all_ok : specs.
+Hint Extern 1 (hoare_triple _ (hash_all _ _) _ _ _ _ _ _ _) => eapply hash_all_ok : specs.
+Hint Extern 1 (hoare_triple _ (read_consecutive _ _) _ _ _ _ _ _ _) => eapply read_consecutive_ok : specs.
+Hint Extern 1 (hoare_triple _ (write_consecutive _) _ _ _ _ _ _ _) => eapply write_consecutive_ok : specs.
+Hint Extern 1 (hoare_triple _ (write_batch _ _) _ _ _ _ _ _ _) => eapply write_batch_ok : specs.

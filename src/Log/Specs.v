@@ -1,6 +1,6 @@
-Require Import String Datatypes.
 Require Import Primitives BatchOperations Layer1.
 Require Import Log.Definitions.
+Require Import Datatypes.
 
 Set Nested Proofs Allowed.
 
@@ -40,6 +40,125 @@ Proof.
   specialize H1 with (1:= D); cleanup; eauto.
   exfalso; eapply H0; eauto.
 Qed.
+
+(*
+
+Definition commit (addr_l data_l: list value) :=
+  hdr <- read_header;
+  let cur_hash := cur_hash hdr in
+  let cur_count := cur_count hdr in
+  let txns := txn_records hdr in
+  let new_count := cur_count + (length addr_l + length data_l) in
+  if (new_count <=? log_length) then
+    new_key <- GetKey (addr_l++data_l);
+    enc_data <- encrypt_all new_key (addr_l ++ data_l);
+    _ <- write_consecutive (log_start + cur_count) enc_data;
+    new_hash <- hash_all cur_hash enc_data;
+    let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
+    let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
+    _ <- write_header new_hdr;
+    Ret true
+  else
+    Ret false.
+
+*)
+Theorem read_header_ok :
+  forall hdr o d a,
+    << o, d, a >>
+      (log_rep hdr a)
+      (read_header)
+    << r, ar >>
+      (log_rep hdr ar *
+        [[ r = hdr ]] *
+        [[ ar = a ]])%pred
+      (log_rep hdr ar *
+       [[ ar = a ]])%pred.
+Proof. Admitted. (*
+  unfold read_header; intros.
+  unfold log_rep, log_inner_rep.
+  repeat (apply extract_exists; intros).
+  step.
+  { eassign (fun a => log_rep hdr a).
+    unfold log_rep, log_inner_rep; crush_pimpl.
+    cleanup; cancel.
+  }
+
+  { crush_pimpl.
+    cleanup; cancel. }
+
+  step.
+  { unfold log_rep, log_inner_rep; crush_pimpl. }
+  { unfold log_rep, log_inner_rep; crush_pimpl. }
+Qed.
+*)
+Hint Extern 1 (hoare_triple _ read_header _ _ _ _ _ _ _) => eapply read_header_ok : specs.
+
+Theorem commit_ok :
+  forall hdr addr_l data_l o d a,
+    let kl := fst (fst a) in
+    let em := snd (fst a) in
+    let hm := snd a in
+    let cur_hash := cur_hash hdr in
+    let cur_count := cur_count hdr in
+    let txns := txn_records hdr in
+    
+    << o, d, a >>
+      (log_rep hdr a *
+       [[ encryptionmap_valid em ]])
+      (commit addr_l data_l)
+      << r, ar >>
+      (exists* hdr',
+         log_rep hdr' ar *
+         [[ (exists new_key,
+            let new_count := cur_count + (length addr_l + length data_l) in
+            let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
+            let encrypted_blocks := map (encrypt new_key) (addr_l++data_l) in
+            let new_hash := rolling_hash hash0 encrypted_blocks in
+            let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
+              r = true /\ hdr' = new_hdr) \/
+             (r= false /\ hdr' = hdr) ]]      
+       (* [[ ar = a ]] *) )%pred
+      (exists* hdr',
+         log_rep hdr' ar *
+         [[ (exists new_key,
+            let new_count := cur_count + (length addr_l + length data_l) in
+            let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
+            let encrypted_blocks := map (encrypt new_key) (addr_l++data_l) in
+            let new_hash := rolling_hash hash0 encrypted_blocks in
+            let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
+               hdr' = new_hdr) \/ hdr' = hdr ]] 
+          (* [[ ar = a ]] *) )%pred.
+Proof.
+  unfold commit; step.
+  { crush_pimpl.
+    eassign (fun (_: oracle) ax => log_rep hdr ax); cancel. }
+
+  intros.
+  destruct (PeanoNat.Nat.leb
+              (cur_count r + (length addr_l + length data_l))
+              LogParameters.log_length).
+  {
+    step.
+    { crush_pimpl.
+      eassign (fun (_: oracle) ax => log_rep hdr ax); cancel.
+      (* doable *)
+      admit. }
+    
+    intros; step.
+    { crush_pimpl.
+      eassign (fun (_: oracle) ax => log_rep hdr ax); cancel.
+      (* doable *)
+      admit. }
+    { crush_pimpl.
+      (* doable *)
+      admit. }
+
+    unfold log_rep.
+    intros.
+    apply extract_exists; intros.
+    step.
+    eapply write_consecutive_ok.
+    (* need a septract type lemma here *)
 
 Theorem apply_txn_ok :
   forall txn log_blocks hdr txn_plain_blocks (disk_data: list data) o d a,
@@ -147,6 +266,39 @@ Proof.
       rewrite H19.
       unfold cur_count_accurate in *.
       rewrite H13.
+      (* TODO: Figure out this goal *)
+      admit.
+      
+      intros.
+      unfold log_inner_rep, cur_txns_valid in *.
+      destruct_lift H.
+      specialize H12 with (1:= H7); cleanup.
+      rewrite H6 in *.
+      specialize H10 with (1:=H1); cleanup; congruence.
+
+      destruct_lifts.
+      unfold log_inner_rep, cur_txns_valid in *.
+      destruct_lift H.
+      specialize H11 with (1:= H7); cleanup.
+      rewrite H6 in *.
+      simpl in *.    
+      rewrite skipn_length.
+      rewrite get_all_existing_encrypt_snd; eauto.
+      rewrite firstn_length_l.
+      erewrite <- map_length, <- H6.
+      rewrite firstn_length_l.
+      rewrite Minus.minus_plus; eauto.
+      rewrite skipn_length.
+      rewrite H19.
+      unfold cur_count_accurate in *.
+      rewrite H13.
+      (* TODO: Figure out this goal *)
+      admit.
+
+      cleanup.
+Abort.
+
+
       
       rewrite 
       get_all_existing_length.

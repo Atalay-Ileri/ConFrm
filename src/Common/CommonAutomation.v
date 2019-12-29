@@ -37,83 +37,87 @@ Qed.
 Ltac sigT_eq :=
   match goal with
   | [ H: existT ?P ?a _ = existT ?P ?a _ |- _ ] =>
-    apply Eqdep.EqdepTheory.inj_pair2 in H; subst; repeat sigT_eq
-  end.
+    apply Eqdep.EqdepTheory.inj_pair2 in H; subst
+  end; repeat sigT_eq.
 
-Ltac logic_clean:=
+Local Ltac logic_clean:=
   match goal with
-  | [H: exists _, _ |- _] => destruct H; repeat logic_clean
-  | [H: _ /\ _ |- _] => destruct H; repeat logic_clean
-  end.
+  | [H: exists _, _ |- _] => destruct H
+  | [H: _ /\ _ |- _] => destruct H
+  end; repeat logic_clean.
 
-Ltac invert_const :=
+Local Ltac invert_const :=
   match goal with
-  | [H: _ :: _ = _ :: _ |- _] =>
-    inversion H; subst; clear H; repeat invert_const
   | [H: Some _ = _ |- _ ] =>
-    inversion H; subst; clear H; repeat invert_const
+    inversion H; subst; clear H
   | [H: None = _ |- _ ] =>
-    inversion H; subst; clear H; repeat invert_const
+    inversion H; subst; clear H
   | [H: Finished _ _ = _ |- _ ] =>
-    inversion H; subst; clear H; repeat invert_const
+    inversion H; subst; clear H
   | [H: Crashed _ = _ |- _ ] =>
-    inversion H; subst; clear H; repeat invert_const
-  end.
+    inversion H; subst; clear H
+  end; repeat invert_const.
 
-Ltac clear_dup:=
+Local Ltac clear_dup:=
   match goal with
-  | [H: ?x = ?x |- _] => clear H; repeat clear_dup
-  | [H: ?x, H0: ?x |- _] => clear H0; repeat clear_dup
-  end.
+  | [H: ?x = ?x |- _] => clear H
+  | [H: ?x, H0: ?x |- _] => clear H0
+  end; repeat clear_dup.
 
-Ltac rewrite_upd_eq:=
+Local Ltac rewrite_upd_eq:=
   match goal with
-  |[H: upd _ ?x _ ?x = _ |- _] => rewrite upd_eq in H; repeat rewrite_upd_eq; try invert_const
-  end.
+  |[H: upd _ ?x _ ?x = _ |- _] => rewrite upd_eq in H; try invert_const
+  end; repeat rewrite_upd_eq.
 
-Ltac rewriteall :=
+Local Ltac rewriteall :=
   match goal with
-  | [H := _ |- _] => subst H; repeat rewriteall
-  | [H: ?x = _, H0: ?x = _ |- _ ] => rewrite H in H0; repeat rewriteall
-  | [H: ?x = _, H0: _ = ?x |- _ ] => rewrite H in H0; repeat rewriteall
-  | [H: ?x = _ |- context [?x] ] => rewrite H; repeat rewriteall
-  end.
+  | [H := _ |- _] => subst H
+  | [H: ?x = _, H0: ?x = _ |- _ ] => rewrite H in H0
+  | [H: ?x = _, H0: _ = ?x |- _ ] => rewrite H in H0
+  | [H: ?x = _ |- context [?x] ] => rewrite H
+  end; repeat rewriteall.
 
 
-Ltac clear_trace:=
+Local Ltac clear_lists:=
   match goal with
   | [H: _++?tr = _++?tr |- _] =>
-    apply app_inv_tail in H; repeat clear_trace
+    apply app_inv_tail in H
   | [H: ?tr = _++?tr |- _] =>
-    rewrite <- app_nil_l in H at 1; repeat clear_trace
+    rewrite <- app_nil_l in H at 1
   | [H: _::?tr = _++?tr |- _] =>
-    apply cons_app_inv_tail in H; repeat clear_trace
+    apply cons_app_inv_tail in H
   | [H: _::_++?tr = _++?tr |- _] =>
-    rewrite app_comm_cons in H; repeat clear_trace
+    rewrite app_comm_cons in H
   | [H: _++_++?tr = _++?tr |- _] =>
-    rewrite app_assoc in H; repeat clear_trace
+    rewrite app_assoc in H
   | [H: _++?tr = _++_++?tr |- _] =>
-    rewrite app_assoc in H; repeat clear_trace
-  end.
+    rewrite app_assoc in H
+  | [H: _::_ = _::_ |- _] =>
+    inversion H; clear H
+  | [H: length _ = 0 |- _] =>
+    apply length_zero_iff_nil in H
+  | [H: 0 = length _  |- _] =>
+     symmetry in H
+  end; repeat clear_lists.
 
 
-Ltac split_match:=
+Local Ltac split_match:=
   match goal with
   |[H: context [match ?x with | _ => _ end] |- _] =>
    let name := fresh "D" in
-     destruct x eqn:name; repeat split_match
-  end.
+     destruct x eqn:name
+  end;  repeat split_match.
 
-Ltac cleanup:= try split_match; try logic_clean; subst; try rewriteall;
+Ltac cleanup:= try split_match; try logic_clean;
+               subst; try rewriteall;
                try clear_dup; try rewrite_upd_eq;
                try clear_dup; try invert_const;
-               try clear_trace; try sigT_eq;
+               try clear_lists; try sigT_eq;
                subst; try rewriteall.
 
 Ltac split_ors:=
   match goal with
   | [H: _ \/ _ |- _ ] => destruct H; cleanup
   end.
-
 
 
