@@ -196,8 +196,9 @@ Theorem write_consecutive_ok :
       (start |=> (map_pointwise (map vsupd vl) vsl) *
        [[ ar = a ]])%pred
       (exists* n, start |=> (map_pointwise (map vsupd (firstn n vl)) (firstn n vsl)) *
-            (start + n) |=> skipn n vsl *  
-      [[ ar = a ]]).
+             (start + n) |=> skipn n vsl *
+             [[ n <= length vl ]] *
+             [[ ar = a ]]).
 Proof.
   unfold vsupd; induction vl; intros; cleanup.
   {
@@ -230,11 +231,13 @@ Proof.
          start |-> (a, fst d0 :: snd d0)); simpl; cancel. }
     { crush_pimpl.
       eassign (S n); simpl.
-      rewrite Nat.add_succ_r; cancel. }
+      rewrite Nat.add_succ_r; cancel.
+      rewrite min_l; eauto; cancel. }
 
     step.
     { crush_pimpl.
       eassign (S (length vsl)); simpl; cancel.
+      rewrite min_l; try omega.
       repeat rewrite firstn_oob; try omega.
       rewrite skipn_oob; try omega.
       simpl; cancel.

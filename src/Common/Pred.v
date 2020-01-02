@@ -2049,6 +2049,136 @@ Proof.
     exists emp; apply emp_star_r.
 Qed.
 
+Lemma star_split:
+    forall (p q : @pred AT AEQ V) (m : @mem AT AEQ V),
+      (p * q)%pred m ->
+      (exists m1 m2, mem_disjoint m1 m2 /\ p m1 /\ q m2 /\ mem_union m1 m2 = m)%type.
+  Proof.
+    intros; unfold sep_star in *; rewrite sep_star_is in *;
+    destruct H; eauto.
+    destruct H; intuition.
+    do 2 eexists; intuition eauto.
+  Qed.
+
+Lemma septract_sep_star_extract :
+  forall (p q: @pred AT AEQ V),
+    q =*=> (exists* F, F * p) ->
+    q =*=> (p --* q) * p.
+Proof.
+  intros.
+  intros m Hm.
+  eapply H in Hm as Hx.
+  destruct Hx.
+  apply star_split in H0.
+  do 2 destruct H0; intuition.
+  symmetry in H4.
+  
+  unfold sep_star; rewrite sep_star_is.
+  unfold sep_star_impl.
+  unfold septract.
+  do 2 eexists; intuition eauto.
+  eexists; intuition eauto.
+  rewrite <- H4; eauto.
+Qed.
+
+Lemma septract_sep_star_extract' :
+  forall (p q: @pred AT AEQ V) m,
+    (exists* F, F * p)%pred m ->
+    q m ->
+    ((p --* q) * p)%pred m.
+Proof.
+  intros.
+  destruct H.
+  apply star_split in H;
+  do 2 destruct H; intuition.
+  
+  unfold sep_star; rewrite sep_star_is.
+  unfold sep_star_impl.
+  unfold septract.
+  do 2 eexists; intuition eauto.
+  eexists; intuition eauto.
+  rewrite H4; eauto.
+Qed.
+
+Lemma septract_sep_star_merge :
+  forall (p q: @pred AT AEQ V),
+    (forall m m', p m -> p m' -> m = m') ->
+    (p --* q) * p =*=> q.
+Proof.
+  unfold septract; intros.
+  intros m Hm.
+  apply star_split in Hm; destruct Hm; intuition.
+  destruct H0; intuition.
+  destruct H0; intuition.
+  eapply H in H2; eauto; subst; eauto.
+Qed.
+
+Lemma septract_exists_extract :
+  forall T (p: @pred AT AEQ V) (q: T ->  @pred AT AEQ V),
+    (p --* exists* a, q a) =*=> exists* a, (p --* q a).
+Proof.
+  unfold septract; intros.
+  intros m Hm.
+  destruct Hm; intuition.
+  destruct H2.
+  eexists; eauto.
+Qed.
+
+Lemma septract_double_merge :
+  forall (p q r: @pred AT AEQ V),
+    r --* (p --* q) =*=> (r * p) --* q.
+Proof.
+  unfold septract; intros.
+  intros m Hm.
+  destruct Hm; intuition.
+  destruct H2; intuition.
+  exists (mem_union x x0); intuition eauto.
+  unfold sep_star; rewrite sep_star_is.
+  unfold sep_star_impl.
+  do 2 eexists; intuition.
+  eapply mem_disjoint_union; eauto.
+  rewrite <- mem_union_assoc; eauto.
+Qed.
+
+Lemma septract_double_split :
+  forall (p q r: @pred AT AEQ V),
+    (r * p) --* q =*=> r --* (p --* q).
+Proof.
+  unfold septract; intros.
+  intros m Hm.
+  destruct Hm; intuition.
+  apply star_split in H;
+  do 2 destruct H; intuition.
+  exists x0; intuition eauto.
+  eapply mem_disjoint_union; eauto.
+  apply mem_disjoint_comm; eauto.
+  apply mem_disjoint_assoc_1; eauto.
+  rewrite H5.
+  apply mem_disjoint_comm; eauto.
+  exists x1; intuition eauto.
+  apply mem_disjoint_assoc_2; eauto.
+  rewrite H5; eauto.
+  rewrite mem_union_assoc; eauto.
+  rewrite H5; eauto.
+  eapply mem_disjoint_union; eauto.
+  apply mem_disjoint_comm; eauto.
+  apply mem_disjoint_assoc_1; eauto.
+  apply mem_disjoint_comm; eauto.
+  rewrite H5; eauto.
+  apply mem_disjoint_assoc_2; eauto.
+  rewrite H5; eauto.
+Qed.
+
+Lemma septract_ptsto_merge :
+  forall (p: @pred AT AEQ V) a v,
+    a|-> v * (a|-> v --* p) =*=> p.
+Proof.
+  intros.
+  eapply pimpl_trans.
+  apply sep_star_comm.
+  apply septract_sep_star_merge; intuition eauto.
+  eapply ptsto_complete; eauto.
+Qed.
 
 End GenPredThm.
 
