@@ -2,7 +2,7 @@
 
 [TOC]
 
-
+<p style="page-break-after: always;"/>
 
 # Basic Definitions
 
@@ -25,7 +25,7 @@ Axiom value_to_nat_to_value:
 Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
 ```
 
-
+<p style="page-break-after: always;"/>
 
 ## Cryptography
 
@@ -75,13 +75,9 @@ Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
 Definition encryptionmap := mem value value_dec (key * value).
 ```
 
-
-
-
+<p style="page-break-after: always;"/>
 
 # Simulation
-
-
 
 ## Definitions
 
@@ -232,9 +228,7 @@ Definition exec_compiled_preserves_validity lts1 lts2
       valid_state (extract_state ret).
 ```
 
-
-
-
+<p style="page-break-after: always;"/>
 
 ### Restrictions on Refinement Relations
 
@@ -264,6 +258,8 @@ Definition high_oracle_exists {low high}
     exists o2, oracle_refines_to T s1 p2 o1 o2.
 ```
 
+Intuition behind this is that, there isn't a nondeterminism which exists in the low layer that is not captured in high layer. In other words, high layer is as nondeterministic as low layer -and maybe more-.
+
 
 
 #### Oracle Refines to Same from Related
@@ -281,7 +277,7 @@ Definition oracle_refines_to_same_from_related {low high}
     oracle_refines_to T s2 p2 o oh.
 ```
 
-
+<p style="page-break-after: always;"/>
 
 ### Self Simulation
 
@@ -311,7 +307,7 @@ Record SelfSimulation (lts: LTS)
   }.
 ```
 
-
+<p style="page-break-after: always;"/>
 
 ### Strong Bisimulation
 
@@ -349,7 +345,7 @@ Record StrongBisimulation
   }.
 ```
 
-
+<p style="page-break-after: always;"/>
 
 ## Metatheory
 
@@ -405,13 +401,11 @@ Theorem transfer_high_to_low:
          related_states_h).
 ```
 
-
+<p style="page-break-after: always;"/>
 
 # Layers
 
-
-
-## Base Layer (Layer 1)
+## Disk Layer (Layer 1)
 
 ### Definitions
 
@@ -436,7 +430,7 @@ Inductive prog : Type -> Type :=
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
 ```
 
-
+<p style="page-break-after: always;"/>
 
 ### Operational Semantics
 
@@ -487,7 +481,7 @@ Inductive exec : forall T, oracle ->  state -> prog T -> @Result state T -> Prop
         exec [Key k] (kl, em, hm, d) (GetKey vl) (Finished ((k::kl), em, hm, d) k).
 ```
 
-
+<p style="page-break-after: always;"/>
 
 #### Key Cryptographic Assumptions
 
@@ -546,11 +540,9 @@ One way to circumvent this would be combining `GenKey` and `Encrypt` operation i
 
 Which takes blocks to be encrypted and encrypts them with a new key, returning both key and the encrypted blocks. This operations limitation is not a problem for us because every time we are encrypting, we do it with a fresh key anyway.
 
-
+<p style="page-break-after: always;"/>
 
 # Components
-
-
 
 ## Log
 
@@ -588,6 +580,8 @@ Record header :=
   }.
 ```
 
+<p style="page-break-after: always;"/>
+
 ### Functions
 
 ```haskell
@@ -602,7 +596,9 @@ Definition commit (addr_l data_l: list value) :=
     Ret true
   else
     Ret false.
+```
 
+```haskell
 Definition apply_log :=
   hdr <- read_header;
   log <- read_consecutive log_start cur_count;
@@ -612,7 +608,9 @@ Definition apply_log :=
   else
     success <- check_and_flush old_txns old_log old_hash;
     Ret success.
-    
+```
+
+```haskell
 Definition check_and_flush txns log hash :=
   log_hash <- hash_all hash0 log;
   if (hash_dec log_hash hash) then
@@ -642,7 +640,7 @@ Definition apply_txn txn log_blocks :=
   Ret tt.
 ```
 
-
+<p style="page-break-after: always;"/>
 
 ## Block Allocator
 
