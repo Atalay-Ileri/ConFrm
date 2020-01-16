@@ -6,16 +6,16 @@ Set Implicit Arguments.
 Definition hashmap := @mem hash hash_dec (hash * value).
 Definition encryptionmap := @mem value value_dec (key * value).
   
-Section Layer1.  
+Section DiskLayer.  
   
   Inductive token :=
-  | Key : key -> token
-  | Crash : token
-  | Cont : token.
+  | CrashBefore : token
+  | CrashAfter : token
+  | Success : token
+  | Fail : token.
 
   Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}.
     decide equality.
-    apply key_dec.
   Defined.
 
   Definition oracle := list token.
@@ -23,18 +23,14 @@ Section Layer1.
   Definition state := (((list key * encryptionmap)* hashmap) * disk (set value))%type.
   
   Inductive prog : Type -> Type :=
-  | Read : addr -> prog value
-  | Write : addr -> value -> prog unit
-  | GetKey : list value -> prog key
-  | Hash : hash -> value -> prog hash
-  | Encrypt : key -> value -> prog value
-  | Decrypt : key -> value -> prog value
+  | Commit : list value -> list value -> prog bool
+  | Apply : prog bool
   | Ret : forall T, T -> prog T
   | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
    
   Inductive exec :
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
-  | ExecRead : 
+  | ExecCommitSuccess : 
       forall m d a v,
         read d a = Some v ->
         exec [Cont] (m, d) (Read a) (Finished (m, d) v)
@@ -113,7 +109,7 @@ Section Layer1.
     end.
 
   Definition layer1_lts := Build_LTS oracle state prog exec.
-End Layer1.
+End DiskLayer.
 
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
 Hint Constructors exec.

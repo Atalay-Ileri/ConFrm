@@ -1,7 +1,7 @@
 Require Import String.
-Require Import Primitives Simulation Layer1.Definitions Layer1.Automation.
+Require Import Primitives Simulation DiskLayer.Definitions DiskLayer.Automation.
 
-Module Layer1 <: Layer.
+Module DiskLayer <: Layer.
   Definition oracle := oracle.
   Definition data := set value.
   Definition aux_state := ((list key * encryptionmap) * hashmap)%type.
@@ -9,11 +9,11 @@ Module Layer1 <: Layer.
   Definition prog := prog.
   Definition exec := exec.
   Definition oracle_ok := (fun T => @oracle_ok T).
-End Layer1.
+End DiskLayer.
 
-Module Layer1HL := HoareLogic Layer1.
-Export Layer1.
-Export Layer1HL.
+Module DiskLayerHL := HoareLogic DiskLayer.
+Export DiskLayer.
+Export DiskLayerHL.
 
 Arguments exec {T}.
 

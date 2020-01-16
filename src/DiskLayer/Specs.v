@@ -1,5 +1,5 @@
 Require Import Primitives.
-Require Import Layer1.Definitions Layer1.HoareLogic Layer1.Automation.
+Require Import DiskLayer.Definitions DiskLayer.HoareLogic DiskLayer.Automation.
 Open Scope pred_scope.
 
 Theorem read_ok:

@@ -1,4 +1,4 @@
-Require Import Primitives BatchOperations Layer1.
+Require Import Primitives BatchOperations DiskLayer.
 Require Import Log.Definitions Log.LogParameters.
 Require Import Datatypes PeanoNat Omega.
 Import Nat.
@@ -128,7 +128,7 @@ Theorem log_write_consecutive_ok :
     << o, d, a >>
       (log_rep hdr log_blocks a *
        [[ start >= log_start + cur_count hdr ]] *
-       [[ start + length vl < log_start + log_length ]])
+       [[ start + length vl <= log_start + log_length ]])
       (write_consecutive start vl)
     << r, ar >>               
       (log_rep hdr new_log_blocks ar *
@@ -140,7 +140,7 @@ Theorem log_write_consecutive_ok :
       log_rep hdr partially_new_log_blocks ar *
       [[ n <= length vl ]] *
       [[ ar = a ]])%pred.
-Proof.
+Proof. Admitted. (*
   unfold log_rep; intros.
   eapply pre_impl.
   2:
@@ -161,7 +161,7 @@ Proof.
    [[count_accurate hdr (old_txn_count hdr) (old_count hdr)]] *
    [[txns_valid hdr log_blocks (fst (fst a)) (snd (fst a))]] *
           [[start >= log_start + cur_count hdr]] *
-          [[start + length vl < log_start + log_length]]));
+          [[start + length vl <= log_start + log_length]]));
     unfold log_rep_inner; simpl; crush_pimpl.
   
   repeat (apply extract_exists; intros).
@@ -225,31 +225,180 @@ Proof.
     rewrite skipn_skipn.
     rewrite add_assoc.
     rewrite sub_add; eauto.
+    admit.
+    admit.
+    {
+      repeat rewrite app_length.
+      rewrite firstn_length_l.
+      rewrite skipn_length.
+      admit.
+      omega.
+    }
+    {
+      repeat rewrite map_app.
+      rewrite firstn_map_comm, skipn_map_comm.
+      admit.
+    }
+    {
+      rewrite firstn_app_l.
+      rewrite firstn_firstn.
+      rewrite min_l; eauto.
+      omega.
+      rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    {
+      rewrite firstn_app_l.
+      rewrite firstn_firstn.
+      rewrite min_l; eauto.
+      omega.
+      rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    {
+      rewrite firstn_app_l.
+      rewrite firstn_firstn.
+      rewrite min_l; eauto.
+      omega.
+      rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    unfold txns_valid in *; intros.
+    edestruct H6; eauto; cleanup.
+    repeat split; eauto.
+    repeat rewrite app_length;
+    rewrite skipn_length.
+    repeat rewrite firstn_length_l.
+    omega.
+    omega.
+    rewrite map_length.
+    setoid_rewrite H15; omega.
+    rewrite skipn_app_l.
+    admit.
+    rewrite firstn_length_l.
+    admit.
+    rewrite map_length.
+    setoid_rewrite H15; omega.
+  }
+  {
+    intros; norm.
+     eassign (firstn (start - log_start) v ++
+       map_pointwise (map vsupd vl)
+       (firstn (length vl) (skipn (start - log_start) v)) ++
+       skipn (length vl + (start - log_start)) v).
+     
+     unfold log_rep_inner; crush_pimpl.
+     rewrite <- skipn_skipn.
+    eapply pimpl_trans. 
+    2: apply pred_array_merge with (n:= start - log_start).
+    rewrite firstn_app2.
+    cancel.
+    rewrite Minus.le_plus_minus_r.
+    eapply pimpl_trans. 
+    2: apply pred_array_merge with (n:= length vl).
+    repeat rewrite skipn_app_eq.
+    rewrite firstn_app2.
+    cancel.
+    admit.
+    admit.
+    rewrite firstn_length_l; omega.
+    omega.
+    rewrite firstn_length_l; omega.
+    repeat rewrite app_length.
+    rewrite firstn_length_l, skipn_length.
+    admit.
+    omega.
+    {
+      repeat rewrite map_app.
+      rewrite firstn_map_comm, skipn_map_comm.
+      assume (A : (map fst
+    (map_pointwise (map vsupd vl)
+                   (firstn (length vl) (skipn (start - log_start) v))) = vl)).
+      rewrite A, add_comm; eauto.      
+    }
+    {
+      rewrite firstn_app_l.
+      rewrite firstn_firstn.
+      rewrite min_l; eauto.
+      omega.
+      rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    {
+      rewrite firstn_app_l.
+      rewrite firstn_firstn.
+      rewrite min_l; eauto.
+      omega.
+      rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    {
+      rewrite firstn_app_l.
+      rewrite firstn_firstn.
+      rewrite min_l; eauto.
+      omega.
+      rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    {
+      unfold txns_valid in *; intros.
+      edestruct H6; eauto; cleanup.
+      repeat split; eauto.
+      repeat rewrite app_length;
+      rewrite skipn_length.
+      repeat rewrite firstn_length_l.
+      omega.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+      rewrite skipn_app_l.
+      admit.
+      rewrite firstn_length_l.
+      admit.
+      rewrite map_length.
+      setoid_rewrite H15; omega.
+    }
+    intuition.
+    Unshelve.
+    admit.
+Admitted.
+*)
 
-    XXX.
-  
+Hint Extern 1 (hoare_triple _ (write_consecutive _ _) _ _ _ _ _ _ _) => eapply log_write_consecutive_ok : specs.
+
 Theorem read_header_ok :
-  forall hdr o d a,
+  forall log_blocks hdr o d a,
     << o, d, a >>
-      (log_rep hdr a)
+      (log_rep hdr log_blocks a)
       (read_header)
     << r, ar >>
-      (log_rep hdr ar *
+      (log_rep hdr log_blocks ar *
         [[ r = hdr ]] *
         [[ ar = a ]])%pred
-      (log_rep hdr ar *
+      (log_rep hdr log_blocks ar *
        [[ ar = a ]])%pred.
 Proof. 
   unfold read_header; intros.
   eapply pre_impl.
   2: eassign (fun (_: oracle) a => exists* hdr_block,
       ((hdr_block_num |-> hdr_block *
-        (hdr_block_num |-> hdr_block --* log_rep hdr a)) *
+        (hdr_block_num |-> hdr_block --* log_rep hdr log_blocks a)) *
        [[ decode_header (fst hdr_block) = hdr ]]));
   intros; apply log_rep_extract_header_block.
   repeat (apply extract_exists; intros).
   step.
-  { eassign (fun (_: oracle) a => log_rep hdr a).
+  { eassign (fun (_: oracle) a => log_rep hdr log_blocks a).
     crush_pimpl.
     apply septract_ptsto_merge.
   }
@@ -264,10 +413,26 @@ Qed.
 
 Hint Extern 1 (hoare_triple _ read_header _ _ _ _ _ _ _) => eapply read_header_ok : specs.
 
-
+Theorem apply_log_ok :
+  forall hdr log_blocks o d a,
+    << o, d, a >>
+      (log_rep hdr log_blocks a)
+      (apply_log)
+      << r, ar >>
+      (exists* hdr', 
+         log_rep hdr' log_blocks ar *
+         [[ (r = true /\ hdr' = header0) \/
+            (r= false /\ hdr' = hdr) ]] *     
+         [[ ar = a ]])%pred
+      (exists* hdr', 
+         log_rep hdr' log_blocks ar *
+         [[  hdr' = header0 \/  hdr' = hdr ]] *
+         [[ ar = a ]])%pred.
+Proof. Admitted.
+  
 
 Theorem commit_ok :
-  forall hdr addr_l data_l o d a,
+  forall hdr log_blocks addr_l data_l o d a,
     let kl := fst (fst a) in
     let em := snd (fst a) in
     let hm := snd a in
@@ -276,23 +441,39 @@ Theorem commit_ok :
     let txns := txn_records hdr in
     
     << o, d, a >>
-      (log_rep hdr a *
+      (log_rep hdr log_blocks a *
        [[ encryptionmap_valid em ]])
       (commit addr_l data_l)
       << r, ar >>
-      (exists* hdr',
-         log_rep hdr' ar *
+      (exists* hdr' log_blocks', 
+         log_rep hdr' log_blocks' ar *
          [[ (exists new_key,
-            let new_count := cur_count + (length addr_l + length data_l) in
-            let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
-            let encrypted_blocks := map (encrypt new_key) (addr_l++data_l) in
-            let new_hash := rolling_hash hash0 encrypted_blocks in
-            let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
-              r = true /\ hdr' = new_hdr) \/
-             (r= false /\ hdr' = hdr) ]]      
+               let new_count :=
+                   cur_count + (length addr_l + length data_l) in
+               let new_txn :=
+                   Build_txn_record new_key
+                                    cur_count
+                                    (length addr_l)
+                                    (length data_l) in
+               let encrypted_blocks :=
+                   map (encrypt new_key) (addr_l++data_l) in
+               let new_log_blocks :=
+                   firstn cur_count log_blocks ++
+                          encrypted_blocks ++
+                          skipn new_count log_blocks in 
+               let new_hash :=
+                   rolling_hash hash0 encrypted_blocks in
+               let new_hdr :=
+                   Build_header cur_hash
+                                cur_count
+                                (length txns)
+                                new_hash new_count
+                                (txns++[new_txn]) in
+              r = true /\ hdr' = new_hdr /\ log_blocks' = new_log_blocks) \/
+             (r= false /\ hdr' = hdr /\ log_blocks' = log_blocks) ]]      
        (* [[ ar = a ]] *) )%pred
-      (exists* hdr',
-         log_rep hdr' ar *
+      (exists* hdr' log_blocks',
+         log_rep hdr' log_blocks' ar *
          [[ (exists new_key,
             let new_count := cur_count + (length addr_l + length data_l) in
             let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
@@ -301,33 +482,67 @@ Theorem commit_ok :
             let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
                hdr' = new_hdr) \/ hdr' = hdr ]] 
           (* [[ ar = a ]] *) )%pred.
-Proof.
+Proof. Admitted. (*
   unfold commit; step.
   { crush_pimpl.
-    eassign (fun (_: oracle) ax => log_rep hdr ax); cancel. }
+    eassign hdr; cancel. 
+  }
+  {
+    crush_pimpl. 
+    eassign (fun (_: oracle) ax => log_rep hdr log_blocks ax); cancel.   }
+  {
+    crush_pimpl.
+  }
 
   intros.
-  destruct (PeanoNat.Nat.leb
+  destruct_fresh (PeanoNat.Nat.leb
               (cur_count r + (length addr_l + length data_l))
-              LogParameters.log_length).
+              LogParameters.log_length); [ apply leb_complete in D | apply leb_complete_conv in D].
   {
     step.
     { crush_pimpl.
-      eassign (fun (_: oracle) ax => log_rep hdr ax); cancel.
+      eassign (fun (_: oracle) ax => log_rep hdr log_blocks ax); cancel.
       (* doable *)
       admit. }
     
     intros; step.
     { crush_pimpl.
-      eassign (fun (_: oracle) ax => log_rep hdr ax); cancel.
+      eassign (fun (_: oracle) ax => log_rep hdr log_blocks ax); cancel.
       (* doable *)
       admit. }
     { crush_pimpl.
       (* doable *)
       admit. }
 
-    intros.
-    unfold log_rep.
+    step.
+    {
+      crush_pimpl.
+      eassign log_blocks; cancel.
+      rewrite map_length, app_length.  
+      omega.
+    }
+    {
+      crush_pimpl.
+      eassign (fun (_:oracle) ax => log_rep hdr (firstn (log_start + cur_count hdr - log_start) log_blocks ++
+     map (encrypt r0) (addr_l ++ data_l) ++
+     skipn
+       (log_start + cur_count hdr - log_start +
+        length (map (encrypt r0) (addr_l ++ data_l))) log_blocks) ax).
+      simpl; cancel.
+    }
+    {
+      crush_pimpl.
+    }
+
+    step.
+    {
+      crush_pimpl.
+      admit.
+    }
+    {
+      crush_pimpl.
+    
+      unfold log_rep.
     intros.
     apply extract_exists; intros.
 
@@ -335,6 +550,7 @@ Proof.
     eapply write_consecutive_ok.
     (* need a septract type lemma here *)
 Abort.
+*)
 
 Theorem apply_txn_ok :
   forall txn log_blocks hdr txn_plain_blocks (disk_data: list data) o d a,
@@ -350,7 +566,7 @@ Theorem apply_txn_ok :
     let plain_data_blocks := skipn addr_count txn_plain_blocks in
     let addr_list := firstn data_count (blocks_to_addr_list plain_addr_blocks) in
     << o, d, a >>
-      (log_inner_rep log_blocks hdr a *
+      (log_rep hdr log_blocks a *
        addr_list |L> disk_data *
        [[ length disk_data = data_count ]] *
        [[ In txn (txn_records hdr) ]] *
@@ -358,14 +574,14 @@ Theorem apply_txn_ok :
        [[ encryptionmap_valid em ]])
       (apply_txn txn log_blocks)
       << r, ar >>
-      (log_inner_rep log_blocks hdr ar *
+      (log_rep hdr log_blocks ar *
        addr_list |L> (map_pointwise (map vsupd plain_data_blocks) disk_data) * 
        [[ ar = a ]])%pred
       (exists* vsl',
-          log_inner_rep log_blocks hdr ar *
+          log_rep hdr log_blocks ar *
           addr_list |L> vsl' *
           [[ ar = a ]])%pred.
-Proof.
+Proof. Abort. (*
   unfold apply_txn; step.
   {
     unfold log_inner_rep.
@@ -453,10 +669,4 @@ Proof.
 
       cleanup.
 Abort.
-
-
-      
-      rewrite 
-      get_all_existing_length.
-    
-    
+*)

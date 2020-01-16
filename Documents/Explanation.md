@@ -3,7 +3,6 @@
 [TOC]
 
 <p style="page-break-after: always;"/>
-
 # Basic Definitions
 
 
@@ -26,7 +25,6 @@ Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
 ```
 
 <p style="page-break-after: always;"/>
-
 ## Cryptography
 
 ### Hashing
@@ -76,7 +74,6 @@ Definition encryptionmap := mem value value_dec (key * value).
 ```
 
 <p style="page-break-after: always;"/>
-
 # Simulation
 
 ## Definitions
@@ -229,7 +226,6 @@ Definition exec_compiled_preserves_validity lts1 lts2
 ```
 
 <p style="page-break-after: always;"/>
-
 ### Restrictions on Refinement Relations
 
 Following two properties ensures that your refinement relations has desired properties that allows transferring self simulations between layers
@@ -278,7 +274,6 @@ Definition oracle_refines_to_same_from_related {low high}
 ```
 
 <p style="page-break-after: always;"/>
-
 ### Self Simulation
 
 This is a generalized two-safety property definition. Data confidentiality will be an instance of this. This a little more stronger than a standard simulation because it forces two transitions in two executions to be the same. 
@@ -308,7 +303,6 @@ Record SelfSimulation (lts: LTS)
 ```
 
 <p style="page-break-after: always;"/>
-
 ### Strong Bisimulation
 
 This is our refinement notion between two LTS's. It is stronger than a standard bisimulation because it requires transitions to be coupled, instead of just existing a transition in other LTS.
@@ -346,7 +340,6 @@ Record StrongBisimulation
 ```
 
 <p style="page-break-after: always;"/>
-
 ## Metatheory
 
 ### Main Theorem
@@ -402,7 +395,6 @@ Theorem transfer_high_to_low:
 ```
 
 <p style="page-break-after: always;"/>
-
 # Layers
 
 ## Disk Layer (Layer 1)
@@ -431,7 +423,6 @@ Inductive prog : Type -> Type :=
 ```
 
 <p style="page-break-after: always;"/>
-
 ### Operational Semantics
 
 ```haskell
@@ -482,7 +473,6 @@ Inductive exec : forall T, oracle ->  state -> prog T -> @Result state T -> Prop
 ```
 
 <p style="page-break-after: always;"/>
-
 #### Key Cryptographic Assumptions
 
 **No Hash Collisions**
@@ -541,7 +531,6 @@ One way to circumvent this would be combining `GenKey` and `Encrypt` operation i
 Which takes blocks to be encrypted and encrypts them with a new key, returning both key and the encrypted blocks. This operations limitation is not a problem for us because every time we are encrypting, we do it with a fresh key anyway.
 
 <p style="page-break-after: always;"/>
-
 # Components
 
 ## Log
@@ -581,7 +570,6 @@ Record header :=
 ```
 
 <p style="page-break-after: always;"/>
-
 ### Functions
 
 ```haskell
@@ -641,7 +629,6 @@ Definition apply_txn txn log_blocks :=
 ```
 
 <p style="page-break-after: always;"/>
-
 ## Block Allocator
 
 ### TODO
