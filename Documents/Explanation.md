@@ -254,8 +254,6 @@ Definition high_oracle_exists {low high}
     exists o2, oracle_refines_to T s1 p2 o1 o2.
 ```
 
-Intuition behind this is that, there isn't a nondeterminism which exists in the low layer that is not captured in high layer. In other words, high layer is as nondeterministic as low layer -and maybe more-.
-
 
 
 #### Oracle Refines to Same from Related
@@ -631,4 +629,195 @@ Definition apply_txn txn log_blocks :=
 <p style="page-break-after: always;"/>
 ## Block Allocator
 
-### TODO
+### Implementation
+
+#### Definitions
+
+```haskell
+Axiom block_size: nat.
+Axiom block_size_eq: block_size = 64.
+
+Definition valid_bitlist l := 
+	length l = block_size /\ (forall i, In i l -> i < 2).
+
+Record bitlist :=
+{
+  bits : list nat;                
+  valid : valid_bitlist bits
+}.
+
+Axiom value_to_bits: value -> bitlist.
+Axiom bits_to_value: bitlist -> value.
+Axiom value_to_bits_to_value : 
+	forall v, bits_to_value (value_to_bits v) = v.
+Axiom bits_to_value_to_bits : 
+	forall l, value_to_bits (bits_to_value l) = l.          
+```
+
+#### Representation Invariant
+
+```haskell
+Definition rep (dh: disk value) : @pred addr addr_dec (set value) :=
+  (exists bitmap bl,
+    let bits := bits (value_to_bits bitmap) in
+    0 |-> (bitmap, bl) * 
+    ptsto_bits dh bits * 
+    [[ forall i, i >= block_size -> dh i = None ]])%pred.
+```
+
+`ptsto_bits dh bits` says that  `forall i < length bits, bits[i] = 0 <-> dh (S i) = None`.
+
+#### Functions
+
+```haskell
+Definition read a : prog (option value) :=
+  v <- Read 0;
+  if a < block_size then
+    if bitmap[a] = 1 then
+      h <- Read (S a);
+      Ret (Some h)
+    else
+      Ret None
+  else
+    Ret None.
+```
+
+```haskell
+Definition write a v' : prog (option unit) :=
+  v <- Read 0;
+  if a < block_size then
+    if bitmap[a] = 1 then
+      Write (S a) v'
+    else
+      Ret None
+  else
+    Ret None.
+```
+
+```haskell
+Definition alloc (v': value) : prog (option addr) :=
+  v <- Read 0;
+  if first_zero bitmap < block_size then
+    _ <- Write (S (first_zero bitmap)) v';
+    _ <- Write 0 (to_block (updN bitmap (first_zero bitmap) 1));
+    Ret (Some index)
+  else
+    Ret None.
+```
+
+```haskell
+Definition free a : prog unit :=
+  v <- Read 0;
+  if a < block_size then
+    if bitmap[a] = 1 then
+      Write 0 (to_block (updN bitmap a 0);
+    else
+      Ret tt
+  else
+    Ret tt.
+```
+
+### Abstraction (Block Allocator Layer)
+
+#### Definitions
+
+```haskell
+Inductive token:=
+  | BlockNum : addr -> token
+  | DiskFull : token
+  | Cont : token
+  | Crash1 : token
+  | Crash2 : token
+  | CrashAlloc: addr -> token.
+
+Definition state := disk value.
+  
+Inductive prog : Type -> Type :=
+  | Read : addr -> prog (option value)
+  | Write : addr -> value -> prog (option unit)
+  | Alloc : value -> prog (option addr)
+  | Free : addr -> prog unit
+  | Ret : forall T, T -> prog T
+  | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
+```
+
+We need two different crash tokens because implementation and abstraction must have the same overall behavior (`Finished -> Finished` and `Crashed -> Crashed`). This prevents us from letting abstraction succeed if implementation crashes after "its commit point" even though resulting states may be the same. Therefore, in case of a crash, we approximately need to know where crash happened so that abstraction can follow accordingly. 
+
+
+
+#### Operational Semantics
+
+```haskell
+Inductive exec :
+    forall T, oracle -> state -> prog T -> @Result state T -> Prop :=
+
+...
+
+  | ExecAllocSucc :
+      forall d a v,
+        d a = None ->
+        exec [BlockNum a] d (Alloc v) (Finished (upd d a v) (Some a))
+
+  | ExecAllocFail :
+      forall d v,
+        exec [DiskFull] d (Alloc v) (Finished d None)
+             
+...
+
+  | ExecAllocCrashBefore :
+      forall d v,
+        exec [Crash1] d (Alloc v) (Crashed d)
+
+  | ExecAllocCrashAfter :
+      forall d a v,
+        d a = None ->
+        exec [CrashAlloc a] d (Alloc v) (Crashed (upd d a v))
+        
+...
+```
+
+
+
+### Refinement
+
+```Haskell
+Fixpoint oracle_refines_to T 
+	(d1: State layer1_lts) (p: Layer2.prog T)  
+	(o1: Oracle layer1_lts) (o2: Layer2.oracle) : Prop :=
+  oracle_ok (compile p) o1 d1 /\
+    match p with
+    | Alloc v =>
+      if In Crash o1 then
+        forall d1',
+          Layer1.exec o1 d1 (compile p) (Crashed d1') ->
+          (d1 0 = d1' 0 -> o2 = [Crash1]) /\
+          (d1' 0 <> d1' 0 -> o2 = [CrashAlloc first_zero])
+      else
+        if first_zero bitmap < block_size then
+        	o2 = [BlockNum (first_zero bitmap)]
+        else
+        	o2 = [DiskFull]
+        end
+    | Bind p1 p2 =>
+      exists o1' o1'',
+      o1 = o1'++o1'' /\
+     ((exists d1', 
+     	Layer1.exec o1 d1 (compile p1) (Crashed d1') /\
+        oracle_refines_to d1 p1 o1 o2 /\ o1'' = []) 
+        \/
+      (exists d1' r ret,
+         Layer1.exec o1' d1 (compile p1) (Finished d1' r) /\
+         Layer1.exec o1'' d1' (compile (p2 r)) ret /\
+         (exists o2' o2'',
+         oracle_refines_to d1 p1 o1' o2' /\
+         oracle_refines_to d1' (p2 r) o1'' o2'' /\
+         o2 = o2' ++ o2''))
+    ...
+    end.
+
+  Definition refines_to d1 d2 :=
+    exists F, (F * rep d2)%pred d1.
+```
+
+
+
