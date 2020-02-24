@@ -1,3 +1,4 @@
+(*
 Require Import Primitives Simulation.
 Import ListNotations.
 
@@ -9,6 +10,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
 Section DiskLayer.  
   
   Inductive token :=
+  | EncryptedBlocks : list value -> token
   | CrashBefore : token
   | CrashAfter : token
   | Success : token
@@ -19,8 +21,24 @@ Section DiskLayer.
   Defined.
 
   Definition oracle := list token.
+  
+  Definition aux_state := (list key * encryptionmap * hashmap)%type.
+  Definition disk_state := (set value * disk (set value) * disk (set value))%type.                                 
+  Definition state := (aux_state * disk_state)%type.
 
-  Definition state := (((list key * encryptionmap)* hashmap) * disk (set value))%type.
+  Definition commit (ds: disk_state) (encrypted_blocks: list value) : disk_state :=
+    let '(headers, log_blocks, disk_blocks) := ds in
+    let hdr := decode_header (fst headers) in
+    let cur_hash := cur_hash hdr in
+    let cur_count := cur_count hdr in
+    let txns := txn_records hdr in
+    let new_count := cur_count + (length addr_l + length data_l) in
+    let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
+    let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
+    _ <- write_header new_hdr;
+    Ret true
+  else
+    Ret false.
   
   Inductive prog : Type -> Type :=
   | Commit : list value -> list value -> prog bool
@@ -32,7 +50,6 @@ Section DiskLayer.
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
   | ExecCommitSuccess : 
       forall m d a v,
-        read d a = Some v ->
         exec [Cont] (m, d) (Read a) (Finished (m, d) v)
              
   | ExecWrite :
@@ -113,3 +130,5 @@ End DiskLayer.
 
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
 Hint Constructors exec.
+
+*)

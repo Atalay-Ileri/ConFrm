@@ -5,6 +5,7 @@ Import Nat.
 
 Set Nested Proofs Allowed.
 
+(*
 Instance value_eq_dec : EqDec value := value_dec.
 
 Definition encryptionmap_valid em :=
@@ -43,27 +44,6 @@ Proof.
 Qed.
 
 (*
-
-Definition commit (addr_l data_l: list value) :=
-  hdr <- read_header;
-  let cur_hash := cur_hash hdr in
-  let cur_count := cur_count hdr in
-  let txns := txn_records hdr in
-  let new_count := cur_count + (length addr_l + length data_l) in
-  if (new_count <=? log_length) then
-    new_key <- GetKey (addr_l++data_l);
-    enc_data <- encrypt_all new_key (addr_l ++ data_l);
-    _ <- write_consecutive (log_start + cur_count) enc_data;
-    new_hash <- hash_all cur_hash enc_data;
-    let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
-    let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
-    _ <- write_header new_hdr;
-    Ret true
-  else
-    Ret false.
-
- *)
-
 Lemma log_rep_extract_header_block:
   forall a hdr log_blocks,
     log_rep hdr log_blocks a =*=>
@@ -83,6 +63,7 @@ Proof.
   cancel.
   cancel.
 Qed.
+*)
 
 Lemma pred_array_split:
   forall V (l: list V) n a,
@@ -669,4 +650,5 @@ Proof. Abort. (*
 
       cleanup.
 Abort.
+*)
 *)

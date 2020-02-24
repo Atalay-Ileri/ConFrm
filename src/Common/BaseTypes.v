@@ -7,6 +7,7 @@ Axiom addr_eq_dec : forall (a b: addr), {a=b}+{a<>b}.
 Axiom value : Type.
 Axiom nat_to_value : nat -> value.
 Axiom value_to_nat : value -> nat.
+Definition value0 := nat_to_value 0.
 
 Axiom nat_to_value_to_nat:
   forall n, value_to_nat (nat_to_value n) = n.
