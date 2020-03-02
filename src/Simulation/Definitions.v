@@ -1,4 +1,4 @@
-Require Import Common.Primitives.
+Require Import Primitives.
 
 Record LTS :=
   {
