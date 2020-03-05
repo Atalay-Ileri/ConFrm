@@ -1,152 +1,134 @@
 Require Import Primitives.
-Require Import DiskLayer.Definitions DiskLayer.HoareLogic DiskLayer.Automation.
+Require Import DiskLayer.Definitions.
 Open Scope pred_scope.
 
 Theorem read_ok:
-  forall o d a v ax,
-    << o, d, ax>>
-     (a |-> v)
-     (Read a)
-    << r, axr >>
-     (a |-> v * [[r = fst v]] * [[axr = ax]])
-     (a |-> v * [[axr = ax]]).
+  forall F o s a v,
+    << o, s >>
+    PRE:
+     (F * a |-> v >> s)
+    PROG:
+     |Read a|
+    << r, s' >>
+    POST:
+     (F * a |-> v * [[r = fst v]] * [[fst s' = fst s]] >> s')
+    CRASH:
+     (F * a |-> v * [[fst s' = fst s]] >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
-  eapply ptsto_valid' in H as Hx;
+  unfold hoare_triple; intros.
+  destruct_lift H; cleanup.
+  
+  eapply ptsto_valid' in H0 as Hx;
     cleanup; eauto.  
   split_ors.
   eexists; intuition eauto;
-  econstructor; intuition eauto.
-  unfold Disk.read in *; cleanup; eauto.
+  repeat econstructor; intuition eauto.
+  unfold read in *; cleanup; eauto.
   
-  do 2 eexists; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
 
   eexists; intuition eauto.
-  econstructor; intuition eauto.
-  inversion H0.
+  eapply ExecOpCrash; eauto;
+  econstructor; eauto.
+  
   right; eexists; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
 Qed.
 
 Theorem write_ok:
-  forall o d ax a v v',
-    << o, d, ax >>
-     (a |-> v)
-     (Write a v')
-    << r, axr >>
-     ([[axr = ax]] * a |-> (v', (fst v::snd v)))
-     ([[axr = ax]] * a |-> v).
+  forall F o s a v v',
+    << o, s >>
+     PRE: (F * a |-> v >> s)
+     PROG: |Write a v'|
+    << r, s' >>
+     POST: (F * a |-> (v', (fst v::snd v)) * [[fst s' = fst s]] >> s')
+     CRASH: (F * a |-> v * [[fst s' = fst s]] >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
+  unfold hoare_triple; intros.
   destruct_lift H; subst.
-  eapply ptsto_valid' in H as Hx;
+  eapply ptsto_valid' in H0 as Hx;
     cleanup; eauto.  
   split_ors.
   eexists; intuition eauto;
-    econstructor; intuition eauto.
+  repeat econstructor; intuition eauto.
   
-    unfold Disk.read in *;
-    cleanup; eauto.  
-    do 2 eexists; intuition eauto.
-    unfold Disk.write; cleanup.
-    unfold Disk.upd_disk; simpl.
-    apply sep_star_assoc; eapply ptsto_upd'; eauto.
-    pred_apply; cancel.
+    unfold read in *; cleanup; eauto.  
+    unfold write; cleanup.
+    unfold upd_disk; simpl.
+    eapply ptsto_upd' in H0; eauto.
+    pred_apply' H0; cancel.
 
     eexists; intuition eauto.
-    econstructor; intuition eauto.
-    inversion H0.
+    eapply ExecOpCrash; eauto;
+    econstructor; eauto.
     right; eexists; intuition eauto.
     simpl in *; pred_apply; cancel; eauto.
 Qed.
 
-Theorem ret_ok:
-  forall o d ax T (v: T),
-    << o, d, ax >>
-     emp
-     (Ret v)
-    << r, axr >>
-     ([[r = v]] * [[axr = ax]])
-     ([[axr = ax]]).
-Proof.
-  intros.
-  unfold hoare_triple, any, exec; intros.
-  destruct_lift H; subst.
-  split_ors; eexists;
-    intuition eauto.
-  
-  left; do 2 eexists; intuition eauto.
-  simpl; pred_apply; cancel; eauto.
-
-  econstructor; intuition eauto.
-  inversion H0.
-  
-  simpl in *; cleanup; right; eexists; intuition eauto.
-  simpl; pred_apply; cancel.    
-Qed.
-
-
 Theorem getkey_ok:
-  forall vl o d ax,
-    let kl := fst (fst ax) in
-    let em := snd (fst ax) in
-    let hm := snd ax in
-    << o, d, ax >>
-     emp
-     (GetKey vl)
-    << r, axr >>
-     ([[~In r kl]] *
-      [[consistent_with_upds em (map (encrypt r) vl) (map (fun v => (r, v)) vl) ]] *
-      [[axr = (r::kl, em, hm)]])
-     ([[axr = ax]]).
+  forall F vl o s,
+    let kl := fst (fst (fst s)) in
+    let em := snd (fst (fst s)) in
+    let hm := snd (fst s) in
+    << o, s >>
+     PRE: F >> s
+     PROG: |GetKey vl|
+    << r, s' >>
+     POST:
+      F * [[~In r kl]] *
+      [[consistent_with_upds em
+          (map (encrypt r) vl) (map (fun v => (r, v)) vl) ]] *
+      [[fst s' = (r::kl, em, hm)]] >> s'
+     CRASH:
+      (F * [[fst s' = fst s]] >> s') .
 Proof.
   intros.
-  unfold hoare_triple, any, exec; intros.
-  destruct ax, p; simpl; intros.
-  destruct_lift H; subst.
+  unfold hoare_triple; intros.
+  destruct s, p, p; simpl in *.
+  simpl in *; cleanup;
   split_ors; eexists;
     intuition eauto.
   
+  repeat econstructor; intuition eauto.
   left; do 2 eexists; intuition eauto.
-  simpl; pred_apply; cancel; eauto.
+  simpl in *; pred_apply; cancel; eauto.
 
-  econstructor; intuition eauto.
-  inversion H0.
+  eapply ExecOpCrash; econstructor; eauto.
   
-  simpl in *; cleanup; right; eexists; intuition eauto.
+  right; eexists; intuition eauto.
   simpl; pred_apply; cancel.    
 Qed.  
 
 
 Theorem hash_ok:
-  forall o d ax h v,
+  forall F o s h v,
     let hv := hash_function h v in
-    let kl := fst (fst ax) in
-    let em := snd (fst ax) in
-    let hm := snd ax in
-    << o, d, ax >>
-     ([[ consistent hm hv (h, v) ]])
-     (Hash h v)
-    << r, axr >>
-     ([[r = hv]] * [[axr = (kl, em, upd hm hv (h, v))]])
-     ([[axr = ax]]).
+    let kl := fst (fst (fst s)) in
+    let em := snd (fst (fst s)) in
+    let hm := snd (fst s) in
+    << o, s >>
+     PRE: (F * [[ consistent hm hv (h, v) ]] >> s)
+     PROG: (|Hash h v|)
+    << r, s' >>
+     POST: (F * [[r = hv]] * [[fst s' = (kl, em, upd hm hv (h, v))]] >> s')
+     CRASH: (F * [[fst s' = fst s]] >> s').
 Proof.
   intros.
-  unfold hoare_triple, any, exec; intros.
-  destruct ax, p; simpl; intros.
-  destruct_lift H; subst.
+  unfold hoare_triple; intros.
+  destruct s, p, p; simpl; intros.
+  destruct_lift H0;
+  simpl in *; cleanup; simpl in *.
   split_ors; eexists;
     intuition eauto.
-  
+
+  do 2 econstructor; intuition eauto.
   left; do 2 eexists; intuition eauto.
   simpl; pred_apply; cancel; eauto.
 
-  econstructor; intuition eauto.
-  inversion H0.
+  
+  eapply ExecOpCrash; econstructor; eauto.
   
   simpl in *; cleanup; right; eexists; intuition eauto.
   simpl; pred_apply; cancel.    
@@ -154,30 +136,32 @@ Qed.
 
 
 Theorem encrypt_ok:
-  forall o d ax k v,
+  forall F o s k v,
     let ev := encrypt k v in
-    let kl := fst (fst ax) in
-    let em := snd (fst ax) in
-    let hm := snd ax in
-    << o, d, ax >>
-     ([[ consistent em ev (k, v) ]])
-     (Encrypt k v)
-    << r, axr >>
-     ([[r = ev]] * [[axr = (kl, upd em ev (k, v), hm)]])
-     ([[axr = ax]]).
+    let kl := fst (fst (fst s)) in
+    let em := snd (fst (fst s)) in
+    let hm := snd (fst s) in
+    << o, s >>
+     PRE: (F * [[ consistent em ev (k, v) ]] >> s)
+     PROG: (|Encrypt k v|)
+    << r, s' >>
+     POST: (F * [[r = ev]] *
+                [[fst s' = (kl, upd em ev (k, v), hm)]] >> s')
+     CRASH: (F * [[fst s' = fst s]] >> s').
 Proof.
   intros.
-  unfold hoare_triple, any, exec; intros.
-  destruct ax, p; simpl; intros.
-  destruct_lift H; subst.
+  unfold hoare_triple; intros.
+  destruct s, p, p; simpl; intros.
+  destruct_lift H0; cleanup.
   split_ors; eexists;
-    intuition eauto.
+  intuition eauto.
+
+  do 2 econstructor; intuition eauto.
   
   left; do 2 eexists; intuition eauto.
   simpl; pred_apply; cancel; eauto.
 
-  econstructor; intuition eauto.
-  inversion H0.
+  eapply ExecOpCrash; econstructor; eauto.
   
   simpl in *; cleanup; right; eexists; intuition eauto.
   simpl; pred_apply; cancel.    
@@ -185,38 +169,38 @@ Qed.
 
 
 Theorem decrypt_ok:
-  forall o d ax k ev v,
-    let kl := fst (fst ax) in
-    let em := snd (fst ax) in
-    let hm := snd ax in
-    << o, d, ax >>
-     ([[ ev = encrypt k v ]] * [[ em ev = Some (k, v) ]])
-     (Decrypt k ev)
-    << r, axr >>
-     ([[r = v]] * [[axr = ax]])
-     ([[axr = ax]]).
+  forall F o s k ev v,
+    let kl := fst (fst (fst s)) in
+    let em := snd (fst (fst s)) in
+    let hm := snd (fst s) in
+    << o, s >>
+     PRE: (F * [[ ev = encrypt k v ]] * [[ em ev = Some (k, v) ]] >> s)
+     PROG: (|Decrypt k ev|)
+    << r, s' >>
+     POST: (F * [[r = v]] * [[fst s' = fst s]] >> s')
+     CRASH: (F * [[fst s' = fst s]] >> s').
 Proof.
   intros.
-  unfold hoare_triple, any, exec; intros.
-  destruct ax, p; simpl; intros.
-  destruct_lift H; subst.
+  unfold hoare_triple; intros.
+  destruct s, p, p; simpl; intros.
+  destruct_lift H0; cleanup.
   split_ors; eexists;
     intuition eauto.
+
+  do 2 econstructor; intuition eauto.
   
   left; do 2 eexists; intuition eauto.
   simpl; pred_apply; cancel; eauto.
 
-  econstructor; intuition eauto.
-  inversion H0.
+  eapply ExecOpCrash; econstructor; eauto.
   
   simpl in *; cleanup; right; eexists; intuition eauto.
   simpl; pred_apply; cancel.    
 Qed.
 
-Hint Extern 1 (hoare_triple _ (Read _) _ _ _ _ _ _ _) => eapply read_ok : specs.
-Hint Extern 1 (hoare_triple _ (Write _ _) _ _ _ _ _ _ _) => eapply write_ok : specs.
-Hint Extern 1 (hoare_triple _ (Ret _) _ _ _ _ _ _ _) => eapply ret_ok : specs.
-Hint Extern 1 (hoare_triple _ (Hash _ _) _ _ _ _ _ _ _) => eapply hash_ok : specs.
-Hint Extern 1 (hoare_triple _ (GetKey _) _ _ _ _ _ _ _) => eapply getkey_ok : specs.
-Hint Extern 1 (hoare_triple _ (Encrypt _ _) _ _ _ _ _ _ _) => eapply encrypt_ok : specs.
-Hint Extern 1 (hoare_triple _ (Decrypt _ _) _ _ _ _ _ _ _) => eapply decrypt_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Read _|) _ _ _ _ _ _) => eapply read_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Write _ _|) _ _ _ _ _ _) => eapply write_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Hash _ _|) _ _ _ _ _ _) => eapply hash_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|GetKey _|) _ _ _ _ _ _) => eapply getkey_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Encrypt _ _|) _ _ _ _ _ _) => eapply encrypt_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Decrypt _ _|) _ _ _ _ _ _) => eapply decrypt_ok : specs.

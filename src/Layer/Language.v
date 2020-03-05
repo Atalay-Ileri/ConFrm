@@ -92,7 +92,8 @@ Module Language (Op: Operation).
     end.
 
   Definition lts := Build_LTS oracle state prog exec.
-
+  
+  Notation "| p |" := (Op p)(at level 60).
   Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
   Notation "x <-| p1 ; p2" := (Bind (Op p1) (fun x => p2))(right associativity, at level 60).
   Hint Constructors exec.

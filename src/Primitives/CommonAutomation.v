@@ -56,6 +56,8 @@ Local Ltac invert_const :=
     inversion H; subst; clear H
   | [H: Crashed _ = _ |- _ ] =>
     inversion H; subst; clear H
+  | [H: (_, _) = (_, _) |- _ ] =>
+    inversion H; subst; clear H
   end; repeat invert_const.
 
 Local Ltac clear_dup:=

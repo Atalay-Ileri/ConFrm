@@ -9,6 +9,7 @@ Module HoareLogic (Ops: Operation).
 
   Module L := Language Ops.
   Import Ops L.
+  Export L.
 
 Definition Marker {T} (s: string) (p: prog T) := True.
 
@@ -38,91 +39,34 @@ Definition hoare_triple {T: Type}
              /\ post r s' /\ opost o s r s') \/
          (exists s',
              ret = Crashed s' /\ crash s' /\ ocrash o s s')))%type.
-  (*
-Notation
-  "<< o , d , xs >> pre p << r , xsr >> post crash" :=
-  (forall F, hoare_triple
-          (fun o xs d => (F * pre * [[ oracle_ok p o (xs, d) ]]) d)%pred
-          p%pred
-          (fun r xsr => F * post)%pred
-          (fun xsr => F * crash)%pred
-          (fun _ _ _ _ => any)
-          (fun _ _ _ => any)
-          o d xs)      
-    (at level 10, o at next level, d at next level, xs at next level, xsr at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
-     format "'[v' '[  ' '<<' o ','  d ','  xs '>>' '//' '[' pre ']' '//' '[' p ']' ']' '//' '[  ' '<<' r ','  xsr '>>' '//' '[' post ']' '//' '[' crash ']' ']' ']'").
 
 Notation
-  "<< o , d , xs >> pre p << r , xsr >> post crash opost ocrash" :=
-  (forall F, hoare_triple
-          (fun o xs d => (F * pre * [[ oracle_ok p o (xs, d) ]]) d)%pred
-          p%pred
-          (fun r xsr => F * post)%pred
-          (fun xsr => F * crash)%pred
-          (fun o xs d r  => F * opost)%pred
-          (fun o xs d => F * ocrash)%pred
-          o d xs)      
-    (at level 10, o at next level, d at next level, xs at next level, xsr at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level, opost at next level, ocrash at next level,
-     format "'[v' '[  ' '<<' o ','  d ','  xs '>>' '//' '[' pre ']' '//' '[' p ']' ']' '//' '[  ' '<<' r ','  xsr '>>' '//' '[' post ']' '//' '[' crash ']' '//' '[' opost ']' '//' '[' ocrash ']' ']' ']'").
-*)
-(*
-Notation
-  "{{ e1 }} << o >> pre p << r >> post crash" :=
-   (exists e1, (forall F, hoare_triple
-          (fun o => F * pre)%pred
+  "<< o , s >> 'PRE:' pre 'PROG:' p << r , s' >> 'POST:' post 'CRASH:' crash 'OPRE:' opre 'OPOST:' opost 'OCRASH:' ocrash" :=
+  (hoare_triple
+          (fun o p' s => oracle_ok p o s /\ opre)
+          (fun s => pre)
           p
-          (fun r => F * post)%pred
-          (F * crash)%pred))
-    (at level 10, o at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
-     format "'[v' '{{' e1 '}}' '//' '[  ' '<<' o '>>' '//' pre '//' p ']' '//' '[  ' '<<' r '>>' '//' post '//' crash ']' ']'").
-*)
-(*
-Theorem remember_oracle_ok :
-  forall T (p: prog T) o d a pre post crash,
- (oracle_ok p o (a, d) ->
-  << o, d, a >>
-   (pre o a)
-   p
-  << r, ar >>
-   (post r ar)
-   (crash ar)) ->
-  << o, d, a >>
-   (pre o a)
-   p
-  << r, ar >>
-   (post r ar)
-   (crash ar).
-Proof.
-  unfold hoare_triple; intros.
-  eapply H; eauto.
-  destruct_lift  H0; eauto.
-Qed.
+          (fun r s' => post)
+          (fun s' => crash)
+          (fun o s r s' => opost)
+          (fun o s s' => ocrash)
+          o s)      
+    (at level 10, o at next level, s at next level, s' at next level, opre at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level, opost at next level, ocrash at next level,
+     format "'[v' '[  ' '<<' o ','  s '>>' '//' '[' 'PRE:' '//' pre ']' '//' '[' 'PROG:' '//' p ']' ']' '//' '[  ' '<<' r ','  s' '>>' '//' '[' 'POST:' '//' post ']' '//' '[' 'CRASH:' '//' crash ']' '//' '[' 'OPRE:' '//' opre ']' '//' '[' 'OPOST:' '//' opost ']' '//' '[' 'OCRASH:' '//' ocrash ']' ']' ']'").
 
-Theorem remember_oracle_ok_aug :
-  forall T (p: prog T) o d a pre post crash (ap: opostcond) ac,
- (oracle_ok p o (a, d) ->
-  << o, d, a >>
-   (pre o a)
-   p
-  << r, ar >>
-   (post r ar)
-   (crash ar)
-   (ap o a d r)
-   (ac o a d)) ->
-  << o, d, a >>
-   (pre o a)
-   p
-  << r, ar >>
-   (post r ar)
-   (crash ar)
-   (ap o a d r)
-   (ac o a d).
-Proof.
-  unfold hoare_triple; intros.
-  eapply H; eauto.
-  destruct_lift  H0; eauto.
-Qed.
-*)
+Notation
+  "<< o , s >> 'PRE:' pre 'PROG:' p << r , s' >> 'POST:' post 'CRASH:' crash" :=
+  (hoare_triple
+          (fun o _ s => oracle_ok p o s)
+          (fun s => pre)
+          p
+          (fun r s' => post)%pred
+          (fun s' => crash)%pred
+          (fun o s r s' => True)
+          (fun o s s' => True)
+          o s)      
+    (at level 10, o at next level, s at next level, s' at next level, pre at next level, p at next level, r at next level, post at next level, crash at next level,
+     format "'[v' '[  ' '<<' o ','  s '>>' '//' '[' 'PRE:' '//' pre ']' '//' '[' 'PROG:' '//' p ']' ']' '//' '[  ' '<<' r ','  s' '>>' '//' '[' 'POST:' '//' post ']' '//' '[' 'CRASH:' '//' crash ']' ']' ']'").
 
 Theorem crash_impl:
   forall T (p: prog T) opre pre post (crash1 crash2: crash_condition) opost ocrash o s,
@@ -227,6 +171,28 @@ Ltac monad_simpl_one :=
 Ltac monad_simpl := repeat monad_simpl_one.
 *)
 
+Theorem ret_ok:
+  forall P o s T (v: T),
+    << o, s >>
+    PRE:
+     (P s)
+    PROG:
+     (Ret v)
+    << r, s' >>
+    POST:
+     (P s' /\ r = v)
+    CRASH:
+     (P s').
+Proof.
+  intros.
+  unfold hoare_triple; intros.
+  destruct_lift H; subst.
+  split_ors; eexists;
+    intuition eauto.
+  
+  left; do 2 eexists; intuition eauto.
+Qed.
+
 Theorem bind_ok:
   forall T T' (p1: prog T) (p2: T -> prog T') (opre opre1 opre2: oracle_pre_condition) (pre1 pre2: pre_condition) post1 post2 (crash1 crash2: crash_condition) (opost opost1 opost2: oracle_post_condition) (ocrash ocrash1 ocrash2 : oracle_crash_condition) o s, 
   (forall o1,
@@ -304,23 +270,24 @@ Qed.
 Global Opaque Marker.
 
 Create HintDb specs.
+Hint Extern 1 (hoare_triple _ _ (Ret _) _ _ _ _ _ _) => eapply ret_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (Bind _ _) _ _ _ _ _ _) => eapply bind_ok : specs.
 
 Local Ltac ret_step :=
   eapply post_impl;
     [eapply crash_impl;
      [eapply pre_impl;
-      eauto with specs
+      [eauto with specs
+      |]
      |]
-    |];
-    try solve [crush_pimpl].
+    |].
 
 Local Ltac bind_step :=
   eapply bind_ok;
   [ intros;
     eapply pre_impl;
     eauto with specs
-  | | | | ];
-  try solve [simpl; crush_pimpl].
+  | | | | | | | ].
 
 Ltac step :=
   intros;
@@ -331,7 +298,7 @@ Ltac step :=
   match goal with
   | [ |- hoare_triple _ _ (Ret _) _ _ _ _ _ _ ] => 
     ret_step
-  | [ |- hoare_triple (fun _ _ _ => True) _ (Bind _ _) _ _ (fun _ _ _ _ => True) (fun _ _ _ => True) _ _ ] => 
+  | [ |- hoare_triple _ _ (Bind _ _) _ _ (fun _ _ _ _ => True) (fun _ _ _ => True) _ _ ] => 
     bind_step
   | [ |- hoare_triple _ _ (Bind _ _) _ _ _ _ _ _ ] => 
     eapply remove_oracle_conditions; [intros; bind_step | |]

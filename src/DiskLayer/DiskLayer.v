@@ -1,5 +1,5 @@
-Require Export DiskLayer.Definitions DiskLayer.Automation.
-Require Export  DiskLayer.Facts DiskLayer.HoareLogic DiskLayer.Specs.
+Require Export DiskLayer.Definitions DiskLayer.Specs.
+(*
 Notation "'DiskLayer.state'" := DiskLayer.Definitions.state.
 Notation "'DiskLayer.oracle'" := DiskLayer.Definitions.oracle.
 Notation "'DiskLayer.prog'" := DiskLayer.Definitions.prog.
@@ -10,3 +10,4 @@ Notation "'DiskLayer.Bind'" := DiskLayer.Definitions.Bind.
 Notation "'DiskLayer.Cont'" := DiskLayer.Definitions.Cont.
 Notation "'DiskLayer.Crash'" := DiskLayer.Definitions.Crash.
 Notation "'DiskLayer.oracle_ok'" := DiskLayer.Definitions.oracle_ok.
+*)
