@@ -1,9 +1,7 @@
-Require Import Primitives Simulation.
+Require Import Primitives Simulation Layer.
 Import ListNotations.
 
 Set Implicit Arguments.
-  
-Section CacheLayer.  
   
   Inductive token :=
   | Crash : token
@@ -15,65 +13,75 @@ Section CacheLayer.
 
   Definition oracle := list token.  
 
-  (* Had  to put unit as aux_state to make it compliant to the structure of the rest *)
-  Definition state := (unit * disk value)%type.
+  Definition state := disk value.
   
-  Inductive prog : Type -> Type :=
-  | Read : addr -> prog (option value)
-  | Write : addr -> value -> prog unit
-  | Ret : forall T, T -> prog T
-  | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
+  Inductive op : Type -> Type :=
+  | Read : addr -> op (option value)
+  | Write : addr -> value -> op unit
+  | Ret : forall T, T -> op T
+  | Bind : forall T T', op T -> (T -> op T') -> op T'.
    
   Inductive exec :
-    forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
+    forall T, oracle ->  state -> op T -> @Result state T -> Prop :=
   | ExecRead : 
-      forall x d a,
-        exec [Cont] (x, d) (Read a) (Finished (x, d) (d a))
+      forall d a,
+        exec [Cont] d (Read a) (Finished d (d a))
              
   | ExecWrite :
-      forall x d a v,
-        exec [Cont] (x, d) (Write a v) (Finished (x, (upd d a v)) tt)
+      forall d a v,
+        exec [Cont] d (Write a v) (Finished (upd d a v) tt)
 
-  | ExecRet :
-      forall d T (v: T),
-        exec [Cont] d (Ret v) (Finished d v)
+  | ExecCrash :
+      forall T d (p: op T),
+        exec [Crash] d p (Crashed d).
 
-  | ExecBind :
-      forall T T' (p1: prog T) (p2: T -> prog T')
-        o1 d1 d1' o2 r ret,
-        exec o1 d1 p1 (Finished d1' r) ->
-        exec o2 d1' (p2 r) ret ->
-        exec (o1++o2) d1 (Bind p1 p2) ret
+  Fixpoint oracle_ok T (p: op T) o (s: state) :=
+      o = [Cont] \/ o = [Crash].
 
-  | ExecOpCrash :
-      forall T d (p: prog T),
-        (forall T' (p1: prog T') p2, p <> Bind p1 p2) ->
-        exec [Crash] d p (Crashed d)
-             
-  | ExecBindCrash :
-      forall T T' (p1: prog T) (p2: T -> prog T')
-        o1 d1 d1',
-        exec o1 d1 p1 (Crashed d1') ->
-        exec o1 d1 (Bind p1 p2) (Crashed d1').
+  Theorem exec_deterministic_wrt_oracle :
+    forall o s T (p: op T) ret1 ret2,
+      exec o s p ret1 ->
+      exec o s p ret2 ->
+      ret1 = ret2.
+  Proof.
+    intros; destruct p; simpl in *; cleanup;
+    repeat
+      match goal with
+      | [H: exec _ _ _ _ |- _] =>
+        inversion H; clear H; cleanup
+      end; eauto.
+  Qed.
 
-  Fixpoint oracle_ok {T} (p: prog T) o s :=
-    match p with
-    | Bind p1 p2 =>
-      exists o1 o2,
-      o = o1++o2 /\
-      oracle_ok p1 o1 s /\
-      (forall s' r,
-          exec o1 s p1 (Finished s' r) ->
-          oracle_ok (p2 r) o2 s') /\
-      (forall s',
-          exec o1 s p1 (Crashed s') ->
-          o2 = [])
-    | _ =>
-      o = [Cont] \/ o = [Crash]
-    end.
+  Theorem exec_then_oracle_ok:
+    forall T (p: op T) o s r,
+      exec o s p r ->
+      oracle_ok p o s.
+  Proof.
+    intros; destruct p; simpl in *; cleanup;
+    repeat
+      match goal with
+      | [H: exec _ _ _ _ |- _] =>
+        inversion H; clear H; cleanup
+      end; eauto.
+  Qed.
+  
+Module CacheOperation <: Operation.
+  Definition oracle := oracle.
+  Definition oracle_dec:= list_eq_dec token_dec.
+  Definition state := state.
+  Definition op := op.
+  Definition exec := exec.
+  Definition oracle_ok := oracle_ok.
+  Definition exec_deterministic_wrt_oracle :=
+    exec_deterministic_wrt_oracle.
+  Definition exec_then_oracle_ok :=
+    exec_then_oracle_ok.
+End CacheOperation.
 
-  Definition cache_layer_lts := Build_LTS oracle state prog exec.
-End CacheLayer.
+Module CacheHL := HoareLogic CacheOperation.
+Export CacheHL.
 
-Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
+Definition cache_layer_lts := Build_LTS CacheHL.L.oracle state CacheHL.L.prog CacheHL.L.exec.
+
+Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
 Hint Constructors exec.

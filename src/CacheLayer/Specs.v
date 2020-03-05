@@ -1,216 +1,158 @@
 Require Import Primitives.
-Require Import CacheLayer.Definitions CacheLayer.HoareLogic CacheLayer.Automation.
+Require Import CacheLayer.Definitions.
 Open Scope pred_scope.
 
 Theorem read_ok_some:
-  forall o d a v ax,
-    << o, d, ax>>
-     (a |-> v)
-     (Read a)
-    << r, axr >>
-     (a |-> v * [[r = Some v]])
-     (a |-> v).
+  forall o s a v F,
+    << o, s >>
+     PRE: (F * a |-> v >> s)
+     PROG: (|Read a|)
+    << r, s' >>
+     POST: (F * a |-> v * [[r = Some v]] >> s')
+     CRASH: (F * a |-> v >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
-  eapply ptsto_valid' in H as Hx;
-    cleanup; eauto.  
+  unfold hoare_triple; intros.
+  destruct_lift H; cleanup.
+
   split_ors.
-  eexists; intuition eauto;
-  econstructor; intuition eauto.
-  unfold Disk.read in *; cleanup; eauto.
+  eapply ptsto_valid' in H0 as Hx;
+  cleanup; eauto.
   
-  do 2 eexists; intuition eauto.
+  eexists; intuition eauto;
+  repeat econstructor; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
 
   eexists; intuition eauto.
-  econstructor; intuition eauto.
-  inversion H0.
-  right; eexists; intuition eauto.
+  eapply ExecOpCrash; eauto;
+  econstructor; eauto.
 Qed.
 
 Theorem read_ok_none:
-  forall o d a ax,
-    << o, d, ax>>
-     ([[d a = None]])
-     (Read a)
-    << r, axr >>
-     ([[r = None]])
-     emp.
+  forall o s a F,
+    << o, s >>
+     PRE: (F * [[s a = None]] >> s)
+     PROG: (|Read a|)
+    << r, s' >>
+     POST: (F * [[r = None]] >> s')
+     CRASH: (F >> s').
 Proof.
   intros.
   unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
+  destruct_lift H; cleanup.
+
   split_ors.
   eexists; intuition eauto;
-  econstructor; intuition eauto.
-  unfold Disk.read in *; cleanup; eauto.
+  repeat econstructor; intuition eauto.
   
-  do 2 eexists; intuition eauto.
-  simpl in *; pred_apply; cancel; eauto.
-
+  destruct_lifts; cleanup.
   eexists; intuition eauto.
-  econstructor; intuition eauto.
-  inversion H0.
-  right; eexists; intuition eauto.
-  simpl; pred_apply; cancel.
+  eapply ExecOpCrash; eauto;
+  econstructor; eauto.
 Qed.
 
 Theorem read_ok:
-  forall o d a ax,
-    << o, d, ax>>
-     emp
-     (Read a)
-    << r, axr >>
-     ([[r = d a]])
-     emp.
+  forall o s a F,
+    << o, s >>
+     PRE: (F >> s)
+     PROG: (|Read a|)
+    << r, s' >>
+     POST: (F * [[r = s a]] >> s')
+     CRASH: (F >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
+  unfold hoare_triple; intros.
+  destruct_lift H; cleanup.
+  
   split_ors.
   eexists; intuition eauto;
-  econstructor; intuition eauto.
-  unfold Disk.read in *; cleanup; eauto.
-  
-  do 2 eexists; intuition eauto.
+  repeat econstructor; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
 
   eexists; intuition eauto.
-  econstructor; intuition eauto.
-  inversion H0.
-  right; eexists; intuition eauto.
-  simpl; pred_apply; cancel.
+  repeat econstructor; intuition eauto.
 Qed.
 
 Theorem write_ok_some:
-  forall o d ax a v v',
-    << o, d, ax >>
-     (a |-> v)
-     (Write a v')
-    << r, axr >>
-     (a |-> v')
-     (a |-> v).
+  forall o s a v v' F,
+    << o, s >>
+     PRE: (F * a |-> v >> s)
+     PROG: (|Write a v'|)
+    << r, s' >>
+     POST: (F * a |-> v' >> s')
+     CRASH: (F * a |-> v >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
-  eapply ptsto_valid' in H as Hx;
-    cleanup; eauto.  
+  unfold hoare_triple; intros.
+  destruct_lift H; cleanup.
+  eapply ptsto_valid' in H0 as Hx;
+  cleanup; eauto.
+  
   split_ors.
   eexists; intuition eauto;
-    econstructor; intuition eauto.
-  
-    unfold Disk.read in *;
-    cleanup; eauto.  
-    do 2 eexists; intuition eauto.
-    unfold Disk.write; cleanup.
-    unfold Disk.upd_disk; simpl.
-    eapply ptsto_upd'; eauto.
+  repeat econstructor; intuition eauto.
+  eapply ptsto_upd'; eauto.
 
-    eexists; intuition eauto.
-    econstructor; intuition eauto.
-    inversion H0.
-    right; eexists; intuition eauto.
+  eexists; intuition eauto.
+  repeat econstructor; intuition eauto.
 Qed.
 
 Theorem write_ok_none:
-  forall o d ax a v',
-    << o, d, ax >>
-     ([[d a = None]])
-     (Write a v')
-    << r, axr >>
-     (a |-> v')
-     emp.
+  forall o s a v' F,
+    << o, s >>
+     PRE: (F * [[s a = None]] >> s)
+     PROG: (|Write a v'|)
+    << r, s' >>
+     POST: (F * a |-> v' >> s')
+     CRASH: (F >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
+  unfold hoare_triple; intros.
+  destruct_lift H; cleanup.
+  
   split_ors.
   eexists; intuition eauto;
-    econstructor; intuition eauto.
+  repeat econstructor; intuition eauto.
   
-    unfold Disk.read in *;
-    cleanup; eauto.  
-    do 2 eexists; intuition eauto.
-    simpl; eapply ptsto_upd_disjoint; eauto.
-
-    eexists; intuition eauto.
-    econstructor; intuition eauto.
-    inversion H0.
-    right; eexists; intuition eauto.
-    simpl; pred_apply; cancel.
+  destruct_lifts;
+  simpl; eapply ptsto_upd_disjoint; eauto.
+  
+  destruct_lifts.
+  eexists; intuition eauto.
+  repeat econstructor; intuition eauto.
 Qed.
 
 Theorem write_ok:
-  forall o d ax a v',
-    << o, d, ax >>
-     (match d a with
-      |Some v => a |-> v
-      |None =>  emp
-     end)
-     (Write a v')
-    << r, axr >>
-     (a |-> v')
-     (match d a with
-      |Some v => a |-> v
-      |None =>  emp
-     end).
+  forall o s a v' F,
+    << o, s >>
+     PRE:
+     (match s a with
+      |Some v => F * a |-> v
+      |None => F
+      end >> s)
+     PROG: (|Write a v'|)
+    << r, s' >>
+     POST: (F * a |-> v' >> s')
+     CRASH:
+     (match s a with
+      |Some v => F * a |-> v
+      |None =>  F
+      end >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
-  destruct_lift H; subst.
-  split_ors.
+  unfold hoare_triple; intros.
+  destruct_lift H; deex.
+  
   eexists; intuition eauto;
-    econstructor; intuition eauto.
+  repeat econstructor; intuition eauto.
   
-    cleanup; eauto.  
-    do 2 eexists; intuition eauto.
-    simpl; eapply ptsto_upd'; eauto.
-    
-    eexists; intuition eauto;
-    econstructor; intuition eauto.    
-    do 2 eexists; intuition eauto.
-    simpl; eapply ptsto_upd_disjoint; eauto.
-    pred_apply; cancel.
+  cleanup; eauto.  
+  simpl; eapply ptsto_upd'; eauto.    
+  simpl; eapply ptsto_upd_disjoint; eauto.
 
-    eexists; intuition eauto.
-    econstructor; intuition eauto.
-    inversion H0.
-    right; eexists; intuition eauto.
-
-    eexists; intuition eauto.
-    econstructor; intuition eauto.
-    inversion H0.
-    right; eexists; intuition eauto.
+  eexists; intuition eauto.
+  repeat econstructor; intuition eauto.
 Qed.
 
-Theorem ret_ok:
-  forall o d ax T (v: T),
-    << o, d, ax >>
-     emp
-     (Ret v)
-    << r, axr >>
-     ([[r = v]])
-     emp.
-Proof.
-  intros.
-  unfold hoare_triple, any, exec; intros.
-  destruct_lift H; subst.
-  split_ors; eexists;
-    intuition eauto.
-  
-  left; do 2 eexists; intuition eauto.
-  simpl; pred_apply; cancel; eauto.
-
-  econstructor; intuition eauto.
-  inversion H0.
-  
-  simpl in *; cleanup; right; eexists; intuition eauto.
-  simpl; pred_apply; cancel.    
-Qed.
-
-Hint Extern 1 (hoare_triple _ (Read _) _ _ _ _ _ _ _) => eapply read_ok : specs.
-Hint Extern 1 (hoare_triple _ (Write _ _) _ _ _ _ _ _ _) => eapply write_ok : specs.
-Hint Extern 1 (hoare_triple _ (Ret _) _ _ _ _ _ _ _) => eapply ret_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Read _|) _ _ _ _ _ _) => eapply read_ok : specs.
+Hint Extern 1 (hoare_triple _ _ (|Write _ _|) _ _ _ _ _ _) => eapply write_ok : specs.

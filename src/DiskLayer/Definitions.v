@@ -124,7 +124,7 @@ End DiskOperation.
 Module DiskHL := HoareLogic DiskOperation.
 Export DiskHL.
 
-Definition layer1_lts := Build_LTS DiskHL.L.oracle state DiskHL.L.prog DiskHL.L.exec.
+Definition disk_layer_lts := Build_LTS DiskHL.L.oracle state DiskHL.L.prog DiskHL.L.exec.
 
 Notation "p >> s" := (p (snd s)) (right associativity, at level 60).
 Hint Constructors exec.

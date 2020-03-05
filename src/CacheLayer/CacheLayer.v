@@ -1,5 +1,5 @@
-Require Export CacheLayer.Definitions CacheLayer.Automation.
-Require Export  CacheLayer.Facts CacheLayer.HoareLogic CacheLayer.Specs.
+Require Export CacheLayer.Definitions CacheLayer.Specs.
+(*
 Notation "'CacheLayer.state'" := CacheLayer.Definitions.state.
 Notation "'CacheLayer.oracle'" := CacheLayer.Definitions.oracle.
 Notation "'CacheLayer.prog'" := CacheLayer.Definitions.prog.
@@ -10,3 +10,4 @@ Notation "'CacheLayer.Bind'" := CacheLayer.Definitions.Bind.
 Notation "'CacheLayer.Cont'" := CacheLayer.Definitions.Cont.
 Notation "'CacheLayer.Crash'" := CacheLayer.Definitions.Crash.
 Notation "'CacheLayer.oracle_ok'" := CacheLayer.Definitions.oracle_ok.
+*)
