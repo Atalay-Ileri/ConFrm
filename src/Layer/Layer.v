@@ -1,1 +1,1 @@
-Require Export  Layer.Language Layer.HoareLogic.
+Require Export  Layer.Language Layer.HoareLogic Layer.HorizontalComposition.
