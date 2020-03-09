@@ -4,6 +4,8 @@ Import ListNotations.
 Set Implicit Arguments.
 
 Module HorizontalComposition (O1 O2: Operation) <: Operation.
+  Export O1 O2.
+  
   Inductive token :=
   | Oracle1 : O1.oracle -> token
   | Oracle2 : O2.oracle -> token.
@@ -19,42 +21,42 @@ Module HorizontalComposition (O1 O2: Operation) <: Operation.
   Definition oracle_dec:= list_eq_dec token_dec.
   Definition state := (O1.state * O2.state)%type.
 
-  Inductive op' : Type -> Type :=
-  | Op1 : forall T, O1.op T -> op' T
-  | Op2 : forall T, O2.op T -> op' T.
+  Inductive prog' : Type -> Type :=
+  | P1 : forall T, O1.prog T -> prog' T
+  | P2 : forall T, O2.prog T -> prog' T.
   
-  Definition op := op'.
+  Definition prog := prog'.
 
-  Inductive exec': forall T, oracle -> state -> op T -> @Result state T -> Prop :=
-  | ExecOp1:
-      forall T (p1: O1.op T) o1 s s1 r,
+  Inductive exec': forall T, oracle -> state -> prog T -> @Result state T -> Prop :=
+  | ExecP1:
+      forall T (p1: O1.prog T) o1 s s1 r,
         O1.exec o1 (fst s) p1 (Finished s1 r) ->
-        exec' [Oracle1 o1] s (Op1 p1) (Finished (s1, snd s) r)
-| ExecOp2:
-      forall T (p2: O2.op T) o2 s s2 r,
+        exec' [Oracle1 o1] s (P1 p1) (Finished (s1, snd s) r)
+| ExecP2:
+      forall T (p2: O2.prog T) o2 s s2 r,
         O2.exec o2 (snd s) p2 (Finished s2 r) ->
-        exec' [Oracle2 o2] s (Op2 p2) (Finished (fst s, s2) r)
-| ExecOp1Crash:
-      forall T (p1: O1.op T) o1 s s1,
+        exec' [Oracle2 o2] s (P2 p2) (Finished (fst s, s2) r)
+| ExecP1Crash:
+      forall T (p1: O1.prog T) o1 s s1,
         O1.exec o1 (fst s) p1 (Crashed s1) ->
-        exec' [Oracle1 o1] s (Op1 p1) (Crashed (s1, snd s))
-| ExecOp2Crash:
-      forall T (p2: O2.op T) o2 s s2,
+        exec' [Oracle1 o1] s (P1 p1) (Crashed (s1, snd s))
+| ExecP2Crash:
+      forall T (p2: O2.prog T) o2 s s2,
         O2.exec o2 (snd s) p2 (Crashed s2) ->
-        exec' [Oracle2 o2] s (Op2 p2) (Crashed (fst s, s2)).
+        exec' [Oracle2 o2] s (P2 p2) (Crashed (fst s, s2)).
   Definition exec := exec'.
-  Definition oracle_ok T (p: op T) o s := 
+  Definition oracle_ok T (p: prog T) o s := 
     match p with
-    | Op1 p1 =>
+    | P1 p1 =>
       exists o1,
       o = [Oracle1 o1] /\ O1.oracle_ok p1 o1 (fst s)
-    | Op2 p2 =>
+    | P2 p2 =>
       exists o2,
       o = [Oracle2 o2] /\ O2.oracle_ok p2 o2 (snd s)
     end.
   
   Definition exec_deterministic_wrt_oracle :
-    forall o s T (p: op T) ret1 ret2,
+    forall o s T (p: prog T) ret1 ret2,
       exec o s p ret1 ->
       exec o s p ret2 ->
       ret1 = ret2.
@@ -68,7 +70,7 @@ Module HorizontalComposition (O1 O2: Operation) <: Operation.
   Qed.
     
   Definition exec_then_oracle_ok:
-    forall T (p: op T) o s r,
+    forall T (p: prog T) o s r,
       exec o s p r ->
       oracle_ok p o s.
     intros; destruct p; simpl in *;

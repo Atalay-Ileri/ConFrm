@@ -1,5 +1,5 @@
 Require Import List Omega.
-Require Import Primitives.BaseTypes Primitives.Mem.
+Require Import Primitives.BaseTypes SeparationLogic.
 
 Lemma get_all_existing_length_le:
   forall A AEQ V (m: @mem A AEQ V) al,

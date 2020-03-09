@@ -4,7 +4,6 @@ Require Import List.
 Require Import Pred.
 Require Import Errno.
 Require Import DestructPair DestructVarname.
-Require Import Disk CommonAutomation.
 
 Set Implicit Arguments.
 
@@ -681,7 +680,7 @@ Ltac destruct_pair_eq :=
     end.
 
 Ltac norml := 
-             norm'l; repeat deex; repeat destruct_type set;
+             norm'l; repeat deex;
              repeat destruct_pair_eq;
              (* To check whether [split_or_l] succeeded, we require that it
               * produce at least 2 subgoals.  Also, because [split_or_l] reverses
@@ -821,7 +820,7 @@ Ltac cancel_by H :=
 Ltac crush_pimpl :=
   intros; simpl in *;
   destruct_lifts;
-  cleanup; simpl;
+  simpl;
   cancel; eauto.
 
 

@@ -1,4 +1,5 @@
-Require Import Datatypes PeanoNat Primitives DiskLayer BatchOperations.
+Require Import Framework DiskLayer BatchOperations.
+Require Import Datatypes PeanoNat.
 Require Import LogParameters.
 
 Axiom blocks_to_addr_list : list value -> list addr.
@@ -148,11 +149,11 @@ Hint Extern 0 (okToUnify (log_rep ?txns _ _) (log_rep ?txns _ _)) => constructor
 
 (* Programs *)
 Definition read_header :=
-  hd <- Read hdr_block_num;
+  hd <-| Read hdr_block_num;
   Ret (decode_header hd).
 
 Definition write_header hdr :=
-  _ <- Write hdr_block_num (encode_header hdr);
+  _ <-| Write hdr_block_num (encode_header hdr);
   Ret tt.
 
 
@@ -216,7 +217,7 @@ Definition commit_txn (addr_l data_l: list value) :=
   let cur_hash := cur_hash hdr in
   let cur_count := cur_count hdr in
   let txns := txn_records hdr in
-  new_key <- GetKey (addr_l++data_l);
+  new_key <-| GetKey (addr_l++data_l);
   enc_data <- encrypt_all new_key (addr_l ++ data_l);
   _ <- write_consecutive (log_start + cur_count) enc_data;
   new_hash <- hash_all cur_hash enc_data;

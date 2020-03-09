@@ -1,4 +1,4 @@
-Require Import Primitives Simulation Layer.
+Require Import Framework.
 Import ListNotations.
 
 Set Implicit Arguments.
@@ -20,16 +20,16 @@ Definition encryptionmap := @mem value value_dec (key * value).
 
   Definition state := (((list key * encryptionmap)* hashmap) * disk (set value))%type.
   
-  Inductive op : Type -> Type :=
-  | Read : addr -> op value
-  | Write : addr -> value -> op unit
-  | GetKey : list value -> op key
-  | Hash : hash -> value -> op hash
-  | Encrypt : key -> value -> op value
-  | Decrypt : key -> value -> op value.
+  Inductive prog : Type -> Type :=
+  | Read : addr -> prog value
+  | Write : addr -> value -> prog unit
+  | GetKey : list value -> prog key
+  | Hash : hash -> value -> prog hash
+  | Encrypt : key -> value -> prog value
+  | Decrypt : key -> value -> prog value.
    
   Inductive exec :
-    forall T, oracle ->  state -> op T -> @Result state T -> Prop :=
+    forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
       forall m d a v,
         read d a = Some v ->
@@ -66,10 +66,12 @@ Definition encryptionmap := @mem value value_dec (key * value).
         exec [Key k] (kl, em, hm, d) (GetKey vl) (Finished ((k::kl), em, hm, d) k)
  
   | ExecCrash :
-      forall T d (p: op T),
+      forall T d (p: prog T),
         exec [Crash] d p (Crashed d).
 
-  Fixpoint oracle_ok T (p: op T) (o: oracle) (s: state) :=
+  Hint Constructors exec.
+
+  Fixpoint oracle_ok T (p: prog T) (o: oracle) (s: state) :=
    match p with
   | GetKey vl =>
       (exists k, ~In k (fst(fst(fst s))) /\
@@ -82,7 +84,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
 
 
   Theorem exec_deterministic_wrt_oracle :
-    forall o s T (p: op T) ret1 ret2,
+    forall o s T (p: prog T) ret1 ret2,
       exec o s p ret1 ->
       exec o s p ret2 ->
       ret1 = ret2.
@@ -96,7 +98,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
   Qed.
 
   Theorem exec_then_oracle_ok:
-    forall T (p: op T) o s r,
+    forall T (p: prog T) o s r,
       exec o s p r ->
       oracle_ok p o s.
   Proof.
@@ -112,7 +114,7 @@ Module DiskOperation <: Operation.
   Definition oracle := oracle.
   Definition oracle_dec:= list_eq_dec token_dec.
   Definition state := state.
-  Definition op := op.
+  Definition prog := prog.
   Definition exec := exec.
   Definition oracle_ok := oracle_ok.
   Definition exec_deterministic_wrt_oracle :=
@@ -120,11 +122,9 @@ Module DiskOperation <: Operation.
   Definition exec_then_oracle_ok :=
     exec_then_oracle_ok.
 End DiskOperation.
-
 Module DiskHL := HoareLogic DiskOperation.
 Export DiskHL.
 
-Definition disk_layer_lts := Build_LTS DiskHL.L.oracle state DiskHL.L.prog DiskHL.L.exec.
+Definition disk_layer_lts := Build_LTS DiskHL.Lang.oracle DiskHL.Lang.state DiskHL.Lang.prog DiskHL.Lang.exec.
 
 Notation "p >> s" := (p (snd s)) (right associativity, at level 60).
-Hint Constructors exec.

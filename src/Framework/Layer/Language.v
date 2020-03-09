@@ -7,21 +7,21 @@ Module Type Operation.
   Parameter oracle : Type.
   Parameter oracle_dec: forall (o o': oracle), {o = o'}+{o <> o'}.
   Parameter state : Type.
-  Parameter op : Type -> Type.
-  Parameter exec: forall T, oracle -> state -> op T -> @Result state T -> Prop.
-  Parameter oracle_ok : forall T, op T -> oracle -> state -> Prop.
+  Parameter prog : Type -> Type.
+  Parameter exec: forall T, oracle -> state -> prog T -> @Result state T -> Prop.
+  Parameter oracle_ok : forall T, prog T -> oracle -> state -> Prop.
   Parameter exec_deterministic_wrt_oracle :
-    forall o s T (p: op T) ret1 ret2,
+    forall o s T (p: prog T) ret1 ret2,
       exec o s p ret1 ->
       exec o s p ret2 ->
       ret1 = ret2.
   Parameter exec_then_oracle_ok:
-    forall T (p: op T) o s r,
+    forall T (p: prog T) o s r,
       exec o s p r ->
       oracle_ok p o s.
 End Operation.
 
-Module Language (Op: Operation).
+Module Language (Op: Operation) <: Operation.
   Import Op.
   
   Inductive token :=
@@ -35,45 +35,56 @@ Module Language (Op: Operation).
   Defined.
 
   Definition oracle := list token.
+  Definition oracle_dec : forall (o o': oracle), {o=o'}+{o<>o'}.
+    repeat decide equality.
+    apply oracle_dec.
+  Defined.
+
+
+  Definition state := Op.state.
   
-  Inductive prog : Type -> Type :=
-  | Op : forall T, op T -> prog T
-  | Ret : forall T, T -> prog T
-  | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
-   
-  Inductive exec :
+  Inductive prog' : Type -> Type :=
+  | Op : forall T, Op.prog T -> prog' T
+  | Ret : forall T, T -> prog' T
+  | Bind : forall T T', prog' T -> (T -> prog' T') -> prog' T'.
+
+  Definition prog := prog'.
+  
+  Inductive exec' :
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
   | ExecOp : 
-      forall T (p : op T) o s s' r,
+      forall T (p : Op.prog T) o s s' r,
         Op.exec o s p (Finished s' r) ->
-        exec [OpOracle o] s (Op p) (Finished s' r)
+        exec' [OpOracle o] s (Op p) (Finished s' r)
              
   | ExecRet :
       forall d T (v: T),
-        exec [Cont] d (Ret v) (Finished d v)
+        exec' [Cont] d (Ret v) (Finished d v)
 
   | ExecBind :
       forall T T' (p1: prog T) (p2: T -> prog T')
         o1 d1 d1' o2 r ret,
-        exec o1 d1 p1 (Finished d1' r) ->
-        exec o2 d1' (p2 r) ret ->
-        exec (o1++o2) d1 (Bind p1 p2) ret
+        exec' o1 d1 p1 (Finished d1' r) ->
+        exec' o2 d1' (p2 r) ret ->
+        exec' (o1++o2) d1 (Bind p1 p2) ret
 
   | ExecOpCrash : 
-      forall T (p : op T) o s s',
+      forall T (p : Op.prog T) o s s',
         Op.exec o s p (Crashed s') ->
-        exec [OpOracle o] s (Op p) (Crashed s')
+        exec' [OpOracle o] s (Op p) (Crashed s')
              
   | ExecRetCrash :
       forall T d (v: T),
-        exec [Crash] d (Ret v) (Crashed d)
+        exec' [Crash] d (Ret v) (Crashed d)
              
   | ExecBindCrash :
       forall T T' (p1: prog T) (p2: T -> prog T')
         o1 o2 d1 d1',
-        exec o1 d1 p1 (Crashed d1') ->
-        exec (o1++o2) d1 (Bind p1 p2) (Crashed d1').
+        exec' o1 d1 p1 (Crashed d1') ->
+        exec' (o1++o2) d1 (Bind p1 p2) (Crashed d1').
 
+  Definition exec := exec'.
+  
   Fixpoint oracle_ok {T} (p: prog T) o s :=
     match p with
     | Bind p1 p2 =>
@@ -96,8 +107,8 @@ Module Language (Op: Operation).
   Notation "| p |" := (Op p)(at level 60).
   Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
   Notation "x <-| p1 ; p2" := (Bind (Op p1) (fun x => p2))(right associativity, at level 60).
-  Hint Constructors exec.
-
+  Hint Constructors exec'.
+  Hint Extern 0 (exec _ _ _ _ ) => econstructor.
   (* Automation *)
   Local Ltac invert_exec'' H :=
   inversion H; subst; clear H; repeat sigT_eq.
@@ -373,7 +384,7 @@ Qed.
 *)
 
 Lemma exec_deterministic_wrt_oracle:
-  forall T (p: prog T) o s r1 r2,
+  forall o s T (p: prog T) r1 r2,
       exec o s p r1 ->
       exec o s p r2 ->
       r1 = r2.
@@ -439,7 +450,6 @@ Qed.
     destruct H; intuition eauto.
     
     simpl in *; cleanup.
-    
     do 2 eexists; intuition eauto.
     eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup; eauto.
   Qed.

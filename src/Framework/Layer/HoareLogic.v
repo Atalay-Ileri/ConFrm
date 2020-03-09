@@ -1,15 +1,14 @@
 Require Export String Datatypes.
-Require Import Primitives Layer.Language.
+Require Import Primitives SeparationLogic Layer.Language.
 
 Set Implicit Arguments.
 
 Instance addr_eq_dec: EqDec addr := addr_dec.
 
 Module HoareLogic (Ops: Operation).
-
-  Module L := Language Ops.
-  Import Ops L.
-  Export L.
+  Module Lang := Language Ops.
+  Import Ops Lang.
+  Export Lang.
 
 Definition Marker {T} (s: string) (p: prog T) := True.
 
@@ -188,9 +187,7 @@ Proof.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
   split_ors; eexists;
-    intuition eauto.
-  
-  left; do 2 eexists; intuition eauto.
+    intuition (try econstructor; eauto).
 Qed.
 
 Theorem bind_ok:
@@ -263,6 +260,7 @@ Proof.
     
   - 
     eexists; split; eauto.
+    eapply ExecBindCrash; eauto.
     cleanup.
     right; eexists; intuition eauto.
 Qed.

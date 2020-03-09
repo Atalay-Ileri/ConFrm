@@ -1,4 +1,4 @@
-Require Import Primitives.
+Require Import Framework.
 Require Import DiskLayer.Definitions.
 Open Scope pred_scope.
 

@@ -1,4 +1,4 @@
-Require Import Primitives BatchOperations DiskLayer.
+Require Import Framework BatchOperations DiskLayer.
 Require Import Log.Definitions Log.LogParameters.
 Require Import Datatypes PeanoNat Omega.
 Import Nat.
