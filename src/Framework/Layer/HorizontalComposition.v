@@ -79,5 +79,9 @@ Module HorizontalComposition (O1 O2: Operation) <: Operation.
     try solve [eapply O1.exec_then_oracle_ok in H5; eauto];
     try solve [eapply O2.exec_then_oracle_ok in H5; eauto].
   Qed.
+
+  Hint Constructors exec': core.
+  Hint Extern 0 (exec _ _ _ _ ) => econstructor : core.
+  
 End HorizontalComposition.
 

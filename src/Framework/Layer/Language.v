@@ -108,6 +108,7 @@ Module Language (Op: Operation) <: Operation.
   Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
   Notation "x <-| p1 ; p2" := (Bind (Op p1) (fun x => p2))(right associativity, at level 60).
   Hint Constructors exec'.
+  Hint Extern 0 (exec _ _ (Op _) _ ) => econstructor.
   Hint Extern 0 (exec _ _ _ _ ) => econstructor.
   (* Automation *)
   Local Ltac invert_exec'' H :=

@@ -6,11 +6,19 @@ Axiom blocks_to_addr_list : list value -> list addr.
 
 Record txn_record :=
   {
-    txn_key : key;
-    txn_start : nat; (* Relative to start of the log *)
-    addr_count : nat;
-    data_count : nat;
+    txn_key : key;   (* Encryption key of the txn *)
+    txn_start : nat;  (* Index of txn blocks in the log *)
+    addr_count : nat; (* # of addr blocks in txn *)
+    data_count : nat; (* # of data blocks in txn *)
   }.
+
+Record txn :=
+  {
+    record : txn_record;
+    addr_blocks : list value; (* UNENCRYPTED blocks *)
+    data_blocks : list value; (* UNENCRYPTED blocks *)
+  }.
+
 
 Record header :=
   {
@@ -22,6 +30,8 @@ Record header :=
     txn_records : list txn_record;
   }.
 
+Definition header0 := Build_header hash0 0 0 hash0 0 nil.
+
 Record header_part :=
   {
     hash : hash;
@@ -29,39 +39,57 @@ Record header_part :=
     records : list txn_record;
   }.
 
+Axiom encode_header : header -> value.
+Axiom decode_header : value -> header.
+Axiom encode_decode_header : forall hdr, decode_header (encode_header hdr) = hdr.
+Axiom decode_encode_header : forall v, encode_header (decode_header v) = v.
+
 Definition get_valid_part (hdr: header) blocks : header_part :=
   if (hash_dec (cur_hash hdr) (rolling_hash hash0 (firstn (cur_count hdr) blocks))) then
     Build_header_part (cur_hash hdr) (cur_count hdr) (txn_records hdr)
   else
     Build_header_part (old_hash hdr) (old_count hdr) (firstn (old_txn_count hdr) (txn_records hdr)).
 
-Axiom encode_header : header -> value.
-Axiom decode_header : value -> header.
-Axiom encode_decode_header : forall hdr, decode_header (encode_header hdr) = hdr.
-Axiom decode_encode_header : forall v, encode_header (decode_header v) = v.
-
-Definition header0 := Build_header hash0 0 0 hash0 0 nil.
-
+(*
 Definition count_accurate (txns: list txn_record) (count: nat):=
   count = fold_right plus 0 (map (fun t => addr_count t + data_count t) txns).
+ *)
 
-Definition txns_valid (txns: list txn_record) (log_blocks: list value) (kl: list key) (em: encryptionmap):=
-  (forall txr,
-    let tk := txn_key txr in
-    let ts := txn_start txr in
-    let ta := addr_count txr in
-    let td := data_count txr in
-    In txr txns ->
-    In tk kl /\
-    ts + ta + td <= length log_blocks /\
-    (forall ev, In ev (firstn (ta+td) (skipn ts log_blocks)) ->
-           exists v, em ev = Some (tk, v) /\ ev = encrypt tk v))%type.                                                                         
+Fixpoint encryption_present (blocks: list value)(k: key)(em: encryptionmap) :=
+  match blocks with
+  | b::blocks' =>
+    em (encrypt k b) = Some (k,b) /\
+    encryption_present blocks' k em
+  | [] => True
+  end.
+
+
+
+Fixpoint txns_valid (txns: list txn) (log_blocks: list value) (kl: list key) (em: encryptionmap):=
+  match txns with
+    | tx::txns' =>
+      let txa := addr_blocks tx in
+      let txd := data_blocks tx in
+      let txr := record tx in
+      let tk := txn_key txr in
+      let ts := txn_start txr in
+      let ta := addr_count txr in
+      let td := data_count txr in
+      In tk kl /\
+      ta = length txa /\
+      td = length txd /\
+      ts + ta + td <= length log_blocks /\
+      txa ++ txd = firstn (ta+td) (skipn ts log_blocks) /\
+      encryption_present (txa++txd) tk em
+    |[] => True
+  end.                                                                         
 Fixpoint hashes_in_hashmap hm h vl :=
   match vl with
   | nil => True
   | v::vl' =>
     let hv := hash_function h v in
-    (hm hv = Some (h, v) /\ hashes_in_hashmap hm (hash_function h v) vl')%type
+    (hm hv = Some (h, v) /\
+     hashes_in_hashmap hm (hash_function h v) vl')%type
   end.
 
 Definition hash_valid log_blocks hash :=
@@ -93,7 +121,7 @@ Definition log_rep_inner (hdr: header) (log_blocks: list value) (log_blockset: l
     [[ count_accurate hdr (old_txn_count hdr) (old_count hdr)]] *
     (* Header current txn_records are valid *)
     [[ txns_valid hdr log_blocks kl em ]].
- *)
+ 
 
 Definition cache_valid (txns: list txn_record) (log_blocks: list value) (cache: disk value) :=
   (forall txr,
@@ -111,41 +139,41 @@ Definition cache_valid (txns: list txn_record) (log_blocks: list value) (cache: 
         let data_i := nth i data_blocks value0 in
         forall v, data_i = encrypt tk v ->
              cache addr_i = Some v))%type.      
+ *)
 
 Definition log_rep_inner
-           (txns: list txn_record) (cache: disk value)
-           (hdr_blocks: set value) (log_blocksets: list (set value))
+           (hdr: header) (txns: list txn)
+           (hdr_blockset: set value) (log_blocksets: list (set value))
            (ax: list key * encryptionmap * hashmap) :=
   let kl := fst (fst ax) in
   let em := snd (fst ax) in
   let hm := snd ax in
-  let hdr := decode_header (fst hdr_blocks) in
   let log_blocks := map fst log_blocksets in
   let valid_hdr := get_valid_part hdr log_blocks in
   let valid_log_blocks := firstn (count valid_hdr) log_blocks in  
     (* Header *)
-    hdr_block_num |-> hdr_blocks *
+    hdr_block_num |-> hdr_blockset *
     (* Log Blocks *)
     log_start |=> log_blocksets *
+    [[ hdr = decode_header (fst hdr_blockset)]] *
     (* log length is valid *)
     [[ length log_blocksets = log_length ]] *
-    [[ txns = records valid_hdr ]] *
+    (* txns represents the right thing *)
+    [[ map record txns = records valid_hdr ]] *
     (* Header hashes is correct *)
     [[ hash_valid valid_log_blocks (hash valid_hdr) ]] *
     [[ hashes_in_hashmap hm hash0 valid_log_blocks ]] *
-    (* Header log_count agrees with txn_records *)
-    [[ count_accurate txns (count valid_hdr)]] *
+    (* Header log_count agrees with txn_records 
+    [[ count_accurate txns (count valid_hdr)]] * *)
     (* Header current txn_records are valid *)
-    [[ txns_valid txns valid_log_blocks kl em ]] *
-    [[ cache_valid txns valid_log_blocks cache ]].
+    [[ txns_valid txns valid_log_blocks kl em ]].
 
+Definition log_rep (hdr: header) (txns: list txn) (ax: list key * encryptionmap * hashmap) :=
+  exists* (hdr_blockset: set value)(log_blocksets: list (set value)),
+    log_rep_inner hdr txns hdr_blockset log_blocksets ax.
 
-Definition log_rep (txns: list txn_record) (cache: disk value) (ax: list key * encryptionmap * hashmap) :=
-  exists* (hdr_blocks: set value)(log_blocksets: list (set value)),
-    log_rep_inner txns cache hdr_blocks log_blocksets ax.
-
-Hint Extern 0 (okToUnify (log_rep_inner _ _ ?a ?b _) (log_rep_inner _ _ ?a ?b  _)) => constructor : okToUnify.
-Hint Extern 0 (okToUnify (log_rep ?txns _ _) (log_rep ?txns _ _)) => constructor : okToUnify.
+Hint Extern 0 (okToUnify (log_rep_inner _ _ ?b _) (log_rep_inner _ _ ?b  _)) => constructor : okToUnify.
+Hint Extern 0 (okToUnify (log_rep ?txns _) (log_rep ?txns _)) => constructor : okToUnify.
 
 (* Programs *)
 Definition read_header :=

@@ -48,9 +48,11 @@ Local Ltac logic_clean:=
 
 Local Ltac invert_const :=
   match goal with
-  | [H: Some _ = _ |- _ ] =>
+  | [H: Some _ = Some _ |- _ ] =>
     inversion H; subst; clear H
-  | [H: None = _ |- _ ] =>
+  | [H: Some _ = None |- _ ] =>
+    inversion H; subst; clear H
+  | [H: None = Some _ |- _ ] =>
     inversion H; subst; clear H
   | [H: Finished _ _ = _ |- _ ] =>
     inversion H; subst; clear H
@@ -73,10 +75,12 @@ Local Ltac rewrite_upd_eq:=
 
 Local Ltac rewriteall :=
   match goal with
-  | [H := _ |- _] => subst H
-  | [H: ?x = _, H0: ?x = _ |- _ ] => rewrite H in H0
-  | [H: ?x = _, H0: _ = ?x |- _ ] => rewrite H in H0
-  | [H: ?x = _ |- context [?x] ] => rewrite H
+  | [H := _ |- _] =>
+    subst H
+  | [H: ?x = _, H0: context [?x] |- _ ] =>
+    rewrite H in H0
+  | [H: ?x = _ |-  context [?x] ] =>
+    rewrite H
   end; repeat rewriteall.
 
 

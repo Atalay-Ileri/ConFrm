@@ -22,10 +22,7 @@ Proof.
   induction vl; intros; cleanup.
   {
     step.
-    simpl; intros; eauto.
-    instantiate (1:=fun s' => F * [[ fst s = fst s']] >> s').
-    simpl; pred_apply; cancel.
-    simpl in *; intros.
+    simpl; intros; cleanup; eauto.
     pred_apply; cancel.
     exists 0; simpl; eauto.
     simpl in *; intros; cleanup.
@@ -49,44 +46,33 @@ Proof.
     step.
     { destruct_lifts; intros;
       pred_apply; cancel; eauto;
-      setoid_rewrite H11; simpl; eauto. }
+      setoid_rewrite H10; simpl; eauto. }
     { simpl in *; intros.
       instantiate (1:= fun s => F >> s).
       simpl; pred_apply; cancel.
     }
     { simpl; intros; pred_apply; cancel.
       destruct_lifts; cleanup.
-      exists (S x); simpl; setoid_rewrite H14; simpl; eauto.      
+      exists (S x); simpl; setoid_rewrite H13; simpl; eauto.      
     }
     
     intros; simpl in *.
     destruct_lifts; cleanup.
     step.
     {
-      instantiate (1:= fun s => F * [[ fst s = fst s'0]] >> s).
-      intros; simpl; pred_apply; cancel.
-    }
-    {
-      simpl; intros.
+      simpl; intros; cleanup.
       pred_apply; cancel.
       exists (S (length vl)); simpl.
       rewrite firstn_map_comm.
       rewrite firstn_exact; eauto.
       cleanup; eauto.
-      setoid_rewrite H15; simpl; eauto.
+      setoid_rewrite H14; simpl; eauto.
     }
     {
       simpl in *; intros; cleanup.
       pred_apply; cancel.
-      cleanup; setoid_rewrite H15; simpl; eauto.
+      cleanup; setoid_rewrite H14; simpl; eauto.
     }
-    Local Transparent oracle_ok.
-    all: try solve [simpl in *; intros; eauto].
-    instantiate (1:=fun o p s => oracle_ok p o s) in H3; simpl in *; eauto.
-    instantiate (1:= fun _ _ _ _ => True); simpl; eauto.
-    instantiate (1:= fun _ _ _ => True); simpl; eauto.
-    simpl; eauto.
-    Opaque oracle_ok.
   }
 Qed.
 
@@ -108,7 +94,6 @@ Theorem decrypt_all_ok :
 Proof.
   induction evl; intros; cleanup.  
   { step.
-    instantiate (1:=fun s' => F * [[fst s' = fst s]] >> s').
     all: simpl; intros; cleanup; try (pred_apply; cancel).
   }
   {
@@ -119,7 +104,9 @@ Proof.
       simpl fst; simpl snd.
       step.
       { simpl in *; intros; cleanup.
-        pred_apply; cancel; cleanup; eauto. }
+        destruct_lifts.
+        inversion H3; inversion H4.
+        pred_apply; cancel. }
       { instantiate (1:= fun s => F >> s); simpl; intros; cleanup.
         pred_apply; cancel. }
       { simpl in *; intros; pred_apply; cancel. }
@@ -128,8 +115,8 @@ Proof.
       step.
       { simpl; intros; destruct_lifts; simpl in *; cleanup.
         simpl in *.
-        setoid_rewrite H11; clear H11.
-        inversion H12; inversion H13.
+        setoid_rewrite H10; clear H10.
+        inversion H11; inversion H12.
         pred_apply; cancel. }
       { instantiate (1:= fun s => F >> s); simpl; intros; cleanup.
         pred_apply; cancel. }
@@ -139,28 +126,16 @@ Proof.
       simpl in *; intros; destruct_lifts; cleanup.
       step.
        {
-         instantiate (1:= fun s => F * [[ fst s = fst s'0]] >> s).
-         intros; simpl; pred_apply; cancel.
-       }
-       {
-         simpl; intros.
+         simpl; intros; cleanup.
          pred_apply; cancel.
-         cleanup; eauto.
        }
        {
          simpl in *; intros.
-         intuition.
+         intuition; subst.
          pred_apply; cancel.
-         setoid_rewrite H12; simpl; eauto.
-         clear H14 H15; cleanup; eauto.
+         setoid_rewrite H11; simpl; eauto.
+         clear H13 H14; cleanup; eauto.
        }
-       Local Transparent oracle_ok.
-       all: try solve [simpl in *; intros; eauto].
-       instantiate (1:=fun o p s => oracle_ok p o s) in H3; simpl in *; eauto.
-       instantiate (1:= fun _ _ _ _ => True); simpl; eauto.
-       instantiate (1:= fun _ _ _ => True); simpl; eauto.
-       simpl; eauto.
-       Opaque oracle_ok.
     }
     
     {
@@ -196,7 +171,6 @@ Proof.
   induction vl; intros; cleanup.
   {
     step.
-    instantiate (1:=fun s' => F * [[fst s' = fst s]] >> s').
     all: simpl; intros; cleanup; try (pred_apply; cancel).
     exists 0; simpl; eauto.
   }
@@ -216,44 +190,33 @@ Proof.
     step.
     { simpl; intros; destruct_lifts; simpl in *; cleanup.
       simpl in *.
-      setoid_rewrite H11; clear H11.
+      setoid_rewrite H10; clear H10.
       pred_apply; cancel. }
     { instantiate (1:= fun s => F >> s); simpl; intros; cleanup.
       pred_apply; cancel. }
     { simpl in *; intros; destruct_lifts; cleanup.
       pred_apply; cancel.
-      exists (S x); setoid_rewrite H11; simpl; eauto. }
+      exists (S x); setoid_rewrite H10; simpl; eauto. }
 
      simpl in *; intros; destruct_lifts; cleanup.
       step.
        {
-         instantiate (1:= fun s => F * [[ fst s = fst s'0]] >> s).
-         intros; simpl; pred_apply; cancel.
-       }
-       {
-         simpl; intros.
+         simpl; intros; cleanup.
          pred_apply; cancel.
          cleanup; eauto.
          exists (S (length vl)); simpl.
          rewrite firstn_rolling_hash_list_comm.
          rewrite firstn_hash_and_pair_comm.
          rewrite firstn_exact; eauto.         
-         setoid_rewrite H12; simpl; eauto.
+         setoid_rewrite H11; simpl; eauto.
        }
        {
          simpl in *; intros.
          intuition.
          pred_apply; cancel.
          cleanup.
-         setoid_rewrite H12; simpl; eauto.
+         setoid_rewrite H11; simpl; eauto.
        }
-       Local Transparent oracle_ok.
-       all: try solve [simpl in *; intros; eauto].
-       instantiate (1:=fun o p s => oracle_ok p o s) in H3; simpl in *; eauto.
-       instantiate (1:= fun _ _ _ _ => True); simpl; eauto.
-       instantiate (1:= fun _ _ _ => True); simpl; eauto.
-       simpl; eauto.
-       Opaque oracle_ok.
   }
 Qed.
 

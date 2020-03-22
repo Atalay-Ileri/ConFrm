@@ -1,10 +1,8 @@
-Require Import Datatypes PeanoNat Primitives Log.
+Require Import Datatypes PeanoNat Framework Log.
 Require Import DiskLayer CacheLayer CachedDiskLayer.
 Import CachedDiskOperation CachedDiskHL.
 
 Axiom addr_list_to_blocks : list addr -> list value.
-
-Definition apply_log := P2 apply_log.
 
 Fixpoint write_batch al vl :=
   match al, vl with
@@ -15,7 +13,7 @@ Fixpoint write_batch al vl :=
   | _, _ => Ret tt
   end.
 
-Definition commit addr_l (data_l: list value) :=
+Definition write  addr_l (data_l: list value) :=
   _ <- write_batch addr_l data_l;
   _ <-| P2 (commit (addr_list_to_blocks addr_l) data_l);
   Ret tt.
@@ -28,4 +26,33 @@ Definition read a :=
   | None =>
     v <-| P2 (DiskHL.Lang.Op (DiskLayer.Definitions.Read a));
     Ret v
-  end. 
+  end.
+
+
+Fixpoint txns_cache (txns: list txn) cache : @mem addr addr_dec value :=
+  match txns with
+  | txn::txns' =>
+    let addr_list := blocks_to_addr_list (addr_blocks txn) in
+    let data_blocks := data_blocks txn in
+    txns_cache txns' (upd_batch cache addr_list data_blocks)
+  | [] => cache
+  end.
+
+Definition merge {A AEQ V} (m1: @mem A AEQ V) (m2: @mem A AEQ (V * list V)) : @mem A AEQ (V * list V) :=
+  fun a =>
+    match m1 a with
+    | None => m2 a
+    | Some v =>
+      match m2 a with
+      | None => None
+      | Some vs =>
+        Some (v, fst vs::snd vs)
+      end
+    end.
+
+Definition cached_log_rep disk_frame (merged_disk: disk (set value)) (s: state) :=
+  exists hdr txns,
+    fst s = txns_cache txns empty_mem /\
+    (log_rep hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\
+    merged_disk = merge (fst s) (snd (snd s)).
+

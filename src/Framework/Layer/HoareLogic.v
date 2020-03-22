@@ -3,6 +3,8 @@ Require Import Primitives SeparationLogic Layer.Language.
 
 Set Implicit Arguments.
 
+Create HintDb specs.
+
 Instance addr_eq_dec: EqDec addr := addr_dec.
 
 Module HoareLogic (Ops: Operation).
@@ -42,7 +44,7 @@ Definition hoare_triple {T: Type}
 Notation
   "<< o , s >> 'PRE:' pre 'PROG:' p << r , s' >> 'POST:' post 'CRASH:' crash 'OPRE:' opre 'OPOST:' opost 'OCRASH:' ocrash" :=
   (hoare_triple
-          (fun o p' s => oracle_ok p o s /\ opre)
+          (fun o p' s => oracle_ok p' o s /\ opre)
           (fun s => pre)
           p
           (fun r s' => post)
@@ -56,7 +58,7 @@ Notation
 Notation
   "<< o , s >> 'PRE:' pre 'PROG:' p << r , s' >> 'POST:' post 'CRASH:' crash" :=
   (hoare_triple
-          (fun o _ s => oracle_ok p o s)
+          (fun o p' s => oracle_ok p' o s)
           (fun s => pre)
           p
           (fun r s' => post)%pred
@@ -117,8 +119,7 @@ Qed.
 
 Theorem remove_oracle_conditions:
   forall T (p: prog T) (opre: oracle_pre_condition) pre post crash (opost: oracle_post_condition) (ocrash: oracle_crash_condition) o s,
-    (opre o p s ->
-     hoare_triple (fun _ _ _ => True) pre p post crash (fun _ _ _ _ => True) (fun _ _ _ => True) o s) -> 
+  hoare_triple opre pre p post crash (fun _ _ _ _ => True) (fun _ _ _ => True) o s -> 
   (forall r s',
      Marker "opost for" p ->
      opre o p s ->
@@ -179,15 +180,16 @@ Theorem ret_ok:
      (Ret v)
     << r, s' >>
     POST:
-     (P s' /\ r = v)
+     (P s' /\ r = v /\ s' = s)
     CRASH:
-     (P s').
+     (P s' /\ s' = s).
 Proof.
   intros.
   unfold hoare_triple; intros.
   destruct_lift H; subst.
   split_ors; eexists;
-    intuition (try econstructor; eauto).
+  intuition (try econstructor; eauto).
+  do 2 eexists; eauto.
 Qed.
 
 Theorem bind_ok:
@@ -267,16 +269,13 @@ Qed.
 
 Global Opaque Marker.
 
-Create HintDb specs.
 Hint Extern 1 (hoare_triple _ _ (Ret _) _ _ _ _ _ _) => eapply ret_ok : specs.
 Hint Extern 1 (hoare_triple _ _ (Bind _ _) _ _ _ _ _ _) => eapply bind_ok : specs.
 
 Local Ltac ret_step :=
   eapply post_impl;
     [eapply crash_impl;
-     [eapply pre_impl;
-      [eauto with specs
-      |]
+     [eauto with specs
      |]
     |].
 
@@ -285,7 +284,11 @@ Local Ltac bind_step :=
   [ intros;
     eapply pre_impl;
     eauto with specs
-  | | | | | | | ].
+  | | |
+  | instantiate (1:= fun o p s => oracle_ok p o s); simpl; intros; eauto
+  | instantiate (1:= fun _ _ _ _ => True); simpl; intros; eauto
+  | instantiate (1:= fun _ _ _ => True); simpl; intros; eauto
+  | try solve [simpl ; intros; eauto] ].
 
 Ltac step :=
   intros;
@@ -299,7 +302,10 @@ Ltac step :=
   | [ |- hoare_triple _ _ (Bind _ _) _ _ (fun _ _ _ _ => True) (fun _ _ _ => True) _ _ ] => 
     bind_step
   | [ |- hoare_triple _ _ (Bind _ _) _ _ _ _ _ _ ] => 
-    eapply remove_oracle_conditions; [intros; bind_step | |]
+    eapply remove_oracle_conditions;
+    [intros; bind_step
+    | try solve [ simpl; intros; eauto ]
+    | try solve [ simpl; intros; eauto ] ]
   end.
 
 End HoareLogic.

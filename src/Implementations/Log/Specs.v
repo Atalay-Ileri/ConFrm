@@ -3,9 +3,6 @@ Require Import Log.Definitions Log.LogParameters.
 Require Import Datatypes PeanoNat Omega.
 Import Nat.
 
-Set Nested Proofs Allowed.
-
-(*
 Instance value_eq_dec : EqDec value := value_dec.
 
 Definition encryptionmap_valid em :=
@@ -99,19 +96,19 @@ Proof.
       rewrite <- IHl; cancel.
   }
 Qed.
-
+(*
 Theorem log_write_consecutive_ok :
-  forall vl start log_blocks hdr o d a,
+  forall vl start txns hdr hdr_blockset log_blocksets o s F,
     let log_index := start - log_start in
     let new_log_blocks :=
         firstn log_index log_blocks ++ vl ++
         skipn (log_index + length vl) log_blocks in  
-    << o, d, a >>
-      (log_rep hdr log_blocks a *
+    << o, s >>
+      (F * log_rep_inner hdr txns hdr_blockset log_blocksets (fst s) *
        [[ start >= log_start + cur_count hdr ]] *
-       [[ start + length vl <= log_start + log_length ]])
+       [[ start + length vl <= log_start + log_length ]] >> s)
       (write_consecutive start vl)
-    << r, ar >>               
+    << r, s' >>               
       (log_rep hdr new_log_blocks ar *
        [[ ar = a ]])%pred
       (exists* n,
@@ -393,76 +390,56 @@ Proof.
 Qed.
 
 Hint Extern 1 (hoare_triple _ read_header _ _ _ _ _ _ _) => eapply read_header_ok : specs.
+ *)
+
 
 Theorem apply_log_ok :
-  forall hdr log_blocks o d a,
-    << o, d, a >>
-      (log_rep hdr log_blocks a)
-      (apply_log)
-      << r, ar >>
-      (exists* hdr', 
-         log_rep hdr' log_blocks ar *
-         [[ (r = true /\ hdr' = header0) \/
-            (r= false /\ hdr' = hdr) ]] *     
-         [[ ar = a ]])%pred
-      (exists* hdr', 
-         log_rep hdr' log_blocks ar *
-         [[  hdr' = header0 \/  hdr' = hdr ]] *
-         [[ ar = a ]])%pred.
+  forall hdr txns o s F,
+    << o, s >>
+    PRE: (F * log_rep hdr txns (fst s) >> s)
+    PROG: (apply_log)
+    << r, s' >>
+    POST: (F * log_rep header0 [] (fst s') *  
+       [[ fst s' = fst s ]] >> s')%pred
+    CRASH: ((exists* hdr' txns', 
+         F * log_rep hdr' txns' (fst s') *
+         [[ (hdr' = header0 /\ txns' = []) \/
+            (hdr' = hdr /\ txns' = txns)]] *
+         [[ fst s' = fst s ]]) >> s')%pred.
 Proof. Admitted.
-  
+
+Hint Extern 1 (hoare_triple _ _ (apply_log) _ _ _ _ _ _) => eapply apply_log_ok : specs.
 
 Theorem commit_ok :
-  forall hdr log_blocks addr_l data_l o d a,
-    let kl := fst (fst a) in
-    let em := snd (fst a) in
-    let hm := snd a in
-    let cur_hash := cur_hash hdr in
+  forall hdr txns addr_l data_l o s F,
     let cur_count := cur_count hdr in
-    let txns := txn_records hdr in
     
-    << o, d, a >>
-      (log_rep hdr log_blocks a *
-       [[ encryptionmap_valid em ]])
-      (commit addr_l data_l)
-      << r, ar >>
-      (exists* hdr' log_blocks', 
-         log_rep hdr' log_blocks' ar *
+    << o, s >>
+      PRE: (F * log_rep hdr txns (fst s) >> s)
+      PROG: (commit addr_l data_l)
+    << r, s' >>
+      POST: ((exists* hdr' new_key,
+           let new_txn := Build_txn
+             (Build_txn_record
+                new_key
+                cur_count
+                (length addr_l)
+                (length data_l))
+             addr_l data_l in
+          F * log_rep hdr' (txns++[new_txn]) (fst s')) 
+       (* [[ ar = a ]] *) >> s' )%pred
+      CRASH: ((exists* hdr' txns',
+         F * log_rep hdr' txns' (fst s') *
          [[ (exists new_key,
-               let new_count :=
-                   cur_count + (length addr_l + length data_l) in
-               let new_txn :=
-                   Build_txn_record new_key
-                                    cur_count
-                                    (length addr_l)
-                                    (length data_l) in
-               let encrypted_blocks :=
-                   map (encrypt new_key) (addr_l++data_l) in
-               let new_log_blocks :=
-                   firstn cur_count log_blocks ++
-                          encrypted_blocks ++
-                          skipn new_count log_blocks in 
-               let new_hash :=
-                   rolling_hash hash0 encrypted_blocks in
-               let new_hdr :=
-                   Build_header cur_hash
-                                cur_count
-                                (length txns)
-                                new_hash new_count
-                                (txns++[new_txn]) in
-              r = true /\ hdr' = new_hdr /\ log_blocks' = new_log_blocks) \/
-             (r= false /\ hdr' = hdr /\ log_blocks' = log_blocks) ]]      
-       (* [[ ar = a ]] *) )%pred
-      (exists* hdr' log_blocks',
-         log_rep hdr' log_blocks' ar *
-         [[ (exists new_key,
-            let new_count := cur_count + (length addr_l + length data_l) in
-            let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
-            let encrypted_blocks := map (encrypt new_key) (addr_l++data_l) in
-            let new_hash := rolling_hash hash0 encrypted_blocks in
-            let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
-               hdr' = new_hdr) \/ hdr' = hdr ]] 
-          (* [[ ar = a ]] *) )%pred.
+            let new_txn := Build_txn
+             (Build_txn_record
+                new_key
+                cur_count
+                (length addr_l)
+                (length data_l))
+             addr_l data_l in
+               txns' = txns++[new_txn]) \/ txns' = txns ]]) 
+          (* [[ ar = a ]] *) >> s')%pred.
 Proof. Admitted. (*
   unfold commit; step.
   { crush_pimpl.
@@ -531,8 +508,11 @@ Proof. Admitted. (*
     eapply write_consecutive_ok.
     (* need a septract type lemma here *)
 Abort.
-*)
+                  *)
 
+Hint Extern 1 (hoare_triple _ _ (commit _ _) _ _ _ _ _ _) => eapply commit_ok : specs.
+
+(*
 Theorem apply_txn_ok :
   forall txn log_blocks hdr txn_plain_blocks (disk_data: list data) o d a,
     let kl := fst (fst a) in
