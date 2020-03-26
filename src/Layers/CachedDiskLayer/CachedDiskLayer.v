@@ -1,6 +1,7 @@
 Require Export CachedDiskLayer.Definitions CachedDiskLayer.Specs.
+
+Notation "'CachedDisk.cached_disk_lts'" := CachedDiskLayer.Definitions.cached_disk_lts.
 (*
-Notation "'CacheLayer.state'" := CacheLayer.Definitions.state.
 Notation "'CacheLayer.oracle'" := CacheLayer.Definitions.oracle.
 Notation "'CacheLayer.prog'" := CacheLayer.Definitions.prog.
 Notation "'CacheLayer.exec'" := CacheLayer.Definitions.exec.
