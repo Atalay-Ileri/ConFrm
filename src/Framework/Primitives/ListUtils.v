@@ -145,7 +145,7 @@ Qed.
 
 
 
-(** XXX use [nth] everywhere *)
+(** TODO: use [nth] everywhere *)
 Lemma nth_selN_eq : forall t n l (z:t), selN l n z = nth n l z.
 Proof.
   induction n; intros; destruct l; simpl; auto.

@@ -83,11 +83,12 @@ Local Ltac rewriteall :=
     rewrite H
   end; repeat rewriteall.
 
-
-Local Ltac clear_lists:=
+Local Ltac list_append_clear:=
   match goal with
   | [H: _++?tr = _++?tr |- _] =>
     apply app_inv_tail in H
+  | [H: ?tr++_ = ?tr++_ |- _] =>
+    apply app_inv_head in H
   | [H: ?tr = _++?tr |- _] =>
     rewrite <- app_nil_l in H at 1
   | [H: _::?tr = _++?tr |- _] =>
@@ -98,12 +99,26 @@ Local Ltac clear_lists:=
     rewrite app_assoc in H
   | [H: _++?tr = _++_++?tr |- _] =>
     rewrite app_assoc in H
+  end.
+
+Local Ltac clear_lists:=
+  match goal with
   | [H: _::_ = _::_ |- _] =>
     inversion H; clear H
   | [H: length _ = 0 |- _] =>
     apply length_zero_iff_nil in H
   | [H: 0 = length _  |- _] =>
-     symmetry in H
+    symmetry in H
+  | [H: context[ firstn _ [] ] |- _] =>
+    rewrite firstn_nil in H
+  | [|- context[ firstn _ [] ] ] =>
+    rewrite firstn_nil
+  | [H: context[ skipn _ [] ] |- _] =>
+    rewrite skipn_nil in H
+  | [|- context[ skipn _ [] ] ] =>
+    rewrite skipn_nil
+  | _ =>
+    list_append_clear
   end; repeat clear_lists.
 
 

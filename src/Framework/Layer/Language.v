@@ -233,7 +233,6 @@ Proof.
   
   repeat rewrite <- app_assoc in H2.
   specialize IHp with (1:= H0)(2:= H1)(3:=H2); cleanup.
-  apply app_inv_head in H2.
   specialize H with (1:= H4)(2:= H3)(3:=H2); cleanup; eauto.
 Qed.
 
@@ -253,7 +252,6 @@ Proof.
   -
     repeat rewrite <- app_assoc in H1; eauto.
     eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-    apply app_inv_head in H1; cleanup; eauto.
 Qed.
 
 Lemma finished_not_crashed_oracle_app:
@@ -272,7 +270,6 @@ Proof.
   -
     rewrite <- app_assoc in H1; eauto.
     eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-    apply app_inv_head in H1; cleanup; eauto.
 Qed.
 
 Lemma exec_deterministic_wrt_oracle_prefix:
@@ -295,8 +292,7 @@ Lemma exec_deterministic_wrt_oracle_prefix:
     eapply Op.exec_deterministic_wrt_oracle; eauto; cleanup.
   -
     eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-    repeat rewrite <- app_assoc in H2.
-    apply app_inv_head in H2; cleanup; eauto.
+    repeat rewrite <- app_assoc in H2; cleanup; eauto.
     repeat rewrite <- app_assoc in H2; eauto.
   -
     split_ors; cleanup.
@@ -305,7 +301,6 @@ Lemma exec_deterministic_wrt_oracle_prefix:
 
     repeat rewrite <- app_assoc in H2.
     eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-    apply app_inv_head in H2; cleanup; eauto.
     
   -
     split_ors; cleanup.
@@ -314,7 +309,6 @@ Lemma exec_deterministic_wrt_oracle_prefix:
 
     repeat rewrite <- app_assoc in H2.
     eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-    apply app_inv_head in H2; cleanup; eauto.
   -
     repeat split_ors; cleanup.
     repeat rewrite <- app_assoc in H2; eauto.
@@ -328,7 +322,6 @@ Lemma exec_deterministic_wrt_oracle_prefix:
 
     repeat rewrite <- app_assoc in H2.
     eapply exec_finished_deterministic_prefix in H1; eauto; cleanup; eauto.
-    apply app_inv_head in H2; cleanup; eauto.
     Qed.
 
     (*

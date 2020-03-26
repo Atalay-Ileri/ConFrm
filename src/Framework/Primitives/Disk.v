@@ -32,6 +32,15 @@ Section Disk.
     | Some vs => upd_disk d a (v, fst vs::snd vs)
     end.
 
+  Fixpoint write_all {V} (d: disk (set V)) (la: list addr) (lv: list V) : disk (set V) :=
+    match la, lv with
+    | a::la', v::lv' =>
+      match d a with
+      | None => d
+      | Some vs => write_all (upd_disk d a (v, fst vs::snd vs)) la' lv'
+      end
+    | _, _ => d
+    end.
 
   Definition sync {V} (d: disk (set V)) (a: addr) : disk (set V) :=
     match d a with

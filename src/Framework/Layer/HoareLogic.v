@@ -144,6 +144,18 @@ Proof.
     left; do 2 eexists; intuition eauto.
 Qed.
 
+Theorem pre_impl_false:
+  forall T (p: prog T) opre (pre: pre_condition) post crash opost ocrash o s,
+    ( Marker "pre_impl_false implication for" p ->
+      pre s ->
+      False ) ->
+    hoare_triple opre pre p post crash opost ocrash o s.
+Proof.
+  unfold Marker, hoare_triple; intros.
+  edestruct H; eauto.
+Qed.
+
+
 (*
 Theorem hoare_triple_equivalence :
   forall T (p p': prog T) o s pre post crash ap ac,
