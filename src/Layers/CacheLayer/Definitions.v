@@ -17,9 +17,7 @@ Set Implicit Arguments.
   
   Inductive prog : Type -> Type :=
   | Read : addr -> prog (option value)
-  | Write : addr -> value -> prog unit
-  | Ret : forall T, T -> prog T
-  | Bind : forall T T', prog T -> (T -> prog T') -> prog T'.
+  | Write : addr -> value -> prog unit.
    
   Inductive exec :
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
