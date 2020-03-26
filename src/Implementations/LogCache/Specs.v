@@ -111,4 +111,110 @@ Proof.
     eauto.
 Admitted.
 
+Fixpoint map2 {A B C} (f: A -> B -> C) (la: list A) (lb : list B) :=
+  match la, lb with
+  | a :: la', b :: lb' =>
+    (f a b)::map2 f la' lb'
+  | _, _ =>
+    nil
+  end.
                        
+Theorem write_batch_ok :
+  forall al vl vsl d disk_frame F o s,
+    << o, s >>
+      PRE: (cached_log_rep disk_frame d s /\
+            (F * al |L> vsl)%pred d /\
+            length al = length vl /\
+            length vl = length vsl)
+      PROG: (write_batch al vl)
+    << r, s' >>
+      POST: (exists d' disk_frame',
+             cached_log_rep disk_frame' d' s' /\
+             (F * al |L> (map2 (fun v vs => (v, fst vs::snd vs)) vl vsl))%pred d')
+      CRASH: (exists d' disk_frame' n,
+             cached_log_rep disk_frame' d' s' /\
+             (F * (firstn n al) |L> (map2 (fun v vs => (v, fst vs::snd vs)) (firstn n vl) (firstn n vsl)) *
+              (skipn n al) |L> (skipn n vsl))%pred d' /\
+             n <= length vl).
+Proof.
+  induction al; simpl in *.
+  
+  {
+    step; simpl in *; intros;
+    repeat (cleanup; simpl in *).
+    -
+      setoid_rewrite firstn_nil.
+      setoid_rewrite skipn_nil.
+      simpl.
+      do 3 eexists; intuition eauto.
+      pred_apply; cancel.
+    -
+      do 2 eexists; intuition eauto.
+  }
+
+  {
+    destruct vl; simpl in *.
+    { step; intros; cleanup; simpl in *; congruence. }
+    destruct vsl; simpl in *.
+    { intros; eapply pre_impl_false.
+      intros; cleanup; simpl in *; congruence. }
+   
+    step.
+    eapply p1_ok; eauto with specs.
+    instantiate (3:= fun o p s => oracle_ok p o s).
+    admit. (* TODO: Figure out oracle situation for p1_ok *)
+    
+    { simpl; eauto. }
+    { simpl.
+      instantiate (3:= fun sx => cached_log_rep disk_frame d sx /\
+                             (F * a |-> s * al |L> vsl)%pred d ).
+      unfold cached_log_rep; simpl.
+      intros; cleanup.
+      admit. (* Solvable *)
+    }
+    {
+      simpl.
+      instantiate (1:= fun r s' => (diskIs (mem_except (fst s') a) * a |-> v) (fst s') ).
+      simpl; intros.
+      apply diskIs_extract.
+      pred_apply; cancel.
+      unfold diskIs; eauto.
+    }
+     { instantiate (1:= fun _ _ _ _ => True); simpl; eauto. }
+    { simpl.
+      eassign (fun (s': state) =>
+                 match fst s0 a with
+                 | Some v0 => diskIs (mem_except (fst s') a) * a |-> v0
+                 | None => diskIs (fst s')
+                 end (fst s')).
+      simpl; intros; destruct_lifts; cleanup.
+      apply diskIs_extract.
+      pred_apply; cancel.
+      unfold diskIs; eauto.
+      unfold diskIs; eauto.
+    }
+    { instantiate (1:= fun _ _ _ => True); simpl; eauto. }
+    {
+      simpl; intros; cleanup; intuition.
+      pred_apply; cancel.
+    }
+Abort.
+
+Theorem write_ok :
+  forall al vl vsl d disk_frame F o s,
+    << o, s >>
+      PRE: (cached_log_rep disk_frame d s /\
+            (F * al |L> vsl)%pred d /\
+            length al = length vl /\
+            length vl = length vsl)
+      PROG: (write_batch al vl)
+    << r, s' >>
+      POST: (exists d' disk_frame',
+             cached_log_rep disk_frame' d' s' /\
+             (F * al |L> (map2 (fun v vs => (v, fst vs::snd vs)) vl vsl))%pred d')
+      CRASH: (exists d' disk_frame' n,
+             cached_log_rep disk_frame' d' s' /\
+             (F * (firstn n al) |L> (map2 (fun v vs => (v, fst vs::snd vs)) (firstn n vl) (firstn n vsl)) *
+              (skipn n al) |L> (skipn n vsl))%pred d' /\
+             n <= length vl).
+Proof. Admitted.
