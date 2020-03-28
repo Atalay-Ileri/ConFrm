@@ -1,4 +1,4 @@
-Require Import Framework CachedDiskLayer LoggedDiskLayer LogCache.
+Require Import Framework CachedDiskLayer LoggedDiskLayer LogCache.Definitions.
 Close Scope pred_scope.
 Import ListNotations.
 

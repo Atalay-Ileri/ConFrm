@@ -1,5 +1,5 @@
-Require Import Framework CacheLayer DiskLayer CachedDiskLayer.
-Require Import LogCache.Definitions.
+Require Import Framework CacheLayer LoggedDiskLayer DiskLayer CachedDiskLayer.
+Require Import LogCache.Definitions LoggedDisk.Definitions.
 Open Scope pred_scope.
 
 Lemma oracle_ok_bind_split:
@@ -25,7 +25,11 @@ Theorem read_ok :
     << r, s' >>
       POST: (cached_log_rep disk_frame d s' /\
              r = fst vs)
-      CRASH: (cached_log_rep disk_frame d s').
+      CRASH: (cached_log_rep disk_frame d s')
+      OPRE: True
+      OPOST: exists oh, oracle_refines_to _ s (LoggedDiskHL.Lang.Op (LoggedDisk.Read a)) o oh
+      OCRASH: exists oh, oracle_refines_to _ s (LoggedDiskHL.Lang.Op (LoggedDisk.Read a)) o oh
+.
 Proof.
   unfold read; intros.  
   step.
@@ -108,7 +112,15 @@ Proof.
     eauto.
   -
     instantiate (1:= fun o p s => oracle_ok p o s).
-    eauto.
+    cleanup; eauto.
+
+  - (* OPOST *)
+    simpl; intros; cleanup.
+    eexists; unfold read; split; eauto.
+
+  - (* OCRASH *)
+    simpl; intros; cleanup.
+    eexists; unfold read; split; eauto.
 Admitted.
 
 Fixpoint map2 {A B C} (f: A -> B -> C) (la: list A) (lb : list B) :=
