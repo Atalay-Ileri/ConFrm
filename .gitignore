@@ -7,3 +7,4 @@
 *\#
 \.\#*
 *.coqdeps.d
+/\_build/
