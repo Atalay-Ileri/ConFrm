@@ -8,3 +8,4 @@
 \.\#*
 *.coqdeps.d
 /\_build/
+/slf/

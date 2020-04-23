@@ -1,7 +1,8 @@
-Require Import List Primitives Simulation.Definitions.
+Require Import List Primitives Layer.
+Require Import Simulation.Definitions Simulation.WeakestPreconditions.
 
 Theorem transfer_high_to_low:
-  forall low high
+  forall O1 O2 (low: Language O1) (high: Language O2)
 
     related_states_h
     refines_to
@@ -20,8 +21,8 @@ Theorem transfer_high_to_low:
     StrongBisimulation
       low
       high
-      compilation_of
       refines_to
+      compilation_of
       oracle_refines_to ->
 
     high_oracle_exists refines_to compilation_of oracle_refines_to ->
@@ -29,8 +30,6 @@ Theorem transfer_high_to_low:
     oracle_refines_to_same_from_related refines_to related_states_h oracle_refines_to ->
 
     exec_compiled_preserves_validity
-    low
-    high
     compilation_of                               
     (refines_to_valid
        refines_to
@@ -54,7 +53,7 @@ Proof.
   eapply Build_SelfSimulation;  intros; cleanup.
   match goal with
   | [H: high_oracle_exists _ _ _,
-     H0: exec low _ _ _ _ _ |- _] =>
+     H0: exec low _ _ _ _ |- _] =>
     edestruct H; try apply H0; eauto
   end.
   
@@ -64,9 +63,9 @@ Proof.
   end.
 
   match goal with
-    | [H: forall _, exec low _ _ _ _ _ -> _,
-       H0: exec low _ _ _ _ _,
-       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
+    | [H: forall _, exec low _ _ _ _ -> _,
+       H0: exec low _ _ _ _,
+       H1: forall _, exec high _ _ _ _ -> _ |- _] =>
       eapply_fresh H in H0; cleanup; clear H H1
   end.
 
@@ -80,12 +79,12 @@ Proof.
   end.
 
   match goal with
-    | [H: exec high _ _ _ _ _ |- _] =>
+    | [H: exec high _ _ _ _ |- _] =>
       eapply_fresh self_simulation_correct in H; eauto; cleanup
   end.
   
   match goal with
-  | [H: exec high _ _ ?x2 _ _,
+  | [H: exec high _ ?x2 _ _,
      H0: refines_to ?s1 ?x1,
      H1: refines_to ?s2 ?x2,      
      H2: refines_to_valid _ _ ?s2 |- _] =>
@@ -93,9 +92,9 @@ Proof.
   end.
   
   match goal with
-    | [H: forall _, exec low _ _ _ _ _ -> _,
-       H0: exec high _ _ _ _ _,
-       H1: forall _, exec high _ _ _ _ _ -> _ |- _] =>
+    | [H: forall _, exec low _ _ _ _ -> _,
+       H0: exec high _ _ _ _,
+       H1: forall _, exec high _ _ _ _ -> _ |- _] =>
       eapply_fresh H1 in H0; cleanup; clear H H1
   end.  
   
@@ -115,11 +114,9 @@ Proof.
   unfold refines_to_related; eauto. 
 Qed.
 
-
-
-
+(*
 Theorem transfer_high_to_low_for_valid_states :
-  forall low high
+  forall O1 O2 (low: Language O1) (high: Language O2)low high
 
     related_states_h
     refines_to
@@ -262,10 +259,8 @@ Abort.
 
 
 
-
-
 Lemma bisimulation_weaken_valid_prog:
-  forall low high
+  forall O1 O2 (low: Language O1) (high: Language O2)low high
 
     refines_to
     compilation_of
@@ -273,7 +268,7 @@ Lemma bisimulation_weaken_valid_prog:
 
     valid_state_h
     (valid_prog_h1
-    valid_prog_h2: forall T, Prog high T -> Prop),
+    valid_prog_h2: forall T, high.(prog) T -> Prop),
 
     (forall (T: Type) (p: Prog high T), valid_prog_h1 T p -> valid_prog_h2 T p) ->
     
@@ -399,4 +394,123 @@ Proof.
   specialize (H T p2).
   destruct H.
   edestruct strong_bisimulation_for_program_correct; eauto.
+Qed.
+*)
+
+Theorem bisimulation_from_wp:
+  forall O1 O2 (low: Language O1) (high: Language O2)   
+    refines_to
+    compilation_of
+    oracle_refines_to,
+    
+    exec_compiled_preserves_refinement
+    refines_to
+    compilation_of ->
+
+    exec_preserves_refinement refines_to ->
+
+    wp_low_to_high
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+
+    wpc_low_to_high
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+
+    wp_high_to_low
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+
+    wpc_high_to_low
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+    
+    StrongBisimulation
+      low
+      high
+      refines_to
+      compilation_of
+      oracle_refines_to.
+Proof.  
+  intros; eapply Build_StrongBisimulation;
+  intros; cleanup; split; intros.
+  {(* low -> high *)
+    match goal with
+    |[H: exec low _ _ _ _ ,
+      H0: exec_compiled_preserves_refinement _ _ |- _ ] =>
+     eapply_fresh H0 in H; eauto; cleanup
+    end.
+    destruct s1'; simpl in *.
+    {(* wp *)
+      pose proof exec_to_wp as Hx.
+      match goal with
+      |[H: exec low _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      match goal with
+      |[H: wp_low_to_high _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; eauto.
+    }
+    {(* wcp *)
+      pose proof exec_to_wcp as Hx.
+      match goal with
+      |[H: exec low _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wcp_to_exec.
+      match goal with
+      |[H: wpc_low_to_high _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; eauto.
+    }
+  }
+
+  {(* high -> low *)
+    match goal with
+    |[H: exec high _ _ _ _ ,
+      H0: exec_preserves_refinement _ |- _ ] =>
+     eapply_fresh H0 in H; eauto; cleanup
+    end.
+    destruct s2'; simpl in *.
+    {(* wp *)
+      pose proof exec_to_wp as Hx.
+      match goal with
+      |[H: exec high _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      match goal with
+      |[H: wp_high_to_low _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; simpl; eauto.
+      simpl; eauto.
+    }
+    {(* wcp *)
+      pose proof exec_to_wcp as Hx.
+      match goal with
+      |[H: exec high _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wcp_to_exec.
+      match goal with
+      |[H: wpc_high_to_low _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; eauto.
+      simpl; eauto.
+    }
+  }
 Qed.

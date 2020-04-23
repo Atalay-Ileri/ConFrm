@@ -1,5 +1,6 @@
-Require Import Primitives.
+Require Import Primitives Layer.
 
+(*
 Record LTS :=
   {
     Oracle : Type;
@@ -7,7 +8,7 @@ Record LTS :=
     Prog : Type -> Type;
     exec : forall T, Oracle -> State -> Prog T -> @Result State T -> Prop;
   }.
-
+*)
 
 (* 
 A relation that takes 
@@ -69,34 +70,51 @@ Definition compiles_to_valid {Prog_L Prog_H: Type -> Type}
     valid_prog_h T ph.
 
 
-Definition exec_preserves_validity lts valid_state :=
-    forall T (p: Prog lts T) o s ret,
+Definition exec_preserves_validity {O} {L: Language O} valid_state :=
+    forall T (p: L.(prog) T) o s ret,
       valid_state s ->
-      exec lts T o s p ret ->
+      exec L o s p ret ->
       valid_state (extract_state ret).
 
 
-Definition exec_compiled_preserves_validity lts1 lts2 (compilation_of: forall T, Prog lts1 T -> Prog lts2 T -> Prop) valid_state :=
-    forall T (p1: Prog lts1 T) (p2: Prog lts2 T) o s ret,
+Definition exec_compiled_preserves_validity {O1 O2} {low: Language O1} {high: Language O2}
+           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop) valid_state :=
+    forall T (p1: low.(prog) T) (p2: high.(prog) T) o s ret,
       compilation_of T p1 p2 ->
       valid_state s ->
-      exec lts1 T o s p1 ret ->
+      low.(exec) o s p1 ret ->
       valid_state (extract_state ret).
 
-Definition high_oracle_exists {low high}
-           (refines_to: State low -> State high -> Prop)
-           (compilation_of : forall T, Prog low T -> Prog high T -> Prop)
-           (oracle_refines_to : forall T, State low -> Prog high T -> Oracle low -> Oracle high -> Prop) :=
+Definition exec_preserves_refinement {O1 O2} {low: Language O1} {high: Language O2}
+           (refines_to: low.(state) -> high.(state) -> Prop) :=
+    forall T (p: high.(prog) T) o2 s2 ret,
+      (exists s1, refines_to s1 s2) ->
+      high.(exec) o2 s2 p ret ->
+      (exists s1', refines_to s1' (extract_state ret)).
+
+Definition exec_compiled_preserves_refinement {O1 O2} {low: Language O1} {high: Language O2}
+           (refines_to: low.(state) -> high.(state) -> Prop)
+           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop) :=
+    forall T (p1: low.(prog) T) (p2: high.(prog) T) o1 s1 ret,
+      compilation_of T p1 p2 ->
+      (exists s2, refines_to s1 s2) ->
+      low.(exec) o1 s1 p1 ret ->
+      (exists s2', refines_to (extract_state ret) s2').
+
+Definition high_oracle_exists {O1 O2} {low: Language O1} {high: Language O2}
+           (refines_to: low.(state) -> high.(state) -> Prop)
+           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
+           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop) :=
   forall T o1 s1 s1' p1 p2,
     (exists sh, refines_to s1 sh) -> 
-    exec low T o1 s1 p1 s1' ->
+    low.(exec) o1 s1 p1 s1' ->
     compilation_of T p1 p2 ->
     exists o2, oracle_refines_to T s1 p2 o1 o2.
 
-Definition oracle_refines_to_same_from_related {low high}
-           (refines_to: State low -> State high -> Prop)
-           (related_states_h: State high -> State high -> Prop)
-           (oracle_refines_to: forall T, State low -> Prog high T -> Oracle low -> Oracle high -> Prop) :=
+Definition oracle_refines_to_same_from_related {O1 O2} {low: Language O1} {high: Language O2}
+           (refines_to: low.(state) -> high.(state) -> Prop)
+           (related_states_h: high.(state) -> high.(state) -> Prop)
+           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop) :=
   forall T o oh s1 s2 p2,
     refines_to_related refines_to related_states_h s1 s2 ->
     oracle_refines_to T s1 p2 o oh ->
@@ -107,20 +125,20 @@ Definition oracle_refines_to_same_from_related {low high}
   valid_op: This predicate restrict programs to valid ones
   R: This is the actual simulation relation
 *)
-Record SelfSimulation (lts: LTS)
-       (valid_state: State lts -> Prop)
-       (valid_prog: forall T, Prog lts T -> Prop)
-       (R: State lts -> State lts -> Prop) :=
+Record SelfSimulation {O}(L: Language O)
+       (valid_state: L.(state) -> Prop)
+       (valid_prog: forall T, L.(prog) T -> Prop)
+       (R: L.(state) -> L.(state) -> Prop) :=
   {
     self_simulation_correct:
       forall T o p s1 s1' s2,
         valid_state s1 ->
         valid_state s2 ->
         valid_prog T p ->
-        (exec lts) T o s1 p s1' ->
+        L.(exec) o s1 p s1' ->
         R s1 s2 ->
         exists s2',
-          (exec lts) T o s2 p s2' /\
+          L.(exec) o s2 p s2' /\
           result_same s1' s2' /\
           R (extract_state s1') (extract_state s2') /\
           (forall def, extract_ret def s1' = extract_ret def s2') /\
@@ -129,35 +147,36 @@ Record SelfSimulation (lts: LTS)
   }.
 
 Record StrongBisimulation
-       (lts1 lts2 : LTS)
-       (compilation_of: forall T, Prog lts1 T -> Prog lts2 T -> Prop)
-       (refines_to: State lts1 -> State lts2 -> Prop)
-       (oracle_refines_to: forall T, State lts1 -> Prog lts2 T -> Oracle lts1 -> Oracle lts2 -> Prop)
+        {O1 O2} (low: Language O1) (high: Language O2)
+           (refines_to: low.(state) -> high.(state) -> Prop)
+           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
+           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop)
   :=
   {
     strong_bisimulation_correct:
-      (forall T p1 (p2: Prog lts2 T) s1 s2 o1 o2,
+      (forall T p1 (p2: high.(prog) T) s1 s2 o1 o2,
           
           refines_to s1 s2 ->
           compilation_of T p1 p2 ->
           oracle_refines_to T s1 p2 o1 o2 ->
           
           (forall s1',
-              (exec lts1) T o1 s1 p1 s1' ->
+              low.(exec) o1 s1 p1 s1' ->
               exists s2',
-                (exec lts2) T o2 s2 p2 s2' /\
+                high.(exec) o2 s2 p2 s2' /\
                 result_same s1' s2' /\
                 refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')) /\
           (forall s2',
-              (exec lts2) T o2 s2 p2 s2' ->
+              high.(exec) o2 s2 p2 s2' ->
               exists s1',
-                (exec lts1) T o1 s1 p1 s1' /\
+                low.(exec) o1 s1 p1 s1' /\
                 result_same s1' s2' /\
                 refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')))
   }.
 
+(*
 Record StrongBisimulationForValidStates
        (lts1 lts2 : LTS)
        (valid_state1 : State lts1 -> Prop)
@@ -198,14 +217,14 @@ Record StrongBisimulationForValidStates
                 (forall def, extract_ret def s1' = extract_ret def s2')/\
                 valid_state1 (extract_state s1') /\ valid_state2 (extract_state s2')))
   }.
-
+*)
 
 Record StrongBisimulationForProgram
-       (lts1 lts2 : LTS)
-       (compilation_of: forall T, Prog lts1 T -> Prog lts2 T -> Prop)
-       (refines_to: State lts1 -> State lts2 -> Prop)
-       (oracle_refines_to: forall T, State lts1 -> Prog lts2 T -> Oracle lts1 -> Oracle lts2 -> Prop)
-       {T} (p2: Prog lts2 T)
+       {O1 O2} (low: Language O1) (high: Language O2)
+       (refines_to: low.(state) -> high.(state) -> Prop)
+       (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
+       (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop)
+       {T} (p2: high.(prog) T)
   :=
   {
     strong_bisimulation_for_program_correct:
@@ -216,16 +235,16 @@ Record StrongBisimulationForProgram
           oracle_refines_to T s1 p2 o1 o2 ->
           
           (forall s1',
-              (exec lts1) T o1 s1 p1 s1' ->
+              low.(exec) o1 s1 p1 s1' ->
               exists s2',
-                (exec lts2) T o2 s2 p2 s2' /\
+                high.(exec) o2 s2 p2 s2' /\
                 result_same s1' s2' /\
                 refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')) /\
           (forall s2',
-              (exec lts2) T o2 s2 p2 s2' ->
+              high.(exec) o2 s2 p2 s2' ->
               exists s1',
-                (exec lts1) T o1 s1 p1 s1' /\
+                low.(exec) o1 s1 p1 s1' /\
                 result_same s1' s2' /\
                 refines_to (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')))
