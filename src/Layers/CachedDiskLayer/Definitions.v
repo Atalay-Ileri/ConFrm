@@ -1,10 +1,12 @@
 Require Import Framework.
-Require Import DiskLayer CacheLayer.
+Require Import CryptoDiskLayer CacheLayer.
 Import ListNotations.
 
 Set Implicit Arguments.
 
-Module CachedDiskOperation := HorizontalComposition CacheHL.Lang DiskHL.Lang.
-Module CachedDiskHL := HoareLogic CachedDiskOperation.
-Export CachedDiskHL.
-Definition cached_disk_lts := Build_LTS CachedDiskHL.Lang.oracle CachedDiskHL.Lang.state CachedDiskHL.Lang.prog CachedDiskHL.Lang.exec.
+Definition CachedDiskOperation :=  HorizontalComposition CacheOperation CryptoDiskOperation.
+Definition CachedDiskLang := Build_Language CachedDiskOperation.
+Definition CachedDiskHL := Build_HoareLogic CachedDiskLang.
+
+Notation "| p |" := (Language.Op CachedDiskOperation _ p)(at level 60).
+Notation "x <-| p1 ; p2" := (Bind (Op CachedDiskOperation _ p1) (fun x => p2))(right associativity, at level 60).

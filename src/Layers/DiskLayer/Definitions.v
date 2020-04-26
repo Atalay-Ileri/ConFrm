@@ -2,86 +2,85 @@ Require Import Framework.
 Import ListNotations.
 
 Set Implicit Arguments.
-
-Definition hashmap := @mem hash hash_dec (hash * value).
-Definition encryptionmap := @mem value value_dec (key * value).
   
   Inductive token :=
-  | Key : key -> token
   | Crash : token
   | Cont : token.
 
   Definition token_dec : forall (t t': token), {t=t'}+{t<>t'}.
     decide equality.
-    apply key_dec.
   Defined.
 
   Definition oracle := list token.
 
-  Definition state := (((list key * encryptionmap)* hashmap) * disk (set value))%type.
+  Definition state :=  disk (set value).
   
   Inductive prog : Type -> Type :=
   | Read : addr -> prog value
-  | Write : addr -> value -> prog unit
-  | GetKey : list value -> prog key
-  | Hash : hash -> value -> prog hash
-  | Encrypt : key -> value -> prog value
-  | Decrypt : key -> value -> prog value.
+  | Write : addr -> value -> prog unit.
    
   Inductive exec :
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
-      forall m d a v,
+      forall d a v,
         read d a = Some v ->
-        exec [Cont] (m, d) (Read a) (Finished (m, d) v)
+        exec [Cont] d (Read a) (Finished d v)
              
   | ExecWrite :
-      forall m d a v,
+      forall d a v,
         read d a <> None ->
-        exec [Cont] (m, d) (Write a v) (Finished (m, (write d a v)) tt)
-
-  | ExecHash : 
-      forall em hm d h v,
-        let hv := hash_function h v in
-        consistent hm hv (h, v) ->
-        exec [Cont] (em, hm, d) (Hash h v) (Finished (em, (upd hm hv (h, v)), d) hv)
-             
-  | ExecEncrypt : 
-      forall kl em hm d k v,
-        let ev := encrypt k v in
-        consistent em ev (k, v) ->
-        exec [Cont] (kl, em, hm, d) (Encrypt k v) (Finished (kl, (upd em ev (k, v)), hm, d) ev)
-
-  | ExecDecrypt : 
-      forall kl em hm d ev k v,
-        ev = encrypt k v ->
-        em ev = Some (k, v) ->
-        exec [Cont] (kl, em, hm, d) (Decrypt k ev) (Finished (kl, em, hm, d) v)
-
-  | ExecGetKey : 
-      forall vl kl em hm d k,
-        ~In k kl ->
-        consistent_with_upds em
-             (map (encrypt k) vl) (map (fun v => (k, v)) vl) ->
-        exec [Key k] (kl, em, hm, d) (GetKey vl) (Finished ((k::kl), em, hm, d) k)
+        exec [Cont] d (Write a v) (Finished (write d a v) tt)
  
   | ExecCrash :
       forall T d (p: prog T),
         exec [Crash] d p (Crashed d).
 
-  Hint Constructors exec.
+  Hint Constructors exec : core.
 
-  Fixpoint oracle_ok T (p: prog T) (o: oracle) (s: state) :=
-   match p with
-  | GetKey vl =>
-      (exists k, ~In k (fst(fst(fst s))) /\
-            @consistent_with_upds _ _ value_dec (snd(fst (fst s)))
-                (map (encrypt k) vl) (map (fun v => (k,v)) vl) /\
-            o = [Key k]) \/ o = [Crash]
-    | _ =>
-      o = [Cont] \/ o = [Crash]
-    end.
+  Definition weakest_precondition T (p: prog T) :=
+   match p in prog T' return (T' -> state -> Prop) -> oracle -> state -> Prop with
+   | Read a =>
+     (fun Q o s =>
+       exists v,
+         o = [Cont] /\
+         read s a = Some v /\
+         Q v s)
+   | Write a v =>
+     (fun Q o s =>
+       o = [Cont] /\
+       read s a <> None /\
+       Q tt (write s a v))
+   end.
 
+  Definition weakest_crash_precondition T (p: prog T) :=
+   fun (Q: state -> Prop) o (s: state) => o = [Crash] /\ Q s.
+
+  Theorem wp_complete:
+    forall T (p: prog T) H Q,
+      (forall o s, H o s -> weakest_precondition p Q o s) <->
+      (forall o s, H o s -> (exists s' v, exec o s p (Finished s' v) /\ Q v s')).
+  Proof.
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    specialize H0 with (1:= X);
+    cleanup; eauto;
+
+    inversion H0; cleanup; eauto.
+  Qed.
+  
+  Theorem wcp_complete:
+    forall T (p: prog T) H C,
+      (forall o s, H o s -> weakest_crash_precondition p C o s) <->
+      (forall o s, H o s -> (exists s', exec o s p (Crashed s') /\ C s')).
+  Proof.
+    unfold weakest_crash_precondition;
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    specialize H0 with (1:= X);
+    cleanup; eauto;
+
+    inversion H0; cleanup; eauto.
+  Qed.
 
   Theorem exec_deterministic_wrt_oracle :
     forall o s T (p: prog T) ret1 ret2,
@@ -96,35 +95,19 @@ Definition encryptionmap := @mem value value_dec (key * value).
         inversion H; clear H; cleanup
       end; eauto.
   Qed.
-
-  Theorem exec_then_oracle_ok:
-    forall T (p: prog T) o s r,
-      exec o s p r ->
-      oracle_ok p o s.
-  Proof.
-    intros; destruct p; simpl in *; cleanup;
-    repeat
-      match goal with
-      | [H: exec _ _ _ _ |- _] =>
-        inversion H; clear H; cleanup
-      end; eauto.
-  Qed.
   
-Module DiskOperation <: Operation.
-  Definition oracle := oracle.
-  Definition oracle_dec:= list_eq_dec token_dec.
-  Definition state := state.
-  Definition prog := prog.
-  Definition exec := exec.
-  Definition oracle_ok := oracle_ok.
-  Definition exec_deterministic_wrt_oracle :=
-    exec_deterministic_wrt_oracle.
-  Definition exec_then_oracle_ok :=
-    exec_then_oracle_ok.
-End DiskOperation.
-Module DiskHL := HoareLogic DiskOperation.
-Export DiskHL.
+  Definition DiskOperation :=
+    Build_Operation
+      (list_eq_dec token_dec)
+      prog
+      exec
+      weakest_precondition
+      weakest_crash_precondition
+      wp_complete
+      wcp_complete
+      exec_deterministic_wrt_oracle.
+  
+  Definition DiskLang := Build_Language DiskOperation.
+  Definition DiskHL := Build_HoareLogic DiskLang.
 
-Definition disk_layer_lts := Build_LTS DiskHL.Lang.oracle DiskHL.Lang.state DiskHL.Lang.prog DiskHL.Lang.exec.
-
-Notation "p >> s" := (p (snd s)) (right associativity, at level 60).
+Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).

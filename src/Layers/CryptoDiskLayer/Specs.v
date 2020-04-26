@@ -1,5 +1,5 @@
 (*
-Require Import Framework CacheLayer CryptoDiskLayer.
+Require Import Framework CryptoLayer DiskLayer.
 Require Import CryptoDiskLayer.Definitions.
 Close Scope pred_scope.
 Open Scope type_scope.

@@ -1,73 +1,72 @@
-Require Import Primitives Layer.Operation Layer.Language.
+Require Import Primitives Layer.Operation.
+Require Language.
 Import ListNotations.
 
 Set Implicit Arguments.
 
 Section HorizontalComposition.
   Variable O1 O2 : Operation.
-  Variable L1 : Language O1.
-  Variable L2 : Language O2.
   
   Inductive token' :=
-  | Oracle1 : L1.(oracle) -> token'
-  | Oracle2 : L2.(oracle) -> token'.
+  | Oracle1 : O1.(oracle) -> token'
+  | Oracle2 : O2.(oracle) -> token'.
 
   Definition oracle' := list token'.
 
   Definition token_dec: forall (t t': token'), {t = t'}+{t <> t'}.
    decide equality.
-   apply L1.(oracle_dec).
-   apply L2.(oracle_dec).
+   apply O1.(oracle_dec).
+   apply O2.(oracle_dec).
   Defined.
 
   Definition oracle_dec' := list_eq_dec token_dec.
-  Definition state' := (L1.(state) * L2.(state))%type.
+  Definition state' := (O1.(state) * O2.(state))%type.
 
   Inductive prog' : Type -> Type :=
-  | P1 : forall T, L1.(prog) T -> prog' T
-  | P2 : forall T, L2.(prog) T -> prog' T.
+  | P1 : forall T, O1.(prog) T -> prog' T
+  | P2 : forall T, O2.(prog) T -> prog' T.
 
 
   Inductive exec': forall T, oracle' -> state' -> prog' T -> @Result state' T -> Prop :=
   | ExecP1:
-      forall T (p1: L1.(prog) T) o1 s s1 r,
-        L1.(exec) o1 (fst s) p1 (Finished s1 r) ->
-        exec' [Oracle1 o1] s (P1 p1) (Finished (s1, snd s) r)
+      forall T (p1: O1.(prog) T) o1 s s1 r,
+        O1.(exec) o1 (fst s) p1 (Finished s1 r) ->
+        exec' [Oracle1 o1] s (P1 _ p1) (Finished (s1, snd s) r)
   | ExecP2:
-      forall T (p2: L2.(prog) T) o2 s s2 r,
-        L2.(exec) o2 (snd s) p2 (Finished s2 r) ->
-        exec' [Oracle2 o2] s (P2 p2) (Finished (fst s, s2) r)
+      forall T (p2: O2.(prog) T) o2 s s2 r,
+        O2.(exec) o2 (snd s) p2 (Finished s2 r) ->
+        exec' [Oracle2 o2] s (P2 _ p2) (Finished (fst s, s2) r)
   | ExecP1Crash:
-      forall T (p1: L1.(prog) T) o1 s s1,
-        L1.(exec) o1 (fst s) p1 (Crashed s1) ->
-        exec' [Oracle1 o1] s (P1 p1) (Crashed (s1, snd s))
+      forall T (p1: O1.(prog) T) o1 s s1,
+        O1.(exec) o1 (fst s) p1 (Crashed s1) ->
+        exec' [Oracle1 o1] s (P1 _ p1) (Crashed (s1, snd s))
   | ExecP2Crash:
-      forall T (p2: L2.(prog) T) o2 s s2,
-        L2.(exec) o2 (snd s) p2 (Crashed s2) ->
-        exec' [Oracle2 o2] s (P2 p2) (Crashed (fst s, s2)).
+      forall T (p2: O2.(prog) T) o2 s s2,
+        O2.(exec) o2 (snd s) p2 (Crashed s2) ->
+        exec' [Oracle2 o2] s (P2 _ p2) (Crashed (fst s, s2)).
   
   Definition weakest_precondition' T (p: prog' T) :=
     match p with
-    | P1 p1 =>
+    | P1 _ p1 =>
       fun Q o s =>
       exists o1,
-      o = [Oracle1 o1] /\ L1.(weakest_precondition) p1 (fun r s' => Q r (s', snd s)) o1 (fst s)
-    | P2 p2 =>
+      o = [Oracle1 o1] /\ O1.(weakest_precondition) p1 (fun r s' => Q r (s', snd s)) o1 (fst s)
+    | P2 _ p2 =>
       fun Q o s =>
       exists o2,
-      o = [Oracle2 o2] /\ L2.(weakest_precondition) p2 (fun r s' => Q r (fst s, s')) o2 (snd s)
+      o = [Oracle2 o2] /\ O2.(weakest_precondition) p2 (fun r s' => Q r (fst s, s')) o2 (snd s)
     end.
 
   Definition weakest_crash_precondition' T (p: prog' T) :=
     match p with
-    | P1 p1 =>
+    | P1 _ p1 =>
       fun Q o s =>
       exists o1,
-      o = [Oracle1 o1] /\ L1.(weakest_crash_precondition) p1 (fun s' => Q (s', snd s)) o1 (fst s)
-    | P2 p2 =>
+      o = [Oracle1 o1] /\ O1.(weakest_crash_precondition) p1 (fun s' => Q (s', snd s)) o1 (fst s)
+    | P2 _ p2 =>
       fun Q o s =>
       exists o2,
-      o = [Oracle2 o2] /\ L2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
+      o = [Oracle2 o2] /\ O2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
     end.
 
    Theorem wp_complete':
@@ -77,7 +76,7 @@ Section HorizontalComposition.
                 (exists s' v, exec' o s p (Finished s' v) /\ Q v s')).
    Proof.
      intros; destruct p; simpl.
-     {(* L1 *)
+     {(* O1 *)
        split; intros.
        - specialize H0 with (1:= X); cleanup.
          eapply wp_to_exec in H1; cleanup.
@@ -88,7 +87,7 @@ Section HorizontalComposition.
          eexists; split; eauto.
          eapply exec_to_wp; eauto.
      }
-     {(* L2 *)
+     {(* O2 *)
        split; intros.
        - specialize H0 with (1:= X); cleanup.
          eapply wp_to_exec in H1; cleanup.
@@ -99,8 +98,7 @@ Section HorizontalComposition.
          eexists; split; eauto.
          eapply exec_to_wp; eauto.
      }
-   Qed.
-       
+   Qed.       
      
    Theorem wcp_complete':
      forall T (p: prog' T) H C,
@@ -109,7 +107,7 @@ Section HorizontalComposition.
                (exists s', exec' o s p (Crashed s') /\ C s')).
    Proof.
      intros; destruct p; simpl.
-     {(* L1 *)
+     {(* O1 *)
        split; intros.
        - specialize H0 with (1:= X); cleanup.
          eapply wcp_to_exec in H1; cleanup.
@@ -120,7 +118,7 @@ Section HorizontalComposition.
          eexists; split; eauto.
          eapply exec_to_wcp; eauto.
      }
-     {(* L2 *)
+     {(* O2 *)
        split; intros.
        - specialize H0 with (1:= X); cleanup.
          eapply wcp_to_exec in H1; cleanup.
@@ -156,7 +154,33 @@ Section HorizontalComposition.
       wp_complete' wcp_complete'
       exec_deterministic_wrt_oracle'.
 
+Import Language.
+
+Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' _ T :=
+  match p1 with
+  | Op _ _ o1 =>
+    Op (HorizontalComposition) _ (P1 _ o1)
+  | Ret v =>
+    Ret v
+  | Bind px py =>
+    Bind (@lift_L1 L1 _ px) (fun x => @lift_L1 L1 _ (py x))
+  end.
+
+Fixpoint lift_L2 {L2: Language O2} {T} (p2 : L2.(prog) T) : prog' _ T :=
+  match p2 with
+  | Op _ _ o2 =>
+    Op HorizontalComposition _ (P2 _ o2)
+  | Ret v =>
+    Ret v
+  | Bind px py =>
+    Bind (@lift_L2 L2 _ px) (fun x => @lift_L2 L2 _ (py x))
+  end.
+
+  
 End HorizontalComposition.
 
-Arguments P1 {O1 O2 L1 L2 T}.
-Arguments P2 {O1 O2 L1 L2 T}.
+Arguments P1 {O1 O2 T}.
+Arguments P2 {O1 O2 T}.
+
+Notation "'<1|'  p >" := (P1 p)(right associativity, at level 60).
+Notation "'<2|'  p >" := (P2 p)(right associativity, at level 60).

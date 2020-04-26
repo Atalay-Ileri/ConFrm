@@ -18,7 +18,8 @@ Set Implicit Arguments.
   Inductive prog : Type -> Type :=
   | Read : addr -> prog (option value)
   | Write : addr -> value -> prog unit.
-   
+
+  
   Inductive exec :
     forall T, oracle ->  state -> prog T -> @Result state T -> Prop :=
   | ExecRead : 
@@ -33,10 +34,49 @@ Set Implicit Arguments.
       forall T d (p: prog T),
         exec [Crash] d p (Crashed d).
 
-  Hint Constructors exec.
+  Hint Constructors exec : core.
   
-  Fixpoint oracle_ok T (p: prog T) o (s: state) :=
-      o = [Cont] \/ o = [Crash].
+  Definition weakest_precondition T (p: prog T) :=
+   match p in prog T' return (T' -> state -> Prop) -> oracle -> state -> Prop with
+   | Read a =>
+     (fun Q o s =>
+        o = [Cont] /\
+        Q (s a) s)
+   | Write a v =>
+     (fun Q o s =>
+        o = [Cont] /\
+        Q tt (upd s a v))
+   end.
+
+  Definition weakest_crash_precondition T (p: prog T) :=
+   fun (Q: state -> Prop) o (s: state) => o = [Crash] /\ Q s.
+
+  Theorem wp_complete:
+    forall T (p: prog T) H Q,
+      (forall o s, H o s -> weakest_precondition p Q o s) <->
+      (forall o s, H o s -> (exists s' v, exec o s p (Finished s' v) /\ Q v s')).
+  Proof.
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    specialize H0 with (1:= X);
+    cleanup; eauto;
+
+    inversion H0; cleanup; eauto.
+  Qed.
+  
+  Theorem wcp_complete:
+    forall T (p: prog T) H C,
+      (forall o s, H o s -> weakest_crash_precondition p C o s) <->
+      (forall o s, H o s -> (exists s', exec o s p (Crashed s') /\ C s')).
+  Proof.
+    unfold weakest_crash_precondition;
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    specialize H0 with (1:= X);
+    cleanup; eauto;
+
+    inversion H0; cleanup; eauto.
+  Qed.
 
   Theorem exec_deterministic_wrt_oracle :
     forall o s T (p: prog T) ret1 ret2,
@@ -51,36 +91,19 @@ Set Implicit Arguments.
         inversion H; clear H; cleanup
       end; eauto.
   Qed.
-
-  Theorem exec_then_oracle_ok:
-    forall T (p: prog T) o s r,
-      exec o s p r ->
-      oracle_ok p o s.
-  Proof.
-    intros; destruct p; simpl in *; cleanup;
-    repeat
-      match goal with
-      | [H: exec _ _ _ _ |- _] =>
-        inversion H; clear H; cleanup
-      end; eauto.
-  Qed.
   
-Module CacheOperation <: Operation.
-  Definition oracle := oracle.
-  Definition oracle_dec:= list_eq_dec token_dec.
-  Definition state := state.
-  Definition prog := prog.
-  Definition exec := exec.
-  Definition oracle_ok := oracle_ok.
-  Definition exec_deterministic_wrt_oracle :=
-    exec_deterministic_wrt_oracle.
-  Definition exec_then_oracle_ok :=
-    exec_then_oracle_ok.
-End CacheOperation.
+  Definition CacheOperation :=
+    Build_Operation
+      (list_eq_dec token_dec)
+      prog
+      exec
+      weakest_precondition
+      weakest_crash_precondition
+      wp_complete
+      wcp_complete
+      exec_deterministic_wrt_oracle.
 
-Module CacheHL := HoareLogic CacheOperation.
-Export CacheHL.
-
-Definition cache_layer_lts := Build_LTS CacheHL.Lang.oracle CacheHL.Lang.state CacheHL.Lang.prog CacheHL.Lang.exec.
+  Definition CacheLang := Build_Language CacheOperation.
+  Definition CacheHL := Build_HoareLogic CacheLang.
 
 Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).

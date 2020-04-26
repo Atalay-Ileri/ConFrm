@@ -9,3 +9,4 @@
 *.coqdeps.d
 /\_build/
 /slf/
+/test.v

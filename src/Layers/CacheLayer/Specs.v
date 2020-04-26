@@ -1,10 +1,15 @@
+(*
 Require Import Framework.
 Require Import CacheLayer.Definitions.
 Open Scope pred_scope.
 
+Notation "| p |" := (Op CacheOperation _ p)(at level 60).
+
 Theorem read_ok_some:
   forall o s a v F,
-    << o, s >>
+    LANG: CacheLang
+    LOGIC: CacheHL
+    << o, s >>      
      PRE: (F * a |-> v >> s)
      PROG: (|Read a|)
     << r, s' >>
@@ -12,15 +17,18 @@ Theorem read_ok_some:
      CRASH: (F * a |-> v >> s').
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, hoare_triple'; intros.
   destruct_lift H; cleanup.
 
   split_ors.
   eapply ptsto_valid' in H0 as Hx;
   cleanup; eauto.
+
   
-  eexists; intuition eauto;
+  eexists; split.
+  eapply (ExecOp CacheOperation).
   repeat econstructor; intuition eauto.
+  left; do 2 eexists; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
 
   eexists; intuition eauto.
@@ -30,6 +38,8 @@ Qed.
 
 Theorem read_ok_none:
   forall o s a F,
+    LANG: CacheLang
+    LOGIC: CacheHL
     << o, s >>
      PRE: (F * [[s a = None]] >> s)
      PROG: (|Read a|)
@@ -38,12 +48,13 @@ Theorem read_ok_none:
      CRASH: (F >> s').
 Proof.
   intros.
-  unfold hoare_triple, any; intros.
+  unfold hoare_triple, hoare_triple'; intros.
   destruct_lift H; cleanup.
 
   split_ors.
   eexists; intuition eauto;
   repeat econstructor; intuition eauto.
+  repeat (econstructor; eauto).
   
   destruct_lifts; cleanup.
   eexists; intuition eauto.
@@ -53,6 +64,8 @@ Qed.
 
 Theorem read_ok:
   forall o s a F,
+    LANG: CacheLang
+    LOGIC: CacheHL
     << o, s >>
      PRE: (F >> s)
      PROG: (|Read a|)
@@ -61,11 +74,13 @@ Theorem read_ok:
      CRASH: (F >> s').
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, hoare_triple'; intros.
   destruct_lift H; cleanup.
   
   split_ors.
-  eexists; intuition eauto;
+  eexists; split.
+  eapply (ExecOp _);
+  econstructor.
   repeat econstructor; intuition eauto.
   simpl in *; pred_apply; cancel; eauto.
 
@@ -75,6 +90,8 @@ Qed.
 
 Theorem write_ok_some:
   forall o s a v v' F,
+    LANG: CacheLang
+    LOGIC: CacheHL
     << o, s >>
      PRE: (F * a |-> v >> s)
      PROG: (|Write a v'|)
@@ -83,13 +100,14 @@ Theorem write_ok_some:
      CRASH: (F * a |-> v >> s').
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, hoare_triple'; intros.
   destruct_lift H; cleanup.
   eapply ptsto_valid' in H0 as Hx;
   cleanup; eauto.
   
   split_ors.
-  eexists; intuition eauto;
+  eexists; split.
+  eapply (ExecOp _); econstructor.
   repeat econstructor; intuition eauto.
   eapply ptsto_upd'; eauto.
 
@@ -99,6 +117,8 @@ Qed.
 
 Theorem write_ok_none:
   forall o s a v' F,
+    LANG: CacheLang
+    LOGIC: CacheHL
     << o, s >>
      PRE: (F * [[s a = None]] >> s)
      PROG: (|Write a v'|)
@@ -107,11 +127,12 @@ Theorem write_ok_none:
      CRASH: (F >> s').
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, hoare_triple'; intros.
   destruct_lift H; cleanup.
   
   split_ors.
-  eexists; intuition eauto;
+  eexists; split.
+  eapply (ExecOp _); econstructor.
   repeat econstructor; intuition eauto.
   
   destruct_lifts;
@@ -124,6 +145,8 @@ Qed.
 
 Theorem write_ok:
   forall o s a v' F,
+    LANG: CacheLang
+    LOGIC: CacheHL
     << o, s >>
      PRE:
      (match s a with
@@ -140,10 +163,11 @@ Theorem write_ok:
       end >> s').
 Proof.
   intros.
-  unfold hoare_triple; intros.
+  unfold hoare_triple, hoare_triple'; intros.
   destruct_lift H; deex.
   
-  eexists; intuition eauto;
+  eexists; split.
+  eapply (ExecOp _); econstructor.
   repeat econstructor; intuition eauto.
   
   cleanup; eauto.  
@@ -154,5 +178,6 @@ Proof.
   repeat econstructor; intuition eauto.
 Qed.
 
-Hint Extern 1 (hoare_triple _ _ (|Read _|) _ _ _ _ _ _) => eapply read_ok : specs.
-Hint Extern 1 (hoare_triple _ _ (|Write _ _|) _ _ _ _ _ _) => eapply write_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (|Read _|) _ _ _ _ _ _) => eapply read_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (|Write _ _|) _ _ _ _ _ _) => eapply write_ok : specs.
+*)
