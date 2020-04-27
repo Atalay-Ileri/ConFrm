@@ -1,24 +1,10 @@
-Require Import Primitives DiskLayer.
+Require Import Framework.
+Require DiskLayer CryptoLayer.
 
-Fixpoint encrypt_all k vl :=
-  match vl with
-  | nil => Ret nil
-  | v::vl' =>
-    ev <-| Encrypt k v;
-    evl' <- encrypt_all k vl';
-    Ret (ev::evl')
-  end.
+Section DiskBatchOperations.
+  Import DiskLayer.
 
-Fixpoint decrypt_all k evl :=
-  match evl with
-  | nil => Ret nil
-  | ev::evl' =>
-    v <-| Decrypt k ev;
-    vl' <- decrypt_all k evl';
-    Ret (v::vl')
-  end.
-
-Fixpoint write_consecutive a vl :=
+  Fixpoint write_consecutive a vl :=
   match vl with
   | nil => Ret tt
   | v::vl' =>
@@ -27,12 +13,12 @@ Fixpoint write_consecutive a vl :=
     Ret tt
   end.
 
-Fixpoint read_consecutive a count:=
-  match count with
-  | 0 => Ret nil
-  | S count' =>
-    v <-| Read a;
-    vl <- read_consecutive (S a) count';
+  Fixpoint read_consecutive a count:=
+    match count with
+    | 0 => Ret nil
+    | S count' =>
+      v <-| Read a;
+      vl <- read_consecutive (S a) count';
     Ret (v::vl)
   end.
 
@@ -44,6 +30,28 @@ Fixpoint write_batch al vl :=
     Ret tt            
   | _, _ => Ret tt
   end.
+End DiskBatchOperations.
+
+Section CryptoBatchOperations.
+  Import CryptoLayer.
+  
+  Fixpoint encrypt_all k vl :=
+    match vl with
+    | nil => Ret nil
+    | v::vl' =>
+      ev <-| Encrypt k v;
+      evl' <- encrypt_all k vl';
+      Ret (ev::evl')
+  end.
+
+Fixpoint decrypt_all k evl :=
+  match evl with
+  | nil => Ret nil
+  | ev::evl' =>
+    v <-| Decrypt k ev;
+    vl' <- decrypt_all k evl';
+    Ret (v::vl')
+  end.
 
 Fixpoint hash_all h vl :=
   match vl with
@@ -53,4 +61,4 @@ Fixpoint hash_all h vl :=
     h'' <- hash_all h' vl';
     Ret h''
   end.
-
+End CryptoBatchOperations.

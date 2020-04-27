@@ -1,15 +1,16 @@
+(*
 Require Import Framework CacheLayer LoggedDiskLayer DiskLayer CachedDiskLayer.
 Require Import LogCache.Definitions LoggedDisk.Definitions.
 Open Scope pred_scope.
 
 Lemma oracle_ok_bind_split:
-  forall T T' (p1: prog T) (p2: T -> prog T') o s,
-    oracle_ok (x <- p1; p2 x) o s ->
+  forall O (L: Language O) T T' (p1: Language.prog L T) (p2: T -> Language.prog  L T') o s,
+    Language.oracle_ok L (x <- p1; p2 x) o s ->
     exists o1 o2,
       o = o1 ++ o2 /\
-      oracle_ok p1 o1 s /\
+      Language.oracle_ok L p1 o1 s /\
       (forall s' r,
-         exec o1 s p1 (Finished s' r) -> oracle_ok (p2 r) o2 s').
+         Language.exec L o1 s p1 (Finished s' r) -> Language.oracle_ok L (p2 r) o2 s').
 Proof.
   unfold oracle_ok in *; eauto.
 Qed.
@@ -18,6 +19,8 @@ Opaque oracle_ok.
 
 Theorem read_ok :
   forall d a vs disk_frame F o s,
+    LANG: CachedDiskLang
+    LOGIC: CachedDiskHL
     << o, s >>
       PRE: (cached_log_rep disk_frame d s /\
             (F * a |-> vs)%pred d)
@@ -27,13 +30,13 @@ Theorem read_ok :
              r = fst vs)
       CRASH: (cached_log_rep disk_frame d s')
       OPRE: True
-      OPOST: exists oh, oracle_refines_to _ s (LoggedDiskHL.Lang.Op (LoggedDisk.Read a)) o oh
-      OCRASH: exists oh, oracle_refines_to _ s (LoggedDiskHL.Lang.Op (LoggedDisk.Read a)) o oh
-.
+      OPOST: exists oh, oracle_refines_to _ s (Op LoggedDiskOperation _ (LoggedDisk.Read a)) o oh
+      OCRASH: exists oh, oracle_refines_to _ s (Op LoggedDiskOperation _ (LoggedDisk.Read a)) o oh.
 Proof.
-  unfold read; intros.  
+  unfold read; intros.
   step.
   {
+    intros.
     eapply p1_ok; eauto with specs.
     admit. (* TODO: Figure out oracle situation for p1_ok *)
     { simpl; eauto. }
@@ -41,7 +44,7 @@ Proof.
       eassign (fun s' => s' = (fst s)); simpl; eauto. }
     {
       simpl; intros; eauto.
-      eassign (fun r (s': state) => ((fun s'0 => s'0 = fst s) * [[r = fst s a]] * [[ s' = s ]]) (fst s')) .
+      eassign (fun r s' => ((fun s'0 => s'0 = fst s) * [[r = fst s a]] * [[ s' = s ]]) (fst s')) .
       simpl. pred_apply. cancel.
       intros m Hm; eauto.
       destruct s; simpl in *; destruct_lifts; eauto.
@@ -73,20 +76,24 @@ Proof.
 
   -
     step.
-    instantiate (5:= fun o p s => oracle_ok p o s).
+    instantiate (5:= fun o p s => Language.oracle_ok _ p o s).
     eapply p2_ok; eauto with specs.
     admit. (* TODO: Figure out oracle situation for p2_ok *)
-    { simpl; eauto. }
+    { simpl. (* instantiate (1:= o0). o0. intros; cleanup; eauto.
+      eexists; split; [|eauto].
+      eauto.
+      apply H9. *)
+      admit.
+    }
     {
       eassign (diskIs (mem_except (snd (snd s')) a)).
       simpl; intros; destruct_lifts; cleanup.
       unfold cached_log_rep in *; cleanup.
-      eassign (vs_cur, vs_old).      
-      
+      eassign (vs_1, vs_2).            
       admit. (* Solvable *) }
     {
       simpl; intros; eauto.
-      eassign (fun r (s'': state) =>
+      eassign (fun r s'' =>
                  cached_log_rep disk_frame d s'' /\
                  r = fst vs /\
                  s'' = s') .
@@ -95,7 +102,7 @@ Proof.
     }
     { instantiate (1:= fun _ _ _ _ => True); simpl; eauto. }
     { simpl.
-      eassign (fun (s'': state) =>cached_log_rep disk_frame d s'' /\ s'' = s').
+      eassign (fun s'' => cached_log_rep disk_frame d s'' /\ s'' = s').
       simpl; intros; destruct_lifts; cleanup.
       admit. (* Solvable *) }
   { instantiate (1:= fun _ _ _ => True); simpl; eauto. }
@@ -111,16 +118,28 @@ Proof.
     { simpl in *; intros; cleanup; eauto. }   
     eauto.
   -
-    instantiate (1:= fun o p s => oracle_ok p o s).
+    instantiate (2:= fun o p s => Language.oracle_ok _ p o s).
     cleanup; eauto.
+    do 2 eexists; repeat (split; intros; eauto).
+    unfold Language.oracle_ok in *; simpl; eauto.
+    eexists;  repeat (split; intros; eauto).
 
   - (* OPOST *)
     simpl; intros; cleanup.
     eexists; unfold read; split; eauto.
+    do 2 eexists; repeat (split; intros; eauto).
+    unfold Language.oracle_ok in *; simpl; eauto.
+    eexists;  repeat (split; intros; eauto).
 
   - (* OCRASH *)
     simpl; intros; cleanup.
     eexists; unfold read; split; eauto.
+    do 2 eexists; repeat (split; intros; eauto).
+    unfold Language.oracle_ok in *; simpl; eauto.
+    eexists;  repeat (split; intros; eauto).
+  Unshelve.
+  all: try exact CachedDiskLang.
+  exact nil.
 Admitted.
 
 Fixpoint map2 {A B C} (f: A -> B -> C) (la: list A) (lb : list B) :=
@@ -153,7 +172,7 @@ Proof.
   
   {
     step; simpl in *; intros;
-    repeat (cleanup; simpl in *).
+    repeat (cleanup; simpl in * ).
     -
       setoid_rewrite firstn_nil.
       setoid_rewrite skipn_nil.
@@ -230,3 +249,4 @@ Theorem write_ok :
               (skipn n al) |L> (skipn n vsl))%pred d' /\
              n <= length vl).
 Proof. Admitted.
+*)

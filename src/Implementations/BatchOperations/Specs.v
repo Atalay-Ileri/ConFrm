@@ -1,3 +1,4 @@
+(*
 Require Import Omega.
 Require Import Framework DiskLayer.
 Require Import BatchOperations.Definitions.
@@ -10,6 +11,8 @@ Theorem encrypt_all_ok :
     let kl := fst (fst (fst s)) in
     let em := snd (fst (fst s)) in
     let hm := snd (fst s) in
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
     PRE: (F * [[ consistent_with_upds em
              (map (encrypt k) vl) (map (fun v=> (k,v)) vl) ]] >> s)
@@ -74,6 +77,8 @@ Proof.
       cleanup; setoid_rewrite H14; simpl; eauto.
     }
   }
+  Unshelve.
+  all: exact DiskLang.
 Qed.
 
 Theorem decrypt_all_ok :
@@ -83,6 +88,8 @@ Theorem decrypt_all_ok :
     let hm := snd (fst s) in
     let kvl := get_all_existing em evl in
     let vl := map snd kvl in
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
     PRE: (F * [[ evl = map (encrypt k) vl ]] *
      [[ repeat k (length evl) = map fst kvl ]] >> s)
@@ -139,7 +146,7 @@ Proof.
     }
     
     {
-      unfold hoare_triple; intros.
+      eapply pre_impl_false; intros.
       destruct_lifts; cleanup.
       assert (A: length (a :: evl) =
         length (map (encrypt k)
@@ -151,6 +158,8 @@ Proof.
       omega.
     }
   }
+  Unshelve.
+  all: exact DiskLang.
 Qed.
 
 Theorem hash_all_ok :
@@ -160,6 +169,8 @@ Theorem hash_all_ok :
     let hm := snd (fst s) in
     let rhl := rolling_hash_list h vl in
     let hvl := hash_and_pair h vl in
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
     PRE: (F * [[ consistent_with_upds hm rhl hvl ]] >> s)
     PROG: (hash_all h vl)
@@ -218,10 +229,14 @@ Proof.
          setoid_rewrite H11; simpl; eauto.
        }
   }
+  Unshelve.
+  all: exact DiskLang.
 Qed.
 
 Theorem read_consecutive_ok :
   forall n start vl o s F,
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
       PRE: (F * start |=> vl *
       [[ length vl = n ]] >> s)
@@ -268,6 +283,8 @@ Qed. *)
 
 Theorem write_consecutive_ok :
   forall vl start vsl o s F,
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
       PRE: (F * start |=> vsl *
       [[ length vsl = length vl ]] >> s)
@@ -329,6 +346,8 @@ Qed. *)
 
 Theorem write_batch_ok :
   forall al vl vsl o s F,
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
       PRE: (F * al |L> vsl *
        [[ length vsl = length vl ]] *
@@ -388,9 +407,10 @@ Proof. Admitted. (*
   }
 Qed. *)
 
-Hint Extern 1 (hoare_triple _ _ (encrypt_all _ _) _ _ _ _ _ _) => eapply encrypt_all_ok : specs.
-Hint Extern 1 (hoare_triple _ _ (decrypt_all _ _) _ _ _ _ _ _) => eapply decrypt_all_ok : specs.
-Hint Extern 1 (hoare_triple _ _ (hash_all _ _) _ _ _ _ _ _) => eapply hash_all_ok : specs.
-Hint Extern 1 (hoare_triple _ _ (read_consecutive _ _) _ _ _ _ _ _) => eapply read_consecutive_ok : specs.
-Hint Extern 1 (hoare_triple _ _ (write_consecutive _) _ _ _ _ _ _) => eapply write_consecutive_ok : specs.
-Hint Extern 1 (hoare_triple _ _ (write_batch _ _) _ _ _ _ _ _) => eapply write_batch_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (encrypt_all _ _) _ _ _ _ _ _) => eapply encrypt_all_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (decrypt_all _ _) _ _ _ _ _ _) => eapply decrypt_all_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (hash_all _ _) _ _ _ _ _ _) => eapply hash_all_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (read_consecutive _ _) _ _ _ _ _ _) => eapply read_consecutive_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (write_consecutive _) _ _ _ _ _ _) => eapply write_consecutive_ok : specs.
+Hint Extern 1 (hoare_triple _ _ _ (write_batch _ _) _ _ _ _ _ _) => eapply write_batch_ok : specs.
+*)

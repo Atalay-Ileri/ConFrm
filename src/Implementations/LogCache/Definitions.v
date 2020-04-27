@@ -1,13 +1,12 @@
 Require Import Datatypes PeanoNat Framework Log.
-Require Import DiskLayer CacheLayer CachedDiskLayer.
-Import CachedDiskOperation CachedDiskHL.
+Require Import DiskLayer CacheLayer CryptoDiskLayer CachedDiskLayer.
 
 Axiom addr_list_to_blocks : list addr -> list value.
 
 Fixpoint write_batch al vl :=
   match al, vl with
   | a::al', v::vl' =>
-    _ <-| P1 (CacheHL.Lang.Op (Write a v));
+    _ <- |CDCO| Write a v;
     _ <- write_batch al' vl';
     Ret tt            
   | _, _ => Ret tt
@@ -15,16 +14,16 @@ Fixpoint write_batch al vl :=
 
 Definition write  addr_l (data_l: list value) :=
   _ <- write_batch addr_l data_l;
-  _ <-| P2 (commit (addr_list_to_blocks addr_l) data_l);
+  _ <- |CDDP| commit (addr_list_to_blocks addr_l) data_l;
   Ret tt.
 
 Definition read a :=
-  mv <-| P1 (CacheHL.Lang.Op (Read a));
+  mv <- |CDCO| Read a;
   match mv with
   | Some v =>
     Ret v
   | None =>
-    v <-| P2 (DiskHL.Lang.Op (DiskLayer.Definitions.Read a));
+    v <- |CDDP| |DO| DiskLayer.Definitions.Read a;
     Ret v
   end.
 
@@ -50,7 +49,7 @@ Definition merge {A AEQ V} (m1: @mem A AEQ V) (m2: @mem A AEQ (V * list V)) : @m
       end
     end.
 
-Definition cached_log_rep disk_frame (merged_disk: disk (set value)) (s: state) :=
+Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLang) :=
   exists hdr txns,
     fst s = txns_cache txns empty_mem /\
     (log_rep hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\

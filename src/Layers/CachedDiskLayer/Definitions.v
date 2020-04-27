@@ -8,5 +8,7 @@ Definition CachedDiskOperation :=  HorizontalComposition CacheOperation CryptoDi
 Definition CachedDiskLang := Build_Language CachedDiskOperation.
 Definition CachedDiskHL := Build_HoareLogic CachedDiskLang.
 
-Notation "| p |" := (Language.Op CachedDiskOperation _ p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op CachedDiskOperation _ p1) (fun x => p2))(right associativity, at level 60).
+Notation "'|CDCP|' p" := (@lift_L1 CacheOperation CryptoDiskOperation CacheLang _ p) (at level 59).
+Notation "'|CDDP|' p" := (@lift_L2 CacheOperation CryptoDiskOperation CryptoDiskLang _ p) (at level 59).
+Notation "'|CDCO|' p" := (@lift_L1 CacheOperation CryptoDiskOperation CacheLang _ (Op CacheOperation p)) (at level 59).
+Notation "'|CDDO|' p" := (@lift_L2 CacheOperation CryptoDiskOperation CryptoDiskLang _ (Op CryptoDiskOperation p)) (at level 59).

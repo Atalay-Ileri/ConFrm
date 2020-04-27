@@ -8,5 +8,9 @@ Definition CryptoDiskOperation :=  HorizontalComposition CryptoOperation DiskOpe
 Definition CryptoDiskLang := Build_Language CryptoDiskOperation.
 Definition CryptoDiskHL := Build_HoareLogic CryptoDiskLang.
 
-Notation "| p |" := (Language.Op CryptoDiskOperation _ p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op CryptoDiskOperation _ p1) (fun x => p2))(right associativity, at level 60).
+
+Notation "'|CP|' p" := (@lift_L1 CryptoOperation DiskOperation CryptoLang _ p) (at level 59).
+Notation "'|DP|' p" := (@lift_L2 CryptoOperation DiskOperation DiskLang _ p) (at level 59).
+Notation "'|CO|' p" := (@lift_L1 CryptoOperation DiskOperation CryptoLang _ (Op CryptoOperation p)) (at level 59).
+Notation "'|DO|' p" := (@lift_L2 CryptoOperation DiskOperation DiskLang _ (Op DiskOperation p)) (at level 59).   
+      

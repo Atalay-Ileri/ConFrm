@@ -156,10 +156,10 @@ Section HorizontalComposition.
 
 Import Language.
 
-Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' _ T :=
+Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' HorizontalComposition T :=
   match p1 with
-  | Op _ _ o1 =>
-    Op (HorizontalComposition) _ (P1 _ o1)
+  | Op _ o1 =>
+    Op HorizontalComposition (P1 _ o1)
   | Ret v =>
     Ret v
   | Bind px py =>
@@ -168,8 +168,8 @@ Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' _ T :=
 
 Fixpoint lift_L2 {L2: Language O2} {T} (p2 : L2.(prog) T) : prog' _ T :=
   match p2 with
-  | Op _ _ o2 =>
-    Op HorizontalComposition _ (P2 _ o2)
+  | Op _ o2 =>
+    Op HorizontalComposition (P2 _ o2)
   | Ret v =>
     Ret v
   | Bind px py =>

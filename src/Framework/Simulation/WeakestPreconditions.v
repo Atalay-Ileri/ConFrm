@@ -69,6 +69,19 @@ Definition wp_low_to_high {O1 O2} {low: Language O1} {high: Language O2}
      low.(exec) o1 s1 p1 (Finished s1' v) ->
      high.(weakest_precondition) p2 (fun r s => refines_to s1' s /\ r = v) o2 s2.
 
+Definition wp_low_to_high_prog {O1 O2} {low: Language O1} {high: Language O2}
+           (refines_to: low.(state) -> high.(state) -> Prop)
+           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
+           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop)
+           {T} (p2: high.(prog) T):=
+  forall o1 o2 s1 s2 s1' v p1,
+     low.(weakest_precondition) p1  (fun r s => exists s2', refines_to s s2' /\ r = v) o1 s1 ->
+     compilation_of T p1 p2 ->
+     refines_to s1 s2 ->
+     oracle_refines_to T s1 p2 o1 o2 ->
+     low.(exec) o1 s1 p1 (Finished s1' v) ->
+     high.(weakest_precondition) p2 (fun r s => refines_to s1' s /\ r = v) o2 s2.
+
 Definition wpc_low_to_high {O1 O2} {low: Language O1} {high: Language O2}
            (refines_to: low.(state) -> high.(state) -> Prop)
            (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
@@ -114,7 +127,7 @@ Section OperationToLanguageWP.
              T (p1: L1.(prog) T) (p2: L2.(prog) T) : Prop.
     destruct p2.
     (* Op *)
-    - exact (exists p1', p1 = Op _ _ p1' /\ compilation_of T p1' p).
+    - exact (exists p1', p1 = Op _ p1' /\ compilation_of T p1' p).
     (* Ret *)
     - exact (p1 = Ret t).
     (* Bind *)
@@ -130,7 +143,7 @@ Section OperationToLanguageWP.
                                      O1.(Operation.oracle) -> O2.(Operation.oracle) -> Prop)
            T (s1 : L1.(state)) (p2: L2.(prog) T) (o1 : L1.(oracle)) (o2: L2.(oracle)) : Prop :=
     match p2 with
-    | Op _ _ p2' =>
+    | Op _ p2' =>
       exists o1' o2',
       o1 = [OpOracle _ o1'] /\
       o2 = [OpOracle _ o2'] /\

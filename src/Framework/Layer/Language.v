@@ -332,10 +332,11 @@ Record Language :=
 End Language.
 
 Arguments Ret {O T}.
-Hint Extern 1 (Language.exec _ _ _ (Op _ _ _) (Finished _ _)) => eapply (ExecOp _) : core.
-Notation "| p |" := (Language.Op _ _ p)(at level 60).
+Arguments Op O {T}.
+Hint Extern 1 (Language.exec _ _ _ (Op _ _) (Finished _ _)) => eapply (ExecOp _) : core.
+Notation "| p |" := (Op _ p)(at level 60).
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op _ _ p1) (fun x => p2))(right associativity, at level 60).
+Notation "x <-| p1 ; p2" := (Bind (Op _ p1) (fun x => p2))(right associativity, at level 60).
 
   Local Ltac invert_exec'' H :=
   inversion H; subst; clear H; repeat sigT_eq.
@@ -345,7 +346,7 @@ Notation "x <-| p1 ; p2" := (Bind (Op _ _ p1) (fun x => p2))(right associativity
   | [ H: exec _ _ _ ?p _ |- _ ] =>
     match p with
     | Bind _ _ => idtac
-    | Op _ _ _ => invert_exec'' H
+    | Op _ _ => invert_exec'' H
     | Ret _ => invert_exec'' H
     end
   end.

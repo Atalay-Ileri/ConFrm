@@ -1,3 +1,4 @@
+(*
 Require Import Framework BatchOperations DiskLayer.
 Require Import Log.Definitions Log.LogParameters.
 Require Import Datatypes PeanoNat Omega.
@@ -395,6 +396,8 @@ Hint Extern 1 (hoare_triple _ read_header _ _ _ _ _ _ _) => eapply read_header_o
 
 Theorem apply_log_ok :
   forall hdr txns o s F,
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
     PRE: (F * log_rep hdr txns (fst s) >> s)
     PROG: (apply_log)
@@ -408,12 +411,13 @@ Theorem apply_log_ok :
          [[ fst s' = fst s ]]) >> s')%pred.
 Proof. Admitted.
 
-Hint Extern 1 (hoare_triple _ _ (apply_log) _ _ _ _ _ _) => eapply apply_log_ok : specs.
+Hint Extern 1 (hoare_triple' _ _ (apply_log) _ _ _ _ _ _) => eapply apply_log_ok : specs.
 
 Theorem commit_ok :
   forall hdr txns addr_l data_l o s F,
     let cur_count := cur_count hdr in
-    
+    LANG: DiskLang
+    LOGIC: DiskHL
     << o, s >>
       PRE: (F * log_rep hdr txns (fst s) >> s)
       PROG: (commit addr_l data_l)
@@ -510,7 +514,7 @@ Proof. Admitted. (*
 Abort.
                   *)
 
-Hint Extern 1 (hoare_triple _ _ (commit _ _) _ _ _ _ _ _) => eapply commit_ok : specs.
+Hint Extern 1 (hoare_triple' _ _ (commit _ _) _ _ _ _ _ _) => eapply commit_ok : specs.
 
 (*
 Theorem apply_txn_ok :
@@ -630,5 +634,6 @@ Proof. Abort. (*
 
       cleanup.
 Abort.
+*)
 *)
 *)
