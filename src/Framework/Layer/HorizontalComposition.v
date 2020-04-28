@@ -69,35 +69,44 @@ Section HorizontalComposition.
       o = [Oracle2 o2] /\ O2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
     end.
 
+  Definition strongest_postcondition' T (p: prog' T) :=
+    match p with
+    | P1 _ p1 =>
+      fun P t s' =>
+      O1.(strongest_postcondition) p1 (fun o s => P [Oracle1 o] (s, snd s')) t (fst s')
+    | P2 _ p2 =>
+      fun P t s' =>
+        O2.(strongest_postcondition) p2 (fun o s => P [Oracle2 o] (fst s', s)) t (snd s')
+    end.
+
+  Definition strongest_crash_postcondition' T (p: prog' T) :=
+    match p with
+    | P1 _ p1 =>
+      fun P s' =>
+      O1.(strongest_crash_postcondition) p1 (fun o s => P [Oracle1 o] (s, snd s')) (fst s')
+    | P2 _ p2 =>
+      fun P s' =>
+        O2.(strongest_crash_postcondition) p2 (fun o s => P [Oracle2 o] (fst s', s)) (snd s')
+    end.
+
    Theorem wp_complete':
       forall T (p: prog' T) H Q,
         (forall o s, H o s -> weakest_precondition' p Q o s) <->
         (forall o s, H o s ->
                 (exists s' v, exec' o s p (Finished s' v) /\ Q v s')).
    Proof.
-     intros; destruct p; simpl.
-     {(* O1 *)
-       split; intros.
-       - specialize H0 with (1:= X); cleanup.
-         eapply wp_to_exec in H1; cleanup.
-         do 2 eexists; split; eauto.
-         econstructor; eauto.
-       - specialize H0 with (1:= X); cleanup.
-         inversion H0; cleanup.
-         eexists; split; eauto.
-         eapply exec_to_wp; eauto.
-     }
-     {(* O2 *)
-       split; intros.
-       - specialize H0 with (1:= X); cleanup.
-         eapply wp_to_exec in H1; cleanup.
-         do 2 eexists; split; eauto.
-         econstructor; eauto.
-       - specialize H0 with (1:= X); cleanup.
-         inversion H0; cleanup.
-         eexists; split; eauto.
-         eapply exec_to_wp; eauto.
-     }
+     intros; destruct p; simpl;
+     split; intros;
+       try solve [
+         specialize H0 with (1:= X); cleanup;
+         eapply wp_to_exec in H1; cleanup;
+         do 2 eexists; split; eauto;
+         econstructor; eauto ];
+       try solve [
+         specialize H0 with (1:= X); cleanup;
+         inversion H0; cleanup;
+         eexists; split; eauto;
+         eapply exec_to_wp; eauto ].
    Qed.       
      
    Theorem wcp_complete':
@@ -106,37 +115,62 @@ Section HorizontalComposition.
        (forall o s, H o s ->
                (exists s', exec' o s p (Crashed s') /\ C s')).
    Proof.
-     intros; destruct p; simpl.
-     {(* O1 *)
-       split; intros.
-       - specialize H0 with (1:= X); cleanup.
-         eapply wcp_to_exec in H1; cleanup.
-         eexists; split; eauto.
-         econstructor; eauto.
-       - specialize H0 with (1:= X); cleanup.
-         inversion H0; cleanup.
-         eexists; split; eauto.
-         eapply exec_to_wcp; eauto.
-     }
-     {(* O2 *)
-       split; intros.
-       - specialize H0 with (1:= X); cleanup.
-         eapply wcp_to_exec in H1; cleanup.
-         eexists; split; eauto.
-         econstructor; eauto.
-       - specialize H0 with (1:= X); cleanup.
-         inversion H0; cleanup.
-         eexists; split; eauto.
-         eapply exec_to_wcp; eauto.
-     }
+     intros; destruct p; simpl;
+     split; intros;
+     try solve [
+         specialize H0 with (1:= X); cleanup;
+         eapply wcp_to_exec in H1; cleanup;
+         eexists; split; eauto;
+         econstructor; eauto ];
+     try solve [
+         specialize H0 with (1:= X); cleanup;
+         inversion H0; cleanup;
+         eexists; split; eauto;
+         eapply exec_to_wcp; eauto ].
    Qed.
-   
+
+   Theorem sp_complete':
+     forall T (p: prog' T) P (Q: T -> state' -> Prop),
+       (forall t s', strongest_postcondition' p P t s' -> Q t s') <->
+       (forall o s s' t, P o s -> exec' o s p (Finished s' t) -> Q t s').
+   Proof.
+     intros; destruct p; simpl;
+     split; intros;
+     try solve [
+           inversion H1; cleanup;
+           eapply H;
+           eapply exec_to_sp; simpl; eauto;
+           destruct s; simpl in *; eauto ];
+     try solve [
+           eapply sp_to_exec in H0; cleanup;
+           eapply H; eauto;
+           destruct s'; simpl in *; econstructor; eauto ].
+   Qed.    
+
+   Theorem scp_complete':
+     forall T (p: prog' T) P (C: state' -> Prop),
+       (forall s', strongest_crash_postcondition' p P s' -> C s') <->
+       (forall o s s', P o s -> exec' o s p (Crashed s') ->  C s').
+Proof.
+     intros; destruct p; simpl;
+     split; intros;
+     try solve [
+           inversion H1; cleanup;
+           eapply H;
+           eapply exec_to_scp; simpl; eauto;
+           destruct s; simpl in *; eauto ];
+     try solve [
+           eapply scp_to_exec in H0; cleanup;
+           eapply H; eauto;
+           destruct s'; simpl in *; econstructor; eauto ].
+Qed.
   
-  Definition exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_oracle' :
     forall o s T (p: prog' T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
       ret1 = ret2.
+  Proof.
     intros; destruct p; simpl in *;
     inversion H; inversion H0;
     sigT_eq; clear H H0; cleanup;
@@ -151,7 +185,10 @@ Section HorizontalComposition.
       oracle_dec' prog' exec'
       weakest_precondition'
       weakest_crash_precondition'
+      strongest_postcondition'
+      strongest_crash_postcondition'
       wp_complete' wcp_complete'
+      sp_complete' scp_complete'
       exec_deterministic_wrt_oracle'.
 
 Import Language.

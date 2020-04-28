@@ -99,8 +99,75 @@ Section Language.
     | Ret v =>
       fun Q o s =>
         o = [Crash] /\ Q s
-    end.
+      end.
 
+  Fixpoint strongest_postcondition' T (p: prog' T) :=    
+      match p with
+    | Bind p1 p2 =>
+      fun P t s' => 
+      exists t1,
+        strongest_postcondition' (p2 t1)
+           (fun o2 sx => strongest_postcondition' p1 (fun o1 s => P(o1++o2) s) t1 sx) t s'
+    | Op T' p' =>
+      fun P t s => 
+      O.(strongest_postcondition) p' (fun o s' => P [OpOracle o] s') t s
+    | Ret v =>
+      fun P t s =>
+        P [Cont] s /\ t = v
+      end.
+
+  Fixpoint strongest_crash_postcondition' T (p: prog' T) :=    
+      match p with
+    | Bind p1 p2 =>
+      fun P s' =>
+        strongest_crash_postcondition' p1 (fun o1 s => exists o2, P (o1++o2) s) s' \/
+        (exists t1,
+           strongest_crash_postcondition' (p2 t1)
+           (fun o2 sx => strongest_postcondition' p1 (fun o1 s => P(o1++o2) s) t1 sx) s')
+    | Op T' p' =>
+      fun P s => 
+      O.(strongest_crash_postcondition) p' (fun o s' => P [OpOracle o] s') s
+    | Ret v =>
+      fun P s =>
+        P [Crash] s
+      end.
+
+(*
+  Fixpoint strongest_crash_postcondition' T (p: prog' T) :=    
+      match p with
+    | Bind p1 p2 =>
+      fun P s =>
+      forall o t1 s1 (P1: _ -> _ -> Prop),   
+      (strongest_crash_postcondition' p1 P t1 s1 -> P1 o s1) ->
+      strongest_crash_postcondition' (p2 t1) P1 t s
+    | Op T' p' =>
+      fun P t s =>
+      O.(strongest_postcondition) p' (fun o s' => P [OpOracle o] s') t s
+    | Ret v =>
+      fun P t s =>
+        P [Cont] s /\ t = v
+      end.
+
+  Fixpoint weakest_crash_precondition' T (p: prog' T) :=    
+      match p with
+    | Bind p1 p2 =>
+      fun Q (o: oracle') s =>
+        exists o1 o2,
+          o = o1++o2 /\
+          (weakest_crash_precondition' p1 Q o1 s \/
+           (exists s' r,
+              exec' o1 s p1 (Finished s' r) /\
+              weakest_crash_precondition' (p2 r) Q o2 s'))
+    | Op T' p' =>
+      fun Q o s =>
+        exists o',
+      o = [OpOracle o'] /\
+      O.(weakest_crash_precondition) p' Q o' s
+    | Ret v =>
+      fun Q o s =>
+        o = [Crash] /\ Q s
+    end.
+*)
   Hint Constructors exec' : core.
 
   (* Automation *)
@@ -326,7 +393,9 @@ Record Language :=
     prog := prog';
     exec := exec';
     weakest_precondition := weakest_precondition';
-    weakest_crash_precondition := weakest_crash_precondition'
+    weakest_crash_precondition := weakest_crash_precondition';
+    strongest_postcondition := strongest_postcondition';
+    strongest_crash_postcondition := strongest_crash_postcondition';
   }.
 
 End Language.
@@ -494,6 +563,113 @@ Proof.
 Qed.
 
 
+
+Lemma sp_complete :
+  forall O (L: Language O) T (p: L.(prog) T) P (Q: T -> L.(state) -> Prop),
+    (forall t s', L.(strongest_postcondition) p P t s' -> Q t s') <->
+        (forall o s s' t, P o s -> L.(exec) o s p (Finished s' t) ->  Q t s').
+Proof.
+  induction p; intros.
+  { (* Op *)
+    simpl; split; intros.
+    - invert_exec.      
+      eapply H.
+      eapply exec_to_sp; eauto.
+    - eapply sp_to_exec in H0; cleanup; eauto.
+  }
+  {(* Ret *)
+    simpl; split; intros.
+    - invert_exec; eauto.
+    - cleanup.
+      eapply H; eauto.
+      constructor.
+  }
+  {(*Bind*)
+    simpl in *; split; intros.
+    - invert_exec.
+      eapply H0; intros.
+      exists x2.
+      edestruct H.
+      eapply H4; simpl in *; eauto.
+      simpl; intuition.
+      edestruct IHp.
+      eapply H6; simpl in *; eauto.
+      simpl; eauto.
+
+    - cleanup.
+      edestruct H.
+      eapply H3 in H1; intros; eauto; cleanup.
+      edestruct IHp.
+      eapply H7 in H4.
+      instantiate (1:= fun t1 s'1 => exists o0 s0, P (o0++o) s0 /\ exec L o0 s0 p (Finished s'1 t1)) in H4;
+      simpl in *; cleanup.
+      eapply H0; eauto.
+      econstructor; eauto.
+      simpl; intros; eauto.
+  }
+Qed.
+
+Theorem scp_complete:
+  forall O (L: Language O) T (p: L.(prog) T) P (C: L.(state) -> Prop),
+    (forall s', L.(strongest_crash_postcondition) p P s' -> C s') <->
+    (forall o s s', P o s -> L.(exec) o s p (Crashed s') ->  C s').
+Proof.
+  induction p; intros.
+  { (* Op *)
+    simpl; split; intros.
+    - invert_exec.      
+      eapply H.
+      eapply exec_to_scp; eauto.
+    - eapply scp_to_exec in H0; cleanup; eauto.
+      eapply H; eauto.
+      constructor; eauto.
+  }
+  {(* Ret *)
+    simpl; split; intros.
+    - invert_exec; eauto.
+    - cleanup.
+      eapply H; eauto.
+      constructor.
+  }
+  {(*Bind*)
+    simpl in *; split; intros.
+    - invert_exec.
+      split_ors; cleanup;
+      eapply H0; intros.
+      + left.
+        edestruct IHp.
+        eapply H3; simpl in *; eauto.
+        simpl; eauto.
+      + right.        
+        exists x2.
+        edestruct H.
+        eapply H4; simpl in *; eauto.
+        simpl; intuition.
+        edestruct sp_complete.
+        eapply H6; simpl in *; eauto.
+        simpl; eauto.
+
+    - split_ors; cleanup.
+      +
+        edestruct IHp.
+        eapply H3; eauto.
+        simpl; intros; cleanup.        
+        eapply H0; eauto.
+        constructor; eauto.
+
+      + edestruct H.
+        eapply H3; eauto.
+        simpl; intros; cleanup.
+        edestruct sp_complete.
+        eapply H7 in H4.
+        instantiate (1:= fun t1 s'1 => exists o0 s0, P (o0++o) s0 /\ exec L o0 s0 p (Finished s'1 t1)) in H4;
+        simpl in *; cleanup.
+        eapply H0; eauto.
+        econstructor; eauto.
+      simpl; intros; eauto.
+  }
+Qed.
+
 Lemma wp_to_exec:
   forall O (L: Language O) T (p: prog L T) Q o s,
     weakest_precondition L p Q o s -> (exists s' v, exec L o s p (Finished s' v) /\ Q v s').
@@ -531,6 +707,47 @@ Proof.
   apply X.
   simpl; eauto.
 Qed.
+
+Lemma sp_to_exec:
+  forall O (L: Language O) T (p: prog L T) P t s',
+    strongest_postcondition L p P t s' -> (exists o s, exec L o s p (Finished s' t) /\ P o s).
+Proof.
+  intros. edestruct sp_complete; eauto.
+  instantiate (1:= fun t s' => exists o s, exec L o s p (Finished s' t) /\ P o s) in H1;
+  simpl in *.
+  eapply H1; intros; eauto.
+Qed.
+
+Lemma exec_to_sp:
+  forall O (L: Language O) T (p: prog L T) (P: oracle L -> state L -> Prop) o s s' v,
+    P o s ->
+    exec L o s p (Finished s' v) ->
+    strongest_postcondition L p P v s'.
+Proof.
+  intros. edestruct sp_complete; eauto.
+  eapply H2; eauto.
+Qed.
+
+Lemma scp_to_exec:
+  forall O (L: Language O) T (p: L.(prog) T) P s',
+    strongest_crash_postcondition L p P s' -> (exists o s, exec L o s p (Crashed s') /\ P o s).
+Proof.
+  intros. edestruct scp_complete; eauto.
+  instantiate (1:= fun s' => exists o s, exec L o s p (Crashed s') /\ P o s) in H1;
+  simpl in *.
+  eapply H1; intros; eauto.
+Qed.
+  
+Lemma exec_to_scp:
+  forall O (L: Language O) T (p: L.(prog) T) (P: oracle L -> state L -> Prop) o s s',
+    P o s ->
+    exec L o s p (Crashed s') ->
+    strongest_crash_postcondition L p P s'.
+Proof.
+  intros. edestruct scp_complete; eauto.
+  eapply H2; eauto.
+Qed.
+
 
   (* Facts *)
 
