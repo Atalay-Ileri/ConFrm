@@ -53,7 +53,53 @@ Set Implicit Arguments.
    end.
 
   Definition weakest_crash_precondition' T (p: prog' T) :=
-   fun (Q: state' -> Prop) o (s: state') => o = [Crash] /\ Q s.
+    fun (Q: state' -> Prop) o (s: state') => o = [Crash] /\ Q s.
+
+  Definition strongest_postcondition' T (p: prog' T) :=
+   match p in prog' T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+   | Read a =>
+     fun P t s' =>
+       exists s v,
+         P [Cont] s /\
+         s' = s /\
+         read s a = Some v /\
+         t = v
+   | Write a v =>
+     fun P t s' =>
+       exists s,
+         P [Cont] s /\
+         s' = (write s a v) /\
+         read s a <> None /\
+         t = tt
+   end.
+
+  Definition strongest_crash_postcondition' T (p: prog' T) :=
+    fun (P: oracle' -> state' -> Prop) s' => P [Crash] s'.
+
+
+  Theorem sp_complete':
+    forall T (p: prog' T) P (Q: _ -> _ -> Prop),
+      (forall t s', strongest_postcondition' p P t s' -> Q t s') <->
+      (forall o s s' t, P o s -> exec' o s p (Finished s' t) -> Q t s').
+  Proof.
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    try inversion H1; cleanup;
+    eapply H; eauto.
+    eexists; eauto.
+  Qed.
+
+  Theorem scp_complete':
+    forall T (p: prog' T) P (Q:  _ -> Prop),
+      (forall s', strongest_crash_postcondition' p P s' -> Q s') <->
+      (forall o s s', P o s -> exec' o s p (Crashed s') -> Q s').
+  Proof.
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    try inversion H1; cleanup;
+    eapply H; eauto.
+  Qed.
+
 
   Theorem wp_complete':
     forall T (p: prog' T) H Q,
@@ -64,7 +110,6 @@ Set Implicit Arguments.
     split; intros;
     specialize H0 with (1:= X);
     cleanup; eauto;
-
     inversion H0; cleanup; eauto.
   Qed.
   
@@ -78,7 +123,6 @@ Set Implicit Arguments.
     split; intros;
     specialize H0 with (1:= X);
     cleanup; eauto;
-
     inversion H0; cleanup; eauto.
   Qed.
 
@@ -103,8 +147,12 @@ Set Implicit Arguments.
       exec'
       weakest_precondition'
       weakest_crash_precondition'
+      strongest_postcondition'
+      strongest_crash_postcondition'
       wp_complete'
       wcp_complete'
+      sp_complete'
+      scp_complete'
       exec_deterministic_wrt_oracle'.
   
   Definition DiskLang := Build_Language DiskOperation.

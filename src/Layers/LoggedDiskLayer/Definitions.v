@@ -71,7 +71,60 @@ Set Implicit Arguments.
         Q s) \/
        (o = [CrashAfter] /\
         Q (write_all s la lv)))
+    end.
+
+  Definition strongest_postcondition' T (p: prog' T) :=
+   match p in prog' T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+   | Read a =>
+     fun P t s' =>
+       exists s v,
+         P [Cont] s /\
+         read s a = Some v /\
+         t = v /\
+         s' = s
+   | Write la lv =>
+     fun P t s' =>
+       exists s,
+       P [Cont] s /\
+       t = tt /\
+       s' = write_all s la lv
    end.
+
+  Definition strongest_crash_postcondition' T (p: prog' T) :=
+    match p in prog' T' return (oracle' -> state' -> Prop) -> state' -> Prop with
+   | Read a =>
+     fun P s' =>
+       P [CrashBefore] s'
+   | Write la lv =>
+     fun P s' =>
+       (P [CrashBefore] s') \/
+       (exists s,
+          P [CrashAfter] s /\
+          s' = write_all s la lv)
+    end.
+  
+  Theorem sp_complete':
+    forall T (p: prog' T) P (Q: _ -> _ -> Prop),
+      (forall t s', strongest_postcondition' p P t s' -> Q t s') <->
+      (forall o s s' t, P o s -> exec' o s p (Finished s' t) -> Q t s').
+  Proof.
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    try inversion H1; cleanup;
+    eapply H; eauto;
+    do 2 eexists; eauto.    
+  Qed.
+
+  Theorem scp_complete':
+    forall T (p: prog' T) P (Q:  _ -> Prop),
+      (forall s', strongest_crash_postcondition' p P s' -> Q s') <->
+      (forall o s s', P o s -> exec' o s p (Crashed s') -> Q s').
+  Proof.
+    intros; destruct p; simpl; eauto;
+    split; intros;
+    try inversion H1; cleanup;
+    try split_ors; eapply H; eauto.
+  Qed.
 
   Theorem wp_complete':
     forall T (p: prog' T) H Q,
@@ -82,7 +135,6 @@ Set Implicit Arguments.
     split; intros;
     specialize H0 with (1:= X);
     cleanup; eauto;
-
     inversion H0; cleanup; eauto.
   Qed.
   
@@ -96,7 +148,6 @@ Set Implicit Arguments.
     split; intros;
     specialize H0 with (1:= X);
     cleanup; eauto;
-
     inversion H0; cleanup; eauto.
   Qed.
 
@@ -121,8 +172,12 @@ Set Implicit Arguments.
       exec'
       weakest_precondition'
       weakest_crash_precondition'
+      strongest_postcondition'
+      strongest_crash_postcondition'
       wp_complete'
       wcp_complete'
+      sp_complete'
+      scp_complete'
       exec_deterministic_wrt_oracle'.
 
   Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
