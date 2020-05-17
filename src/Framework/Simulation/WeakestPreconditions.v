@@ -56,69 +56,335 @@ Definition wpc_high_to_low_op {low high: Operation}
 End OperationWP.
 
 Section LanguageWP.
+  Variable OL OH: Operation.
+  Variable LL: Language OL.
+  Variable LH: Language OH.
+  Variable R: Refinement LL LH.
 
-Definition wp_low_to_high {O1 O2} {low: Language O1} {high: Language O2}
-           (refines_to: low.(state) -> high.(state) -> Prop)
-           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
-           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop) :=
-  forall T o1 o2 s1 s2 s1' v p1 p2,
-     low.(weakest_precondition) p1  (fun r s => exists s2', refines_to s s2' /\ r = v) o1 s1 ->
-     compilation_of T p1 p2 ->
-     refines_to s1 s2 ->
-     oracle_refines_to T s1 p2 o1 o2 ->
-     low.(exec) o1 s1 p1 (Finished s1' v) ->
-     high.(weakest_precondition) p2 (fun r s => refines_to s1' s /\ r = v) o2 s2.
-
-Definition wp_low_to_high_prog {O1 O2} {low: Language O1} {high: Language O2}
-           (refines_to: low.(state) -> high.(state) -> Prop)
-           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
-           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop)
-           {T} (p2: high.(prog) T):=
+  
+(* Per prog ones *)
+Definition wp_low_to_high_prog' T (p2: LH.(prog) T) :=
   forall o1 o2 s1 s2 s1' v p1,
-     low.(weakest_precondition) p1  (fun r s => exists s2', refines_to s s2' /\ r = v) o1 s1 ->
-     compilation_of T p1 p2 ->
-     refines_to s1 s2 ->
-     oracle_refines_to T s1 p2 o1 o2 ->
-     low.(exec) o1 s1 p1 (Finished s1' v) ->
-     high.(weakest_precondition) p2 (fun r s => refines_to s1' s /\ r = v) o2 s2.
+     LL.(weakest_precondition) p1  (fun r s => exists s2', R.(refines_to) s s2' /\ r = v) o1 s1 ->
+     R.(compilation_of) p1 p2 ->
+     R.(refines_to) s1 s2 ->
+     R.(oracle_refines_to) s1 p2 o1 o2 ->
+     LL.(exec) o1 s1 p1 (Finished s1' v) ->
+     LH.(weakest_precondition) p2 (fun r s => R.(refines_to) s1' s /\ r = v) o2 s2.
 
-Definition wpc_low_to_high {O1 O2} {low: Language O1} {high: Language O2}
-           (refines_to: low.(state) -> high.(state) -> Prop)
-           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
-           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop) :=
-  forall T o1 o2 s1 s2 s1' p1 p2,
-     low.(weakest_crash_precondition) p1 (fun s => exists s2', refines_to s s2') o1 s1 ->
-     compilation_of T p1 p2 ->
-     refines_to s1 s2 ->
-     oracle_refines_to T s1 p2 o1 o2 ->
-     low.(exec) o1 s1 p1 (Crashed s1') ->
-     high.(weakest_crash_precondition) p2 (fun s => refines_to s1' s) o2 s2.
+Definition wp_high_to_low_prog' T (p2: LH.(prog) T) :=
+  forall o1 o2 s1 s2 s2' v p1,
+     LH.(weakest_precondition) p2 (fun r s => exists s1', R.(refines_to) s1' s /\ r = v) o2 s2 ->
+     R.(compilation_of) p1 p2 ->
+     R.(refines_to) s1 s2 ->
+     R.(oracle_refines_to) s1 p2 o1 o2 ->
+     LH.(exec) o2 s2 p2 (Finished s2' v) ->
+     LL.(weakest_precondition) p1 (fun r s => R.(refines_to) s s2' /\ r = v) o1 s1.
 
-Definition wp_high_to_low {O1 O2} {low: Language O1} {high: Language O2}
-           (refines_to: low.(state) -> high.(state) -> Prop)
-           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
-           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop) :=
-  forall T o1 o2 s1 s2 s2' v p1 p2,
-     high.(weakest_precondition) p2 (fun r s => exists s1', refines_to s1' s /\ r = v) o2 s2 ->
-     compilation_of T p1 p2 ->
-     refines_to s1 s2 ->
-     oracle_refines_to T s1 p2 o1 o2 ->
-     high.(exec) o2 s2 p2 (Finished s2' v) ->
-     low.(weakest_precondition) p1 (fun r s => refines_to s s2' /\ r = v) o1 s1.
+Definition wcp_low_to_high_prog' T (p2: LH.(prog) T) :=
+  forall o1 o2 s1 s2 s1' p1,
+     LL.(weakest_crash_precondition) p1 (fun s => exists s2', R.(refines_to) s s2') o1 s1 ->
+     R.(compilation_of) p1 p2 ->
+     R.(refines_to) s1 s2 ->
+     R.(oracle_refines_to) s1 p2 o1 o2 ->
+     LL.(exec) o1 s1 p1 (Crashed s1') ->
+     LH.(weakest_crash_precondition) p2 (fun s => R.(refines_to) s1' s) o2 s2.
 
-Definition wpc_high_to_low {O1 O2} {low: Language O1} {high: Language O2}
-           (refines_to: low.(state) -> high.(state) -> Prop)
-           (compilation_of: forall T, low.(prog) T -> high.(prog) T -> Prop)
-           (oracle_refines_to : forall T, low.(state) -> high.(prog) T -> low.(oracle) -> high.(oracle) -> Prop) :=
-  forall T o1 o2 s1 s2 s2' p1 p2,
-    high.(weakest_crash_precondition) p2 (fun s => exists s1', refines_to s1' s) o2 s2 ->
-    compilation_of T p1 p2 ->
-    refines_to s1 s2 ->
-    oracle_refines_to T s1 p2 o1 o2 ->
-    high.(exec) o2 s2 p2 (Crashed s2') ->
-    low.(weakest_crash_precondition) p1 (fun s => refines_to s s2') o1 s1.
+Definition wcp_high_to_low_prog' T (p2: LH.(prog) T) :=
+  forall o1 o2 s1 s2 s2' p1,
+    LH.(weakest_crash_precondition) p2 (fun s => exists s1', R.(refines_to) s1' s) o2 s2 ->
+    R.(compilation_of) p1 p2 ->
+    R.(refines_to) s1 s2 ->
+    R.(oracle_refines_to) s1 p2 o1 o2 ->
+    LH.(exec) o2 s2 p2 (Crashed s2') ->
+    LL.(weakest_crash_precondition) p1 (fun s => R.(refines_to) s s2') o1 s1.
 
+
+(* General Ones *)
+Definition wp_low_to_high' :=
+  forall T o1 o2 s1 s2 s1' v (p1: LL.(prog) T) p2,
+     LL.(weakest_precondition) p1  (fun r s => exists s2', R.(refines_to) s s2' /\ r = v) o1 s1 ->
+     R.(compilation_of) p1 p2 ->
+     R.(refines_to) s1 s2 ->
+     R.(oracle_refines_to) s1 p2 o1 o2 ->
+     LL.(exec) o1 s1 p1 (Finished s1' v) ->
+     LH.(weakest_precondition) p2 (fun r s => R.(refines_to) s1' s /\ r = v) o2 s2.
+
+Definition wp_high_to_low' :=
+  forall T o1 o2 s1 s2 s2' v (p1: LL.(prog) T) p2,
+     LH.(weakest_precondition) p2 (fun r s => exists s1', R.(refines_to) s1' s /\ r = v) o2 s2 ->
+     R.(compilation_of) p1 p2 ->
+     R.(refines_to) s1 s2 ->
+     R.(oracle_refines_to) s1 p2 o1 o2 ->
+     LH.(exec) o2 s2 p2 (Finished s2' v) ->
+     LL.(weakest_precondition) p1 (fun r s => R.(refines_to) s s2' /\ r = v) o1 s1.
+
+Definition wcp_low_to_high'  :=
+  forall T o1 o2 s1 s2 s1' (p1: LL.(prog) T) p2,
+     LL.(weakest_crash_precondition) p1 (fun s => exists s2', R.(refines_to) s s2') o1 s1 ->
+     R.(compilation_of) p1 p2 ->
+     R.(refines_to) s1 s2 ->
+     R.(oracle_refines_to) s1 p2 o1 o2 ->
+     LL.(exec) o1 s1 p1 (Crashed s1') ->
+     LH.(weakest_crash_precondition) p2 (fun s => R.(refines_to) s1' s) o2 s2.
+
+Definition wcp_high_to_low'  :=
+  forall T o1 o2 s1 s2 s2' (p1: LL.(prog) T) p2,
+    LH.(weakest_crash_precondition) p2 (fun s => exists s1', R.(refines_to) s1' s) o2 s2 ->
+    R.(compilation_of) p1 p2 ->
+    R.(refines_to) s1 s2 ->
+    R.(oracle_refines_to) s1 p2 o1 o2 ->
+    LH.(exec) o2 s2 p2 (Crashed s2') ->
+    LL.(weakest_crash_precondition) p1 (fun s => R.(refines_to) s s2') o1 s1.
+
+Definition exec_preserves_refinement :=
+    forall T (p: LH.(prog) T) o2 s2 ret,
+      (exists s1, R.(refines_to) s1 s2) ->
+      LH.(exec) o2 s2 p ret ->
+      (exists s1', R.(refines_to) s1' (extract_state ret)).
+
+Definition exec_compiled_preserves_refinement  :=
+    forall T (p1: LL.(prog) T) (p2: LH.(prog) T) o1 s1 ret,
+      R.(compilation_of) p1 p2 ->
+      (exists s2, R.(refines_to) s1 s2) ->
+      LL.(exec) o1 s1 p1 ret ->
+      (exists s2', R.(refines_to) (extract_state ret) s2').
+
+Record WP_Bisimulation_prog T p2:=
+  {
+    wp_low_to_high_prog : wp_low_to_high_prog' T p2;
+    wp_high_to_low_prog : wp_high_to_low_prog' T p2;
+    wcp_low_to_high_prog : wcp_low_to_high_prog' T p2;
+    wcp_high_to_low_prog : wcp_high_to_low_prog' T p2;
+  }.
+
+Record WP_Bisimulation :=
+  {
+    wp_low_to_high : wp_low_to_high';
+    wp_high_to_low : wp_high_to_low';
+    wcp_low_to_high : wcp_low_to_high';
+    wcp_high_to_low : wcp_high_to_low';
+  }.
 End LanguageWP.
+
+Arguments WP_Bisimulation_prog {_ _ _ _} _ {_}.
+Arguments WP_Bisimulation {_ _ _ _}.
+Arguments exec_preserves_refinement {_ _ _ _}.
+Arguments exec_compiled_preserves_refinement {_ _ _ _}.
+
+(*
+Lemma refinement_preservation_from_sp:
+  forall O1 O2 (low: Language O1) (high: Language O2)   
+    (R.(refines_to) : low.(state) -> high.(state) -> Prop),
+    exec_preserves_refinement refines_to.
+Proof.
+  unfold exec_preserves_refinement; intros; cleanup.
+  destruct ret; simpl in *; cleanup.
+  {
+    eapply_fresh exec_to_sp in H0.
+    instantiate (1:= fun o s => exists s1', R.(refines_to) s1' s) in Hx.
+    2: simpl; eauto.
+Abort.
+*)
+
+Theorem bisimulation_from_wp_prog :
+  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH) T (p2: LH.(prog) T),
+
+    exec_preserves_refinement R ->
+
+    exec_compiled_preserves_refinement R ->
+    
+    WP_Bisimulation_prog R p2 ->
+    
+    StrongBisimulationForProgram R p2.
+Proof.  
+  intros; eapply Build_StrongBisimulationForProgram;
+  intros; cleanup; split; intros.
+  {(* low -> high *)
+    match goal with
+    |[H: exec LL  _ _ _ _,
+      H0: exec_compiled_preserves_refinement _ |- _ ] =>
+     eapply_fresh H0 in H; eauto; cleanup
+    end.
+    destruct s1'; simpl in *.
+    {(* wp *)
+      pose proof exec_to_wp as Hx.
+      match goal with
+      |[H: exec LL _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      eapply wp_low_to_high_prog; eauto.
+      cleanup.
+      eexists; split; eauto.
+    }
+    {(* wcp *)
+      pose proof exec_to_wcp as Hx.
+      match goal with
+      |[H: exec LL _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wcp_to_exec.
+      eapply wcp_low_to_high_prog; eauto.
+      cleanup.
+      eexists; split; eauto.
+    }
+  }
+
+  {(* high -> low *)
+    match goal with
+    |[H: exec LH _ _ _ _,
+      H0: exec_preserves_refinement _ |- _ ] =>
+     eapply_fresh H0 in H; eauto; cleanup
+    end.
+    destruct s2'; simpl in *.
+    {(* wp *)
+      pose proof exec_to_wp as Hx.
+      match goal with
+      |[H: exec LH _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      eapply wp_high_to_low_prog; eauto.
+      cleanup.
+      eexists; split; simpl; eauto.
+      simpl; eauto.
+    }
+    {(* wcp *)
+      pose proof exec_to_wcp as Hx.
+      match goal with
+      |[H: exec LH _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wcp_to_exec.
+      eapply wcp_high_to_low_prog; eauto.
+      cleanup.
+      eexists; split; eauto.
+      simpl; eauto.
+    }
+  }
+Qed.
+        
+(*
+Theorem bisimulation_from_wp:
+  forall O1 O2 (low: Language O1) (high: Language O2)   
+    refines_to
+    compilation_of
+    oracle_refines_to,
+    
+    exec_compiled_preserves_refinement
+    refines_to
+    compilation_of ->
+
+    exec_preserves_refinement refines_to ->
+
+    wp_low_to_high
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+
+    wcp_low_to_high
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+
+    wp_high_to_low
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+
+    wcp_high_to_low
+      refines_to
+      compilation_of
+      oracle_refines_to ->
+    
+    StrongBisimulation
+      low
+      high
+      refines_to
+      compilation_of
+      oracle_refines_to.
+Proof.  
+  intros; eapply Build_StrongBisimulation;
+  intros; cleanup; split; intros.
+  {(* low -> high *)
+    match goal with
+    |[H: exec low _ _ _ _ ,
+      H0: exec_compiled_preserves_refinement _ _ |- _ ] =>
+     eapply_fresh H0 in H; eauto; cleanup
+    end.
+    destruct s1'; simpl in *.
+    {(* wp *)
+      pose proof exec_to_wp as Hx.
+      match goal with
+      |[H: exec low _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      match goal with
+      |[H: wp_low_to_high _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; eauto.
+    }
+    {(* wcp *)
+      pose proof exec_to_wcp as Hx.
+      match goal with
+      |[H: exec low _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wcp_to_exec.
+      match goal with
+      |[H: wcp_low_to_high _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; eauto.
+    }
+  }
+
+  {(* high -> low *)
+    match goal with
+    |[H: exec high _ _ _ _ ,
+      H0: exec_preserves_refinement _ |- _ ] =>
+     eapply_fresh H0 in H; eauto; cleanup
+    end.
+    destruct s2'; simpl in *.
+    {(* wp *)
+      pose proof exec_to_wp as Hx.
+      match goal with
+      |[H: exec high _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      match goal with
+      |[H: wp_high_to_low _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; simpl; eauto.
+      simpl; eauto.
+    }
+    {(* wcp *)
+      pose proof exec_to_wcp as Hx.
+      match goal with
+      |[H: exec high _ _ _ _  |- _ ] =>
+       specialize Hx with (1:= H); simpl in *
+      end.
+      edestruct wcp_to_exec.
+      match goal with
+      |[H: wcp_high_to_low _ _ _  |- _ ] =>
+       eapply H; eauto
+      end.
+      cleanup.
+      eexists; split; eauto.
+      simpl; eauto.
+    }
+  }
+Qed.
+
+
 
 Section OperationToLanguageWP.
   
@@ -210,3 +476,4 @@ Section OperationToLanguageWP.
   Abort.
   
 End OperationToLanguageWP.
+*)

@@ -39,7 +39,7 @@ clean:
 	@echo "CLEAN vo glob aux"
 	@rm -f $(ALL_VFILES:.v=.vo) $(ALL_VFILES:.v=.glob) $(ALL_VFILES:.v=.vos) $(ALL_VFILES:.v=.vok)
 	@find $(SRC_DIRS) -name ".*.aux" -exec rm {} \;
-	rm -f _CoqProject .coqdeps.d
+	rm -f .coqdeps.d
 
 .PHONY: default test clean
 .DELETE_ON_ERROR:

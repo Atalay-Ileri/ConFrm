@@ -31,13 +31,9 @@ Set Implicit Arguments.
       forall d la lv,
         exec' [Cont] d (Write la lv) (Finished (write_all d la lv) tt)
 
-  | ExecCrashRead :
-      forall d a,
-        exec' [CrashBefore] d (Read a) (Crashed d)
-  
-  | ExecCrashWriteBefore :
-      forall d la lv,
-        exec' [CrashBefore] d (Write la lv) (Crashed d)
+  | ExecCrashBefore :
+      forall d T (p: prog' T),
+        exec' [CrashBefore] d p (Crashed d)
 
   | ExecCrashWriteAfter :
       forall d la lv,
@@ -183,4 +179,6 @@ Set Implicit Arguments.
   Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
   Definition LoggedDiskHL := Build_HoareLogic LoggedDiskLang.
 
+Notation "| p |" := (Op LoggedDiskOperation p)(at level 60).
+Notation "x <-| p1 ; p2" := (Bind (Op LoggedDiskOperation p1) (fun x => p2))(right associativity, at level 60). 
 Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).

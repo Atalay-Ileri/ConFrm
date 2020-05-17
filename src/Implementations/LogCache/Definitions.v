@@ -49,9 +49,14 @@ Definition merge {A AEQ V} (m1: @mem A AEQ V) (m2: @mem A AEQ (V * list V)) : @m
       end
     end.
 
+Definition addrs_match {A AEQ V1 V2} (m1: @mem A AEQ V1) (m2: @mem A AEQ V2) : Prop :=
+  forall a, m1 a <> None -> m2 a <> None.
+      
+
 Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLang) :=
   exists hdr txns,
     fst s = txns_cache txns empty_mem /\
+    addrs_match (fst s) (snd (snd s)) /\
     (log_rep hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\
     merged_disk = merge (fst s) (snd (snd s)).
 

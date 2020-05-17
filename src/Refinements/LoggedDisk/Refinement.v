@@ -1,791 +1,540 @@
-Require Import Framework CachedDiskLayer.
+Require Import Framework CacheLayer DiskLayer CachedDiskLayer.
 Require Import LogCache LoggedDiskLayer LoggedDisk.Definitions.
-Require Import FunctionalExtensionality Omega.
+Require Import ClassicalFacts FunctionalExtensionality Omega.
 
-Section Layer1to2Refinement.
+Set Nested Proofs Allowed.
 
-  Opaque read write.
-  
-  Lemma oracle_refines_to_deterministic:
-    forall T (p: LoggedDiskHL.Lang.prog T) s s' o o1 o2,
-      CachedDiskHL.Lang.exec o s (compile p) s' ->
-      oracle_refines_to T s p o o1 ->
-      oracle_refines_to T s p o o2 ->
-      o1 = o2.
+Notation "'low'" := CachedDiskLang.
+Notation "'high'" := LoggedDiskLang.
+
+Axiom excluded_middle_dec: forall P: Prop, {P}+{~P}.
+
+Section LoggedDiskBisimulation.
+
+  Axiom exec_compiled_preserves_refinement:
+    exec_compiled_preserves_refinement LoggedDiskRefinement.
+
+  Axiom exec_preserves_refinement:
+    exec_preserves_refinement LoggedDiskRefinement.
+
+
+  Lemma merge_some_l:
+    forall AT AEQ V (m1: @mem AT AEQ V) m2 a v,
+      m1 a = Some v ->
+      m2 a <> None ->
+      exists vs, merge m1 m2 a = Some vs /\
+            fst vs = v.
   Proof.
-    induction p; simpl; intros; cleanup; eauto.
-    -
-      repeat split_ors; eauto;
-      eapply CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H2; eauto; cleanup.
-    -
-      repeat split_ors; eauto;
-      try eapply CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H2;
-      try eapply CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H3;
-      eauto; cleanup; try congruence.
-    -
-      repeat split_ors; eauto;
-      try eapply CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H2;
-      try eapply CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H3;
-      eauto; cleanup; try congruence.
-      
-    -
-      CachedDiskHL.Lang.invert_exec.
-      +
-        repeat split_ors; cleanup;
-        try solve [
-              eapply CachedDiskHL.Lang.finished_not_crashed_oracle_app in H0;
-              eauto; cleanup; exfalso; eauto ].
-        
-        repeat (eapply_fresh CachedDiskHL.Lang.exec_finished_deterministic_prefix in H0; eauto; cleanup).
-        repeat (eapply_fresh CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H1; eauto; cleanup).
-        specialize IHp with (1:=H0)(2:=H16)(3:=H13); cleanup.
-        specialize H with (1:=H1)(2:=H17)(3:=H14); cleanup; eauto.
-        
-      +
-        repeat split_ors; cleanup;
-        try solve [
-              try eapply CachedDiskHL.Lang.finished_not_crashed_oracle_prefix in H1;
-              eauto; cleanup; exfalso; eauto ].
-        
-        try eapply CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H8; eauto; cleanup.
-        repeat (eapply_fresh CachedDiskHL.Lang.exec_finished_deterministic_prefix in H1; eauto; cleanup).
-        eapply CachedDiskHL.Lang.finished_not_crashed_oracle_app in H1; eauto; cleanup; exfalso; eauto.        
-        repeat (eapply_fresh CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H1; eauto; cleanup).
-        eapply CachedDiskHL.Lang.finished_not_crashed_oracle_app in H1; eauto; cleanup; exfalso; eauto.
+    unfold merge; simpl; intros.
+    cleanup.
+    destruct (m2 a); try congruence; eauto.
+  Qed.
+  
+  Lemma merge_some_r:
+    forall AT AEQ V (m1: @mem AT AEQ V) m2 a,
+      m1 a = None ->
+      merge m1 m2 a = m2 a.
+  Proof.
+    unfold merge; simpl; intros.
+    cleanup; eauto.
+  Qed.
+  
+  Lemma cached_log_rep_cache_read :
+    forall F s2 s1 a v,
+      cached_log_rep F s2 s1 ->
+      fst s1 a = Some v ->
+      Disk.read s2 a = Some v.
+  Proof.
+    unfold cached_log_rep, Disk.read; intros.
+    cleanup.
+    eapply merge_some_l in H0; eauto; cleanup.
+    rewrite H0; eauto.
+    eapply H1.
+    congruence.
+  Qed.
+  
+  Lemma cached_log_rep_disk_read :
+    forall F s2 s1 a,
+      cached_log_rep F s2 s1 ->
+      fst s1 a = None ->
+      Disk.read s2 a = Disk.read (snd (snd s1)) a.
+  Proof.
+    unfold cached_log_rep, Disk.read; intros.
+    cleanup.
+    erewrite merge_some_r; eauto.
+  Qed.
+  
+  Lemma wp_low_to_high_read :
+    forall a,
+    wp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
+  Proof.
+    unfold wp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold  compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    eexists; intuition eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
+    simpl in *.
+    cleanup.
+    {        
+      cleanup; simpl in *; cleanup; eauto;
+      eexists; intuition eauto.      
+      eapply cached_log_rep_cache_read; eauto.
+      erewrite cached_log_rep_disk_read; eauto.
+    }
 
-        
-        repeat (eapply_fresh CachedDiskHL.Lang.exec_finished_deterministic_prefix in H1; eauto; cleanup).
-        repeat (eapply_fresh CachedDiskHL.Lang.exec_deterministic_wrt_oracle in H17; eauto; cleanup).
-        
-        specialize IHp with (1:=H1)(2:=H15)(3:=H12); cleanup.
-        specialize H with (1:=H17)(2:=H16)(3:=H13); cleanup; eauto.
-        Unshelve.
-        all: eauto.
+    cleanup; simpl in *.
+    {
+      cleanup.
+      eexists; intuition eauto.
+      rewrite <- H3 in H9.
+      erewrite cached_log_rep_disk_read; eauto.
+    }
+    {
+      cleanup; eauto.
+      eexists; intuition eauto.
+      erewrite cached_log_rep_disk_read; eauto.
+    }
   Qed.
 
-  (*
-  Axiom layer1_exec_compiled_preserves_refines_to:
-    forall T (p2: Layer2.prog T) o1 s1 s1',
-      Layer1.exec o1 s1 (compile p2) s1' ->
-      (exists s2, refines_to s1 s2) ->
-      (exists s2', refines_to (extract_state s1') s2').
-      
-`       *)
-  Hint Resolve oracle_ok_nonempty.
-
-  Arguments oracle_ok T p o s : simpl never.
-  Arguments oracle_refines_to T d1 p o1 o2 : simpl never.
-
-  
-  Lemma high_oracle_exists_ok':
-    forall T p2 p1 ol sl sl',
-      (exists sh, refines_to sl sh) ->
-      CachedDiskHL.Lang.oracle_ok p1 ol sl ->
-      CachedDiskHL.Lang.exec ol sl p1 sl' ->
-      compilation_of T p1 p2 ->
-      exists oh, oracle_refines_to T sl p2 ol oh.
+  Lemma wp_high_to_low_read :
+    forall a,
+    wp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
   Proof.
-    unfold refines_to, compilation_of;
-      induction p2; simpl; intros; cleanup.
-    - (* Read *)
-      edestruct read_ok; eauto.
-      intuition eauto.
-      admit.
-      cleanup; split_ors;
-      cleanup; destruct_lifts; eauto.
-    - (* Write *)
-      edestruct write_ok.
-      pred_apply' H; cancel; eauto.
-      cleanup; split_ors;
-        cleanup; destruct_lifts; eauto.
-      split_ors; cleanup; eauto.
-    - (* Alloc *)
-      edestruct alloc_ok.
-      pred_apply' H; cancel; eauto.
-      cleanup; split_ors;
-        cleanup; destruct_lifts; eauto;
-          split_ors; cleanup; eauto.
-    - (* Free *)
-      edestruct free_ok.
-      pred_apply' H; cancel; eauto.
-      cleanup; split_ors;
-        cleanup; destruct_lifts; eauto;
-          split_ors; cleanup; eauto.
-    - (* Ret *)
-      destruct sl';
-      unfold oracle_refines_to; simpl;
-        destruct (in_dec token_dec Crash ol); eauto.
-    - (* Bind *)
-      invert_exec; cleanup.      
-      + (* Finished *)
-        eapply_fresh oracle_ok_bind_finished_split in H1; eauto; cleanup.
-        edestruct IHp2; eauto.
-        (* intros d Hx; inversion Hx. *)
-        edestruct layer1_exec_compiled_preserves_refines_to; try apply H2; eauto.
-        unfold refines_to; eauto.
-        edestruct H; eauto; simpl in *.
-        exists (x5++x7).
-        unfold oracle_refines_to; simpl; fold oracle_refines_to; eauto.
-        split; eauto.
-        do 2 eexists; intuition eauto.
-        right; do 3 eexists; intuition eauto.
-        
-      + (* Crashed *)
-        split_ors; cleanup.
-        *
-          match goal with
-          | [H: Layer1.oracle_ok _ _ _ |- _ ] =>
-            eapply_fresh oracle_ok_bind_crashed_split in H;
-          eauto; cleanup
-          end.
-          
-          edestruct IHp2; eauto.
-          (* intros d Ha; inversion Ha. *)
-          exists x1.
-          unfold oracle_refines_to; simpl; fold oracle_refines_to.
-          split; eauto.
+    unfold wp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup.
+    repeat invert_exec.
+    inversion H9; clear H9; cleanup.
+    eapply exec_to_wp; eauto.
 
-          do 2 eexists; intuition eauto.          
-          rewrite app_nil_r; eauto.
-        
-        *
-          match goal with
-          | [H: Layer1.oracle_ok _ _ _ |- _ ] =>
-            eapply_fresh oracle_ok_bind_finished_split in H;
-          eauto; cleanup
-          end.
-          edestruct IHp2; eauto.
-          (* intros d Hx; inversion Hx. *)
-          
-          edestruct H;
-          try match goal with
-          | [H: Layer1.oracle_ok (compile (_ _)) _ _ |- _ ] =>
-            apply H
-          end; eauto; simpl in *.
-          
-          match goal with
-          | [H: Layer1.exec _ _ _ (Finished _ _) |- _ ] =>
-            eapply layer1_exec_compiled_preserves_refines_to in H;
-            eauto; cleanup
-          end.
-          unfold refines_to; eauto.
-          
-          exists (x5++x6).
-          unfold oracle_refines_to; simpl; fold oracle_refines_to.
-          split; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2') in H0; unfold refines_to in *; eauto.
 
-          do 2 eexists; intuition eauto.
-          right; do 3 eexists; intuition eauto. 
+    unfold read in *; simpl in *.
+    cleanup; simpl in *.
+    destruct x4; simpl in *; cleanup; eauto.
+    - destruct x2; simpl in *; split; eauto.
+      eapply cached_log_rep_cache_read in H0; eauto; cleanup.
+      congruence.
+      
+    - destruct x2, s0; simpl in *; split; eauto.
+      eapply cached_log_rep_disk_read in H0; eauto; cleanup.
+      simpl in *; congruence.
   Qed.
 
-  Lemma high_oracle_exists_ok :
-    @high_oracle_exists layer1_lts layer2_lts refines_to compilation_of oracle_refines_to. 
+
+  Lemma wcp_low_to_high_read :
+    forall a,
+    wcp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
   Proof.
-    unfold high_oracle_exists; intros.
-    eapply high_oracle_exists_ok'; eauto.
-    eapply exec_then_oracle_ok; eauto.
+    unfold wcp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    eexists; intuition eauto.
+    destruct x0, s0.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
+    simpl in *; cleanup.
+    repeat (split_ors; repeat (cleanup; simpl in *);
+    try solve [ inversion H; cleanup; eexists; eauto ]).
+  Qed.
+
+  Lemma wcp_high_to_low_read :
+    forall a,
+    wcp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
+  Proof.
+    unfold wcp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup.
+    repeat invert_exec.
+    inversion H8; clear H8; cleanup.
+    eapply exec_to_wcp; eauto.
+    destruct x0, s0.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2') in H0; unfold refines_to in *; eauto.
+    simpl in *; cleanup.
+    repeat (split_ors; repeat (cleanup; simpl in *);
+    try solve [ inversion H0; cleanup; eexists; eauto ]).
+  Qed.
+
+  Lemma wp_low_to_high_write :
+    forall a vl,
+    wp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
+  Proof.
+    unfold wp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
+    unfold write in *.
+    simpl in *; cleanup.
+    eexists; intuition eauto.
+  Qed.
+
+  Lemma wp_high_to_low_write :
+    forall a vl,
+    wp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
+  Proof.
+    unfold wp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    invert_exec.
+    inversion H8; clear H8; cleanup.
+    repeat (split_ors; cleanup).
+    eapply exec_to_wp; eauto.
+    eexists; eauto.
+    destruct x3; eauto.
+  Qed.
+
+  
+  Lemma wcp_low_to_high_write :
+    forall a vl,
+    wcp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
+  Proof.
+    unfold wcp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    split_ors; cleanup;
+    eexists; intuition eauto.
+    - right; intuition eauto.
+      admit. (* TODO: Check this *)
+  Admitted.
+
+  Lemma wcp_high_to_low_write :
+    forall a vl,
+    wcp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
+  Proof.
+    unfold wcp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    repeat split_ors; cleanup; repeat invert_exec;
+    try inversion H8; try clear H8; cleanup;
+    try inversion H9; try clear H9; cleanup;
+    eapply exec_to_wcp; eauto.
+    - admit. (* TODO: Check this *)
+  Admitted.
+
+
+  Lemma wp_low_to_high_ret :
+    forall T (v: T),
+    wp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
+  Proof.
+    unfold wp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl in *; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    invert_exec; intuition eauto.
+  Qed.
+
+  Lemma wp_high_to_low_ret :
+    forall T (v: T),
+    wp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
+  Proof.
+    unfold wp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl; intros; cleanup.
+    split_ors; cleanup.
+    repeat invert_exec.
+    eapply exec_to_wp; eauto.
+    econstructor; eauto.
+  Qed.
+
+  Lemma wcp_low_to_high_ret :
+    forall T (v: T),
+    wcp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
+  Proof.
+    unfold wcp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl in *; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    eexists; intuition eauto.
+    invert_exec; eauto.
+  Qed.
+
+  Lemma wcp_high_to_low_ret :
+    forall T (v: T),
+    wcp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
+  Proof.
+    unfold wcp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
+    unfold compilation_of, refines_to in *; simpl in *; intros; cleanup.
+    split_ors; cleanup.
+    repeat invert_exec.
+    eapply exec_to_wcp; eauto.
+    econstructor; eauto.
   Qed.
     
   Theorem sbs_read :
     forall a,
-      StrongBisimulationForProgram
-        layer1_lts layer2_lts
-        compilation_of
-        refines_to
-        oracle_refines_to
-        (Read a).              
+      StrongBisimulationForProgram LoggedDiskRefinement (|Read a|).              
   Proof.
-    constructor; intros.
-    
-    unfold refines_to,
-    compiles_to_valid, compilation_of in *; intros.
-    simpl in *;
-      split.
-    
-    + (* Low to High *)
-      intros; cleanup.
-      eapply_fresh exec_then_oracle_ok in H2.
-      edestruct (read_ok o1 s1 a); eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *; cleanup;
-      intuition eauto.
-      cleanup.
-      eapply_fresh deterministic_prog in H2; eauto; cleanup.        
-      split_ors; cleanup;
-      destruct_lifts;
-      try match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end.
-      
-      * (* Finished *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-        intuition (cleanup; eauto).
-        unfold rep in *.
-        destruct_lifts.          
-        symmetry; eauto.
-  
-      * (* Crashed *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-    + (*High to low*)
-      intros; cleanup.
-      edestruct (read_ok o1 s1 a); cleanup.
-      pred_apply' H; norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-        
-      split_ors; cleanup;
-      destruct_lifts;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end;
-      match goal with
-      | [H: Layer2.exec _ _ _ _ |- _] =>
-        inversion H; sigT_eq; simpl in *; cleanup
-      end.
-      * (* Finished *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-        intuition (cleanup; eauto).
-        unfold rep in *.
-        destruct_lifts;          
-        symmetry; eauto.
-          
-      * (* Crashed *)
-          eexists; split.
-          eauto.
-          simpl in *.
-          repeat split; eauto.
+    intros.
+    eapply bisimulation_from_wp_prog; eauto.
+    exact exec_preserves_refinement.
+    exact exec_compiled_preserves_refinement.
+    eapply Build_WP_Bisimulation_prog.
+    apply wp_low_to_high_read.
+    apply wp_high_to_low_read.    
+    apply wcp_low_to_high_read.
+    apply wcp_high_to_low_read.
   Qed.
 
   Theorem sbs_write :
-    forall a v,
-      StrongBisimulationForProgram
-        layer1_lts layer2_lts
-        compilation_of refines_to
-        oracle_refines_to
-        (Write a v).              
+    forall a lv,
+      StrongBisimulationForProgram LoggedDiskRefinement (|Write a lv|).              
   Proof.
-    constructor; intros.
-    cleanup; try tauto.    
-    unfold refines_to, compiles_to_valid, compilation_of in *; intros.
-    simpl in *; split.
-
-    + (* Low to High *)
-      intros; cleanup.
-      edestruct write_ok; eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-      cleanup.
-      eapply_fresh deterministic_prog in H2; eauto; cleanup.        
-      split_ors; cleanup;
-      destruct_lifts;
-      try split_ors; cleanup;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end.
-        
-      * (* Finished 1 *)
-        eexists; split.
-        eapply ExecWriteFail; eauto.
-        simpl in *.
-        repeat split; eauto.
-
-      * (* Finished 2 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-      * (* Crashed 1 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-
-      * (* Crashed 2 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-    + (*High to low*)
-      intros; cleanup.
-      edestruct write_ok; eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-      cleanup.
-      
-      split_ors; cleanup;
-      destruct_lifts;
-      split_ors; cleanup;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end;
-      match goal with
-      | [H: Layer2.exec _ _ _ _ |- _] =>
-        inversion H; sigT_eq; simpl in *; cleanup
-      end;
-      try congruence.
-
-      * (* Finished 1 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-
-      * (* Finished 2 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Crashed 1 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-
-      * (* Crashed 2 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-Qed.
-
-  Theorem sbs_free :
-    forall a,
-    StrongBisimulationForProgram
-      layer1_lts layer2_lts
-      compilation_of refines_to
-      oracle_refines_to
-      (Free a).              
-  Proof.
-    constructor; intros.
-    cleanup; try tauto.    
-    unfold refines_to, compiles_to_valid, compilation_of in *; intros.
-    simpl in *; split.
-
-    + (* Low to High *)
-      intros; cleanup.
-      edestruct free_ok; eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-      cleanup.
-      eapply_fresh deterministic_prog in H2; eauto; cleanup.        
-      split_ors; cleanup;
-      destruct_lifts;
-      try split_ors; cleanup;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end.
-        
-      * (* Finished  *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-      * (* Crashed 1 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Crashed 2 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-    + (*High to low*)
-      intros; cleanup.
-      edestruct free_ok; eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-      cleanup.
-      
-      split_ors; cleanup;
-      destruct_lifts;
-      try split_ors; cleanup;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end;
-      match goal with
-      | [H: Layer2.exec _ _ _ _ |- _] =>
-        inversion H; sigT_eq; simpl in *; cleanup
-      end;
-      try congruence.
-
-      * (* Finished *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Crashed 1 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-
-      * (* Crashed 2 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
+    intros.
+    eapply bisimulation_from_wp_prog; eauto.
+    exact exec_preserves_refinement.
+    exact exec_compiled_preserves_refinement.
+    eapply Build_WP_Bisimulation_prog.
+    apply wp_low_to_high_write.
+    apply wp_high_to_low_write.
+    apply wcp_low_to_high_write.
+    apply wcp_high_to_low_write.
   Qed.
- 
 
+  
   Theorem sbs_ret :
     forall T (v: T),
-    StrongBisimulationForProgram
-      layer1_lts layer2_lts
-      compilation_of refines_to
-      oracle_refines_to
+    StrongBisimulationForProgram LoggedDiskRefinement
       (Ret v).              
   Proof.
-        constructor; intros.
-    cleanup; try tauto.    
-    unfold refines_to, compiles_to_valid, compilation_of in *; intros.
-    simpl in *; split.
-
-    + (* Low to High *)
-      intros; cleanup.
-      invert_exec; cleanup;
-      unfold oracle_refines_to in *;
-      cleanup; simpl in *;
-      try split_ors; intuition; try congruence.
-
-      * (* Finished  *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-      * (* Crashed *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-          
-    + (*High to low*)
-      intros; cleanup.
-      
-      match goal with
-      | [H: Layer2.exec _ _ _ _ |- _] =>
-        inversion H; sigT_eq; simpl in *; cleanup
-      end;
-      try congruence;
-      unfold oracle_refines_to, oracle_ok in *;
-      cleanup; simpl in *;
-      repeat (split_ors; cleanup; simpl in * );
-      intuition; try congruence.
-
-      * (* Finished *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Crashed *)
-        eexists; split.
-        econstructor; eauto.
-        intros; congruence.
-        simpl in *.
-        repeat split; eauto.
-  Qed.
-
-   Theorem sbs_alloc :
-     forall v,
-      StrongBisimulationForProgram
-        layer1_lts layer2_lts
-        compilation_of refines_to
-        oracle_refines_to
-        (Alloc v).              
-  Proof.
-    constructor; intros.
-    cleanup; try tauto.    
-    unfold refines_to, compiles_to_valid, compilation_of in *; intros.
-    simpl in *; split.
-
-    + (* Low to High *)
-      intros; cleanup.
-      edestruct alloc_ok; eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-      cleanup.
-      eapply_fresh deterministic_prog in H2; eauto; cleanup.        
-      repeat (split_ors; cleanup);
-      destruct_lifts;
-      try split_ors; cleanup;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end.
-        
-      * (* Finished  *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Finished  *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-      * (* Crashed 1 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Crashed 2 *)
-        eexists; split.
-        econstructor; eauto.
-        simpl in *.
-        repeat split; eauto.
-          
-    + (*High to low*)
-      intros; cleanup.
-      edestruct alloc_ok; eauto.
-      pred_apply' H. norm.
-      cancel.
-      unfold oracle_refines_to in *.
-      intuition eauto.
-      cleanup.
-      
-      split_ors; cleanup;
-      destruct_lifts;
-      try split_ors; cleanup;
-      match goal with
-      |[H: oracle_refines_to _ _ _ ?o _,
-        H0: oracle_refines_to _ _ _ ?o _ |- _] =>
-       eapply oracle_refines_to_deterministic in H; eauto; cleanup
-      end;
-      match goal with
-      | [H: Layer2.exec _ _ _ _ |- _] =>
-        inversion H; sigT_eq; simpl in *; cleanup
-      end;
-      try congruence.
-
-      * (* Finished *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Finished *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-        
-      * (* Crashed 1 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
-
-      * (* Crashed 2 *)
-        eexists; split.
-        eauto.
-        simpl in *.
-        repeat split; eauto.
+    intros.
+    eapply bisimulation_from_wp_prog; eauto.
+    exact exec_preserves_refinement.
+    exact exec_compiled_preserves_refinement.
+    eapply Build_WP_Bisimulation_prog.
+    apply wp_low_to_high_ret.
+    apply wp_high_to_low_ret.
+    apply wcp_low_to_high_ret.
+    apply wcp_high_to_low_ret.
   Qed.
 
   Theorem sbs_bind:
-    forall T1 T2 (p1: Layer2.prog T1) (p2: T1 -> Layer2.prog T2),
-      StrongBisimulationForProgram layer1_lts layer2_lts
-          compilation_of refines_to oracle_refines_to p1 ->
-    (forall t,
-      StrongBisimulationForProgram layer1_lts layer2_lts
-        compilation_of refines_to oracle_refines_to 
-        (p2 t)) ->
-    StrongBisimulationForProgram layer1_lts layer2_lts
-          compilation_of refines_to oracle_refines_to (Bind p1 p2).
+    forall T1 T2 (p1: high.(prog) T1) (p2: T1 -> high.(prog) T2),
+      StrongBisimulationForProgram LoggedDiskRefinement p1 ->
+      (forall t, StrongBisimulationForProgram LoggedDiskRefinement (p2 t)) ->
+      StrongBisimulationForProgram LoggedDiskRefinement (Bind p1 p2).
   Proof.
     intros.
     edestruct H.
     constructor; intros.
-    unfold compilation_of in *;
+    simpl in *; unfold compilation_of in *;
     simpl in *; cleanup.
 
     split; intros.
     - (* Low to High *)
-      invert_exec; cleanup; intuition.
+      invert_exec; cleanup.
       
+      + split_ors; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
+     
+        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+        edestruct H0.
+        simpl in *; unfold compilation_of in *;
+        edestruct strong_bisimulation_for_program_correct0; eauto.
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+        cleanup.
+        eexists; intuition eauto.
+        econstructor; eauto.
+        simpl; eauto.
+        
       +
-        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        simpl in *.
-        eapply oracle_ok_bind_finished_split in H3 as Hx; eauto; cleanup.
-        split_ors; cleanup.
+        split_ors; cleanup;
+        split_ors; cleanup;
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
+        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
         *
-          eapply oracle_ok_exec_crashed_app_nil in H6; eauto; cleanup.
-          exfalso; eauto.
-          eapply oracle_ok_nonempty; eauto.
-        *
-          eapply_fresh exec_finished_deterministic in H6; eauto; cleanup.
-          apply app_inv_head in H5; cleanup.
-          eapply_fresh deterministic_prog in H9; eauto; cleanup.
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
-          edestruct H0.
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
-          cleanup.
-          eexists; eauto.
-
-      +
-        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        split_ors; cleanup.
-        *
-          rewrite app_nil_r in *.
-          eapply_fresh deterministic_prog in H3; eauto; cleanup.
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          eexists; eauto.
+          exists (Crashed s); repeat (split; eauto).
+          eapply ExecBindCrash; eauto.
 
         *
-          eapply oracle_ok_bind_finished_split in H2 as Hx; eauto; cleanup.
-          eapply oracle_ok_exec_crashed_app_nil in H4; eauto; cleanup.
-          exfalso; eauto.
-          eapply oracle_ok_nonempty; eauto.
-          
-      +
-        cleanup.
-        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        simpl in *.
-        eapply oracle_ok_bind_finished_split in H3 as Hx; eauto; cleanup.
-        split_ors; cleanup.
-        *
-          eapply oracle_ok_exec_crashed_app_nil in H6; eauto; cleanup.
-          exfalso; eauto.
-          eapply oracle_ok_nonempty; eauto.
-        *
-          eapply_fresh exec_finished_deterministic in H6; eauto; cleanup.
-          apply app_inv_head in H5; cleanup.
-          eapply_fresh deterministic_prog in H9; eauto; cleanup.
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
-          edestruct H0.
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
-          cleanup; eexists; eauto.
+          eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+           eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
+           edestruct strong_bisimulation_for_program_correct; eauto.
+           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+           edestruct H0.
+           simpl in *; unfold compilation_of in *;
+           edestruct strong_bisimulation_for_program_correct0; eauto.
+           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+           cleanup.
+           eexists; intuition eauto.
+           econstructor; eauto.
+           simpl; eauto.
 
     - (* High to Low *)
-      inversion H2; sigT_eq; cleanup; clear H2.
+      invert_exec; cleanup.
+      
+
+      + split_ors; cleanup.
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; cleanup.
+
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
+        eapply_fresh exec_finished_deterministic_prefix in H2; eauto; cleanup.
+        simpl in *.
+        edestruct H0.
+        simpl in *; unfold compilation_of in *;
+        edestruct strong_bisimulation_for_program_correct0; eauto.
+        edestruct H4; eauto; simpl in *; cleanup; try intuition; clear H4 H9; cleanup.           
+        eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; cleanup.
+        eexists; intuition eauto.
+        econstructor; eauto.
+        
       +
-        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        split_ors; cleanup.
-
-        *
-          rewrite app_nil_r in *.
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H5; eauto; simpl in *; cleanup; intuition; clear H5 H6.
-          exfalso; eapply layer2_finished_not_crashed_oracle_app; eauto.
+        split_ors; cleanup;
+        split_ors; cleanup;
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
+        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H8; eauto; simpl in *; cleanup; intuition.
-          eapply_fresh layer2_exec_finished_deterministic in H9; eauto; cleanup.
-          eapply app_inv_head in H7; cleanup.
-
-          edestruct H10; eauto; simpl in *; cleanup; intuition; clear H8 H10.
-          simpl in *; cleanup.
-          eapply deterministic_prog in H3; eauto; cleanup.
-
-          edestruct H0.
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H3 H8.
-          cleanup; eexists; eauto.
-
-      +
-        unfold oracle_refines_to in H3; cleanup; fold oracle_refines_to in *.
-        split_ors; cleanup.
-        *
-          rewrite app_nil_r in *.
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; intuition; clear H5 H6.
-          eapply deterministic_prog in H3; eauto; cleanup.
-          eexists; intuition eauto.
+          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
+          simpl in *.
+          exists (Crashed x5); repeat (split; eauto).
+          eapply ExecBindCrash; eauto.
 
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H7; eauto; simpl in *; cleanup; intuition.
-          exfalso; eapply layer2_finished_not_crashed_oracle_app; eauto.
-          
+          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H8 H9.
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
+
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
+
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
+           eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
+           edestruct H0.
+           simpl in *; unfold compilation_of in *;
+           edestruct strong_bisimulation_for_program_correct0; eauto.
+           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
+           cleanup.
+           eapply_fresh exec_deterministic_wrt_oracle in H4; eauto; cleanup.
+           eexists; intuition eauto.
+           econstructor; eauto.
+    Unshelve.
+    all: eauto.
   Qed.
-    
-  Hint Resolve sbs_alloc sbs_free sbs_read sbs_ret sbs_write sbs_bind.
+
+  Hint Resolve sbs_read sbs_ret sbs_write sbs_bind : core.
   
   Theorem sbs :
-      StrongBisimulation
-        layer1_lts layer2_lts
-        compilation_of refines_to
-        oracle_refines_to.              
+      StrongBisimulation LoggedDiskRefinement.              
   Proof.
     apply bisimulation_restrict_prog.
     induction p; eauto.
+    destruct p; eauto.
   Qed.
 
-  Hint Resolve sbs.
+  Hint Resolve sbs : core.
 
   Theorem sbs_general:
     forall valid_state_h valid_prog_h,
-    exec_compiled_preserves_validity layer1_lts layer2_lts
-    compilation_of (refines_to_valid refines_to valid_state_h) ->
-    exec_preserves_validity layer2_lts valid_state_h ->
-      StrongBisimulationForValidStates
-        layer1_lts layer2_lts
-        (refines_to_valid refines_to valid_state_h)
-        (compiles_to_valid valid_prog_h compilation_of)
+      exec_compiled_preserves_validity LoggedDiskRefinement
+        (refines_to_valid LoggedDiskRefinement valid_state_h) ->
+      
+      exec_preserves_validity LoggedDiskLang valid_state_h ->
+      
+      StrongBisimulationForValidStates LoggedDiskRefinement
+        (refines_to_valid LoggedDiskRefinement valid_state_h)
         valid_state_h
-        valid_prog_h
-        compilation_of refines_to
-        oracle_refines_to.  
+        (compiles_to_valid LoggedDiskRefinement valid_prog_h)        
+        valid_prog_h.  
   Proof.
     intros.
     eapply bisimulation_restrict_state; eauto.
   Qed.
+End LoggedDiskBisimulation.
+
+Section TransferToCachedDisk.
+              
+Lemma high_oracle_exists_ok':
+  forall T p2 p1 ol sl sl',
+    (exists sh, refines_to sl sh) ->
+    low.(exec) ol sl p1 sl' ->
+    compilation_of T p1 p2 ->
+    exists oh, oracle_refines_to T sl p2 ol oh.
+Proof.
+  unfold refines_to, compilation_of;
+  induction p2; simpl; intros; cleanup.
+  - (* Read *)
+    destruct sl'; eexists; eauto.
+  - (* Write *)
+    destruct sl'; try solve [eexists; eauto].
+    eexists; right; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol) in H0 as Hx; unfold refines_to in *; eauto.
+    do 2 eexists; intuition eauto.
+    admit. (* Doable *)
     
-End Layer1to2Refinement.
+    destruct (excluded_middle_dec (s = sl));
+    eexists; left; eauto.
+    
+  - (* Ret *)
+    destruct sl'; eexists; eauto.
+  - (* Bind *)
+    invert_exec.
+    + (* Finished *)
+      edestruct IHp2; eauto.
+      eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; unfold refines_to in *; eauto.
+      cleanup; simpl in *; eauto.
+      edestruct H; eauto.
+      do 5 eexists; repeat (split; eauto).
+      right; eauto.
+      do 3 eexists; repeat (split; eauto).        
+      unfold compilation_of; eauto.
+    + (* Crashed *)
+      split_ors; cleanup.
+      * (* p1 crashed *)
+        edestruct IHp2; eauto.
+        do 5 eexists; repeat (split; eauto).
+      * (* p2 Crashed *)
+        edestruct IHp2; eauto.
+        eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; unfold refines_to in *; eauto.
+        cleanup; simpl in *; eauto.
+        edestruct H; eauto.
+        do 5 eexists; repeat (split; eauto).
+        right; eauto.
+        do 3 eexists; repeat (split; eauto).
+        unfold compilation_of; eauto.
+        Unshelve.
+        eauto.
+Admitted.
+
+Lemma high_oracle_exists_ok :
+  high_oracle_exists LoggedDiskRefinement. 
+Proof.
+  unfold high_oracle_exists; intros.
+  eapply high_oracle_exists_ok'; eauto.
+Qed.
+
+
+Theorem transfer_to_CachedDisk:
+    forall related_states_h
+    valid_state_h
+    valid_prog_h,
+    
+    SelfSimulation
+      LoggedDiskLang
+      valid_state_h
+      valid_prog_h
+      related_states_h ->
+    
+    oracle_refines_to_same_from_related LoggedDiskRefinement related_states_h ->
+
+    exec_compiled_preserves_validity LoggedDiskRefinement                           
+    (refines_to_valid LoggedDiskRefinement valid_state_h) ->
+    
+    SelfSimulation
+      CachedDiskLang
+      (refines_to_valid LoggedDiskRefinement valid_state_h)
+      (compiles_to_valid LoggedDiskRefinement valid_prog_h)
+      (refines_to_related LoggedDiskRefinement related_states_h).
+Proof.
+  intros; eapply transfer_high_to_low; eauto.
+  apply sbs.
+  apply high_oracle_exists_ok.
+Qed.
+
+End TransferToCachedDisk.

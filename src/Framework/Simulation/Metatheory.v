@@ -2,99 +2,80 @@ Require Import List Primitives Layer.
 Require Import Simulation.Definitions Simulation.WeakestPreconditions.
 
 Theorem transfer_high_to_low:
-  forall O1 O2 (low: Language O1) (high: Language O2)
-
+  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH)
     related_states_h
-    refines_to
-    compilation_of
-    oracle_refines_to
-
     valid_state_h
     valid_prog_h,
     
     SelfSimulation
-      high
+      LH
       valid_state_h
       valid_prog_h
       related_states_h ->
     
-    StrongBisimulation
-      low
-      high
-      refines_to
-      compilation_of
-      oracle_refines_to ->
+    StrongBisimulation R ->
 
-    high_oracle_exists refines_to compilation_of oracle_refines_to ->
+    high_oracle_exists R ->
     
-    oracle_refines_to_same_from_related refines_to related_states_h oracle_refines_to ->
+    oracle_refines_to_same_from_related R related_states_h ->
 
-    exec_compiled_preserves_validity
-    compilation_of                               
-    (refines_to_valid
-       refines_to
-       valid_state_h) ->
+    exec_compiled_preserves_validity  R                           
+    (refines_to_valid R valid_state_h) ->
     
     SelfSimulation
-      low
-      (refines_to_valid
-         refines_to
-         valid_state_h)
-      (compiles_to_valid
-         valid_prog_h
-         compilation_of)
-      (refines_to_related
-         refines_to
-         related_states_h).
+      LL
+      (refines_to_valid R valid_state_h)
+      (compiles_to_valid R valid_prog_h)
+      (refines_to_related R related_states_h).
 Proof.
   unfold refines_to_related, compiles_to_valid; intros.
   destruct H, H0.
   
   eapply Build_SelfSimulation;  intros; cleanup.
   match goal with
-  | [H: high_oracle_exists _ _ _,
-     H0: exec low _ _ _ _ |- _] =>
+  | [H: high_oracle_exists _,
+     H0: exec LL _ _ _ _ |- _] =>
     edestruct H; try apply H0; eauto
   end.
   
   match goal with
-  | [H: refines_to s1 _ |- _] =>
+  | [H: refines_to _ s1 _ |- _] =>
     eapply_fresh strong_bisimulation_correct in H; eauto; cleanup
   end.
 
   match goal with
-    | [H: forall _, exec low _ _ _ _ -> _,
-       H0: exec low _ _ _ _,
-       H1: forall _, exec high _ _ _ _ -> _ |- _] =>
+    | [H: forall _, exec LL _ _ _ _ -> _,
+       H0: exec LL _ _ _ _,
+       H1: forall _, exec LH _ _ _ _ -> _ |- _] =>
       eapply_fresh H in H0; cleanup; clear H H1
   end.
 
   match goal with
   | [H: refines_to_valid _ _ ?s,
-     H0: refines_to ?s _,
+     H0: refines_to _ ?s _,
      H1: refines_to_valid _ _ ?t,
-     H2: refines_to ?t _ |- _] =>
+     H2: refines_to _ ?t _ |- _] =>
     eapply_fresh H in H0;
       eapply_fresh H1 in H2; cleanup
   end.
 
   match goal with
-    | [H: exec high _ _ _ _ |- _] =>
+    | [H: exec LH _ _ _ _ |- _] =>
       eapply_fresh self_simulation_correct in H; eauto; cleanup
   end.
   
   match goal with
-  | [H: exec high _ ?x2 _ _,
-     H0: refines_to ?s1 ?x1,
-     H1: refines_to ?s2 ?x2,      
+  | [H: exec LH _ ?x2 _ _,
+     H0: refines_to _ ?s1 ?x1,
+     H1: refines_to _ ?s2 ?x2,      
      H2: refines_to_valid _ _ ?s2 |- _] =>
       eapply_fresh strong_bisimulation_correct in H1; eauto; cleanup
   end.
   
   match goal with
-    | [H: forall _, exec low _ _ _ _ -> _,
-       H0: exec high _ _ _ _,
-       H1: forall _, exec high _ _ _ _ -> _ |- _] =>
+    | [H: forall _, exec LL _ _ _ _ -> _,
+       H0: exec LH _ _ _ _,
+       H1: forall _, exec LH _ _ _ _ -> _ |- _] =>
       eapply_fresh H1 in H0; cleanup; clear H H1
   end.  
   
@@ -108,7 +89,7 @@ Proof.
          end.
 
   match goal with
-  |[ H0: oracle_refines_to_same_from_related _ _ _ |- _] =>
+  |[ H0: oracle_refines_to_same_from_related _ _ |- _] =>
       eapply H0; eauto
   end.
   unfold refines_to_related; eauto. 
@@ -309,49 +290,25 @@ Proof.
   unfold compiles_to_valid in *; cleanup.
   eexists; eauto.
 Qed.
-
+*)
 
 Lemma bisimulation_restrict_state:
-  forall low high
-
-    refines_to
-    compilation_of
-    oracle_refines_to
-
+  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH)
     valid_state_h
     valid_prog_h,
     
-  StrongBisimulation
-      low
-      high
-      compilation_of
-      refines_to
-      oracle_refines_to ->
+  StrongBisimulation R ->
 
-  exec_compiled_preserves_validity
-    low
-    high
-    compilation_of                               
-    (refines_to_valid
-       refines_to
-       valid_state_h) ->
+  exec_compiled_preserves_validity R                             
+    (refines_to_valid R valid_state_h) ->
 
-  exec_preserves_validity high valid_state_h -> 
+  exec_preserves_validity LH valid_state_h -> 
   
-  StrongBisimulationForValidStates
-      low
-      high
-      (refines_to_valid
-         refines_to
-         valid_state_h)
-      (compiles_to_valid
-         valid_prog_h
-         compilation_of)
-      valid_state_h
-      valid_prog_h
-      compilation_of
-      refines_to
-      oracle_refines_to.
+  StrongBisimulationForValidStates R
+     (refines_to_valid R valid_state_h)
+     valid_state_h
+     (compiles_to_valid R valid_prog_h) 
+     valid_prog_h.
 Proof.
   intros.
   destruct H.
@@ -365,29 +322,10 @@ Proof.
   eexists; intuition (eauto).
 Qed.
 
-
 Lemma bisimulation_restrict_prog:
-  forall low high
-
-    refines_to
-    compilation_of
-    oracle_refines_to,
-    
-    (forall T (p: Prog high T),
-      StrongBisimulationForProgram
-      low
-      high
-      compilation_of
-      refines_to
-      oracle_refines_to
-      p) ->
-  
-  StrongBisimulation
-      low
-      high
-      compilation_of
-      refines_to
-      oracle_refines_to.
+  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH),
+    (forall T (p: LH.(prog) T), StrongBisimulationForProgram R p) ->
+    StrongBisimulation R.
 Proof.
   intros.
   constructor; intros.
@@ -395,122 +333,5 @@ Proof.
   destruct H.
   edestruct strong_bisimulation_for_program_correct; eauto.
 Qed.
-*)
 
-Theorem bisimulation_from_wp:
-  forall O1 O2 (low: Language O1) (high: Language O2)   
-    refines_to
-    compilation_of
-    oracle_refines_to,
-    
-    exec_compiled_preserves_refinement
-    refines_to
-    compilation_of ->
 
-    exec_preserves_refinement refines_to ->
-
-    wp_low_to_high
-      refines_to
-      compilation_of
-      oracle_refines_to ->
-
-    wpc_low_to_high
-      refines_to
-      compilation_of
-      oracle_refines_to ->
-
-    wp_high_to_low
-      refines_to
-      compilation_of
-      oracle_refines_to ->
-
-    wpc_high_to_low
-      refines_to
-      compilation_of
-      oracle_refines_to ->
-    
-    StrongBisimulation
-      low
-      high
-      refines_to
-      compilation_of
-      oracle_refines_to.
-Proof.  
-  intros; eapply Build_StrongBisimulation;
-  intros; cleanup; split; intros.
-  {(* low -> high *)
-    match goal with
-    |[H: exec low _ _ _ _ ,
-      H0: exec_compiled_preserves_refinement _ _ |- _ ] =>
-     eapply_fresh H0 in H; eauto; cleanup
-    end.
-    destruct s1'; simpl in *.
-    {(* wp *)
-      pose proof exec_to_wp as Hx.
-      match goal with
-      |[H: exec low _ _ _ _  |- _ ] =>
-       specialize Hx with (1:= H); simpl in *
-      end.
-      edestruct wp_to_exec.
-      match goal with
-      |[H: wp_low_to_high _ _ _  |- _ ] =>
-       eapply H; eauto
-      end.
-      cleanup.
-      eexists; split; eauto.
-    }
-    {(* wcp *)
-      pose proof exec_to_wcp as Hx.
-      match goal with
-      |[H: exec low _ _ _ _  |- _ ] =>
-       specialize Hx with (1:= H); simpl in *
-      end.
-      edestruct wcp_to_exec.
-      match goal with
-      |[H: wpc_low_to_high _ _ _  |- _ ] =>
-       eapply H; eauto
-      end.
-      cleanup.
-      eexists; split; eauto.
-    }
-  }
-
-  {(* high -> low *)
-    match goal with
-    |[H: exec high _ _ _ _ ,
-      H0: exec_preserves_refinement _ |- _ ] =>
-     eapply_fresh H0 in H; eauto; cleanup
-    end.
-    destruct s2'; simpl in *.
-    {(* wp *)
-      pose proof exec_to_wp as Hx.
-      match goal with
-      |[H: exec high _ _ _ _  |- _ ] =>
-       specialize Hx with (1:= H); simpl in *
-      end.
-      edestruct wp_to_exec.
-      match goal with
-      |[H: wp_high_to_low _ _ _  |- _ ] =>
-       eapply H; eauto
-      end.
-      cleanup.
-      eexists; split; simpl; eauto.
-      simpl; eauto.
-    }
-    {(* wcp *)
-      pose proof exec_to_wcp as Hx.
-      match goal with
-      |[H: exec high _ _ _ _  |- _ ] =>
-       specialize Hx with (1:= H); simpl in *
-      end.
-      edestruct wcp_to_exec.
-      match goal with
-      |[H: wpc_high_to_low _ _ _  |- _ ] =>
-       eapply H; eauto
-      end.
-      cleanup.
-      eexists; split; eauto.
-      simpl; eauto.
-    }
-  }
-Qed.
