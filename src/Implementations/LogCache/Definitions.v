@@ -1,5 +1,5 @@
 Require Import Datatypes PeanoNat Framework Log.
-Require Import DiskLayer CacheLayer CryptoDiskLayer CachedDiskLayer.
+Require Import DiskLayer CryptoDiskLayer CacheLayer CachedDiskLayer.
 
 Axiom addr_list_to_blocks : list addr -> list value.
 
@@ -18,12 +18,12 @@ Definition write  addr_l (data_l: list value) :=
   Ret tt.
 
 Definition read a :=
-  mv <- |CDCO| Read a;
+  mv <- |CDCO| Read _ a;
   match mv with
   | Some v =>
     Ret v
   | None =>
-    v <- |CDDP| |DO| DiskLayer.Definitions.Read a;
+    v <- |CDDP| |DO| Disk.Definitions.Read _ a;
     Ret v
   end.
 
@@ -37,21 +37,6 @@ Fixpoint txns_cache (txns: list txn) cache : @mem addr addr_dec value :=
   | [] => cache
   end.
 
-Definition merge {A AEQ V} (m1: @mem A AEQ V) (m2: @mem A AEQ (V * list V)) : @mem A AEQ (V * list V) :=
-  fun a =>
-    match m1 a with
-    | None => m2 a
-    | Some v =>
-      match m2 a with
-      | None => None
-      | Some vs =>
-        Some (v, fst vs::snd vs)
-      end
-    end.
-
-Definition addrs_match {A AEQ V1 V2} (m1: @mem A AEQ V1) (m2: @mem A AEQ V2) : Prop :=
-  forall a, m1 a <> None -> m2 a <> None.
-      
 
 Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLang) :=
   exists hdr txns,

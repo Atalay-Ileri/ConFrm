@@ -2,7 +2,13 @@ Require Import Framework.
 Import ListNotations.
 
 Set Implicit Arguments.
+
+Section CacheLayer.
   
+  Variable A : Type.
+  Variable AEQ : EqDec A. 
+  Variable V : Type.
+
   Inductive token' :=
   | Crash : token'
   | Cont : token'.
@@ -11,45 +17,50 @@ Set Implicit Arguments.
     decide equality.
   Defined.
 
-  Definition oracle' := list token'.
+  Definition oracle' := list token'.  
 
-  Definition state' :=  disk (set value).
+  Definition state' := @mem A AEQ V.
   
   Inductive prog' : Type -> Type :=
-  | Read : addr -> prog' value
-  | Write : addr -> value -> prog' unit.
-   
+  | Read : A -> prog' (option V)
+  | Write : A -> V -> prog' unit
+  | Flush : prog' unit.
+
+  
   Inductive exec' :
     forall T, oracle' ->  state' -> prog' T -> @Result state' T -> Prop :=
   | ExecRead : 
-      forall d a v,
-        read d a = Some v ->
-        exec' [Cont] d (Read a) (Finished d v)
+      forall d a,
+        exec' [Cont] d (Read a) (Finished d (d a))
              
   | ExecWrite :
       forall d a v,
-        read d a <> None ->
-        exec' [Cont] d (Write a v) (Finished (write d a v) tt)
- 
+        exec' [Cont] d (Write a v) (Finished (upd d a v) tt)
+
+  | ExecFlush :
+      forall d,
+        exec' [Cont] d Flush (Finished empty_mem tt)
+              
   | ExecCrash :
       forall T d (p: prog' T),
         exec' [Crash] d p (Crashed d).
 
   Hint Constructors exec' : core.
-
+  
   Definition weakest_precondition' T (p: prog' T) :=
    match p in prog' T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
    | Read a =>
-     (fun Q o s =>
-       exists v,
-         o = [Cont] /\
-         read s a = Some v /\
-         Q v s)
+    fun Q o s =>
+        o = [Cont] /\
+        Q (s a) s
    | Write a v =>
-     (fun Q o s =>
-       o = [Cont] /\
-       read s a <> None /\
-       Q tt (write s a v))
+     fun Q o s =>
+        o = [Cont] /\
+        Q tt (upd s a v)
+   | Flush =>
+     fun Q o s =>
+        o = [Cont] /\
+        Q tt empty_mem
    end.
 
   Definition weakest_crash_precondition' T (p: prog' T) :=
@@ -59,23 +70,26 @@ Set Implicit Arguments.
    match p in prog' T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
    | Read a =>
      fun P t s' =>
-       exists s v,
-         P [Cont] s /\
-         s' = s /\
-         read s a = Some v /\
-         t = v
+       exists s,
+        P [Cont] s /\
+        t = s a /\
+        s' = s
    | Write a v =>
      fun P t s' =>
        exists s,
          P [Cont] s /\
-         s' = (write s a v) /\
-         read s a <> None /\
-         t = tt
+         t = tt /\
+         s' = upd s a v
+   | Flush  =>
+     fun P t s' =>
+       exists s,
+         P [Cont] s /\
+         t = tt /\
+         s' = empty_mem
    end.
 
   Definition strongest_crash_postcondition' T (p: prog' T) :=
-    fun (P: oracle' -> state' -> Prop) s' => P [Crash] s'.
-
+    fun (P: oracle' -> state' -> Prop) (s: state') => P [Crash] s.
 
   Theorem sp_complete':
     forall T (p: prog' T) P (Q: _ -> _ -> Prop),
@@ -85,8 +99,8 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros;
     try inversion H1; cleanup;
-    eapply H; eauto.
-    eexists; eauto.
+    eapply H; eauto;
+    do 2 eexists; eauto.    
   Qed.
 
   Theorem scp_complete':
@@ -99,8 +113,7 @@ Set Implicit Arguments.
     try inversion H1; cleanup;
     eapply H; eauto.
   Qed.
-
-
+  
   Theorem wp_complete':
     forall T (p: prog' T) H Q,
       (forall o s, H o s -> weakest_precondition' p Q o s) <->
@@ -140,7 +153,7 @@ Set Implicit Arguments.
       end; eauto.
   Qed.
   
-  Definition DiskOperation :=
+  Definition CacheOperation :=
     Build_Operation
       (list_eq_dec token_dec')
       prog'
@@ -154,10 +167,10 @@ Set Implicit Arguments.
       sp_complete'
       scp_complete'
       exec_deterministic_wrt_oracle'.
-  
-  Definition DiskLang := Build_Language DiskOperation.
-  Definition DiskHL := Build_HoareLogic DiskLang.
 
-Notation "| p |" := (Op DiskOperation p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op DiskOperation p1) (fun x => p2))(right associativity, at level 60). 
+  Definition CacheLang := Build_Language CacheOperation.
+  Definition CacheHL := Build_HoareLogic CacheLang.
+
 Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
+
+End CacheLayer.

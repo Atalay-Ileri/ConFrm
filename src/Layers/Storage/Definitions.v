@@ -2,6 +2,10 @@ Require Import Framework.
 Import ListNotations.
 
 Set Implicit Arguments.
+
+Section StorageLayer.
+
+  Variable V : Type.
   
   Inductive token' :=
   | Crash : token'
@@ -13,23 +17,29 @@ Set Implicit Arguments.
 
   Definition oracle' := list token'.  
 
-  Definition state' := disk value.
+  Definition state' := option V.
   
   Inductive prog' : Type -> Type :=
-  | Read : addr -> prog' (option value)
-  | Write : addr -> value -> prog' unit.
+  | Get : prog' V
+  | Put : V -> prog' unit
+  | Delete : prog' unit.
 
   
   Inductive exec' :
     forall T, oracle' ->  state' -> prog' T -> @Result state' T -> Prop :=
-  | ExecRead : 
-      forall d a,
-        exec' [Cont] d (Read a) (Finished d (d a))
+  | ExecGet : 
+      forall d v,
+        d = Some v ->
+        exec' [Cont] d Get (Finished d v)
              
-  | ExecWrite :
-      forall d a v,
-        exec' [Cont] d (Write a v) (Finished (upd d a v) tt)
+  | ExecPut :
+      forall d v,
+        exec' [Cont] d (Put v) (Finished (Some v) tt)
 
+  | ExecDelete :
+      forall d,
+        exec' [Cont] d Delete (Finished None tt)
+              
   | ExecCrash :
       forall T d (p: prog' T),
         exec' [Crash] d p (Crashed d).
@@ -38,14 +48,20 @@ Set Implicit Arguments.
   
   Definition weakest_precondition' T (p: prog' T) :=
    match p in prog' T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
-   | Read a =>
-    fun Q o s =>
+   | Get =>
+     fun Q o s =>
+       exists v, 
         o = [Cont] /\
-        Q (s a) s
-   | Write a v =>
+        s = Some v /\
+        Q v s
+   | Put v =>
      fun Q o s =>
         o = [Cont] /\
-        Q tt (upd s a v)
+        Q tt (Some v)
+   | Delete =>
+     fun Q o s =>
+        o = [Cont] /\
+        Q tt None
    end.
 
   Definition weakest_crash_precondition' T (p: prog' T) :=
@@ -53,18 +69,25 @@ Set Implicit Arguments.
 
   Definition strongest_postcondition' T (p: prog' T) :=
    match p in prog' T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
-   | Read a =>
+   | Get =>
      fun P t s' =>
-       exists s,
+       exists s v,
         P [Cont] s /\
-        t = s a /\
+        s = Some v /\
+        t = v /\
         s' = s
-   | Write a v =>
+   | Put v =>
      fun P t s' =>
        exists s,
          P [Cont] s /\
          t = tt /\
-         s' = upd s a v
+         s' = Some v
+   | Delete  =>
+     fun P t s' =>
+       exists s,
+         P [Cont] s /\
+         t = tt /\
+         s' = None
    end.
 
   Definition strongest_crash_postcondition' T (p: prog' T) :=
@@ -132,7 +155,7 @@ Set Implicit Arguments.
       end; eauto.
   Qed.
   
-  Definition CacheOperation :=
+  Definition StorageOperation :=
     Build_Operation
       (list_eq_dec token_dec')
       prog'
@@ -147,7 +170,9 @@ Set Implicit Arguments.
       scp_complete'
       exec_deterministic_wrt_oracle'.
 
-  Definition CacheLang := Build_Language CacheOperation.
-  Definition CacheHL := Build_HoareLogic CacheLang.
+  Definition StorageLang := Build_Language StorageOperation.
+  Definition StorageHL := Build_HoareLogic StorageLang.
 
-Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
+  Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
+  
+End StorageLayer.

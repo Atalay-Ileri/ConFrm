@@ -1,5 +1,5 @@
-Require Import Framework CacheLayer DiskLayer CachedDiskLayer.
-Require Import LogCache LoggedDiskLayer LoggedDisk.Definitions.
+Require Import Framework CachedDiskLayer.
+Require Import LogCache LoggedDiskLayer Refinements.LoggedDisk.Definitions.
 Require Import ClassicalFacts FunctionalExtensionality Omega.
 
 Set Nested Proofs Allowed.
@@ -80,19 +80,24 @@ Section LoggedDiskBisimulation.
       eexists; intuition eauto.      
       eapply cached_log_rep_cache_read; eauto.
       erewrite cached_log_rep_disk_read; eauto.
+      unfold Disk.read in *; simpl; cleanup; eauto.
     }
 
     cleanup; simpl in *.
     {
       cleanup.
       eexists; intuition eauto.
-      rewrite <- H3 in H9.
-      erewrite cached_log_rep_disk_read; eauto.
+      erewrite cached_log_rep_disk_read. eauto.
+      unfold Disk.read in *; simpl; cleanup; eauto.
+      rewrite H9; eauto.
+      eauto.
+      eauto.
     }
     {
       cleanup; eauto.
       eexists; intuition eauto.
-      erewrite cached_log_rep_disk_read; eauto.
+      erewrite cached_log_rep_disk_read; eauto.      
+      unfold Disk.read in *; simpl; cleanup; eauto.
     }
   Qed.
 
@@ -118,6 +123,7 @@ Section LoggedDiskBisimulation.
       
     - destruct x2, s0; simpl in *; split; eauto.
       eapply cached_log_rep_disk_read in H0; eauto; cleanup.
+      unfold Disk.read in *; simpl in *; cleanup; eauto.
       simpl in *; congruence.
   Qed.
 

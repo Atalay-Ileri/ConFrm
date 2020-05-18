@@ -24,7 +24,7 @@ Set Implicit Arguments.
   Inductive prog' : Type -> Type :=
   | Read : Inum -> addr -> prog' value
   | Write : Inum -> addr -> value -> prog' unit
-  | Extend : Inum -> nat -> prog (option unit) 
+  | Extend : Inum -> list value -> prog' (option unit) 
   | SetOwner : Inum -> user -> prog' unit
   | Create : user -> prog' (option addr)
   | Delete : Inum -> prog' unit.

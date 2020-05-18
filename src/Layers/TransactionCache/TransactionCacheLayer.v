@@ -1,6 +1,6 @@
-Require Export CacheLayer.Definitions CacheLayer.Specs.
+Require Export TransactionCache.Definitions.
+
 (*
-Notation "'CacheLayer.state'" := CacheLayer.Definitions.state.
 Notation "'CacheLayer.oracle'" := CacheLayer.Definitions.oracle.
 Notation "'CacheLayer.prog'" := CacheLayer.Definitions.prog.
 Notation "'CacheLayer.exec'" := CacheLayer.Definitions.exec.

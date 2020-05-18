@@ -1,4 +1,4 @@
-Require Import Framework DiskLayer CryptoLayer CryptoDiskLayer BatchOperations.
+Require Import Framework CryptoDiskLayer BatchOperations.
 Require Import Datatypes PeanoNat.
 Require Import LogParameters.
 
@@ -179,7 +179,7 @@ Hint Extern 0 (okToUnify (log_rep ?txns _) (log_rep ?txns _)) => constructor : o
 
 (* Programs *)
 Definition read_header :=
-  hd <- |DO| Read hdr_block_num;
+  hd <- |DO| Read _ hdr_block_num;
   Ret (decode_header hd).
 
 Definition write_header hdr :=
@@ -193,11 +193,11 @@ Definition apply_txn txn log_blocks :=
   let addr_count := addr_count txn in
   let data_count := data_count txn in
   let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  plain_blocks <- |CP| decrypt_all key txn_blocks;
+  plain_blocks <- decrypt_all key txn_blocks;
   let addr_blocks := firstn addr_count plain_blocks in
   let data_blocks := skipn addr_count plain_blocks in
   let addr_list := firstn data_count (blocks_to_addr_list addr_blocks)in
-  _ <- |DP| write_batch addr_list data_blocks;
+  _ <- write_batch addr_list data_blocks;
   Ret tt.
 
 
@@ -217,7 +217,7 @@ Definition flush_txns txns log_blocks :=
   Ret tt.
 
 Definition check_and_flush txns log hash :=
-  log_hash <- |CP| hash_all hash0 log;
+  log_hash <- hash_all hash0 log;
   if (hash_dec log_hash hash) then
     _ <- flush_txns txns log;
     Ret true
@@ -232,7 +232,7 @@ Definition apply_log :=
   let cur_hash := cur_hash hdr in
   let cur_count := cur_count hdr in
   let txns := txn_records hdr in
-  log <- |DP| read_consecutive log_start cur_count;
+  log <- read_consecutive log_start cur_count;
   success <- check_and_flush txns log cur_hash;
   if success then
     Ret tt
@@ -248,9 +248,9 @@ Definition commit_txn (addr_l data_l: list value) :=
   let cur_count := cur_count hdr in
   let txns := txn_records hdr in
   new_key <- |CO| GetKey (addr_l++data_l);
-  enc_data <- |CP| encrypt_all new_key (addr_l ++ data_l);
-  _ <- |DP| write_consecutive (log_start + cur_count) enc_data;
-  new_hash <- |CP| hash_all cur_hash enc_data;
+  enc_data <- encrypt_all new_key (addr_l ++ data_l);
+  _ <- write_consecutive (log_start + cur_count) enc_data;
+  new_hash <- hash_all cur_hash enc_data;
   let new_count := cur_count + (length addr_l + length data_l) in
   let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
   let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in

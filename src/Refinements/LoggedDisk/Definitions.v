@@ -42,7 +42,7 @@ Fixpoint oracle_refines_to T (d1: state low) (p: prog high T) o1 o2 : Prop :=
           o2 = [OpOracle LoggedDiskOperation [CrashBefore] ]) \/
        (exists d1' r,
           exec low o1 d1 (read a) (Finished d1' r) /\
-          o2 = [OpOracle LoggedDiskOperation [LoggedDiskLayer.Definitions.Cont] ])
+          o2 = [OpOracle LoggedDiskOperation [LoggedDisk.Definitions.Cont] ])
          
      | Write la lv =>
        (exists d1',
@@ -53,48 +53,20 @@ Fixpoint oracle_refines_to T (d1: state low) (p: prog high T) o1 o2 : Prop :=
             o2 = [ OpOracle LoggedDiskOperation [CrashAfter] ]))) \/
        (exists d1' r,
           exec low o1 d1 (write la lv) (Finished d1' r) /\          
-          o2 = [OpOracle LoggedDiskOperation [LoggedDiskLayer.Definitions.Cont] ] /\
+          o2 = [OpOracle LoggedDiskOperation [LoggedDisk.Definitions.Cont] ] /\
        (forall s ,(exists F, cached_log_rep F s d1) -> (exists F, cached_log_rep F (write_all s la lv) d1')))
      end
 
     | Ret v =>
       (exists d1',
          exec low o1 d1 (Ret v) (Crashed d1') /\
-         o2 = [Crash _]) \/
+         o2 = [Language.Crash _]) \/
       (exists d1' r,
          exec low o1 d1 (Ret v) (Finished d1' r) /\
          o2 = [Language.Cont _])
     end
 .
-(*
-    | Read _ =>
-      if (in_dec Layer1.token_dec Layer1.Crash o1) then
-        o2 = [Crash1]
-      else
-        o2 = [Cont]
-    | Ret _ =>
-      if (in_dec Layer1.token_dec Layer1.Crash o1) then
-        o2 = [Crash1]
-      else
-        o2 = [Cont]
-    | Write a _ =>
-      if (in_dec Layer1.token_dec Layer1.Crash o1) then
-         forall d1',
-          Layer1.exec o1 d1 (compile p) (Crashed d1') ->
-          let sv := d1 a in
-          let sv' := d1' a in
-          match sv, sv' with
-          | Some v, Some v' =>
-            (v = v' ->
-             o2 = [Crash1]) /\
-            (v <> v' ->
-             o2 = [Crash2])
-          | _, _ => False
-          end
-      else
-        o2 = [Cont]
-    end.
-*)
+
   Definition refines_to (d1: state low) (d2: state high) :=
     exists F, cached_log_rep F d2 d1.
 

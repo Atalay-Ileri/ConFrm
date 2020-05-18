@@ -1,4 +1,4 @@
-Require Export CachedDiskLayer.Definitions CachedDiskLayer.Specs.
+Require Export CryptoDisk.Definitions CryptoDisk.Specs.
 
 (*
 Notation "'CacheLayer.oracle'" := CacheLayer.Definitions.oracle.

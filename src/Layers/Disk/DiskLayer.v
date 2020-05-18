@@ -1,4 +1,4 @@
-Require Export CryptoLayer.Definitions CryptoLayer.Specs.
+Require Export Disk.Definitions.
 (*
 Notation "'DiskLayer.state'" := DiskLayer.Definitions.state.
 Notation "'DiskLayer.oracle'" := DiskLayer.Definitions.oracle.
