@@ -20,7 +20,8 @@ Set Implicit Arguments.
   | Start : prog' unit
   | Read : addr -> prog' value
   | Write : addr -> value -> prog' unit
-  | Commit : prog' unit.
+  | Commit : prog' unit
+  | Abort : prog' unit.
    
   Inductive exec' :
     forall T, oracle' ->  state' -> prog' T -> @Result state' T -> Prop :=
@@ -49,6 +50,12 @@ Set Implicit Arguments.
         let c := fst s in
         let d := snd s in
         exec' [Cont] s Commit (Finished (empty_mem, merge c d) tt)
+
+  | ExecAbort : 
+      forall s,
+        let c := fst s in
+        let d := snd s in
+        exec' [Cont] s Abort (Finished (empty_mem, d) tt)
 
   | ExecCrashBefore :
       forall d T (p: prog' T),
@@ -89,7 +96,13 @@ Set Implicit Arguments.
        let c := fst s in
        let d := snd s in
        o = [Cont] /\
-       Q tt (empty_mem, merge c d)) 
+       Q tt (empty_mem, merge c d))
+   | Abort =>
+     (fun Q o s =>
+       let c := fst s in
+       let d := snd s in
+       o = [Cont] /\
+       Q tt (empty_mem, d))
    end.
 
   Definition weakest_crash_precondition' T (p: prog' T) :=
@@ -129,6 +142,14 @@ Set Implicit Arguments.
         Q s) \/
        (o = [CrashAfter] /\
         Q (empty_mem, merge c d)))
+   | Abort =>
+      (fun Q o s =>
+         let c := fst s in
+         let d := snd s in
+         (o = [CrashBefore] /\
+          Q s) \/
+         (o = [CrashAfter] /\
+          Q (empty_mem, d)))
     end.
 
   Definition strongest_postcondition' T (p: prog' T) :=
@@ -166,7 +187,15 @@ Set Implicit Arguments.
          let d := snd s in
          P [Cont] s /\
          t = tt /\
-         s' = (empty_mem, merge c d)  
+         s' = (empty_mem, merge c d)
+   | Abort =>
+      fun P t s' =>
+        exists s,
+         let c := fst s in
+         let d := snd s in
+         P [Cont] s /\
+         t = tt /\
+         s' = (empty_mem, d)
    end.
 
   Definition strongest_crash_postcondition' T (p: prog' T) :=
@@ -198,8 +227,8 @@ Set Implicit Arguments.
          let d := snd s in
          (P [CrashBefore] s /\
           s' = s) \/
-       (P [CrashAfter] s /\
-        s' = (upd c a v, d))
+         (P [CrashAfter] s /\
+          s' = (upd c a v, d))
    | Commit =>
       fun P s' =>
        exists s,
@@ -209,6 +238,15 @@ Set Implicit Arguments.
           s' = s) \/
          (P [CrashAfter] s /\
           s' = (empty_mem, merge c d))
+   | Abort =>
+      fun P s' =>
+        exists s,
+          let c := fst s in
+          let d := snd s in
+          (P [CrashBefore] s /\
+           s' = s) \/
+          (P [CrashAfter] s /\
+           s' = (empty_mem, d))
     end.
   
   Theorem sp_complete':
@@ -231,7 +269,7 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros; cleanup;
     repeat (try split_ors; try inversion H1; clear H1; cleanup; eauto);
-    try split_ors; eapply H; eauto.
+    try split_ors; cleanup; eapply H; eauto.
     eexists; right; eauto.
     eexists; right; intuition eauto.
   Qed.
@@ -257,9 +295,9 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros; cleanup;
     specialize H0 with (1:= X);
-    try split_ors; repeat (try inversion H0; try clear H0; cleanup; eauto).
+    try split_ors; cleanup; repeat (try inversion H0; try clear H0; cleanup; eauto).
     split_ors; cleanup; eauto;
-    eexists; split; eauto; econstructor; eauto.
+    eexists; split; eauto; econstructor; eauto. 
   Qed.
 
   Theorem exec_deterministic_wrt_oracle' :

@@ -379,7 +379,7 @@ Qed.
       exec o s p (Finished s' r) ->
       ~In Crash o.
   Proof.
-    induction p; simpl; intros; invert_exec; cleanup; simpl; intuition eauto; try congruence.
+    induction p; simpl; intros; invert_exec; cleanup; simpl; intuition eauto; try congruence.wrt_oracle 
     apply in_app_iff in H2; intuition eauto.
   Qed.
    *)
@@ -418,6 +418,8 @@ Notation "x <-| p1 ; p2" := (Bind (Op _ p1) (fun x => p2))(right associativity, 
     | Op _ _ => invert_exec'' H
     | Ret _ => invert_exec'' H
     end
+  | [ H: Operation.exec _ _ _ _ _ |- _ ] =>
+    invert_exec'' H
   end.
 
 Lemma bind_sep:
@@ -450,6 +452,8 @@ Ltac invert_exec :=
   |[H : exec _ _ _ (Bind _ _) _ |- _ ] =>
    apply bind_sep in H; repeat cleanup
   |[H : exec _ _ _ _ _ |- _ ] =>
+   invert_exec'
+  |[H: Operation.exec _ _ _ _ _ |- _ ] =>
    invert_exec'
   end.
 
@@ -533,7 +537,7 @@ Proof.
   {(*Bind*)
     simpl in *; split; intros.
     - specialize H1 with (1:=X); cleanup; eauto.
-      split_ors.
+      split_ors; cleanup.
       + edestruct IHp.
         edestruct H2; eauto; simpl in *; cleanup.
         eexists. intuition eauto. eapply ExecBindCrash; eauto.
@@ -544,7 +548,7 @@ Proof.
 
     - specialize H1 with (1:=X); cleanup.
       invert_exec; eauto.
-      split_ors.
+      split_ors; cleanup.
       + do 2 eexists; intuition eauto.
         left; eapply IHp.
         intros.
@@ -754,7 +758,7 @@ Qed.
 Lemma exec_finished_deterministic_prefix:
   forall O (L: Language O) T (p: prog L T) o1 o2 o3 o4 s s1 s2 r1 r2,
       exec L o1 s p (Finished s1 r1) ->
-      exec L o2 s p (Finished s2 r2) ->
+      exec L o2 s p (Finished s2 r2) -> 
       o1 ++ o3 = o2 ++ o4 ->
       o1 = o2 /\ s1 = s2 /\ r1 = r2.
 Proof.

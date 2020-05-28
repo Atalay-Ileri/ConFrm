@@ -189,7 +189,7 @@ Theorem ret_ok:
 Proof.
   intros.
   unfold hoare_triple, hoare_triple'; intros.
-  split_ors; eexists;
+  split_ors; cleanup; eexists;
   intuition (try econstructor; eauto).
   do 2 eexists; eauto.
 Qed.

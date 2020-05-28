@@ -1,15 +1,17 @@
-Require Import Framework LoggedDiskLayer.
+Require Import Framework TransactionalDiskLayer BlockAllocator.
+Import IfNotations.
 
 (* For simplicity, it will be 1 inode per block *)
+Axiom inode_start_addr: addr.
 Axiom inode_count: nat.
+Axiom inode_count_in_bounds: inode_count <= block_size.
 
 Definition Inum := addr.
 
 Record Inode :=
   {
-    used : bool;
     owner: user;
-    blocks : list addr;
+    block_numbers : list addr;
   }.
 
 Variable encode_inode : Inode -> value.
@@ -21,52 +23,57 @@ Axiom inode_decode_encode:
   forall b,
     encode_inode (decode_inode b) = b.
 
+Module InodeAllocatorParams <: BlockAllocatorParameters.
+  Definition bitmap_addr := inode_start_addr.
+  Definition num_of_blocks := inode_count.
+  Definition num_of_blocks_in_bounds := inode_count_in_bounds.
+End InodeAllocatorParams.
+
+Module InodeAllocator := BlockAllocator InodeAllocatorParams.
+
+Import InodeAllocator.
+
 Open Scope pred_scope.
 
-Definition inode_list_rep ilist : @pred addr addr_dec (set value) :=
-  exists* inode_blocks,
-  0 |=> inode_blocks *
-  [[ length inode_blocks = inode_count ]] *
-  [[ ilist = map (fun bs => decode_inode (fst bs)) inode_blocks ]].
+Definition inode_map_rep inode_block_map (inode_map: disk Inode) :=
+  forall i, inode_map i = option_map decode_inode (inode_block_map i).
+
+Definition inode_rep (inode_map: disk Inode) : @pred addr addr_dec (set value) :=
+  exists* inode_block_map,
+    block_allocator_rep inode_block_map *
+    [[ forall i, inode_map i = option_map decode_inode (inode_block_map i) ]].
 
 Definition get_inode inum :=
-  i <-| Read inum;
-  Ret (decode_inode i).
-
-Fixpoint get_last_unused_inum_rec n :=
-  match n with
-  | 0 =>
-    Ret None
-  | S n' =>
-    inode <- get_inode n';
-    if inode.(used) then
-      un <- get_last_unused_inum_rec n';
-      Ret un
-    else
-      Ret (Some n')
-end.
-
-Definition get_last_unused_inum :=
-  inum <- get_last_unused_inum_rec inode_count;
-  Ret inum.
+  r <- read inum;
+  if r is Some i then
+    Ret (Some (decode_inode i))
+  else
+    Ret None.
 
 Definition set_inode inum inode:=
-  _ <-| Write [inum] [encode_inode inode];
-  Ret tt.
+  r <- write inum (encode_inode inode);
+  Ret r.
 
+Definition alloc user :=
+  r <- alloc (encode_inode (Build_Inode user []));
+  Ret r.
 
+Definition free inum :=
+  r <- free inum;
+  Ret r.
 
+Definition extend inum block_num :=
+  r <- get_inode inum;
+  if r is Some inode then
+    r <- set_inode inum (Build_Inode inode.(owner) (inode.(block_numbers)++[block_num]));
+      Ret r
+  else
+    Ret None.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+Definition change_owner inum user :=
+  r <- get_inode inum;
+  if r is Some inode then
+    r <- set_inode inum (Build_Inode user inode.(block_numbers));
+      Ret r
+  else
+    Ret None.

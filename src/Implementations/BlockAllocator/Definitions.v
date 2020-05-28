@@ -1,8 +1,8 @@
 Require Import Framework TransactionalDiskLayer Omega.
+Import IfNotations.
 Close Scope pred_scope.
 
 Axiom block_size: nat.
-Axiom block_size_eq: block_size = 4 * 1024 * 8. (* 4 KB *)
 
 Definition valid_bitlist l := length l = block_size /\ (forall i, In i l -> i < 2).
 
@@ -45,82 +45,94 @@ Qed.
 Axiom value_to_bits: value -> bitlist.
 Axiom bits_to_value: bitlist -> value.
 Axiom value_to_bits_to_value : forall v, bits_to_value (value_to_bits v) = v.
-Axiom bits_to_value_to_bits : forall l, value_to_bits (bits_to_value l) = l.                                                                   
-Open Scope pred_scope.
+Axiom bits_to_value_to_bits : forall l, value_to_bits (bits_to_value l) = l.   
+
+Module Type BlockAllocatorParameters.
+  Parameter bitmap_addr: addr.
+  Parameter num_of_blocks: nat.
+  Parameter num_of_blocks_in_bounds: num_of_blocks <= block_size.
+End BlockAllocatorParameters.
+  
+(* This is a generic block allocator which has a 1 block bitmap and num_of_blocks blocks following it *)  
+Module BlockAllocator (Params : BlockAllocatorParameters).
+
+  Import Params.
 
 Definition alloc (v': value) :=
-  v <-| Read 0;
+  v <-| Read bitmap_addr;
   let bits := bits (value_to_bits v) in
   let valid := valid (value_to_bits v) in
-  let index := get_first_zero bits in
+  let index := get_first_zero (firstn num_of_blocks bits) in
   
-  if lt_dec index block_size then
+  if lt_dec index num_of_blocks then
     _ <-| Write (S index) v';
-    _ <-| Write 0 (bits_to_value (Build_bitlist (updN bits index 1) (upd_valid_one index bits valid)));
+    _ <-| Write bitmap_addr (bits_to_value (Build_bitlist (updN bits index 1) (upd_valid_one index bits valid)));
     Ret (Some index)
   else
     Ret None.
 
 Definition free a :=
-  v <-| Read 0;
+  if lt_dec a num_of_blocks then
+  v <-| Read bitmap_addr;
   let bits := bits (value_to_bits v) in
   let valid := valid (value_to_bits v) in
-  if lt_dec a block_size then
-    if addr_dec (nth a bits 0) 1 then
-      _ <-| Write 0 (bits_to_value (Build_bitlist (updN bits a 0) (upd_valid_zero a bits valid)));
-      Ret tt
-    else
-      Ret tt
-  else
-    Ret tt.
-
-(*
-Definition read a : prog (option value) :=
-  v <- Read 0;
-  let bits := bits (value_to_bits v) in
-  if lt_dec a block_size then
-    if addr_dec (nth a bits 0) 1 then
-      h <- Read (S a);
-      Ret (Some h)
-    else
-      Ret None
-  else
-    Ret None.
-
-Definition write a v' : prog (option unit) :=
-  v <- Read 0;
-  let bits := bits (value_to_bits v) in
-  if lt_dec a block_size then
-    if addr_dec (nth a bits 0) 1 then
-      _ <- Write (S a) v';
+  if nth_error bits a is Some 1 then
+      _ <-| Write bitmap_addr (bits_to_value (Build_bitlist (updN bits a 0) (upd_valid_zero a bits valid)));
       Ret (Some tt)
     else
       Ret None
   else
     Ret None.
-*)
 
+Definition read a :=
+  if lt_dec a num_of_blocks then
+  v <-| Read bitmap_addr;
+  let bits := bits (value_to_bits v) in
+  let valid := valid (value_to_bits v) in
+  if nth_error bits a is Some 1 then
+      v <-| Read (S a);
+      Ret (Some v)
+    else
+      Ret None
+  else
+    Ret None.
 
-Fixpoint ptsto_bits' (dh: disk value) bits n : @pred addr addr_dec (set value) :=
-  match bits with
-  | nil =>
-    emp
-  | b::l =>
-    (exists* vs,
+Definition write a b :=
+  if lt_dec a num_of_blocks then
+  v <-| Read bitmap_addr;
+  let bits := bits (value_to_bits v) in
+  let valid := valid (value_to_bits v) in
+  if nth_error bits a is Some 1 then
+      _ <-| Write (S a) b;
+      Ret (Some tt)
+    else
+      Ret None
+  else
+    Ret None.
+
+Open Scope pred_scope.
+  
+Fixpoint ptsto_bits' (dh: disk value) value_sets bits n : @pred addr addr_dec (set value) :=
+  match value_sets, bits with
+  | vs::value_sets', b::bits' =>
     (S n) |-> vs *
     match b with
     | 0 => [[ dh n = None ]]
     | 1 => [[ dh n = Some (fst vs) ]]
     | _ => [[ False ]]
-    end) *
-    ptsto_bits' dh l (S n)
+    end *
+    ptsto_bits' dh value_sets' bits' (S n)
+   | _, _ =>
+    emp
   end.
       
-Definition ptsto_bits dh bits := ptsto_bits' dh bits 0.
+Definition ptsto_bits dh value_sets bits := ptsto_bits' dh value_sets bits 0.
 
-Definition rep (dh: disk value) : @pred addr addr_dec (set value) :=
-  (exists* bitmap bl,
-    let bits := bits (value_to_bits bitmap) in
-    0 |-> (bitmap, bl) * ptsto_bits dh bits * [[ forall i, i >= block_size -> dh i = None ]])%pred.
-
-Hint Extern 0 (okToUnify (rep _) (rep _)) => constructor : okToUnify.
+Definition block_allocator_rep (dh: disk value) : @pred addr addr_dec (set value) :=
+  (exists* bitmap bl value_sets,
+     let bits := bits (value_to_bits bitmap) in
+     bitmap_addr |-> (bitmap, bl) *
+     ptsto_bits dh value_sets bits *
+     [[ length value_sets = num_of_blocks ]] *
+     [[ forall i, i >= num_of_blocks -> dh i = None ]])%pred.
+End BlockAllocator.

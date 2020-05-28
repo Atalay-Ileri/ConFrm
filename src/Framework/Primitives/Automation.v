@@ -138,7 +138,7 @@ Ltac cleanup:= try split_match; try logic_clean;
 
 Ltac split_ors:=
   match goal with
-  | [H: _ \/ _ |- _ ] => destruct H; cleanup
+  | [H: _ \/ _ |- _ ] => destruct H
   end.
 
 

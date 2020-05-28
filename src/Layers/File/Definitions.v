@@ -9,6 +9,7 @@ Set Implicit Arguments.
   | CrashAfter : token'
   | CrashAfterCreate : Inum -> token'
   | NewInum : Inum -> token'
+  | InodesFull : token'
   | DiskFull : token'
   | Cont : token'.
 
@@ -22,32 +23,66 @@ Set Implicit Arguments.
   Definition state' := disk File.
   
   Inductive prog' : Type -> Type :=
-  | Read : Inum -> addr -> prog' value
-  | Write : Inum -> addr -> value -> prog' unit
-  | Extend : Inum -> list value -> prog' (option unit) 
-  | SetOwner : Inum -> user -> prog' unit
+  | Read : Inum -> addr -> prog' (option value)
+  | Write : Inum -> addr -> value -> prog' (option unit)
+  | Extend : Inum -> value -> prog' (option unit) 
+  | SetOwner : Inum -> user -> prog' (option unit)
   | Create : user -> prog' (option addr)
-  | Delete : Inum -> prog' unit.
+  | Delete : Inum -> prog' (option unit).
    
   Inductive exec' :
     forall T, oracle' ->  state' -> prog' T -> @Result state' T -> Prop :=
-  | ExecRead : 
+  | ExecReadSuccess : 
       forall d inum off file v,
         d inum = Some file ->
         nth_error file.(blocks) off = Some v ->
-        exec' [Cont] d (Read inum off) (Finished d v)
+        exec' [Cont] d (Read inum off) (Finished d (Some v))
+              
+  | ExecReadFail : 
+      forall d inum off file,
+        (d inum = None \/
+         d inum = Some file /\ nth_error file.(blocks) off = None) ->
+        exec' [Cont] d (Read inum off) (Finished d None)
              
-  | ExecWrite :
+  | ExecWriteSuccess :
       forall d inum file off v,
         d inum = Some file ->
+        off < length (file.(blocks)) ->
         let new_file := Build_File file.(owner) (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
-        exec' [Cont] d (Write inum off v) (Finished (upd d inum new_file) tt)
+        exec' [Cont] d (Write inum off v) (Finished (upd d inum new_file) (Some tt))
 
-  | ExecSetOwner :
+  | ExecWriteFail :
+      forall d inum file off v,
+        (d inum = None \/
+        d inum = Some file /\ off >= length (file.(blocks))) ->
+        exec' [Cont] d (Write inum off v) (Finished d None)
+
+  | ExecExtendSuccess :
+      forall d inum file v,
+        d inum = Some file ->
+        let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
+        exec' [Cont] d (Extend inum v) (Finished (upd d inum new_file) (Some tt))
+
+  | ExecExtendFail :
+      forall d inum v,
+        d inum = None ->
+        exec' [Cont] d (Extend inum v) (Finished d None)
+              
+  | ExecExtendFailDiskFull :
+      forall d inum file v,
+        d inum = Some file ->
+        exec' [DiskFull] d (Extend inum v) (Finished d None)
+
+  | ExecSetOwnerSuccess :
       forall d inum file u,
         d inum = Some file ->
         let new_file := Build_File u file.(blocks) in
-        exec' [Cont] d (SetOwner inum u) (Finished (upd d inum new_file) tt)
+        exec' [Cont] d (SetOwner inum u) (Finished (upd d inum new_file) (Some tt))
+
+  | ExecSetOwnerFail :
+      forall d inum u,
+        d inum = None ->
+        exec' [Cont] d (SetOwner inum u) (Finished d None)
 
   | ExecCreateSuccess :
       forall d inum u,
@@ -61,84 +96,102 @@ Set Implicit Arguments.
         (forall inum, inum < Definitions.inode_count -> d inum <> None) ->
         exec' [DiskFull] d (Create u) (Finished d None)
               
-  | ExecDelete :
+  | ExecDeleteSuccess :
       forall d inum file,
         d inum = Some file ->
-        exec' [Cont] d (Delete inum) (Finished (Mem.delete d inum) tt)
+        exec' [Cont] d (Delete inum) (Finished (Mem.delete d inum) (Some tt))
+
+  | ExecDeleteFail :
+      forall d inum,
+        d inum = None ->
+        exec' [Cont] d (Delete inum) (Finished d None)
 
   | ExecCrashBefore :
       forall d T (p: prog' T),
         exec' [CrashBefore] d p (Crashed d)
 
-  | ExecWriteCrashAfter :
-      forall d inum file off v,
-        d inum = Some file ->
-        let new_file := Build_File file.(owner) (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
-        exec' [CrashAfter] d (Write inum off v) (Crashed (upd d inum new_file))
-
-  | ExecSetOwnerCrashAfter :
-      forall d inum file u,
-        d inum = Some file ->
-        let new_file := Build_File u file.(blocks) in
-        exec' [CrashAfter] d (SetOwner inum u) (Crashed (upd d inum new_file))
+  | ExecCrashAfter :
+      forall d T (p: prog' T) d' r,
+        exec' [Cont] d p (Finished d' r) ->
+        exec' [CrashAfter] d p (Crashed d')
 
   | ExecCreateCrashAfter :
       forall d inum u,
         d inum = None ->
         let new_file := Build_File u [] in
-        exec' [CrashAfterCreate inum] d (Create u) (Finished (upd d inum new_file) (Some inum))
-
-  | ExecDeleteCrashAfter :
-      forall d inum file,
-        d inum = Some file ->
-        exec' [CrashAfter] d (Delete inum) (Finished (Mem.delete d inum) tt).
+        exec' [CrashAfterCreate inum] d (Create u) (Finished (upd d inum new_file) (Some inum)).
 
   Hint Constructors exec' : core.
 
    Definition weakest_precondition' T (p: prog' T) :=
    match p in prog' T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
    | Read inum a =>
-     (fun Q o s =>
+     fun Q o s =>
        exists file v,
          o = [Cont] /\
-         s inum = Some file /\
+
+         ((s inum = Some file /\
          nth_error file.(blocks) a = Some v /\
-         Q v s)
+         Q (Some v) s) \/
+         
+         ((s inum = None \/
+          (s inum = Some file /\
+           nth_error file.(blocks) a = None)) /\
+          Q None s))
+           
    | Write inum a v =>
-     (fun Q o s =>
+     fun Q o s =>
         exists file,
-        o = [Cont] /\
-        s inum = Some file /\
-        let new_file :=
-            Build_File file.(owner)
-            (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
-        Q tt (upd s inum new_file))
+          o = [Cont] /\
+          
+          ((s inum = Some file /\
+           a < length (file.(blocks)) /\
+           let new_file :=
+               Build_File file.(owner)
+               (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
+           Q (Some tt) (upd s inum new_file)) \/
+          
+        ((s inum = None \/
+          (s inum = Some file /\
+           a >= length (file.(blocks)))) /\
+         Q None s))
+            
    | SetOwner inum u =>
-     (fun Q o s =>
+     fun Q o s =>
         exists file,
+        let new_file := Build_File u file.(blocks) in
         o = [Cont] /\
-        s inum = Some file /\
-        let new_file :=
-            Build_File u file.(blocks) in
-        Q tt (upd s inum new_file))
+
+        ((s inum = Some file /\
+        Q (Some tt) (upd s inum new_file)) \/
+
+        (s inum = None /\
+         Q None s))
+          
    | Create u =>
-     (fun Q o s =>
+     fun Q o s =>
         (forall inum,
            o = [DiskFull] /\
            (inum < Definitions.inode_count -> s inum <> None) /\
            Q None s) \/
+
         (exists inum,
            o = [NewInum inum] /\
            inum < Definitions.inode_count /\ 
            s inum = None /\
            let new_file := Build_File u [] in
-           Q (Some inum) (upd s inum new_file)))
-     | Delete inum =>
-       (fun Q o s =>
+           Q (Some inum) (upd s inum new_file))
+       
+   | Delete inum =>
+       fun Q o s =>
         exists file,
         o = [Cont] /\
-        s inum = Some file /\
-        Q tt (Mem.delete s inum))
+
+        ((s inum = Some file /\
+          Q (Some tt) (Mem.delete s inum)) \/
+
+         (s inum = None /\
+          Q None s))
    end.
 
    Definition weakest_crash_precondition' T (p: prog' T) :=
@@ -181,17 +234,20 @@ Set Implicit Arguments.
         let new_file :=
             Build_File u file.(blocks) in
         Q tt (upd s inum new_file))
+       
    | Create u =>
      (fun Q o s =>
+        let new_file := Build_File u [] in
+
         (forall inum,
            o = [DiskFull] /\
            (inum < Definitions.inode_count -> s inum <> None) /\
            Q None s) \/
+        
         (exists inum,
            o = [NewInum inum] /\
            inum < Definitions.inode_count /\ 
            s inum = None /\
-           let new_file := Build_File u [] in
            Q (Some inum) (upd s inum new_file)))
      | Delete inum =>
        (fun Q o s =>

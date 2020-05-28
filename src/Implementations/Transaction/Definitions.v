@@ -19,17 +19,16 @@ Definition start :=
   _ <- |TCCO| Put [];
   Ret tt.
 
-Definition write a v :=
-  txn <- |TCCO| Get _;
-  _   <- |TCCO| Put ((a, v)::txn);
-  Ret tt.
-
 Definition commit :=
   txn <- |TCCO| Get _;
   let al := fst (split (rev txn)) in
   let vl := snd (split (rev txn)) in
   _ <- |TCDO| Write al vl;
-  _ <- |TCCO| Put [];
+  _ <- |TCCO| Delete _;
+  Ret tt.
+
+Definition abort :=
+  _ <- |TCCO| Delete _;
   Ret tt.
 
 Definition read a :=
@@ -41,6 +40,11 @@ Definition read a :=
     v <- |TCDO| Read a;
     Ret v
   end.
+
+Definition write a v :=
+  txn <- |TCCO| Get _;
+  _   <- |TCCO| Put ((a, v)::txn);
+  Ret tt.
 
 Definition transaction_cache_rep txn (s: state TransactionCacheLang) :=
   fst s = Some txn.

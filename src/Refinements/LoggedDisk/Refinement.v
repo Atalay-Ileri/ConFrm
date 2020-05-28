@@ -11,13 +11,106 @@ Axiom excluded_middle_dec: forall P: Prop, {P}+{~P}.
 
 Section LoggedDiskBisimulation.
 
-  Axiom exec_compiled_preserves_refinement:
+  Lemma exec_compiled_preserves_refinement:
     exec_compiled_preserves_refinement LoggedDiskRefinement.
+  Proof.
+    unfold exec_compiled_preserves_refinement.
+    induction p2; simpl; unfold compilation_of in *; simpl in *; intros; cleanup.
+    {
+      destruct ret.
+      assume (A:(forall s' t, strongest_postcondition CachedDiskLang (read a) (fun o s => exists s2, refines_to s s2) t s' ->
+                         exists s2' : state', refines_to s' s2')).
+      eapply A.
+      eapply exec_to_sp; eauto.
 
-  Axiom exec_preserves_refinement:
+      assume (A:(forall s', strongest_crash_postcondition CachedDiskLang (read a) (fun o s => exists s2, refines_to s s2) s' ->
+                         exists s2' : state', refines_to s' s2')).
+      eapply A.
+      eapply exec_to_scp; eauto.
+    }
+    {
+      destruct ret.
+      assume (A:(forall s' t, strongest_postcondition CachedDiskLang (write l l0) (fun o s => exists s2, refines_to s s2) t s' ->
+                         exists s2' : state', refines_to s' s2')).
+
+      eapply A.
+      eapply exec_to_sp; eauto.
+
+      assume (A:(forall s', strongest_crash_postcondition CachedDiskLang (write l l0) (fun o s => exists s2, refines_to s s2) s' ->
+                         exists s2' : state', refines_to s' s2')).
+      eapply A.
+      eapply exec_to_scp; eauto.
+    }
+
+    {
+      destruct ret.
+      eapply exec_to_sp with (P := fun o s => refines_to s x) in H1; unfold refines_to in *; eauto.
+      simpl in *; cleanup; simpl; eauto.
+      eapply exec_to_scp with (P := fun o s => refines_to s x) in H1; unfold refines_to in *; eauto.
+    }
+
+    {
+      unfold compilation_of in *;
+      invert_exec; eauto.
+      split_ors; cleanup; eauto.
+      eapply IHp2 in H0; eauto.
+    }
+    
+    Unshelve.
+    {
+      intros; simpl in *; cleanup.
+      cleanup; simpl in *; cleanup.
+      destruct s'; eauto.
+      destruct s', s2; eauto.
+    }
+    {
+      intros; simpl in *; cleanup.
+      split_ors; cleanup.
+      inversion H; clear H; cleanup.
+      destruct s'; eauto.      
+      cleanup; simpl in *; cleanup.
+      destruct s'; eauto.
+      split_ors; cleanup.
+      inversion H; clear H; cleanup.
+      destruct s', s2; eauto.
+      destruct s', s2; eauto.
+    }
+  Admitted.
+  
+  Lemma exec_preserves_refinement:
     exec_preserves_refinement LoggedDiskRefinement.
+  Proof.
+    unfold exec_preserves_refinement; induction p; simpl; intros.
+    destruct ret.
+    {
+      eapply exec_to_sp with (P := fun o s => exists x, refines_to x s) in H0; eauto.
+      destruct p; simpl in *; cleanup; eauto.
+      clear H; unfold refines_to in *; cleanup.
+      admit. (* Doable *)
+    }
+    {
+      eapply exec_to_scp with (P := fun o s => exists x, refines_to x s) in H0; eauto.
+      destruct p; simpl in *; cleanup; eauto.
+      split_ors; cleanup; eauto.
+      clear H; unfold refines_to in *; cleanup.
+      admit. (* Doable *)
+    }
 
-
+    destruct ret.
+    {
+      eapply exec_to_sp with (P := fun o s => exists x, refines_to x s) in H0; eauto.
+      simpl in *; cleanup; eauto.
+    }
+    {
+      eapply exec_to_scp with (P := fun o s => exists x, refines_to x s) in H0; eauto.
+    }
+    
+    invert_exec.
+    eapply IHp in H1; eauto; simpl in *.
+    split_ors; cleanup; eauto.
+    eapply IHp in H1; eauto; simpl in *.
+  Admitted.
+      
   Lemma merge_some_l:
     forall AT AEQ V (m1: @mem AT AEQ V) m2 a v,
       m1 a = Some v ->
@@ -109,7 +202,6 @@ Section LoggedDiskBisimulation.
     unfold compilation_of, refines_to in *; simpl; intros; cleanup.
     split_ors; cleanup.
     repeat invert_exec.
-    inversion H9; clear H9; cleanup.
     eapply exec_to_wp; eauto.
 
     eapply exec_to_sp with (P := fun o s => refines_to s s2') in H0; unfold refines_to in *; eauto.
@@ -151,7 +243,6 @@ Section LoggedDiskBisimulation.
     unfold compilation_of, refines_to in *; simpl; intros; cleanup.
     split_ors; cleanup.
     repeat invert_exec.
-    inversion H8; clear H8; cleanup.
     eapply exec_to_wcp; eauto.
     destruct x0, s0.
     eapply exec_to_scp with (P := fun o s => refines_to s s2') in H0; unfold refines_to in *; eauto.
@@ -197,7 +288,9 @@ Section LoggedDiskBisimulation.
     split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
     split_ors; cleanup;
     eexists; intuition eauto.
-    - right; intuition eauto.
+    right; intuition eauto.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2) in H3.
+    2: unfold refines_to; eauto.
       admit. (* TODO: Check this *)
   Admitted.
 
@@ -210,8 +303,9 @@ Section LoggedDiskBisimulation.
     repeat split_ors; cleanup; repeat invert_exec;
     try inversion H8; try clear H8; cleanup;
     try inversion H9; try clear H9; cleanup;
-    eapply exec_to_wcp; eauto.
-    - admit. (* TODO: Check this *)
+    eapply exec_to_wcp; eauto;
+    split_ors; cleanup; eauto.
+    admit. (* TODO: Check this *)
   Admitted.
 
 

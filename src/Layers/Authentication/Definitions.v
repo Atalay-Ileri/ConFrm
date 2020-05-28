@@ -4,8 +4,7 @@ Import ListNotations.
 Set Implicit Arguments.
   
   Inductive token' :=
-  | CrashBefore : token'
-  | CrashAfter : token'
+  | Crash : token'
   | Cont : token'.
 
   Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
@@ -14,101 +13,66 @@ Set Implicit Arguments.
 
   Definition oracle' := list token'.  
 
-  Definition state' := disk (set value).
+  Definition state' := user.
   
   Inductive prog' : Type -> Type :=
-  | Read : addr -> prog' value
-  | Write : list addr -> list value -> prog' unit.
-   
+  | Auth : user -> prog' (option unit).
+  
   Inductive exec' :
     forall T, oracle' ->  state' -> prog' T -> @Result state' T -> Prop :=
-  | ExecRead : 
-      forall d a v,
-        read d a = Some v ->
-        exec' [Cont] d (Read a) (Finished d v)
+  | ExecAuthSuccess : 
+      forall s u,
+        u = s ->
+        exec' [Cont] s (Auth u) (Finished s (Some tt))
              
-  | ExecWrite :
-      forall d la lv,
-        exec' [Cont] d (Write la lv) (Finished (write_all d la lv) tt)
-
-  | ExecCrashBefore :
-      forall d T (p: prog' T),
-        exec' [CrashBefore] d p (Crashed d)
-
-  | ExecCrashWriteAfter :
-      forall d la lv,
-        exec' [CrashAfter] d (Write la lv) (Crashed (write_all d la lv)).
+  | ExecAuthFail : 
+      forall s u,
+        u <> s ->
+        exec' [Cont] s (Auth u) (Finished s None)
+              
+  | ExecCrash :
+      forall T d (p: prog' T),
+        exec' [Crash] d p (Crashed d).
 
   Hint Constructors exec' : core.
-
-   Definition weakest_precondition' T (p: prog' T) :=
+  
+  Definition weakest_precondition' T (p: prog' T) :=
    match p in prog' T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
-   | Read a =>
-     (fun Q o s =>
-       exists v,
-         o = [Cont] /\
-         read s a = Some v /\
-         Q v s)
-   | Write la lv =>
-     (fun Q o s =>
-       o = [Cont] /\
-       Q tt (write_all s la lv))
+   |  Auth u =>
+     fun Q o s =>
+        o = [Cont] /\
+        ((s = u /\ Q (Some tt) s) \/
+        (s <> u /\ Q None s))
    end.
 
   Definition weakest_crash_precondition' T (p: prog' T) :=
-    match p in prog' T' return (state' -> Prop) -> oracle' -> state' -> Prop with
-   | Read a =>
-     (fun Q o s =>
-         o = [CrashBefore] /\
-         Q s)
-   | Write la lv =>
-     (fun Q o s =>
-       (o = [CrashBefore] /\
-        Q s) \/
-       (o = [CrashAfter] /\
-        Q (write_all s la lv)))
-    end.
+    fun (Q: state' -> Prop) o (s: state') => o = [Crash] /\ Q s.
 
   Definition strongest_postcondition' T (p: prog' T) :=
    match p in prog' T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
-   | Read a =>
-     fun P t s' =>
-       exists s v,
-         P [Cont] s /\
-         read s a = Some v /\
-         t = v /\
-         s' = s
-   | Write la lv =>
+   | Auth u =>
      fun P t s' =>
        exists s,
-       P [Cont] s /\
-       t = tt /\
-       s' = write_all s la lv
+        P [Cont] s /\
+        s' = s /\
+        ((s = u /\ t = Some tt) \/
+         (s <> u /\ t = None))
    end.
 
   Definition strongest_crash_postcondition' T (p: prog' T) :=
-    match p in prog' T' return (oracle' -> state' -> Prop) -> state' -> Prop with
-   | Read a =>
-     fun P s' =>
-       P [CrashBefore] s'
-   | Write la lv =>
-     fun P s' =>
-       (P [CrashBefore] s') \/
-       (exists s,
-          P [CrashAfter] s /\
-          s' = write_all s la lv)
-    end.
-  
+    fun (P: oracle' -> state' -> Prop) (s: state') => P [Crash] s.
+
   Theorem sp_complete':
     forall T (p: prog' T) P (Q: _ -> _ -> Prop),
       (forall t s', strongest_postcondition' p P t s' -> Q t s') <->
       (forall o s s' t, P o s -> exec' o s p (Finished s' t) -> Q t s').
   Proof.
     intros; destruct p; simpl; eauto;
-    split; intros;
+    split; intros.
     try inversion H1; cleanup;
     eapply H; eauto;
-    do 2 eexists; eauto.    
+    do 2 eexists; eauto.
+    cleanup; split_ors; cleanup; eauto.
   Qed.
 
   Theorem scp_complete':
@@ -119,9 +83,9 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros;
     try inversion H1; cleanup;
-    try split_ors; cleanup; eapply H; eauto.
+    eapply H; eauto.
   Qed.
-
+  
   Theorem wp_complete':
     forall T (p: prog' T) H Q,
       (forall o s, H o s -> weakest_precondition' p Q o s) <->
@@ -130,7 +94,8 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros;
     specialize H0 with (1:= X);
-    cleanup; eauto;
+    cleanup; eauto.
+    split_ors; cleanup; eauto.
     inversion H0; cleanup; eauto.
   Qed.
   
@@ -158,10 +123,10 @@ Set Implicit Arguments.
       match goal with
       | [H: exec' _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
-      end; eauto.
+      end; eauto; congruence.
   Qed.
   
-  Definition LoggedDiskOperation :=
+  Definition AuthenticationOperation :=
     Build_Operation
       (list_eq_dec token_dec')
       prog'
@@ -176,9 +141,7 @@ Set Implicit Arguments.
       scp_complete'
       exec_deterministic_wrt_oracle'.
 
-  Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
-  Definition LoggedDiskHL := Build_HoareLogic LoggedDiskLang.
+  Definition AuthenticationLang := Build_Language AuthenticationOperation.
+  Definition AuthenticationHL := Build_HoareLogic AuthenticationLang.
 
-Notation "| p |" := (Op LoggedDiskOperation p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op LoggedDiskOperation p1) (fun x => p2))(right associativity, at level 60). 
-Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
+  Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
