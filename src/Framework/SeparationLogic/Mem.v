@@ -23,7 +23,7 @@ Section GenMem.
       | Some _ => Some v
       end else m a'.
 
-  Definition merge {A AEQ V} (m1: @mem A AEQ V)
+  Definition merge (m1: @mem A AEQ V)
              (m2: @mem A AEQ (V * list V)) : @mem A AEQ (V * list V) :=
   fun a =>
     match m1 a with
@@ -35,11 +35,14 @@ Section GenMem.
         Some (v, fst vs::snd vs)
       end
     end.
+  
 
-  Definition addrs_match {A AEQ V1 V2} (m1: @mem A AEQ V1)
-             (m2: @mem A AEQ V2) : Prop :=
+  Definition addrs_match {V1} (m1: @mem A AEQ V)
+             (m2: @mem A AEQ V1) : Prop :=
   forall a, m1 a <> None -> m2 a <> None.
-      
+
+  Definition shift (shift_a: A -> A) (m:@mem A AEQ V) :=
+    fun a => m (shift_a a).
 
   Definition delete (m : @mem A AEQ V) (a : A) : @mem A AEQ V :=
     fun a' => if AEQ a' a then None else m a'.

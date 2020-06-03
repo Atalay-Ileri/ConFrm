@@ -1,10 +1,5 @@
-Require Import Framework TransactionalDiskLayer BlockAllocator.
+Require Import Framework FSParameters TransactionalDiskLayer BlockAllocator.
 Import IfNotations.
-
-(* For simplicity, it will be 1 inode per block *)
-Axiom inode_start_addr: addr.
-Axiom inode_count: nat.
-Axiom inode_count_in_bounds: inode_count <= block_size.
 
 Definition Inum := addr.
 

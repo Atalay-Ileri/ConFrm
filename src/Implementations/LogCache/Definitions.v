@@ -1,29 +1,30 @@
-Require Import Datatypes PeanoNat Framework Log.
+Require Import Datatypes PeanoNat Framework FSParameters Log.
 Require Import DiskLayer CryptoDiskLayer CacheLayer CachedDiskLayer.
 
-Axiom addr_list_to_blocks : list addr -> list value.
-
-Fixpoint write_batch al vl :=
+Fixpoint write_batch_to_cache al vl :=
   match al, vl with
   | a::al', v::vl' =>
     _ <- |CDCO| Write a v;
-    _ <- write_batch al' vl';
+    _ <- write_batch_to_cache al' vl';
     Ret tt            
   | _, _ => Ret tt
   end.
 
+(* Converts to disk address before writing to log *)
 Definition write  addr_l (data_l: list value) :=
-  _ <- write_batch addr_l data_l;
-  _ <- |CDDP| commit (addr_list_to_blocks addr_l) data_l;
+  _ <- write_batch_to_cache addr_l data_l;
+  _ <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
   Ret tt.
 
+
+(* Takes a data region_address *)
 Definition read a :=
-  mv <- |CDCO| Read _ a;
+  mv <- |CDCO| Read _ (data_start + a);
   match mv with
   | Some v =>
     Ret v
   | None =>
-    v <- |CDDP| |DO| Disk.Definitions.Read _ a;
+    v <- |CDDP| |DO| Disk.Definitions.Read _ (data_start + a);
     Ret v
   end.
 
@@ -43,5 +44,5 @@ Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLa
     fst s = txns_cache txns empty_mem /\
     addrs_match (fst s) (snd (snd s)) /\
     (log_rep hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\
-    merged_disk = merge (fst s) (snd (snd s)).
+    merged_disk = shift (plus data_start) (merge (fst s) (snd (snd s))).
 

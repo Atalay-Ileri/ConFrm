@@ -1,8 +1,7 @@
-Require Import Framework TransactionalDiskLayer Omega.
+Require Import Framework FSParameters TransactionalDiskLayer Omega.
 Import IfNotations.
 Close Scope pred_scope.
 
-Axiom block_size: nat.
 
 Definition valid_bitlist l := length l = block_size /\ (forall i, In i l -> i < 2).
 
@@ -56,20 +55,36 @@ End BlockAllocatorParameters.
 (* This is a generic block allocator which has a 1 block bitmap and num_of_blocks blocks following it *)  
 Module BlockAllocator (Params : BlockAllocatorParameters).
 
-  Import Params.
+Import Params.
 
-Definition alloc (v': value) :=
-  v <-| Read bitmap_addr;
-  let bits := bits (value_to_bits v) in
-  let valid := valid (value_to_bits v) in
-  let index := get_first_zero (firstn num_of_blocks bits) in
+Definition read_bitmap :=
+  sv <-| Read bitmap_addr;
+  match sv with
+  | Some v =>
+    Ret v
+  | None => (* Doesn't matter because read is always valid *)
+    Ret value0
+  end.
   
-  if lt_dec index num_of_blocks then
-    _ <-| Write (S index) v';
-    _ <-| Write bitmap_addr (bits_to_value (Build_bitlist (updN bits index 1) (upd_valid_one index bits valid)));
-    Ret (Some index)
-  else
-    Ret None.
+Definition alloc (v': value) :=
+  sv <-| Read bitmap_addr;
+  match sv with
+  | Some v =>
+    let bits := bits (value_to_bits v) in
+    let valid := valid (value_to_bits v) in
+    let index := get_first_zero (firstn num_of_blocks bits) in
+    
+    if lt_dec index num_of_blocks then
+      _ <-| Write (S index) v';
+      _ <-| Write bitmap_addr
+           (bits_to_value (Build_bitlist (updN bits index 1)
+                             (upd_valid_one index bits valid)));
+      Ret (Some index)
+    else
+      Ret None
+  | None =>
+    Ret None
+  end.
 
 Definition free a :=
   if lt_dec a num_of_blocks then

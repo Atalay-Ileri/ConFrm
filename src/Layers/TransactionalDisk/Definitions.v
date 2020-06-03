@@ -1,12 +1,17 @@
-Require Import Framework.
+Require Import Omega Framework.
 Import ListNotations.
 
 Set Implicit Arguments.
-  
+
+Section TransactionalDisk.
+
+  Variable disk_size: nat.
+
   Inductive token' :=
   | CrashBefore : token'
   | CrashAfter : token'
-  | Cont : token'.
+  | Cont : token'
+  | TxnFull : token'.
 
   Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
     decide equality.
@@ -31,19 +36,36 @@ Set Implicit Arguments.
         let d := snd s in
         exec' [Cont] s Start (Finished (empty_mem, d) tt)
               
-  | ExecRead : 
+  | ExecReadInbound : 
       forall s a v,
         let c := fst s in
         let d := snd s in
+        a < disk_size ->
         (c a = Some v \/
         (c a = None /\ read d a = Some v)) ->
         exec' [Cont] s (Read a) (Finished s v)
+
+  | ExecReadOutbound : 
+      forall s a,
+        a >= disk_size ->
+        exec' [Cont] s (Read a) (Finished s value0)
              
-  | ExecWrite :
+  | ExecWriteInbound :
       forall s a v,
         let c := fst s in
         let d := snd s in
+        a < disk_size ->
         exec' [Cont] s (Write a v) (Finished ((upd c a v), d) tt)
+
+  | ExecWriteInboundFull :
+      forall s a v,
+        a < disk_size ->
+        exec' [TxnFull] s (Write a v) (Finished s tt)
+              
+  | ExecWriteOutbound :
+      forall s a v,
+        a >= disk_size ->
+        exec' [Cont] s (Write a v) (Finished s tt)
 
   | ExecCommit : 
       forall s,
@@ -80,17 +102,40 @@ Set Implicit Arguments.
      (fun Q o s =>
         let c := fst s in
         let d := snd s in
-        exists v,
-         o = [Cont] /\
-         (c a = Some v \/
-         (c a = None /\ read d a = Some v)) /\
-         Q v s)
+        (
+          o = [Cont] /\
+          a < disk_size /\ 
+          exists v,
+            (c a = Some v \/ (c a = None /\ read d a = Some v)) /\
+            Q v s
+        ) \/
+        (
+          o = [Cont] /\
+          a >= disk_size /\
+          Q value0 s
+        )
+     )
    | Write a v =>
      (fun Q o s =>
        let c := fst s in
        let d := snd s in
-       o = [Cont] /\
-       Q tt ((upd c a v), d))
+       
+       (
+         o = [Cont] /\
+         a < disk_size /\
+         Q tt ((upd c a v), d)
+       ) \/
+       (
+         o = [TxnFull] /\
+         a < disk_size /\
+         Q tt s
+       ) \/
+       (
+         o = [Cont] /\
+         a >= disk_size /\
+         Q tt s
+       )
+     )
    | Commit =>
      (fun Q o s =>
        let c := fst s in
@@ -117,23 +162,45 @@ Set Implicit Arguments.
           Q (empty_mem, d)))
    | Read a =>
      (fun Q o s =>
-          let c := fst s in
-          let d := snd s in
-         (o = [CrashBefore] /\
-          Q s) \/
-         (o = [CrashAfter] /\
-          (exists v,
-           c a = Some v \/
-           (c a = None /\ read d a = Some v)) /\
-          Q s))
+        let c := fst s in
+        let d := snd s in
+        (
+          o = [CrashBefore] /\
+          Q s
+        ) \/
+        (
+          o = [CrashAfter] /\
+          a < disk_size /\
+          Q s /\
+          exists v,
+            c a = Some v \/
+            (c a = None /\ read d a = Some v)
+        ) \/
+        (
+          o = [CrashAfter] /\
+          a >= disk_size /\
+          Q s
+        )
+     )
    | Write a v =>
      (fun Q o s =>
         let c := fst s in
         let d := snd s in
-         (o = [CrashBefore] /\
-          Q s) \/
-         (o = [CrashAfter] /\
-          Q (upd c a v, d)))
+        (
+          o = [CrashBefore] /\
+          Q s
+        ) \/
+        (
+          o = [CrashAfter] /\
+          a < disk_size /\
+          Q (upd c a v, d)
+        ) \/
+        (
+          o = [CrashAfter] /\
+          a >= disk_size /\
+          Q s
+        )
+     )
    | Commit =>
      (fun Q o s =>
        let c := fst s in
@@ -164,22 +231,47 @@ Set Implicit Arguments.
          s' = (empty_mem, d)
    | Read a =>
      fun P t s' =>
-       exists s v,
+       exists s,
          let c := fst s in
          let d := snd s in
-         P [Cont] s /\
-         (c a = Some v \/
-         (c a = None /\ read d a = Some v)) /\
-         t = v /\
-         s' = s
+         (
+           P [Cont] s /\
+           a < disk_size /\
+           s' = s /\
+           exists v,
+             ( c a = Some v \/ (c a = None /\ read d a = Some v) ) /\
+             t = v 
+         ) \/
+         (
+           P [Cont] s /\
+           s' = s /\
+           a >= disk_size /\
+           t = value0
+         )
    | Write a v =>
      fun P t s' =>
        exists s,
        let c := fst s in
        let d := snd s in
-       P [Cont] s /\
-       t = tt /\
-       s' = ((upd c a v), d)
+       (
+         P [Cont] s /\
+         a < disk_size /\
+         t = tt /\
+         s' = ((upd c a v), d)
+       ) \/
+       (
+         P [TxnFull] s /\
+         a < disk_size /\
+         t = tt /\
+         s' = s
+       ) \/
+       (
+         P [Cont] s /\
+         a >= disk_size /\
+         t = tt /\
+         s' = s
+       )
+         
    | Commit =>
       fun P t s' =>
         exists s,
@@ -214,21 +306,42 @@ Set Implicit Arguments.
        exists s,
          let c := fst s in
          let d := snd s in
-         (P [CrashBefore] s /\
-          s' = s) \/
-         (P [CrashAfter] s /\
-          (exists v, c a = Some v \/
-          (c a = None /\ read d a = Some v)) /\
-          s' = s)
+         (
+           P [CrashBefore] s /\
+           s' = s
+         ) \/
+         (
+           P [CrashAfter] s /\
+           a < disk_size /\
+           s' = s /\
+           (exists v, c a = Some v \/ (c a = None /\ read d a = Some v))
+         ) \/
+         (
+           P [CrashAfter] s /\
+           a >= disk_size /\
+           s' = s
+         )
+           
    | Write a v =>
      fun P s' =>
        exists s,
          let c := fst s in
          let d := snd s in
-         (P [CrashBefore] s /\
-          s' = s) \/
-         (P [CrashAfter] s /\
-          s' = (upd c a v, d))
+         (
+           P [CrashBefore] s /\
+           s' = s
+         ) \/
+         (
+           P [CrashAfter] s /\
+           a < disk_size /\
+           s' = (upd c a v, d)
+         ) \/
+         (
+           P [CrashAfter] s /\
+           a >= disk_size /\
+           s' = s
+         )
+           
    | Commit =>
       fun P s' =>
        exists s,
@@ -256,9 +369,14 @@ Set Implicit Arguments.
   Proof.
     intros; destruct p; simpl; eauto;
     split; intros;
-    try inversion H1; cleanup;
-    eapply H; eauto;
-    do 2 eexists; eauto.    
+    try match goal with
+        | [H: exec' _ _ _ _ |- _] =>
+          inversion H; clear H
+        end; cleanup;
+    try solve [ eapply H; eauto;
+    try solve [ repeat (eexists; intuition eauto) ];
+    try solve [ eexists; intuition eauto; eexists; intuition eauto ] ];
+    repeat split_ors; cleanup; eauto.
   Qed.
 
   Theorem scp_complete':
@@ -269,9 +387,11 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros; cleanup;
     repeat (try split_ors; try inversion H1; clear H1; cleanup; eauto);
-    try split_ors; cleanup; eapply H; eauto.
-    eexists; right; eauto.
-    eexists; right; intuition eauto.
+    try split_ors; cleanup;
+    try solve [ eapply H; eauto;
+    try solve [ eexists; right; intuition eauto];    
+    try solve [ split_ors; cleanup; econstructor; eauto ] ];
+    repeat split_ors; cleanup; eauto.
   Qed.
 
   Theorem wp_complete':
@@ -283,7 +403,10 @@ Set Implicit Arguments.
     split; intros;
     specialize H0 with (1:= X);
     cleanup; eauto;
-    inversion H0; cleanup; eauto.
+    try inversion H0; cleanup; eauto.
+    intuition eauto.
+    repeat (split_ors; cleanup);
+    do 2 eexists; eauto.   
   Qed.
   
   Theorem wcp_complete':
@@ -295,9 +418,9 @@ Set Implicit Arguments.
     intros; destruct p; simpl; eauto;
     split; intros; cleanup;
     specialize H0 with (1:= X);
-    try split_ors; cleanup; repeat (try inversion H0; try clear H0; cleanup; eauto).
-    split_ors; cleanup; eauto;
-    eexists; split; eauto; econstructor; eauto. 
+    try split_ors; cleanup; repeat (try inversion H0; try clear H0; cleanup; eauto);
+    try solve [eexists; econstructor; eauto].
+    right; intuition eauto.
   Qed.
 
   Theorem exec_deterministic_wrt_oracle' :
@@ -311,8 +434,8 @@ Set Implicit Arguments.
       match goal with
       | [H: exec' _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
-      end; eauto.
-    repeat split_ors; cleanup; eauto.
+      end; eauto;
+    repeat split_ors; cleanup; eauto; omega.
   Qed.
   
   Definition TransactionalDiskOperation :=
@@ -333,6 +456,8 @@ Set Implicit Arguments.
   Definition TransactionalDiskLang := Build_Language TransactionalDiskOperation.
   Definition TransactionalDiskHL := Build_HoareLogic TransactionalDiskLang.
 
-Notation "| p |" := (Op TransactionalDiskOperation p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op TransactionalDiskOperation p1) (fun x => p2))(right associativity, at level 60). 
+End TransactionalDisk.
+
+Notation "| p |" := (Op (TransactionalDiskOperation _) p)(at level 60).
+Notation "x <-| p1 ; p2" := (Bind (Op (TransactionalDiskOperation _) p1) (fun x => p2))(right associativity, at level 60). 
 Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).

@@ -1,11 +1,12 @@
-Require Import Framework TransactionCacheLayer TransactionalDiskLayer Transaction.
+Require Import Framework FSParameters.
+Require Import TransactionCacheLayer TransactionalDiskLayer Transaction.
 Close Scope pred_scope.
 Import ListNotations.
 
 Notation "'low_op'" := TransactionCacheOperation.
-Notation "'high_op'" := TransactionalDiskOperation.
+Notation "'high_op'" := (TransactionalDiskOperation data_length).
 Notation "'low'" := TransactionCacheLang.
-Notation "'high'" := TransactionalDiskLang.
+Notation "'high'" := (TransactionalDiskLang data_length).
 
 Fixpoint apply_list {A AEQ V} (m: @mem A AEQ V) l :=
   match l with
@@ -80,8 +81,12 @@ Fixpoint oracle_refines_to T (d1: state low) (p: prog high T) o1 o2 : Prop :=
      | Write a v =>
        (exists d1' r,
           exec low o1 d1 (write a v) (Finished d1' r) /\          
-          o2 = [OpOracle high_op [Cont] ] /\
-          d1' = (option_map (fun l => (a, v)::l) (fst d1), snd d1)) \/
+          ((o2 = [OpOracle high_op [Cont] ] /\
+           d1' = (option_map (fun l => (a, v)::l) (fst d1), snd d1)) \/
+          (o2 = [OpOracle high_op [TxnFull] ] /\
+           d1' = d1)
+          )
+       ) \/
        
        (exists d1',
           exec low o1 d1 (write a v) (Crashed d1') /\
@@ -130,15 +135,15 @@ Fixpoint oracle_refines_to T (d1: state low) (p: prog high T) o1 o2 : Prop :=
     end
 .
 
-
-
    Definition refines_to (d1: state low) (d2: state high) :=
-     fst d2 =
+     
      match fst d1 with
      | Some l =>
-       apply_list empty_mem (rev l)
+       let txn_cache := apply_list empty_mem (rev l) in
+       fst d2 = txn_cache /\
+       addrs_match txn_cache (snd d1)
      | None =>
-       empty_mem
+       fst d2 = empty_mem
      end /\
      snd d2 = snd d1.
 

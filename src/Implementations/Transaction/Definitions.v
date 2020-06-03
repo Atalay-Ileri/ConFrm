@@ -1,8 +1,4 @@
-Require Import Framework TransactionCacheLayer.
-(*
-Require Import Datatypes PeanoNat.
-Require Import LogParameters.
- *)
+Require Import Compare_dec Framework FSParameters TransactionCacheLayer.
 
 Fixpoint get_latest (txn: list (addr * value)) a :=
   match txn  with
@@ -31,20 +27,28 @@ Definition abort :=
   _ <- |TCCO| Delete _;
   Ret tt.
 
+(* if you read out of bounds, you get 0 block *)
 Definition read a :=
-  txn <- |TCCO| Get _;
-  match get_latest txn a with
-  | Some v =>
-    Ret v
-  | None =>
-    v <- |TCDO| Read a;
-    Ret v
-  end.
+  if lt_dec a data_length then
+    txn <- |TCCO| Get _;
+    match get_latest txn a with
+    | Some v =>
+      Ret v
+    | None =>
+      v <- |TCDO| Read a;
+      Ret v
+    end
+  else
+    Ret value0.
 
+(* if you write out of bounds, nothing happens *)
 Definition write a v :=
-  txn <- |TCCO| Get _;
-  _   <- |TCCO| Put ((a, v)::txn);
-  Ret tt.
-
-Definition transaction_cache_rep txn (s: state TransactionCacheLang) :=
-  fst s = Some txn.
+  if lt_dec a data_length then
+    txn <- |TCCO| Get _;
+    if lt_dec (length txn) log_length then
+      _ <- |TCCO| Put ((a, v)::txn);
+      Ret tt
+    else
+      Ret tt
+  else
+    Ret tt.

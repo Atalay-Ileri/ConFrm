@@ -1,1 +1,1 @@
-Require Export Log.Definitions Log.LogParameters Log.Specs.
+Require Export Log.Definitions Log.Specs.

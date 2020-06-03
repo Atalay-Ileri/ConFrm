@@ -1,11 +1,7 @@
-Require Import Framework TransactionalDiskLayer BlockAllocator Inode.
+Require Import Framework FSParameters TransactionalDiskLayer BlockAllocator Inode.
 Import IfNotations.
 
 Open Scope pred_scope.
-
-Axiom disk_start_addr: addr.
-Axiom disk_block_count: nat.
-Axiom disk_block_count_in_bounds: disk_block_count <= block_size.
 
 Module DiskAllocatorParams <: BlockAllocatorParameters.
   Definition bitmap_addr := disk_start_addr.

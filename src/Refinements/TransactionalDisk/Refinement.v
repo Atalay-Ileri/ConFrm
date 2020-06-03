@@ -1,11 +1,11 @@
-Require Import Framework TransactionCacheLayer TransactionalDiskLayer.
+Require Import Framework FSParameters TransactionCacheLayer TransactionalDiskLayer.
 Require Import Transaction Refinements.TransactionalDisk.Definitions.
 Require Import ClassicalFacts FunctionalExtensionality Omega.
 
 Set Nested Proofs Allowed.
 
 Notation "'low'" := TransactionCacheLang.
-Notation "'high'" := TransactionalDiskLang.
+Notation "'high'" := (TransactionalDiskLang data_length).
 Notation "'refinement'" := TransactionalDiskRefinement.
 
 Section TransactionalDiskBisimulation.
@@ -67,6 +67,7 @@ Section TransactionalDiskBisimulation.
     unfold empty_mem; simpl; congruence.
   Qed.
 
+  (*
   Lemma refines_to_upd:
     forall s1 s2 a vl,
       fst s1 <> None ->
@@ -76,27 +77,28 @@ Section TransactionalDiskBisimulation.
   Proof.
     unfold refines_to; intros;
     cleanup; simpl in *; intuition.
-    setoid_rewrite D; setoid_rewrite apply_list_app; eauto.
+    destruct (fst s1); simpl in *; try congruence.
+    rewrite apply_list_app; simpl. eauto.
   Qed.
+   *)
   
+(*  
   Lemma wp_low_to_high_read :
     forall a,
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Read a|).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of, refines_to; simpl; intros; cleanup.
-    unfold  compilation_of, refines_to in *; simpl; intros; cleanup.
+    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
+    unfold  compilation_of in *; simpl; intros; cleanup.
     split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
     eexists; intuition eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
-    simpl in *.
-    cleanup.
-    {        
-      cleanup; simpl in *; cleanup; eauto;
-      eexists; intuition eauto; cleanup;
-      try congruence.      
-      rewrite apply_list_get_latest_eq in D0; eauto.
-      right; intuition.        
-      rewrite <- apply_list_get_latest_eq; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H3; eauto.
+
+    cleanup; simpl in *; cleanup; eauto;
+    eexists; intuition eauto; unfold refines_to in *; cleanup;
+    try congruence.      
+    rewrite apply_list_get_latest_eq in D0; eauto.
+    right; intuition.        
+    rewrite <- apply_list_get_latest_eq; eauto.
     }
     cleanup; eauto.
     cleanup; simpl in *; cleanup.
@@ -715,6 +717,7 @@ Section TransactionalDiskBisimulation.
     intros.
     eapply bisimulation_restrict_state; eauto.
   Qed.
+*)
 End TransactionalDiskBisimulation.
 
 Section TransferToTransactionCache.
@@ -750,7 +753,7 @@ Proof.
     destruct sl'.
     {
       eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      simpl in *; cleanup.
+      unfold read in Hx; simpl in Hx; cleanup;
       cleanup; simpl in *; cleanup;
       
       eexists; left; do 2 eexists; intuition eauto;
@@ -758,30 +761,35 @@ Proof.
     }
     {
       eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-       simpl in *; cleanup.
+       unfold read in Hx; repeat (simpl in *; cleanup).
        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
        try (inversion H1; clear H1); cleanup; eauto;
        try solve [
              eexists; right; do 2 eexists; intuition eauto;
              destruct s; simpl in *; cleanup; eauto ].
+       eexists; right; do 2 eexists; intuition eauto;
+             destruct s; simpl in *; cleanup; eauto.       
     }
   - (* Write *)
     destruct sl'.
     {
       eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      simpl in *; cleanup.
-      cleanup; simpl in *; cleanup;
+      unfold write in Hx; simpl in *; cleanup;
+      cleanup; simpl in *; cleanup;      
+      try destruct s; cleanup; simpl in *; cleanup; eauto;
       eexists; left; do 2 eexists; intuition eauto;
-      destruct s; cleanup; simpl in *; cleanup; eauto.
+      try destruct s; cleanup; simpl in *; cleanup; eauto.
     }
     {
       eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-       simpl in *; cleanup.
+      unfold write in Hx; repeat (simpl in *; cleanup).
        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
        inversion H1; clear H1; cleanup; eauto;
        try solve [
              eexists; right; do 2 eexists; intuition eauto;
              destruct s; simpl in *; cleanup; eauto ].
+       eexists; right; do 2 eexists; intuition eauto;
+       destruct s; simpl in *; cleanup; eauto.
     }
   - (* Commit *)
     destruct sl'.
@@ -792,7 +800,54 @@ Proof.
       eexists; left; do 2 eexists; intuition eauto;
       destruct s; cleanup; simpl in *; cleanup; eauto.
       eexists; intuition eauto.
-      admit. (*TODO: Solve this.*)
+      rewrite <- map_fst_split, <- map_snd_split.
+
+      Lemma write_all_app :
+          forall V l1 l2 (l3 l4: list V) m,
+            length l1 = length l3 ->
+            (forall i, In i l1 -> m i <> None) ->
+            write_all m (l1++l2) (l3++l4) = write_all (write_all m l1 l3) l2 l4.
+        Proof.
+          induction l1; simpl in *; destruct l3; simpl in *;
+          intros; cleanup; try congruence.
+          destruct_fresh (m a); simpl in *.
+          erewrite IHl1; eauto.
+          intros; simpl.
+          unfold upd_disk.
+          destruct (addr_dec a i); subst; [rewrite upd_eq; eauto | rewrite upd_ne; eauto];
+          congruence.
+          exfalso; eapply H0; eauto.
+        Qed.
+      
+      Lemma write_all_merge_apply_list':
+        forall x6 x4 x,
+          refines_to (Some x6, x4) x ->
+          write_all x4 (map fst (rev x6)) (map snd (rev x6)) =
+          merge (apply_list empty_mem (rev x6)) x4.
+      Proof.
+        induction x6; simpl in *; intros; eauto.
+        unfold refines_to in *; simpl in *; cleanup.
+        repeat rewrite map_app; simpl in *.
+        rewrite write_all_app, apply_list_app in *; eauto; simpl in *.
+        unfold addrs_match in *.
+        destruct a, x; simpl in *.
+        erewrite IHx6; eauto.
+        unfold upd_disk.
+        extensionality a'; simpl.
+        unfold merge at 4; simpl.
+        destruct (addr_dec a a'); subst; simpl;
+        [rewrite upd_eq; eauto
+        | rewrite upd_ne; eauto].
+
+        
+        
+        rewrite upd_eq; eauto.
+
+        
+
+        
+    
+      admit. (*TODO: Solve this. You need to modify refines_to*)
     }
     {
       eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
@@ -871,13 +926,13 @@ Proof.
 Qed.
 
 
-Theorem transfer_to_CachedDisk:
+Theorem transfer_to_TransactionCache:
     forall related_states_h
     valid_state_h
     valid_prog_h,
     
     SelfSimulation
-      TransactionalDiskLang
+      high
       valid_state_h
       valid_prog_h
       related_states_h ->
@@ -888,7 +943,7 @@ Theorem transfer_to_CachedDisk:
     (refines_to_valid refinement valid_state_h) ->
     
     SelfSimulation
-      TransactionCacheLang
+      low
       (refines_to_valid refinement valid_state_h)
       (compiles_to_valid refinement valid_prog_h)
       (refines_to_related refinement related_states_h).

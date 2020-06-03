@@ -1,4 +1,4 @@
-Require Import Framework CachedDiskLayer.
+Require Import Framework FSParameters CachedDiskLayer.
 Require Import LogCache LoggedDiskLayer Refinements.LoggedDisk.Definitions.
 Require Import ClassicalFacts FunctionalExtensionality Omega.
 
@@ -18,15 +18,12 @@ Section LoggedDiskBisimulation.
     induction p2; simpl; unfold compilation_of in *; simpl in *; intros; cleanup.
     {
       destruct ret.
-      assume (A:(forall s' t, strongest_postcondition CachedDiskLang (read a) (fun o s => exists s2, refines_to s s2) t s' ->
-                         exists s2' : state', refines_to s' s2')).
-      eapply A.
-      eapply exec_to_sp; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s x /\ s = s1) in H1; unfold refines_to in *; eauto.
+      simpl in *; repeat (cleanup; simpl in *); eauto.
 
-      assume (A:(forall s', strongest_crash_postcondition CachedDiskLang (read a) (fun o s => exists s2, refines_to s s2) s' ->
-                         exists s2' : state', refines_to s' s2')).
-      eapply A.
-      eapply exec_to_scp; eauto.
+      eapply exec_to_scp with (P := fun o s => refines_to s x /\ s = s1) in H1; unfold refines_to in *; eauto.
+      simpl in *; repeat (try split_ors; cleanup; simpl in *); eauto;
+      inversion H; cleanup; eauto.
     }
     {
       destruct ret.
@@ -44,9 +41,10 @@ Section LoggedDiskBisimulation.
 
     {
       destruct ret.
-      eapply exec_to_sp with (P := fun o s => refines_to s x) in H1; unfold refines_to in *; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s x /\ s = s1) in H1; unfold refines_to in *; eauto.
       simpl in *; cleanup; simpl; eauto.
-      eapply exec_to_scp with (P := fun o s => refines_to s x) in H1; unfold refines_to in *; eauto.
+      eapply exec_to_scp with (P := fun o s => refines_to s x /\ s = s1) in H1; unfold refines_to in *; eauto.
+      simpl in *; cleanup; simpl; eauto.
     }
 
     {
@@ -54,26 +52,6 @@ Section LoggedDiskBisimulation.
       invert_exec; eauto.
       split_ors; cleanup; eauto.
       eapply IHp2 in H0; eauto.
-    }
-    
-    Unshelve.
-    {
-      intros; simpl in *; cleanup.
-      cleanup; simpl in *; cleanup.
-      destruct s'; eauto.
-      destruct s', s2; eauto.
-    }
-    {
-      intros; simpl in *; cleanup.
-      split_ors; cleanup.
-      inversion H; clear H; cleanup.
-      destruct s'; eauto.      
-      cleanup; simpl in *; cleanup.
-      destruct s'; eauto.
-      split_ors; cleanup.
-      inversion H; clear H; cleanup.
-      destruct s', s2; eauto.
-      destruct s', s2; eauto.
     }
   Admitted.
   
@@ -131,15 +109,16 @@ Section LoggedDiskBisimulation.
     unfold merge; simpl; intros.
     cleanup; eauto.
   Qed.
+
   
   Lemma cached_log_rep_cache_read :
     forall F s2 s1 a v,
       cached_log_rep F s2 s1 ->
-      fst s1 a = Some v ->
+      fst s1 (data_start + a) = Some v ->
       Disk.read s2 a = Some v.
   Proof.
     unfold cached_log_rep, Disk.read; intros.
-    cleanup.
+    cleanup; unfold shift; simpl in *.
     eapply merge_some_l in H0; eauto; cleanup.
     rewrite H0; eauto.
     eapply H1.
@@ -149,14 +128,14 @@ Section LoggedDiskBisimulation.
   Lemma cached_log_rep_disk_read :
     forall F s2 s1 a,
       cached_log_rep F s2 s1 ->
-      fst s1 a = None ->
-      Disk.read s2 a = Disk.read (snd (snd s1)) a.
+      fst s1 (data_start + a) = None ->
+      Disk.read s2 a = Disk.read (snd (snd s1)) (data_start + a).
   Proof.
     unfold cached_log_rep, Disk.read; intros.
-    cleanup.
+    unfold shift in *; simpl; cleanup.
     erewrite merge_some_r; eauto.
   Qed.
-  
+
   Lemma wp_low_to_high_read :
     forall a,
     wp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
@@ -165,12 +144,13 @@ Section LoggedDiskBisimulation.
     unfold  compilation_of, refines_to in *; simpl; intros; cleanup.
     split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
     eexists; intuition eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H3; unfold refines_to in *; eauto.
     simpl in *.
     cleanup.
     {        
       cleanup; simpl in *; cleanup; eauto;
-      eexists; intuition eauto.      
+      eexists; intuition eauto.
+      simpl in *.
       eapply cached_log_rep_cache_read; eauto.
       erewrite cached_log_rep_disk_read; eauto.
       unfold Disk.read in *; simpl; cleanup; eauto.
@@ -179,12 +159,9 @@ Section LoggedDiskBisimulation.
     cleanup; simpl in *.
     {
       cleanup.
-      eexists; intuition eauto.
-      erewrite cached_log_rep_disk_read. eauto.
+      eexists; intuition eauto; simpl in *.
+      erewrite cached_log_rep_disk_read; eauto.
       unfold Disk.read in *; simpl; cleanup; eauto.
-      rewrite H9; eauto.
-      eauto.
-      eauto.
     }
     {
       cleanup; eauto.
@@ -204,7 +181,7 @@ Section LoggedDiskBisimulation.
     repeat invert_exec.
     eapply exec_to_wp; eauto.
 
-    eapply exec_to_sp with (P := fun o s => refines_to s s2') in H0; unfold refines_to in *; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2' /\ s = s1) in H0; unfold refines_to in *; eauto.
 
     unfold read in *; simpl in *.
     cleanup; simpl in *.
@@ -270,8 +247,7 @@ Section LoggedDiskBisimulation.
   Proof.
     unfold wp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
     unfold compilation_of, refines_to in *; simpl; intros; cleanup.
-    invert_exec.
-    inversion H8; clear H8; cleanup.
+    repeat invert_exec.
     repeat (split_ors; cleanup).
     eapply exec_to_wp; eauto.
     eexists; eauto.
@@ -289,9 +265,9 @@ Section LoggedDiskBisimulation.
     split_ors; cleanup;
     eexists; intuition eauto.
     right; intuition eauto.
-    eapply exec_to_scp with (P := fun o s => refines_to s s2) in H3.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2 /\ s = s1) in H3.
     2: unfold refines_to; eauto.
-      admit. (* TODO: Check this *)
+    admit. (* TODO: Check this *)
   Admitted.
 
   Lemma wcp_high_to_low_write :
@@ -301,8 +277,6 @@ Section LoggedDiskBisimulation.
     unfold wcp_high_to_low_prog', compilation_of, refines_to; simpl; intros; cleanup.
     unfold compilation_of, refines_to in *; simpl; intros; cleanup.
     repeat split_ors; cleanup; repeat invert_exec;
-    try inversion H8; try clear H8; cleanup;
-    try inversion H9; try clear H9; cleanup;
     eapply exec_to_wcp; eauto;
     split_ors; cleanup; eauto.
     admit. (* TODO: Check this *)
@@ -564,7 +538,7 @@ Proof.
   - (* Write *)
     destruct sl'; try solve [eexists; eauto].
     eexists; right; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol) in H0 as Hx; unfold refines_to in *; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; unfold refines_to in *; eauto.
     do 2 eexists; intuition eauto.
     admit. (* Doable *)
     
