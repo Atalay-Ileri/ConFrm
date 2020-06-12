@@ -11,3 +11,6 @@
 /slf/
 /test.v
 *.hs
+*.hi
+*.o
+*.hse

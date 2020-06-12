@@ -8,8 +8,9 @@ Extraction Language Haskell.
 Require Import Framework FSParameters.
 Require LogCache Transaction File.
 
+Cd "./Extracted".
 Extract Inlined Constant addr => "Prelude.Integer".
-Extract Constant user => "Prelude.Int".
+Extract Constant user => "System.Posix.Types.UserID".
 Extract Constant value => "Prelude.Int".
 Extract Constant file_blocks_count => "4096".
 Extract Constant log_length => "500".
@@ -31,9 +32,10 @@ Extract Inductive Language.prog' => "Prelude.IO" [ "" "Prelude.return" "(Prelude
 Extract Inductive DiskLayer.disk_prog => "Prelude.IO" [ "DISK_READ" "DISK_WRITE"  ].
 Extract Inductive CryptoLayer.crypto_prog => "Prelude.IO" [ "GET_KEY" "HASH" "ENCRYPT" "DECRYPT" ].
 Extract Inductive CacheLayer.cache_prog => "Prelude.IO" [ "CACHE_READ" "CACHE_WRITE" "CACHE_FLUSH"]. 
-Extract Inductive AuthenticationLayer.authentication_prog => "Prelude.IO" [ "AUTHENTICATE" ].
 Extract Inductive StorageLayer.storage_prog => "Prelude.IO" [ "GET" "PUT" "DELETE" ].
-*)
+ *)
+
+Extract Inductive AuthenticationLayer.authentication_prog => "Prelude.IO" [ "(\u -> do uid <- System.Posix.User.getEffectiveUserID; Prelude.return (u Prelude.== uid))" ].
 
 Extract Inductive LoggedDiskLayer.logged_disk_prog => "Prelude.IO" [ "LogCache.read" "LogCache.write" ].
 Extract Inductive TransactionalDiskLayer.transactional_disk_prog => "Prelude.IO" [ "Transaction.start" "Transaction.read" "Transaction.write" "Transaction.commit" "Transaction.abort" ].
@@ -48,4 +50,4 @@ Separate Extraction
            LogCache.read LogCache.write.
 
 
-
+(* Run compile.sh now *)
