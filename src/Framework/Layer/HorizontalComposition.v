@@ -22,12 +22,12 @@ Section HorizontalComposition.
   Definition oracle_dec' := list_eq_dec token_dec.
   Definition state' := (O1.(state) * O2.(state))%type.
 
-  Inductive prog' : Type -> Type :=
-  | P1 : forall T, O1.(prog) T -> prog' T
-  | P2 : forall T, O2.(prog) T -> prog' T.
+  Inductive horizontal_composition_prog : Type -> Type :=
+  | P1 : forall T, O1.(prog) T -> horizontal_composition_prog T
+  | P2 : forall T, O2.(prog) T -> horizontal_composition_prog T.
 
 
-  Inductive exec': forall T, oracle' -> state' -> prog' T -> @Result state' T -> Prop :=
+  Inductive exec': forall T, oracle' -> state' -> horizontal_composition_prog T -> @Result state' T -> Prop :=
   | ExecP1:
       forall T (p1: O1.(prog) T) o1 s s1 r,
         O1.(exec) o1 (fst s) p1 (Finished s1 r) ->
@@ -45,7 +45,7 @@ Section HorizontalComposition.
         O2.(exec) o2 (snd s) p2 (Crashed s2) ->
         exec' [Oracle2 o2] s (P2 _ p2) (Crashed (fst s, s2)).
   
-  Definition weakest_precondition' T (p: prog' T) :=
+  Definition weakest_precondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun Q o s =>
@@ -57,7 +57,7 @@ Section HorizontalComposition.
       o = [Oracle2 o2] /\ O2.(weakest_precondition) p2 (fun r s' => Q r (fst s, s')) o2 (snd s)
     end.
 
-  Definition weakest_crash_precondition' T (p: prog' T) :=
+  Definition weakest_crash_precondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun Q o s =>
@@ -69,7 +69,7 @@ Section HorizontalComposition.
       o = [Oracle2 o2] /\ O2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
     end.
 
-  Definition strongest_postcondition' T (p: prog' T) :=
+  Definition strongest_postcondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun P t s' =>
@@ -79,7 +79,7 @@ Section HorizontalComposition.
         O2.(strongest_postcondition) p2 (fun o s => P [Oracle2 o] (fst s', s)) t (snd s')
     end.
 
-  Definition strongest_crash_postcondition' T (p: prog' T) :=
+  Definition strongest_crash_postcondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun P s' =>
@@ -90,7 +90,7 @@ Section HorizontalComposition.
     end.
 
    Theorem wp_complete':
-      forall T (p: prog' T) H Q,
+      forall T (p: horizontal_composition_prog T) H Q,
         (forall o s, H o s -> weakest_precondition' p Q o s) <->
         (forall o s, H o s ->
                 (exists s' v, exec' o s p (Finished s' v) /\ Q v s')).
@@ -110,7 +110,7 @@ Section HorizontalComposition.
    Qed.       
      
    Theorem wcp_complete':
-     forall T (p: prog' T) H C,
+     forall T (p: horizontal_composition_prog T) H C,
        (forall o s, H o s -> weakest_crash_precondition' p C o s) <->
        (forall o s, H o s ->
                (exists s', exec' o s p (Crashed s') /\ C s')).
@@ -130,7 +130,7 @@ Section HorizontalComposition.
    Qed.
 
    Theorem sp_complete':
-     forall T (p: prog' T) P (Q: T -> state' -> Prop),
+     forall T (p: horizontal_composition_prog T) P (Q: T -> state' -> Prop),
        (forall t s', strongest_postcondition' p P t s' -> Q t s') <->
        (forall o s s' t, P o s -> exec' o s p (Finished s' t) -> Q t s').
    Proof.
@@ -148,7 +148,7 @@ Section HorizontalComposition.
    Qed.    
 
    Theorem scp_complete':
-     forall T (p: prog' T) P (C: state' -> Prop),
+     forall T (p: horizontal_composition_prog T) P (C: state' -> Prop),
        (forall s', strongest_crash_postcondition' p P s' -> C s') <->
        (forall o s s', P o s -> exec' o s p (Crashed s') ->  C s').
 Proof.
@@ -166,7 +166,7 @@ Proof.
 Qed.
   
   Theorem exec_deterministic_wrt_oracle' :
-    forall o s T (p: prog' T) ret1 ret2,
+    forall o s T (p: horizontal_composition_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
       ret1 = ret2.
@@ -182,7 +182,7 @@ Qed.
 
   Definition HorizontalComposition :=
     Build_Operation
-      oracle_dec' prog' exec'
+      oracle_dec' horizontal_composition_prog exec'
       weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
@@ -203,7 +203,7 @@ Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' HorizontalComp
     Bind (@lift_L1 L1 _ px) (fun x => @lift_L1 L1 _ (py x))
   end.
 
-Fixpoint lift_L2 {L2: Language O2} {T} (p2 : L2.(prog) T) : prog' _ T :=
+Fixpoint lift_L2 {L2: Language O2} {T} (p2 : L2.(prog) T) : prog' HorizontalComposition T :=
   match p2 with
   | Op _ o2 =>
     Op HorizontalComposition (P2 _ o2)
@@ -212,7 +212,6 @@ Fixpoint lift_L2 {L2: Language O2} {T} (p2 : L2.(prog) T) : prog' _ T :=
   | Bind px py =>
     Bind (@lift_L2 L2 _ px) (fun x => @lift_L2 L2 _ (py x))
   end.
-
   
 End HorizontalComposition.
 

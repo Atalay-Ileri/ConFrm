@@ -48,6 +48,7 @@ Arguments strongest_postcondition _ {T}.
 Arguments strongest_crash_postcondition _ {T}.
 
 
+
 Lemma wp_to_exec:
   forall O T (p: @prog O T) Q o s,
     weakest_precondition _ p Q o s -> (exists s' v, exec _ o s p (Finished s' v) /\ Q v s').

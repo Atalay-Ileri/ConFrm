@@ -50,6 +50,7 @@ Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
 
 (* For access control *) 
 Axiom user : Type.
+Axiom user0: user.
 
 Axiom handle : Type.
 Axiom handle_eq_dec: forall (h1 h2: handle), {h1=h2}+{h1<>h2}.

@@ -1,14 +1,26 @@
 Require Import Primitives Layer.
 
+Record OperationRefinement {O1} (L1: Language O1) (O2: Operation) :=
+  {
+    compile_op : forall T, O2.(Operation.prog) T -> L1.(prog) T;
+    refines_to_op: L1.(state) -> O2.(Operation.state) -> Prop;
+    oracle_refines_to_op: forall T, L1.(state) -> O2.(Operation.prog) T -> L1.(oracle) -> O2.(Operation.oracle) -> Prop;
+  }.
+
 Record Refinement {O1 O2} (L1: Language O1) (L2: Language O2) :=
   {
-    compilation_of : forall T, L1.(prog) T -> L2.(prog) T -> Prop;
+    compile : forall T, L2.(prog) T -> L1.(prog) T;
     refines_to: L1.(state) -> L2.(state) -> Prop;
     oracle_refines_to: forall T, L1.(state) -> L2.(prog) T -> L1.(oracle) -> L2.(oracle) -> Prop;
   }.
 
+Arguments Build_OperationRefinement {_ _ _}.
+Arguments compile_op {_ _ _} _ {_}.
+Arguments refines_to_op {_ _ _}.
+Arguments oracle_refines_to_op {_ _ _} _ {_} .
+
 Arguments Build_Refinement {_ _ _ _}.
-Arguments compilation_of {_ _ _ _} _ {_}.
+Arguments compile {_ _ _ _} _ {_}.
 Arguments refines_to {_ _ _ _}.
 Arguments oracle_refines_to {_ _ _ _} _ {_} .
 
@@ -73,7 +85,7 @@ Definition compiles_to_valid
            (pl: LL.(prog) T)
   : Prop :=
   exists (ph: LH.(prog) T),
-    R.(compilation_of) pl ph /\
+    pl = R.(compile) ph /\
     valid_prog_h T ph.
 
 
@@ -85,17 +97,15 @@ Definition exec_preserves_validity valid_state :=
 
 
 Definition exec_compiled_preserves_validity valid_state:= 
-    forall T (p1: LL.(prog) T) (p2: LH.(prog) T) o s ret,
-      R.(compilation_of) p1 p2 ->
+    forall T (p2: LH.(prog) T) o s ret,
       valid_state s ->
-      LL.(exec) o s p1 ret ->
+      LL.(exec) o s (R.(compile) p2) ret ->
       valid_state (extract_state ret).
 
 Definition high_oracle_exists :=
-  forall T o1 s1 s1' (p1: LL.(prog) T) p2,
+  forall T (p2: LH.(prog) T) o1 s1 s1',
     (exists sh, R.(refines_to) s1 sh) -> 
-    LL.(exec) o1 s1 p1 s1' ->
-    R.(compilation_of) p1 p2 ->
+    LL.(exec) o1 s1 (R.(compile) p2) s1' ->
     exists o2, R.(oracle_refines_to) s1 p2 o1 o2.
 
 Definition oracle_refines_to_same_from_related 
@@ -135,14 +145,13 @@ Record StrongBisimulation
   :=
   {
     strong_bisimulation_correct:
-      (forall T p1 (p2: LH.(prog) T) s1 s2 o1 o2,
+      (forall T (p2: LH.(prog) T) s1 s2 o1 o2,
           
           R.(refines_to) s1 s2 ->
-          R.(compilation_of) p1 p2 ->
           R.(oracle_refines_to) s1 p2 o1 o2 ->
           
           (forall s1',
-              LL.(exec) o1 s1 p1 s1' ->
+              LL.(exec) o1 s1 (R.(compile) p2) s1' ->
               exists s2',
                 LH.(exec) o2 s2 p2 s2' /\
                 result_same s1' s2' /\
@@ -151,7 +160,7 @@ Record StrongBisimulation
           (forall s2',
               LH.(exec) o2 s2 p2 s2' ->
               exists s1',
-                LL.(exec) o1 s1 p1 s1' /\
+                LL.(exec) o1 s1 (R.(compile) p2) s1' /\
                 result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')))
@@ -160,24 +169,21 @@ Record StrongBisimulation
 Record StrongBisimulationForValidStates
        (valid_state1 : LL.(state) -> Prop)
        (valid_state2 : LH.(state) -> Prop)
-       (valid_prog1: forall T, LL.(prog) T -> Prop)
        (valid_prog2: forall T, LH.(prog) T -> Prop)
   :=
   {
     strong_bisimulation_for_valid_states_correct:
-      (forall T p1 p2 s1 s2 o1 o2,
+      (forall T p2 s1 s2 o1 o2,
           valid_state1 s1 ->
-          valid_prog1 T p1 ->
           
           valid_state2 s2 ->
           valid_prog2 T p2 ->
           
           R.(refines_to) s1 s2 ->
-          R.(compilation_of) p1 p2 ->
           R.(oracle_refines_to) s1 p2 o1 o2 ->
           
           (forall s1',
-              LL.(exec) o1 s1 p1 s1' ->
+              LL.(exec) o1 s1 (R.(compile) p2) s1' ->
               exists s2',
                 LH.(exec) o2 s2 p2 s2' /\
                 result_same s1' s2' /\
@@ -187,7 +193,7 @@ Record StrongBisimulationForValidStates
           (forall s2',
               LH.(exec) o2 s2 p2 s2' ->
               exists s1',
-                LL.(exec) o1 s1 p1 s1' /\
+                LL.(exec) o1 s1 (R.(compile) p2) s1' /\
                 result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')/\
@@ -199,14 +205,13 @@ Record StrongBisimulationForProgram
   :=
   {
     strong_bisimulation_for_program_correct:
-      (forall p1 s1 s2 o1 o2,
+      (forall s1 s2 o1 o2,
           
           R.(refines_to) s1 s2 ->
-          R.(compilation_of) p1 p2 ->
           R.(oracle_refines_to) s1 p2 o1 o2 ->
           
           (forall s1',
-              LL.(exec) o1 s1 p1 s1' ->
+              LL.(exec) o1 s1 (R.(compile) p2) s1' ->
               exists s2',
                 LH.(exec) o2 s2 p2 s2' /\
                 result_same s1' s2' /\
@@ -215,7 +220,7 @@ Record StrongBisimulationForProgram
           (forall s2',
               LH.(exec) o2 s2 p2 s2' ->
               exists s1',
-                LL.(exec) o1 s1 p1 s1' /\
+                LL.(exec) o1 s1 (R.(compile) p2) s1' /\
                 result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
                 (forall def, extract_ret def s1' = extract_ret def s2')))

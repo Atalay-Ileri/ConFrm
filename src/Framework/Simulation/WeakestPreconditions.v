@@ -64,78 +64,70 @@ Section LanguageWP.
   
 (* Per prog ones *)
 Definition wp_low_to_high_prog' T (p2: LH.(prog) T) :=
-  forall o1 o2 s1 s2 s1' v p1,
-     LL.(weakest_precondition) p1  (fun r s => exists s2', R.(refines_to) s s2' /\ r = v) o1 s1 ->
-     R.(compilation_of) p1 p2 ->
+  forall o1 o2 s1 s2 s1' v,
+     LL.(weakest_precondition) (R.(compile) p2)  (fun r s => exists s2', R.(refines_to) s s2' /\ r = v) o1 s1 ->
      R.(refines_to) s1 s2 ->
      R.(oracle_refines_to) s1 p2 o1 o2 ->
-     LL.(exec) o1 s1 p1 (Finished s1' v) ->
+     LL.(exec) o1 s1 (R.(compile) p2) (Finished s1' v) ->
      LH.(weakest_precondition) p2 (fun r s => R.(refines_to) s1' s /\ r = v) o2 s2.
 
 Definition wp_high_to_low_prog' T (p2: LH.(prog) T) :=
-  forall o1 o2 s1 s2 s2' v p1,
+  forall o1 o2 s1 s2 s2' v,
      LH.(weakest_precondition) p2 (fun r s => exists s1', R.(refines_to) s1' s /\ r = v) o2 s2 ->
-     R.(compilation_of) p1 p2 ->
      R.(refines_to) s1 s2 ->
      R.(oracle_refines_to) s1 p2 o1 o2 ->
      LH.(exec) o2 s2 p2 (Finished s2' v) ->
-     LL.(weakest_precondition) p1 (fun r s => R.(refines_to) s s2' /\ r = v) o1 s1.
+     LL.(weakest_precondition) (R.(compile) p2) (fun r s => R.(refines_to) s s2' /\ r = v) o1 s1.
 
 Definition wcp_low_to_high_prog' T (p2: LH.(prog) T) :=
-  forall o1 o2 s1 s2 s1' p1,
-     LL.(weakest_crash_precondition) p1 (fun s => exists s2', R.(refines_to) s s2') o1 s1 ->
-     R.(compilation_of) p1 p2 ->
+  forall o1 o2 s1 s2 s1',
+     LL.(weakest_crash_precondition) (R.(compile) p2) (fun s => exists s2', R.(refines_to) s s2') o1 s1 ->
      R.(refines_to) s1 s2 ->
      R.(oracle_refines_to) s1 p2 o1 o2 ->
-     LL.(exec) o1 s1 p1 (Crashed s1') ->
+     LL.(exec) o1 s1 (R.(compile) p2) (Crashed s1') ->
      LH.(weakest_crash_precondition) p2 (fun s => R.(refines_to) s1' s) o2 s2.
 
 Definition wcp_high_to_low_prog' T (p2: LH.(prog) T) :=
-  forall o1 o2 s1 s2 s2' p1,
+  forall o1 o2 s1 s2 s2',
     LH.(weakest_crash_precondition) p2 (fun s => exists s1', R.(refines_to) s1' s) o2 s2 ->
-    R.(compilation_of) p1 p2 ->
     R.(refines_to) s1 s2 ->
     R.(oracle_refines_to) s1 p2 o1 o2 ->
     LH.(exec) o2 s2 p2 (Crashed s2') ->
-    LL.(weakest_crash_precondition) p1 (fun s => R.(refines_to) s s2') o1 s1.
+    LL.(weakest_crash_precondition) (R.(compile) p2) (fun s => R.(refines_to) s s2') o1 s1.
 
 
 (* General Ones *)
 Definition wp_low_to_high' :=
-  forall T o1 o2 s1 s2 s1' v (p1: LL.(prog) T) p2,
-     LL.(weakest_precondition) p1  (fun r s => exists s2', R.(refines_to) s s2' /\ r = v) o1 s1 ->
-     R.(compilation_of) p1 p2 ->
+  forall T o1 o2 s1 s2 s1' v (p2: LH.(prog) T),
+     LL.(weakest_precondition) (R.(compile) p2) (fun r s => exists s2', R.(refines_to) s s2' /\ r = v) o1 s1 ->
      R.(refines_to) s1 s2 ->
      R.(oracle_refines_to) s1 p2 o1 o2 ->
-     LL.(exec) o1 s1 p1 (Finished s1' v) ->
+     LL.(exec) o1 s1 (R.(compile) p2) (Finished s1' v) ->
      LH.(weakest_precondition) p2 (fun r s => R.(refines_to) s1' s /\ r = v) o2 s2.
 
 Definition wp_high_to_low' :=
-  forall T o1 o2 s1 s2 s2' v (p1: LL.(prog) T) p2,
+  forall T o1 o2 s1 s2 s2' v (p2: LH.(prog) T),
      LH.(weakest_precondition) p2 (fun r s => exists s1', R.(refines_to) s1' s /\ r = v) o2 s2 ->
-     R.(compilation_of) p1 p2 ->
      R.(refines_to) s1 s2 ->
      R.(oracle_refines_to) s1 p2 o1 o2 ->
      LH.(exec) o2 s2 p2 (Finished s2' v) ->
-     LL.(weakest_precondition) p1 (fun r s => R.(refines_to) s s2' /\ r = v) o1 s1.
+     LL.(weakest_precondition) (R.(compile) p2) (fun r s => R.(refines_to) s s2' /\ r = v) o1 s1.
 
 Definition wcp_low_to_high'  :=
-  forall T o1 o2 s1 s2 s1' (p1: LL.(prog) T) p2,
-     LL.(weakest_crash_precondition) p1 (fun s => exists s2', R.(refines_to) s s2') o1 s1 ->
-     R.(compilation_of) p1 p2 ->
+  forall T o1 o2 s1 s2 s1' (p2: LH.(prog) T),
+     LL.(weakest_crash_precondition) (R.(compile) p2) (fun s => exists s2', R.(refines_to) s s2') o1 s1 ->
      R.(refines_to) s1 s2 ->
      R.(oracle_refines_to) s1 p2 o1 o2 ->
-     LL.(exec) o1 s1 p1 (Crashed s1') ->
+     LL.(exec) o1 s1 (R.(compile) p2) (Crashed s1') ->
      LH.(weakest_crash_precondition) p2 (fun s => R.(refines_to) s1' s) o2 s2.
 
 Definition wcp_high_to_low'  :=
-  forall T o1 o2 s1 s2 s2' (p1: LL.(prog) T) p2,
+  forall T o1 o2 s1 s2 s2' (p2: LH.(prog) T),
     LH.(weakest_crash_precondition) p2 (fun s => exists s1', R.(refines_to) s1' s) o2 s2 ->
-    R.(compilation_of) p1 p2 ->
     R.(refines_to) s1 s2 ->
     R.(oracle_refines_to) s1 p2 o1 o2 ->
     LH.(exec) o2 s2 p2 (Crashed s2') ->
-    LL.(weakest_crash_precondition) p1 (fun s => R.(refines_to) s s2') o1 s1.
+    LL.(weakest_crash_precondition) (R.(compile) p2) (fun s => R.(refines_to) s s2') o1 s1.
 
 Definition exec_preserves_refinement :=
     forall T (p: LH.(prog) T) o2 s2 ret,
@@ -144,10 +136,9 @@ Definition exec_preserves_refinement :=
       (exists s1', R.(refines_to) s1' (extract_state ret)).
 
 Definition exec_compiled_preserves_refinement  :=
-    forall T (p1: LL.(prog) T) (p2: LH.(prog) T) o1 s1 ret,
-      R.(compilation_of) p1 p2 ->
+    forall T (p2: LH.(prog) T) o1 s1 ret,
       (exists s2, R.(refines_to) s1 s2) ->
-      LL.(exec) o1 s1 p1 ret ->
+      LL.(exec) o1 s1 (R.(compile) p2) ret ->
       (exists s2', R.(refines_to) (extract_state ret) s2').
 
 Record WP_Bisimulation_prog T p2:=

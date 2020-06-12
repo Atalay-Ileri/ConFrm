@@ -307,7 +307,6 @@ Lemma bisimulation_restrict_state:
   StrongBisimulationForValidStates R
      (refines_to_valid R valid_state_h)
      valid_state_h
-     (compiles_to_valid R valid_prog_h) 
      valid_prog_h.
 Proof.
   intros.
@@ -315,10 +314,10 @@ Proof.
   constructor; intros.
   edestruct strong_bisimulation_correct; eauto.
   split; intros.
-  edestruct H6; eauto; cleanup.
+  edestruct H4; eauto; cleanup.
   eexists; intuition (eauto).
 
-  edestruct H7; eauto; cleanup.
+  edestruct H5; eauto; cleanup.
   eexists; intuition (eauto).
 Qed.
 
