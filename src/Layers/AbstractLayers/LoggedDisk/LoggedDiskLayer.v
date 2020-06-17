@@ -14,7 +14,7 @@ Set Implicit Arguments.
 
   Definition oracle' := list token'.  
 
-  Definition state' := disk (set value).
+  Definition state' := disk value.
   
   Inductive logged_disk_prog : Type -> Type :=
   | Read : addr -> logged_disk_prog value
@@ -24,12 +24,12 @@ Set Implicit Arguments.
     forall T, oracle' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
   | ExecRead : 
       forall d a v,
-        read d a = Some v ->
+        d a = Some v ->
         exec' [Cont] d (Read a) (Finished d v)
              
   | ExecWrite :
       forall d la lv,
-        exec' [Cont] d (Write la lv) (Finished (write_all d la lv) tt)
+        exec' [Cont] d (Write la lv) (Finished (upd_batch d la lv) tt)
 
   | ExecCrashBefore :
       forall d T (p: logged_disk_prog T),
@@ -37,7 +37,7 @@ Set Implicit Arguments.
 
   | ExecCrashWriteAfter :
       forall d la lv,
-        exec' [CrashAfter] d (Write la lv) (Crashed (write_all d la lv)).
+        exec' [CrashAfter] d (Write la lv) (Crashed (upd_batch d la lv)).
 
   Hint Constructors exec' : core.
 
@@ -47,12 +47,12 @@ Set Implicit Arguments.
      (fun Q o s =>
        exists v,
          o = [Cont] /\
-         read s a = Some v /\
+         s a = Some v /\
          Q v s)
    | Write la lv =>
      (fun Q o s =>
        o = [Cont] /\
-       Q tt (write_all s la lv))
+       Q tt (upd_batch s la lv))
    end.
 
   Definition weakest_crash_precondition' T (p: logged_disk_prog T) :=
@@ -66,7 +66,7 @@ Set Implicit Arguments.
        (o = [CrashBefore] /\
         Q s) \/
        (o = [CrashAfter] /\
-        Q (write_all s la lv)))
+        Q (upd_batch s la lv)))
     end.
 
   Definition strongest_postcondition' T (p: logged_disk_prog T) :=
@@ -75,7 +75,7 @@ Set Implicit Arguments.
      fun P t s' =>
        exists s v,
          P [Cont] s /\
-         read s a = Some v /\
+         s a = Some v /\
          t = v /\
          s' = s
    | Write la lv =>
@@ -83,7 +83,7 @@ Set Implicit Arguments.
        exists s,
        P [Cont] s /\
        t = tt /\
-       s' = write_all s la lv
+       s' = upd_batch s la lv
    end.
 
   Definition strongest_crash_postcondition' T (p: logged_disk_prog T) :=
@@ -96,7 +96,7 @@ Set Implicit Arguments.
        (P [CrashBefore] s') \/
        (exists s,
           P [CrashAfter] s /\
-          s' = write_all s la lv)
+          s' = upd_batch s la lv)
     end.
   
   Theorem sp_complete':

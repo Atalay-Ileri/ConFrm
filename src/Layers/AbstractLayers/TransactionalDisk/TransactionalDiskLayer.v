@@ -19,7 +19,7 @@ Section TransactionalDisk.
 
   Definition oracle' := list token'.  
 
-  Definition state' := ((disk value) * (disk (set value)))%type.
+  Definition state' := ((disk value) * (disk value))%type.
   
   Inductive transactional_disk_prog : Type -> Type :=
   | Start : transactional_disk_prog unit
@@ -42,7 +42,7 @@ Section TransactionalDisk.
         let d := snd s in
         a < disk_size ->
         (c a = Some v \/
-        (c a = None /\ read d a = Some v)) ->
+        (c a = None /\ d a = Some v)) ->
         exec' [Cont] s (Read a) (Finished s v)
 
   | ExecReadOutbound : 
@@ -106,7 +106,7 @@ Section TransactionalDisk.
           o = [Cont] /\
           a < disk_size /\ 
           exists v,
-            (c a = Some v \/ (c a = None /\ read d a = Some v)) /\
+            (c a = Some v \/ (c a = None /\ d a = Some v)) /\
             Q v s
         ) \/
         (
@@ -174,7 +174,7 @@ Section TransactionalDisk.
           Q s /\
           exists v,
             c a = Some v \/
-            (c a = None /\ read d a = Some v)
+            (c a = None /\ d a = Some v)
         ) \/
         (
           o = [CrashAfter] /\
@@ -239,7 +239,7 @@ Section TransactionalDisk.
            a < disk_size /\
            s' = s /\
            exists v,
-             ( c a = Some v \/ (c a = None /\ read d a = Some v) ) /\
+             ( c a = Some v \/ (c a = None /\ d a = Some v) ) /\
              t = v 
          ) \/
          (
@@ -314,7 +314,7 @@ Section TransactionalDisk.
            P [CrashAfter] s /\
            a < disk_size /\
            s' = s /\
-           (exists v, c a = Some v \/ (c a = None /\ read d a = Some v))
+           (exists v, c a = Some v \/ (c a = None /\ d a = Some v))
          ) \/
          (
            P [CrashAfter] s /\

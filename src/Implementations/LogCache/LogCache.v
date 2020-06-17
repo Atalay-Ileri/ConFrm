@@ -24,7 +24,7 @@ Definition read a :=
   | Some v =>
     Ret v
   | None =>
-    v <- |CDDP| |DO| DiskLayer.Read _ (data_start + a);
+    v <- |CDDP| |DO| DiskLayer.Read (data_start + a);
     Ret v
   end.
 
@@ -39,10 +39,10 @@ Fixpoint txns_cache (txns: list txn) cache : @mem addr addr_dec value :=
   end.
 
 
-Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLang) :=
+Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLang) (log_state: Log_State):=
   exists hdr txns,
     fst s = txns_cache txns empty_mem /\
     addrs_match (fst s) (snd (snd s)) /\
-    (log_rep hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\
-    merged_disk = shift (plus data_start) (merge (fst s) (snd (snd s))).
+    (log_rep log_state hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\
+    merged_disk = shift (plus data_start) (merge_set (fst s) (snd (snd s))).
 

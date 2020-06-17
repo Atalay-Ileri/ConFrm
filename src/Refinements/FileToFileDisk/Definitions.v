@@ -27,78 +27,226 @@ Fixpoint compile T (p2: Operation.prog high_op T) : prog low T.
 Defined.
 
 Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 o2 : Prop :=
-   match p with
-   | Read inum a =>
-     (exists d1' r,
-        exec low o1 d1 (read inum a) (Finished d1' r) /\
-        o2 = [Cont] /\
-        d1' = d1) \/
-     
-     (exists d1',
-          exec low o1 d1 (read a) (Crashed d1') /\
-          (o2 = [CrashBefore] \/
-          (o2 = [CrashAfter] /\
-           exists l, fst d1 = Some l /\
-           exists v, get_latest l a = Some v \/ (get_latest l a = None /\ Disk.read (snd d1) a = Some v))) /\
-          d1' = d1)
-         
-     | Write a v =>
-       (exists d1' r,
-          exec low o1 d1 (write a v) (Finished d1' r) /\          
-          ((o2 = [OpOracle high_op [Cont] ] /\
-           d1' = (option_map (fun l => (a, v)::l) (fst d1), snd d1)) \/
-          (o2 = [OpOracle high_op [TxnFull] ] /\
-           d1' = d1)
+  let u := fst d1 in
+  let dx := snd d1 in
+  let d := merge (fst dx) (snd dx) in
+  exists fm,
+    files_rep fm d /\
+    match p with
+    | Read inum a =>
+      (exists d1' r,
+         exec low o1 d1 (read inum a) (Finished d1' r) /\
+         o2 = [Cont] /\
+         d1' = d1) \/
+      
+      (exists d1',
+         exec low o1 d1 (read inum a) (Crashed d1') /\
+         o2 = [CrashBefore] /\
+         d1' = d1)
+        
+    | Write inum off v =>
+      (exists d' r file,
+         (
+           exec low o1 d1 (write inum off v) (Finished (u, d') r) /\
+           o2 =  [Cont] /\
+           inum < inode_count /\
+           fm inum = Some file /\
+           file.(owner) = u /\
+           off < length (file.(blocks)) /\
+           let new_file := Build_File file.(owner)
+                 (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
+           files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+         ) \/
+         (
+           exec low o1 d1 (write inum off v) (Finished (u, d') r) /\
+           o2 =  [Cont] /\
+           (
+             inum >= disk_size \/
+             fm inum = None \/
+             (fm inum = Some file /\
+              (file.(owner) <> u \/ off >= length (file.(blocks))))
+           ) /\
+           d' = dx
+         )
+      ) \/
+       
+      (exists d',
+         (
+           exec low o1 d1 (write inum off v) (Crashed (u, d')) /\
+           o2 = [CrashBefore] /\
+           d' = dx
+         ) \/
+         (exists file,
+           exec low o1 d1 (write inum off v) (Crashed (u, d')) /\
+           o2 = [CrashAfter] /\ 
+           inum < inode_count /\
+           fm inum = Some file /\
+           file.(owner) = u /\
+           off < length (file.(blocks)) /\
+           let new_file := Build_File file.(owner)
+               (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
+           files_rep (upd fm inum new_file) (merge (fst d') (snd d'))     
+         )
+      )
+
+     | Extend inum v =>
+       (exists d' r file,
+          (
+            exec low o1 d1 (extend inum v) (Finished (u, d') r) /\
+            o2 = [Cont] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
+            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+          ) \/
+          (
+            exec low o1 d1 (extend inum v) (Finished (u, d') r) /\
+            o2 = [Cont] /\
+            (inum >= disk_size \/
+             fm inum = None \/
+             (fm inum = Some file /\ file.(owner) <> u)) /\
+            d' = dx
+          ) \/
+          (
+            exec low o1 d1 (extend inum v) (Finished (u, d') r) /\
+            o2 = [DiskFull] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            (* condition on disk being full *)
+            d' = dx
           )
        ) \/
-       
-       (exists d1',
-          exec low o1 d1 (write a v) (Crashed d1') /\
-          ((o2 = [ OpOracle high_op [CrashBefore] ] /\
-            d1' = d1) \/
-           
-           (o2 = [ OpOracle high_op [CrashAfter] ] /\
-            fst d1 <> None /\
-            d1' = (option_map (fun l => (a, v)::l) (fst d1), snd d1))))
-
-     | Commit =>
-       (exists d1' r,
-          exec low o1 d1 commit (Finished d1' r) /\
-          o2 = [OpOracle high_op [Cont] ] /\
-          (exists l, fst d1 = Some l /\
-                d1' = (None, merge (apply_list empty_mem (rev l)) (snd d1)))) \/
-       
-       (exists d1',
-          exec low o1 d1 commit (Crashed d1') /\
-          ((o2 = [OpOracle high_op [CrashBefore] ] /\
-           d1' = d1) \/
-           (o2 = [OpOracle high_op [CrashAfter] ] /\
-            (exists l, fst d1 = Some l /\
-                d1' = (None,  merge (apply_list empty_mem (rev l)) (snd d1) )))))
+  
+       (exists d',
+          (
+            exec low o1 d1 (extend inum v) (Crashed (u, d')) /\
+            o2 = [CrashBefore] /\
+            d' = dx
+          ) \/
+          (exists file,
+            exec low o1 d1 (extend inum v) (Crashed (u, d')) /\
+            o2 = [CrashAfter] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
+            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+          )
+       )
          
-     | Abort =>
-       (exists d1' r,
-          exec low o1 d1 abort (Finished d1' r) /\
-          o2 = [OpOracle high_op [Cont] ]) \/
-       
-       (exists d1',
-          exec low o1 d1 abort (Crashed d1') /\
-          ((o2 = [OpOracle high_op [CrashBefore] ] /\
-           d1' = d1) \/
-           (o2 = [OpOracle high_op [CrashAfter] ] /\
-          d1' = (None, snd d1))))
+     | SetOwner inum own =>
+       (exists d' r file,
+          (
+            exec low o1 d1 (change_owner inum own) (Finished (u, d') r) /\
+            o2 = [Cont] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            let new_file := Build_File own file.(blocks) in
+            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+          ) \/
+          (
+            exec low o1 d1 (change_owner inum own) (Finished (u, d') r) /\
+            o2 = [Cont] /\
+            (
+              inum >= disk_size \/
+              fm inum = None \/
+              (fm inum = Some file /\ file.(owner) <> u)
+            ) /\
+            d' = dx
+          )
+       ) \/
+       (exists d',
+          (
+            exec low o1 d1 (change_owner inum own) (Crashed (u, d')) /\
+            o2 = [CrashBefore] /\
+            d' = dx
+          ) \/
+          (exists file,
+            exec low o1 d1 (change_owner inum own) (Crashed (u, d')) /\
+            o2 = [CrashAfter] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            let new_file := Build_File own file.(blocks) in
+            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+          )
+       )
+     | Create own =>
+       (exists d',
+          (exists inum,
+            exec low o1 d1 (create own) (Finished (u, d') (Some inum)) /\
+            o2 = [NewInum inum] /\
+            inum < disk_size /\
+            fm inum = None /\
+            let new_file := Build_File own [] in
+            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+          ) \/
+          (
+            exec low o1 d1 (create own) (Finished (u, d') None) /\
+            o2 = [InodesFull] /\
+            (forall inum, inum < disk_size -> fm inum <> None) /\
+            d' = dx
+          )
+       ) \/
+       (exists d',
+          (
+            exec low o1 d1 (create own) (Crashed (u, d')) /\
+            o2 = [CrashBefore] /\
+            d' = dx
+          ) \/
+          (exists inum,
+            exec low o1 d1 (change_owner inum own) (Crashed (u, d')) /\
+            o2 = [CrashAfterCreate inum] /\
+            inum < disk_size /\
+            fm inum = None /\
+            let new_file := Build_File own [] in
+            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+          )
+       )
+     | Delete inum =>
+       (exists d' r file,
+          (
+            exec low o1 d1 (delete inum) (Finished (u, d') r) /\
+            o2 = [Cont] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            files_rep (Mem.delete fm inum) (merge (fst d') (snd d'))
+          ) \/
+          (
+            exec low o1 d1 (delete inum) (Finished (u, d') r) /\
+            o2 = [Cont] /\
+            (
+              inum >= disk_size \/
+              fm inum = None \/
+              (fm inum = Some file /\ file.(owner) <> u)
+            ) /\
+            d' = dx
+          )
+       ) \/
+       (exists d',
+          (
+            exec low o1 d1 (delete inum) (Crashed (u, d')) /\
+            o2 = [CrashBefore] /\
+            d' = dx
+          ) \/
+          (exists file,
+            exec low o1 d1 (delete inum) (Crashed (u, d')) /\
+            o2 = [CrashAfter] /\
+            inum < disk_size /\
+            fm inum = Some file /\
+            file.(owner) = u /\
+            files_rep (Mem.delete fm inum) (merge (fst d') (snd d'))
+          )
+       )
      end.
 
    Definition refines_to (d1: state low) (d2: state high) :=
-     
-     match fst d1 with
-     | Some l =>
-       let txn_cache := apply_list empty_mem (rev l) in
-       fst d2 = txn_cache /\
-       addrs_match txn_cache (snd d1)
-     | None =>
-       fst d2 = empty_mem
-     end /\
-     snd d2 = snd d1.
+     fst d1 = fst d2 /\
+     files_rep (snd d2) (merge (fst (snd d1)) (snd (snd d1))).
 
-  Definition TransactionalDiskRefinement := Build_Refinement compilation_of refines_to oracle_refines_to.
+  Definition FileDiskOperationRefinement := Build_OperationRefinement compile refines_to oracle_refines_to.
+  Definition FileDiskRefinement := LiftRefinement high FileDiskOperationRefinement.

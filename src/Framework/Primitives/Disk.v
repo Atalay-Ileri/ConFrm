@@ -42,13 +42,4 @@ Section Disk.
     | _, _ => d
     end.
 
-  Definition sync {V} (d: disk (set V)) (a: addr) : disk (set V) :=
-    match d a with
-    | None => d
-    | Some vs => upd_disk d a (fst vs, [])
-    end.
-
-  (* TODO Fix this 
-  Definition sync_all (d: disk) : disk := mem_read (sync d a) a.
-   *)
 End Disk.

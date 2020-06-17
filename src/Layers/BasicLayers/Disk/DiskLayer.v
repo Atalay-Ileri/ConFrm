@@ -23,7 +23,8 @@ Section DiskLayer.
   
   Inductive disk_prog : Type -> Type :=
   | Read : A -> disk_prog V
-  | Write : A -> V -> disk_prog unit.
+  | Write : A -> V -> disk_prog unit
+  | Sync : disk_prog unit.
    
   Inductive exec' :
     forall T, oracle' ->  state' -> disk_prog T -> @Result state' T -> Prop :=
@@ -36,6 +37,10 @@ Section DiskLayer.
       forall d a v vs,
         d a = Some vs ->
         exec' [Cont] d (Write a v) (Finished (upd d a (v, (fst vs::snd vs))) tt)
+
+  | ExecSync :
+      forall d,
+        exec' [Cont] d Sync (Finished (sync d) tt)
  
   | ExecCrash :
       forall T d (p: disk_prog T),
@@ -57,6 +62,10 @@ Section DiskLayer.
        o = [Cont] /\
        s a = Some vs /\
        Q tt (upd s a (v, (fst vs::snd vs))))
+   | Sync =>
+     fun Q o s =>
+       o = [Cont] /\
+       Q tt (sync s)
    end.
 
   Definition weakest_crash_precondition' T (p: disk_prog T) :=
@@ -78,6 +87,12 @@ Section DiskLayer.
          s' = upd s a (v, (fst vs::snd vs)) /\
          s a = Some vs /\
          t = tt
+   | Sync =>
+     fun P t s' =>
+        exists s, 
+       P [Cont] s /\
+       s' =(sync s) /\
+       t = tt
    end.
 
   Definition strongest_crash_postcondition' T (p: disk_prog T) :=
@@ -173,4 +188,5 @@ Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
 
 End DiskLayer.
 
-Arguments Read {_}.
+Arguments Read {_ _}.
+Arguments Sync {_ _}.

@@ -115,27 +115,27 @@ Definition write a b :=
 
 Open Scope pred_scope.
   
-Fixpoint ptsto_bits' (dh: disk value) value_sets bits n : @pred addr addr_dec (set value) :=
-  match value_sets, bits with
-  | vs::value_sets', b::bits' =>
-    (S n) |-> vs *
+Fixpoint ptsto_bits' (dh: disk value) values bits n : @pred addr addr_dec value :=
+  match values, bits with
+  | v::values', b::bits' =>
+    (S n) |-> v *
     match b with
     | 0 => [[ dh n = None ]]
-    | 1 => [[ dh n = Some (fst vs) ]]
+    | 1 => [[ dh n = Some v ]]
     | _ => [[ False ]]
     end *
-    ptsto_bits' dh value_sets' bits' (S n)
+    ptsto_bits' dh values' bits' (S n)
    | _, _ =>
     emp
   end.
       
-Definition ptsto_bits dh value_sets bits := ptsto_bits' dh value_sets bits 0.
+Definition ptsto_bits dh values bits := ptsto_bits' dh values bits 0.
 
-Definition block_allocator_rep (dh: disk value) : @pred addr addr_dec (set value) :=
-  (exists* bitmap bl value_sets,
+Definition block_allocator_rep (dh: disk value) : @pred addr addr_dec value  :=
+  (exists* bitmap values,
      let bits := bits (value_to_bits bitmap) in
-     bitmap_addr |-> (bitmap, bl) *
-     ptsto_bits dh value_sets bits *
-     [[ length value_sets = num_of_blocks ]] *
+     bitmap_addr |-> bitmap *
+     ptsto_bits dh values bits *
+     [[ length values = num_of_blocks ]] *
      [[ forall i, i >= num_of_blocks -> dh i = None ]])%pred.
 End BlockAllocator.

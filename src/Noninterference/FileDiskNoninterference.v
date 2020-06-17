@@ -1,7 +1,8 @@
-Require Import Framework File FileDiskLayer.
+Require Import Framework FSParameters File FileDiskLayer FileDiskRefinement.
 
 Variable disk_size: nat.
-Notation "'FileDisk'" := (FileDiskLang disk_size) (at level 0).
+Notation "'FileDisk'" := (FileDiskLang inode_count) (at level 0).
+Notation "'FileDisk.refinement'" := FileDiskRefinement.
 
 Definition same_for_user (s1 s2: FileDisk.(state)) :=
   let u1 := fst s1 in
@@ -22,8 +23,6 @@ Definition same_for_user (s1 s2: FileDisk.(state)) :=
      d2 inum = Some file2 ->
      file1.(owner) = file2.(owner) /\ 
      length file1.(blocks) = length file2.(blocks)).
-
-Print SelfSimulation.
 
 (*
 
@@ -119,39 +118,48 @@ Proof.
     { (* Crashed Before *)
       repeat econstructor; eauto.
     }
-    {
-      split_ors; cleanup;
-      inversion H8; cleanup.
-      -
-        repeat econstructor; eauto.
-        unfold same_for_user in *; cleanup.
-        specialize (H1 a).
-        destruct_fresh (snd s2 a); eauto; try congruence.
-        specialize (H3 a file f H6 D).
-        specialize (H4 a file f H6 D); cleanup.
-        rewrite H3 in *; eauto.        
-        exfalso; eapply H1; eauto;
-        setoid_rewrite H6; congruence.
-        
-        unfold same_for_user in *; cleanup; eauto.
-
-      - admit.
-    }
-    {
-      split_ors; cleanup;
-      inversion H8; cleanup; eauto.
-    }
-    Unshelve.
-    all: repeat constructor; eauto.
-    all: exact user0.
-Admitted.
+  }
+  Unshelve.
+  all: eauto.
+Qed.
 
 Axiom self_simulation_for_file_disk:
   SelfSimulation FileDisk (fun _ => True) (fun _ _ => True) same_for_user.
 
 
+Theorem ortsfr_file_disk:
+  oracle_refines_to_same_from_related FileDisk.refinement same_for_user.
+Proof.
+  unfold oracle_refines_to_same_from_related, refines_to_related.
+  induction p2; simpl; intros.
+  {
+    cleanup; eexists; intuition eauto.
+    unfold oracle_refines_to in *;
+    destruct p; cleanup.
+    { (* Read *)
+      unfold refines_to in *; cleanup.
+      eexists; split; eauto.
+      split_ors; cleanup.
+      + left; repeat eexists; eauto.
+        admit.
+      + right; repeat eexists; eauto.
+        admit.
+    }
+    { (* Write *)    
+      unfold refines_to in *; cleanup.
+      eexists; split; eauto.
+      unfold same_for_user in *; cleanup.
+      split_ors; cleanup.
+      +
+        split_ors; cleanup.
+        left; repeat eexists; left; intuition eauto.
+        admit.
+Abort.
+      
+Theorem ecpv_file_disk:  
+exec_compiled_preserves_validity FileDisk.refinement                           
+   (refines_to_valid FileDisk.refinement (fun s => True)).
+Proof.
+  unfold exec_compiled_preserves_validity, refines_to_valid; intros; eauto.
+Qed.
 
-oracle_refines_to_same_from_related refinement same_for_user ->
-
-exec_compiled_preserves_validity refinement                           
-   (refines_to_valid refinement same_for_user).

@@ -13,7 +13,7 @@ Require Import Framework CryptoDiskLayer.
     match count with
     | 0 => Ret nil
     | S count' =>
-      v <- |DO| Read _ a;
+      v <- |DO| Read a;
       vl <- read_consecutive (S a) count';
     Ret (v::vl)
   end.

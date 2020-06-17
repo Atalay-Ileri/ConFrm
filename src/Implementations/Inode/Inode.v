@@ -34,7 +34,7 @@ Open Scope pred_scope.
 Definition inode_map_rep inode_block_map (inode_map: disk Inode) :=
   forall i, inode_map i = option_map decode_inode (inode_block_map i).
 
-Definition inode_rep (inode_map: disk Inode) : @pred addr addr_dec (set value) :=
+Definition inode_rep (inode_map: disk Inode) : @pred addr addr_dec value :=
   exists* inode_block_map,
     block_allocator_rep inode_block_map *
     [[ forall i, inode_map i = option_map decode_inode (inode_block_map i) ]].

@@ -1,4 +1,5 @@
 Require Import List Primitives Layer Simulation.Definitions.
+Require Simulation.RefinementLift.
 
 (* WP reasoning for proving bisimulations *)
 
@@ -177,6 +178,141 @@ Proof.
     2: simpl; eauto.
 Abort.
 *)
+
+  Import RefinementLift.
+  
+  Theorem sbs_ret :
+    forall OL OH (LL: Language OL) (LH: Language OH) (Refinement: OperationRefinement LL OH) T (v: T),
+    StrongBisimulationForProgram (LiftRefinement LH Refinement) (Ret v).              
+  Proof.
+    intros.
+    constructor; simpl; split; intros;
+    invert_exec; cleanup;
+    split_ors; cleanup;
+    invert_exec; cleanup;
+    eexists; intuition eauto;
+    try solve [ econstructor; eauto ];
+    simpl eauto.
+  Qed.
+
+  Theorem sbs_bind:
+    forall OL OH (LL: Language OL) (LH: Language OH) (Refinement: OperationRefinement LL OH)
+      T1 T2 (p1: LH.(prog) T1) (p2: T1 -> LH.(prog) T2),
+      StrongBisimulationForProgram (LiftRefinement LH Refinement) p1 ->
+      (forall t, StrongBisimulationForProgram (LiftRefinement LH Refinement) (p2 t)) ->
+      StrongBisimulationForProgram (LiftRefinement LH Refinement) (Bind p1 p2).
+  Proof.
+    intros.
+    edestruct H.
+    constructor; intros.
+    simpl in *; cleanup.
+
+    split; intros.
+    - (* Low to High *)
+      invert_exec; cleanup.
+      
+      + split_ors; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
+     
+        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+        edestruct H0.
+        simpl in *; 
+        edestruct strong_bisimulation_for_program_correct0; eauto.
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+        cleanup.
+        eexists; intuition eauto.
+        econstructor; eauto.
+        simpl; eauto.
+        
+      +
+        split_ors; cleanup;
+        split_ors; cleanup;
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
+        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
+          exists (Crashed s); repeat (split; eauto).
+          eapply ExecBindCrash; eauto.
+
+        *
+          eapply_fresh exec_finished_deterministic_prefix in H4; eauto; cleanup.
+          eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+          edestruct H0.
+          simpl in *;
+          edestruct strong_bisimulation_for_program_correct0; eauto.
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+          cleanup.
+          eexists; intuition eauto.
+          econstructor; eauto.
+          simpl; eauto.
+
+    - (* High to Low *)
+      invert_exec; cleanup.
+      
+
+      + split_ors; cleanup.
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; cleanup.
+
+        edestruct strong_bisimulation_for_program_correct; eauto.
+        edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
+        eapply_fresh exec_finished_deterministic_prefix in H2; eauto; cleanup.
+        simpl in *.
+        edestruct H0.
+        simpl in *;
+        edestruct strong_bisimulation_for_program_correct0; eauto.
+        edestruct H5; eauto; simpl in *; cleanup; try intuition; clear H5 H9; cleanup.           
+        eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; cleanup.
+        eexists; intuition eauto.
+        econstructor; eauto.
+        
+      +
+        split_ors; cleanup;
+        split_ors; cleanup;
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
+        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
+          simpl in *.
+          exists (Crashed x5); repeat (split; eauto).
+          eapply ExecBindCrash; eauto.
+
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H8 H9.
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
+
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
+
+        *
+          edestruct strong_bisimulation_for_program_correct; eauto.
+          edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
+           eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
+           edestruct H0.
+           simpl in *;
+           edestruct strong_bisimulation_for_program_correct0; eauto.
+           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
+           cleanup.
+           eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
+           eexists; intuition eauto.
+           econstructor; eauto.
+    Unshelve.
+    all: eauto.
+  Qed.
+
+  Hint Resolve sbs_ret sbs_bind.
 
 Theorem bisimulation_from_wp_prog :
   forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH) T (p2: LH.(prog) T),

@@ -12,10 +12,10 @@ Cd "./Extracted".
 Extract Inlined Constant addr => "Prelude.Integer".
 Extract Constant user => "System.Posix.Types.UserID".
 Extract Constant value => "Prelude.Int".
-Extract Constant file_blocks_count => "4096".
-Extract Constant log_length => "500".
-Extract Constant inode_count => "4096".
-Extract Constant disk_size => "10 Prelude.* 4096".
+Extract Constant file_blocks_count => "4096". (* 4K data blocks *)
+Extract Constant log_length => "500". (* 500 log blocks *)
+Extract Constant inode_count => "4096". (* 4K inodes *)
+Extract Constant disk_size => "4 Prelude.* 1024 Prelude.* 1024 Prelude.* 1024". (* 4 GB disk *)
 
 (* Eliminate Horizontal Composition *) 
 Extraction Implicit lift_L1 [ 1 2 ].
@@ -29,7 +29,7 @@ Extraction Inline Language.prog.
 Extract Inductive Language.prog' => "Prelude.IO" [ "" "Prelude.return" "(Prelude.>>=)" ].
 
 (* Use these to implement actual functionality
-Extract Inductive DiskLayer.disk_prog => "Prelude.IO" [ "DISK_READ" "DISK_WRITE"  ].
+Extract Inductive DiskLayer.disk_prog => "Prelude.IO" [ "DISK_READ" "DISK_WRITE" "DISK_SYNC" ].
 Extract Inductive CryptoLayer.crypto_prog => "Prelude.IO" [ "GET_KEY" "HASH" "ENCRYPT" "DECRYPT" ].
 Extract Inductive CacheLayer.cache_prog => "Prelude.IO" [ "CACHE_READ" "CACHE_WRITE" "CACHE_FLUSH"]. 
 Extract Inductive StorageLayer.storage_prog => "Prelude.IO" [ "GET" "PUT" "DELETE" ].

@@ -4,11 +4,13 @@ Require Import ClassicalFacts FunctionalExtensionality Omega.
 
 Set Nested Proofs Allowed.
 
-Notation "'low'" := TransactionCacheLang.
-Notation "'high'" := (TransactionalDiskLang data_length).
-Notation "'refinement'" := TransactionalDiskRefinement.
+Notation "'low_op'" := TransactionalDiskOperation.
+Notation "'high_op'" := (FileDiskOperation inode_count).
+Notation "'low'" := TransactionalDiskLang.
+Notation "'high'" := (FileDiskLang inode_count).
+Notation "'refinement'" := FileDiskRefinement.
 
-Section TransactionalDiskBisimulation.
+Section FileDiskBisimulation.
 
   Axiom exec_compiled_preserves_refinement:
     exec_compiled_preserves_refinement refinement.
@@ -20,13 +22,10 @@ Section TransactionalDiskBisimulation.
   Lemma merge_some_l:
     forall AT AEQ V (m1: @mem AT AEQ V) m2 a v,
       m1 a = Some v ->
-      m2 a <> None ->
-      exists vs, merge m1 m2 a = Some vs /\
-            fst vs = v.
+      merge m1 m2 a = Some v.
   Proof.
     unfold merge; simpl; intros.
-    cleanup.
-    destruct (m2 a); try congruence; eauto.
+    cleanup; eauto.
   Qed.
   
   Lemma merge_some_r:
@@ -45,47 +44,12 @@ Section TransactionalDiskBisimulation.
   Proof.
     induction l; simpl; eauto.
   Qed.
-  
-  Lemma apply_list_get_latest_eq :
-    forall l a,
-      get_latest l a = apply_list empty_mem (rev l) a.
-  Proof.
-    induction l; simpl; intros; eauto.
-    rewrite apply_list_app; simpl.
-    destruct (addr_eq_dec a0 (fst a)); subst.          
-    rewrite upd_eq; eauto.
-    rewrite upd_ne; eauto.
-  Qed.
-
-  Lemma empty_mem_some_false:
-    forall A AEQ V (m: @mem A AEQ V) a v,
-      m = empty_mem ->
-      m a <> Some v.
-  Proof.
-    intros.
-    rewrite H.
-    unfold empty_mem; simpl; congruence.
-  Qed.
-
-  
-  Lemma refines_to_upd:
-    forall s1 s2 a vl,
-      fst s1 <> None ->
-      refines_to s1 s2 ->
-      refines_to (option_map (fun l : list (addr * value) => (a, vl) :: l) (fst s1), snd s1)
-                 (upd (fst s2) a vl, snd s2).
-  Proof.
-    unfold refines_to; intros;
-    cleanup; simpl in *; intuition.
-    destruct (fst s1); simpl in *; try congruence.
-    rewrite apply_list_app; simpl. eauto.
-  Qed.
    
   Lemma wp_low_to_high_read :
-    forall a,
-    wp_low_to_high_prog' _ _ _ _ refinement _ (|Read a|).
+    forall inum a,
+    wp_low_to_high_prog' _ _ _ _ refinement _ (|Read inum a|).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
+    unfold wp_low_to_high_prog'; intros; cleanup.
     unfold  compilation_of in *; simpl; intros; cleanup.
     split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
     eexists; intuition eauto.

@@ -163,11 +163,45 @@ Section FileDisk.
       forall d T (p: file_disk_prog T),
         exec' [CrashBefore] d p (Crashed d)
 
-  | ExecCrashAfter :
-      forall d T (p: file_disk_prog T) d' r o,
-        o = [Cont] \/ o = [InodesFull] ->
-        exec' o d p (Finished d' r) ->
-        exec' [CrashAfter] d p (Crashed d')
+  | ExecSetOwnerCrashAfter :
+      forall s inum file o,
+        let u := fst s in
+        let d := snd s in
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        let new_file := Build_File o file.(blocks) in
+        exec' [CrashAfter] s (SetOwner inum o) (Crashed (u, (upd d inum new_file)))
+
+  | ExecWriteCrashAfter :
+      forall s inum file off v,
+        let u := fst s in
+        let d := snd s in
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        off < length (file.(blocks)) ->
+        let new_file := Build_File file.(owner) (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
+        exec' [CrashAfter] s (Write inum off v) (Crashed (u, (upd d inum new_file)))
+
+  | ExecExtendCrashAfter :
+      forall s inum file v,
+        let u := fst s in
+        let d := snd s in
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
+        exec' [CrashAfter] s (Extend inum v) (Crashed (u, (upd d inum new_file)))
+
+  | ExecDeleteCrashAfter :
+      forall s inum file,
+        let u := fst s in
+        let d := snd s in
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        exec' [CrashAfter] s (Delete inum) (Crashed (u, (Mem.delete d inum)))
 
   | ExecCreateCrashAfter :
       forall s inum owner,
@@ -343,29 +377,6 @@ Section FileDisk.
         (
           o = [CrashBefore] /\
           Q s
-        ) \/
-        (
-          o = [CrashAfter] /\
-          inum < disk_size /\
-          exists file v,
-            d inum = Some file /\
-            file.(owner) = u /\
-            nth_error file.(blocks) a = Some v /\
-            Q s
-        ) \/
-        (
-          o = [CrashAfter] /\
-          (inum >= disk_size \/
-           d inum = None \/
-           (exists file,
-              d inum = Some file /\
-              (
-                file.(owner) <> u \/
-                nth_error file.(blocks) a = None
-              )
-           )
-          ) /\
-          Q s
         )
           
     | Write inum a v =>
@@ -387,20 +398,6 @@ Section FileDisk.
                 Build_File file.(owner)
                                   (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
             Q (u, upd d inum new_file)
-        ) \/
-        (
-          o = [CrashAfter] /\
-          (inum >= disk_size \/
-           d inum = None \/
-           (exists file,
-              d inum = Some file /\
-              (
-                file.(owner) <> u \/
-                a >= length (file.(blocks))
-              )
-           )
-          ) /\
-          Q s
         )
           
     | SetOwner inum u' =>
@@ -419,15 +416,6 @@ Section FileDisk.
             d inum = Some file /\
             file.(owner) = u /\
             Q (u, upd d inum new_file)
-        ) \/
-        (
-          o = [CrashAfter] /\
-          (inum >= disk_size \/
-           d inum = None \/
-           exists file,
-             d inum = Some file /\
-             file.(owner) <> u) /\
-          Q s
         )
           
     | Create u' =>
@@ -438,12 +426,6 @@ Section FileDisk.
           o = [CrashBefore] /\
           Q s
         ) \/
-        (
-          o = [CrashAfter] /\
-          (forall inum, inum < disk_size -> d inum <> None) /\
-          Q s
-        ) \/
-
         (exists inum,
            o = [CrashAfterCreate inum] /\
            inum < disk_size /\ 
@@ -467,16 +449,8 @@ Section FileDisk.
              d inum = Some file /\
              file.(owner) = u) /\
           Q (u, Mem.delete d inum)
-        ) \/
-        (
-          o = [CrashAfter] /\
-          (inum >= disk_size \/
-           d inum = None \/
-           exists file,
-             d inum = Some file /\
-             file.(owner) <> u) /\
-          Q s
         )
+          
     | Extend inum v =>
       fun Q o s =>
         let u := fst s in
@@ -493,15 +467,6 @@ Section FileDisk.
             file.(owner) = u /\
             let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
             Q (u, upd d inum new_file)
-        ) \/
-        (
-          o = [CrashAfter] /\
-          (inum >= disk_size \/
-           d inum = None \/
-           exists file,
-             d inum = Some file /\
-             file.(owner) <> u) /\
-          Q s
         )
     end.
 
@@ -700,33 +665,6 @@ Section FileDisk.
         (exists s,
            P [CrashBefore] s /\
            s' = s
-        ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           inum < disk_size /\
-           exists file v,
-             d inum = Some file /\
-             file.(owner) = u /\
-             nth_error file.(blocks) a = Some v /\
-             s' = s
-        ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           (inum >= disk_size \/
-            d inum = None \/
-            (exists file,
-               d inum = Some file /\
-               (
-                 file.(owner) <> u \/
-                 nth_error file.(blocks) a = None
-               )
-            )
-           ) /\
-           s' = s
         )
           
     | Write inum a v =>
@@ -748,22 +686,6 @@ Section FileDisk.
                  Build_File file.(owner)
                                    (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
              s' = (u, upd d inum new_file)
-        ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           (inum >= disk_size \/
-            d inum = None \/
-            (exists file,
-               d inum = Some file /\
-               (
-                 file.(owner) <> u \/
-                 a >= length (file.(blocks))
-               )
-            )
-           ) /\
-           s' = s
         )
           
     | SetOwner inum u' =>
@@ -782,16 +704,6 @@ Section FileDisk.
              d inum = Some file /\
              file.(owner) = u /\
              s' = (u, upd d inum new_file)
-        ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           (inum >= disk_size \/ d inum = None \/
-            exists file,
-              d inum = Some file /\
-              file.(owner) <> u) /\
-           s' = s
         )
           
     | Create u' =>
@@ -800,14 +712,6 @@ Section FileDisk.
            P [CrashBefore] s /\
            s' = s
         ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           (forall inum, inum < disk_size -> d inum <> None) /\
-           s' = s
-        ) \/
-
         (exists s inum,
            let u := fst s in
            let d := snd s in
@@ -833,16 +737,6 @@ Section FileDisk.
               d inum = Some file /\
              file.(owner) = u) /\
            s' = (u, Mem.delete d inum)
-        ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           (inum >= disk_size \/ d inum = None \/
-            exists file,
-              d inum = Some file /\
-              file.(owner) <> u) /\
-           s' = s
         )
     | Extend inum v =>
       fun P s' =>
@@ -860,16 +754,6 @@ Section FileDisk.
              file.(owner) = u /\
              let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
              s' = (u, upd d inum new_file)
-        ) \/
-        (exists s,
-           let u := fst s in
-           let d := snd s in
-           P [CrashAfter] s /\
-           (inum >= disk_size \/ d inum = None \/
-            exists file,
-              d inum = Some file /\
-              file.(owner) <> u) /\
-           s' = s
         )
     end.
 
@@ -930,6 +814,11 @@ Section FileDisk.
                    ];
                simpl; cleanup; eauto
               ].
+
+    try rewrite <- H3 at 2;
+    econstructor;  eauto.
+    try rewrite <- H3 at 2;
+    econstructor;  eauto.
     
     Unshelve.
     all: repeat econstructor; eauto.

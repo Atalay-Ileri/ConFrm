@@ -13,6 +13,8 @@ Section GenMem.
   Variable V : Type.
   Variable AEQ : EqDec A.
 
+  (* Operations *)
+
   Definition upd (m : @mem A AEQ V) (a : A) (v : V) : @mem A AEQ V :=
     fun a' => if AEQ a' a then Some v else m a'.
 
@@ -23,7 +25,7 @@ Section GenMem.
       | Some _ => Some v
       end else m a'.
 
-  Definition merge (m1: @mem A AEQ V)
+  Definition merge_set (m1: @mem A AEQ V)
              (m2: @mem A AEQ (V * list V)) : @mem A AEQ (V * list V) :=
   fun a =>
     match m1 a with
@@ -35,11 +37,21 @@ Section GenMem.
         Some (v, fst vs::snd vs)
       end
     end.
-  
 
-  Definition addrs_match {V1} (m1: @mem A AEQ V)
-             (m2: @mem A AEQ V1) : Prop :=
-  forall a, m1 a <> None -> m2 a <> None.
+  Definition merge (m1: @mem A AEQ V)
+             (m2: @mem A AEQ V) : @mem A AEQ V :=
+  fun a =>
+    match m1 a with
+    | None => m2 a
+    | Some v => Some v
+    end.
+  
+  Definition sync (m: @mem A AEQ (V * list V)) :=
+    fun a =>
+      match m a with
+      | None => None
+      | Some vs => Some (fst vs, nil: list V)
+      end.
 
   Definition shift (shift_a: A -> A) (m:@mem A AEQ V) :=
     fun a => m (shift_a a).
@@ -60,23 +72,6 @@ Section GenMem.
     | _, _ => m
     end.
 
-  Definition subset (m1 m2: @mem A AEQ V) :=
-    forall a,
-      (m2 a = None -> m1 a = None) /\
-      (forall v, m1 a = Some v -> m2 a = Some v).
-
-  Definition consistent (m: @mem A AEQ V) a v :=
-    m a = None \/ m a = Some v.
-
-  Fixpoint consistent_with_upds m al vl :=
-    match al, vl with
-    | nil, nil => True
-    | a::al', v::vl' =>
-      consistent m a v /\
-      consistent_with_upds (upd m a v) al' vl'
-    | _, _ => False
-    end.
-
   Fixpoint get_all_existing (m: @mem A AEQ V) al :=
     match al with
     | nil => nil
@@ -85,6 +80,38 @@ Section GenMem.
       | None => get_all_existing m al'
       | Some v => v::get_all_existing m al'
       end
+    end.
+
+  Definition mem_map {V2} (f: V -> V2) (m: @mem A AEQ V) : @mem A AEQ V2 :=
+    fun a => match m a with
+          | None => None
+          | Some v => Some (f v)
+          end.
+
+  (* Properties *)
+  Definition subset (m1 m2: @mem A AEQ V) :=
+    forall a,
+      (m2 a = None -> m1 a = None) /\
+      (forall v, m1 a = Some v -> m2 a = Some v).
+
+  Definition consistent (m: @mem A AEQ V) a v :=
+    m a = None \/ m a = Some v.
+
+  Definition addrs_match {V1} (m1: @mem A AEQ V)
+             (m2: @mem A AEQ V1) : Prop :=
+    forall a, m1 a <> None -> m2 a <> None.
+
+  Definition addrs_match_exactly {V1} (m1: @mem A AEQ V)
+             (m2: @mem A AEQ V1) : Prop :=
+  forall a, m1 a <> None <-> m2 a <> None.
+
+  Fixpoint consistent_with_upds m al vl :=
+    match al, vl with
+    | nil, nil => True
+    | a::al', v::vl' =>
+      consistent m a v /\
+      consistent_with_upds (upd m a v) al' vl'
+    | _, _ => False
     end.
   
   Theorem upd_eq : forall m (a : A) (v : V) a',

@@ -52,7 +52,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
           (o2 = [CrashBefore] \/
           (o2 = [CrashAfter] /\
            exists l, fst d1 = Some l /\
-           exists v, get_latest l a = Some v \/ (get_latest l a = None /\ Disk.read (snd d1) a = Some v))) /\
+           exists v, get_latest l a = Some v \/ (get_latest l a = None /\ (snd d1) a = Some v))) /\
           d1' = d1)
          
      | Write a v =>

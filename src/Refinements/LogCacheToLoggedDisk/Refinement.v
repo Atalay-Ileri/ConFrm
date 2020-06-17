@@ -53,11 +53,13 @@ Section LoggedDiskBisimulation.
       {
         destruct ret.
         eapply exec_to_sp with (P := fun o s => refines_to s x /\ s = s1) in H0; unfold refines_to in *; eauto.
-        simpl in *; repeat (cleanup; simpl in *); eauto.
+        simpl in *; repeat (cleanup; simpl in *); eauto;
+                            do 4 eexists; intuition eauto.
 
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ s = s1) in H0; unfold refines_to in *; eauto.
+      eapply exec_to_scp with (P := fun o s' => refines_to s' x /\ s' = s1) in H0; unfold refines_to in *; eauto.
       simpl in *; repeat (try split_ors; cleanup; simpl in *); eauto;
-      inversion H0; cleanup; eauto.
+                          inversion H0; cleanup; eauto;
+                          do 4 eexists; intuition eauto.
     }
     {
       destruct ret.
@@ -78,9 +80,9 @@ Section LoggedDiskBisimulation.
     {
       destruct ret.
       eapply exec_to_sp with (P := fun o s => refines_to s x /\ s = s1) in H0; unfold refines_to in *; eauto.
-      simpl in *; cleanup; simpl; eauto.
+      simpl in *; cleanup; simpl; eauto; do 4 eexists; intuition eauto.
       eapply exec_to_scp with (P := fun o s => refines_to s x /\ s = s1) in H0; unfold refines_to in *; eauto.
-      simpl in *; cleanup; simpl; eauto.
+      simpl in *; cleanup; simpl; eauto; do 4 eexists; intuition eauto.
     }
 
     {
@@ -124,51 +126,51 @@ Section LoggedDiskBisimulation.
     eapply IHp in H1; eauto; simpl in *.
   Admitted.
       
-  Lemma merge_some_l:
+  Lemma merge_set_some_l:
     forall AT AEQ V (m1: @mem AT AEQ V) m2 a v,
       m1 a = Some v ->
       m2 a <> None ->
-      exists vs, merge m1 m2 a = Some vs /\
+      exists vs, merge_set m1 m2 a = Some vs /\
             fst vs = v.
   Proof.
-    unfold merge; simpl; intros.
+    unfold merge_set; simpl; intros.
     cleanup.
-    destruct (m2 a); try congruence; eauto.
+    destruct (m2 a); try congruence; eauto.    
   Qed.
   
-  Lemma merge_some_r:
+  Lemma merge_set_some_r:
     forall AT AEQ V (m1: @mem AT AEQ V) m2 a,
       m1 a = None ->
-      merge m1 m2 a = m2 a.
+      merge_set m1 m2 a = m2 a.
   Proof.
-    unfold merge; simpl; intros.
+    unfold merge_set; simpl; intros.
     cleanup; eauto.
   Qed.
 
   
   Lemma cached_log_rep_cache_read :
-    forall F s2 s1 a v,
-      cached_log_rep F s2 s1 ->
+    forall F s2 s1 a v log_state,
+      cached_log_rep F s2 s1 log_state ->
       fst s1 (data_start + a) = Some v ->
       Disk.read s2 a = Some v.
   Proof.
     unfold cached_log_rep, Disk.read; intros.
     cleanup; unfold shift; simpl in *.
-    eapply merge_some_l in H0; eauto; cleanup.
+    eapply merge_set_some_l in H0; eauto; cleanup.
     rewrite H0; eauto.
     eapply H1.
     congruence.
   Qed.
   
   Lemma cached_log_rep_disk_read :
-    forall F s2 s1 a,
-      cached_log_rep F s2 s1 ->
+    forall F s2 s1 a log_state,
+      cached_log_rep F s2 s1 log_state ->
       fst s1 (data_start + a) = None ->
       Disk.read s2 a = Disk.read (snd (snd s1)) (data_start + a).
   Proof.
     unfold cached_log_rep, Disk.read; intros.
     unfold shift in *; simpl; cleanup.
-    erewrite merge_some_r; eauto.
+    erewrite merge_set_some_r; eauto.
   Qed.
 
   Lemma wp_low_to_high_read :
@@ -179,7 +181,7 @@ Section LoggedDiskBisimulation.
     unfold refines_to in *; simpl; intros; cleanup.
     split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
     eexists; intuition eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H2; unfold refines_to in *; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s (mem_map fst x2) /\ s = s1) in H2; unfold refines_to in *; eauto.
     simpl in *.
     cleanup.
     {        
@@ -187,27 +189,22 @@ Section LoggedDiskBisimulation.
       eexists; intuition eauto.
       simpl in *.
       eapply cached_log_rep_cache_read; eauto.
-      erewrite cached_log_rep_disk_read; eauto.
-      unfold Disk.read in *; simpl; cleanup; eauto.
     }
 
     cleanup; simpl in *.
     {
       cleanup.
-      eexists; split; eauto; simpl in *.
-      unfold refines_to in *; cleanup.
-      erewrite cached_log_rep_disk_read; eauto.
-      unfold Disk.read in *; simpl; cleanup; eauto.
-      split_ors; cleanup.
-      eapply exec_deterministic_wrt_oracle in H1; eauto; cleanup.
-      eexists; intuition eauto.
-      
+      do 4 eexists; split; eauto; simpl in *.
     }
     {
-      cleanup; eauto.
+      unfold refines_to in *; cleanup.
+      split_ors; cleanup.
+      eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
       eexists; intuition eauto.
-      erewrite cached_log_rep_disk_read; eauto.      
-      unfold Disk.read in *; simpl; cleanup; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s (mem_map fst x2) /\ s = s1) in H2; unfold refines_to in *; eauto.
+      simpl in *.
+      cleanup.
+      destruct x; simpl in *; cleanup; eauto; intuition eauto.
     }
   Qed.
 
@@ -215,22 +212,24 @@ Section LoggedDiskBisimulation.
     forall a,
     wp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
   Proof.
-    unfold wp_high_to_low_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl; intros; cleanup.
-    split_ors; cleanup.
+    unfold wp_high_to_low_prog'; intros; cleanup.
+    simpl in H; cleanup.
+    simpl in H1; cleanup; split_ors; cleanup.
     repeat invert_exec.
     eapply exec_to_wp; eauto.
 
-    eapply exec_to_sp with (P := fun o s => refines_to s s2' /\ s = s1) in H0; unfold refines_to in *; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2' /\ s = s1) in H; eauto.
 
     unfold read in *; simpl in *.
     cleanup; simpl in *.
-    destruct x4; simpl in *; cleanup; eauto.
-    - destruct x2; simpl in *; split; eauto.
+    destruct x2; simpl in *; cleanup; eauto.
+    - destruct x; simpl in *; split; eauto.
+      unfold refines_to in *; cleanup.
       eapply cached_log_rep_cache_read in H0; eauto; cleanup.
       congruence.
       
-    - destruct x2, s0; simpl in *; split; eauto.
+    - destruct x, s0; simpl in *; split; eauto.
+      unfold refines_to in *; cleanup.
       eapply cached_log_rep_disk_read in H0; eauto; cleanup.
       unfold Disk.read in *; simpl in *; cleanup; eauto.
       simpl in *; congruence.
@@ -241,12 +240,10 @@ Section LoggedDiskBisimulation.
     forall a,
     wcp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
   Proof.
-    unfold wcp_low_to_high_prog', , refines_to; simpl; intros; cleanup.
-    unfold  in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eexists; intuition eauto.
-    destruct x0, s0.
-    eapply exec_to_scp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
+    unfold wcp_low_to_high_prog', refines_to; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    eexists; repeat split; eauto.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2) in H; unfold refines_to in *; eauto.
     simpl in *; cleanup.
     repeat (split_ors; repeat (cleanup; simpl in *);
     try solve [ inversion H; cleanup; eexists; eauto ]).
@@ -256,8 +253,8 @@ Section LoggedDiskBisimulation.
     forall a,
     wcp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Read a|).
   Proof.
-    unfold wcp_high_to_low_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl in *; intros; cleanup.
+    unfold wcp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H1; intros; cleanup.
     split_ors; cleanup.
     repeat invert_exec.
     eapply exec_to_wcp; eauto.
@@ -272,26 +269,28 @@ Section LoggedDiskBisimulation.
     forall a vl,
     wp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
   Proof.
-    unfold wp_low_to_high_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; unfold refines_to in *; eauto.
+    unfold wp_low_to_high_prog'; intros; cleanup.
+    simpl in H1; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H1; eauto; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H2; unfold refines_to in *; eauto.
     unfold write in *.
     simpl in *; cleanup.
     eexists; intuition eauto.
+    unfold refines_to; eauto.
   Qed.
 
   Lemma wp_high_to_low_write :
     forall a vl,
     wp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
   Proof.
-    unfold wp_high_to_low_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl; intros; cleanup.
+    unfold wp_high_to_low_prog'; intros; cleanup.
     repeat invert_exec.
+    simpl in H1; cleanup.
     repeat (split_ors; cleanup).
     eapply exec_to_wp; eauto.
+    simpl; unfold refines_to.
     eexists; eauto.
-    destruct x3; eauto.
+    destruct x0; eauto.
   Qed.
 
   
@@ -299,13 +298,13 @@ Section LoggedDiskBisimulation.
     forall a vl,
     wcp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
   Proof.
-    unfold wcp_low_to_high_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup;
+    unfold wcp_low_to_high_prog'; intros; cleanup.
+    simpl in H1; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H1; eauto; cleanup.
+    simpl; split_ors; cleanup;
     eexists; intuition eauto.
     right; intuition eauto.
-    eapply exec_to_scp with (P := fun o s => refines_to s s2 /\ s = s1) in H3.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2 /\ s = s1) in H2.
     2: unfold refines_to; eauto.
     admit. (* TODO: Check this *)
   Admitted.
@@ -314,59 +313,14 @@ Section LoggedDiskBisimulation.
     forall a vl,
     wcp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (|Write a vl|).
   Proof.
-    unfold wcp_high_to_low_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl; intros; cleanup.
+    unfold wcp_high_to_low_prog'; intros; cleanup.
+    simpl in H1; intros; cleanup.
     repeat split_ors; cleanup; repeat invert_exec;
     eapply exec_to_wcp; eauto;
     split_ors; cleanup; eauto.
     admit. (* TODO: Check this *)
   Admitted.
 
-
-  Lemma wp_low_to_high_ret :
-    forall T (v: T),
-    wp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
-  Proof.
-    unfold wp_low_to_high_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    invert_exec; intuition eauto.
-  Qed.
-
-  Lemma wp_high_to_low_ret :
-    forall T (v: T),
-    wp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
-  Proof.
-    unfold wp_high_to_low_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    eapply exec_to_wp; eauto.
-    econstructor; eauto.
-  Qed.
-
-  Lemma wcp_low_to_high_ret :
-    forall T (v: T),
-    wcp_low_to_high_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
-  Proof.
-    unfold wcp_low_to_high_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eexists; intuition eauto.
-    invert_exec; eauto.
-  Qed.
-
-  Lemma wcp_high_to_low_ret :
-    forall T (v: T),
-    wcp_high_to_low_prog' _ _ _ _ LoggedDiskRefinement _ (Ret v).
-  Proof.
-    unfold wcp_high_to_low_prog', , refines_to; simpl; intros; cleanup.
-    unfold , refines_to in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    eapply exec_to_wcp; eauto.
-    econstructor; eauto.
-  Qed.
     
   Theorem sbs_read :
     forall a,
@@ -399,140 +353,7 @@ Section LoggedDiskBisimulation.
   Qed.
 
   
-  Theorem sbs_ret :
-    forall T (v: T),
-    StrongBisimulationForProgram LoggedDiskRefinement
-      (Ret v).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    eapply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_ret.
-    apply wp_high_to_low_ret.
-    apply wcp_low_to_high_ret.
-    apply wcp_high_to_low_ret.
-  Qed.
-
-  Theorem sbs_bind:
-    forall T1 T2 (p1: high.(prog) T1) (p2: T1 -> high.(prog) T2),
-      StrongBisimulationForProgram LoggedDiskRefinement p1 ->
-      (forall t, StrongBisimulationForProgram LoggedDiskRefinement (p2 t)) ->
-      StrongBisimulationForProgram LoggedDiskRefinement (Bind p1 p2).
-  Proof.
-    intros.
-    edestruct H.
-    constructor; intros.
-    simpl in *; unfold  in *;
-    simpl in *; cleanup.
-
-    split; intros.
-    - (* Low to High *)
-      invert_exec; cleanup.
-      
-      + split_ors; cleanup.
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
-     
-        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
-        eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        edestruct H0.
-        simpl in *; unfold  in *;
-        edestruct strong_bisimulation_for_program_correct0; eauto.
-        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        cleanup.
-        eexists; intuition eauto.
-        econstructor; eauto.
-        simpl; eauto.
-        
-      +
-        split_ors; cleanup;
-        split_ors; cleanup;
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
-        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          exists (Crashed s); repeat (split; eauto).
-          eapply ExecBindCrash; eauto.
-
-        *
-          eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
-           eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
-           edestruct strong_bisimulation_for_program_correct; eauto.
-           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-           edestruct H0.
-           simpl in *; unfold  in *;
-           edestruct strong_bisimulation_for_program_correct0; eauto.
-           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-           cleanup.
-           eexists; intuition eauto.
-           econstructor; eauto.
-           simpl; eauto.
-
-    - (* High to Low *)
-      invert_exec; cleanup.
-      
-
-      + split_ors; cleanup.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; cleanup.
-
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-        eapply_fresh exec_finished_deterministic_prefix in H2; eauto; cleanup.
-        simpl in *.
-        edestruct H0.
-        simpl in *; unfold  in *;
-        edestruct strong_bisimulation_for_program_correct0; eauto.
-        edestruct H4; eauto; simpl in *; cleanup; try intuition; clear H4 H9; cleanup.           
-        eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; cleanup.
-        eexists; intuition eauto.
-        econstructor; eauto.
-        
-      +
-        split_ors; cleanup;
-        split_ors; cleanup;
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
-        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-          simpl in *.
-          exists (Crashed x5); repeat (split; eauto).
-          eapply ExecBindCrash; eauto.
-
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H8 H9.
-          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
-          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-           eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
-           edestruct H0.
-           simpl in *; unfold  in *;
-           edestruct strong_bisimulation_for_program_correct0; eauto.
-           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
-           cleanup.
-           eapply_fresh exec_deterministic_wrt_oracle in H4; eauto; cleanup.
-           eexists; intuition eauto.
-           econstructor; eauto.
-    Unshelve.
-    all: eauto.
-  Qed.
-
-  Hint Resolve sbs_read sbs_ret sbs_write sbs_bind : core.
+  Hint Resolve sbs_read sbs_write : core.
   
   Theorem sbs :
       StrongBisimulation LoggedDiskRefinement.              
@@ -540,6 +361,8 @@ Section LoggedDiskBisimulation.
     apply bisimulation_restrict_prog.
     induction p; eauto.
     destruct p; eauto.
+    apply sbs_ret.
+    apply sbs_bind; eauto.
   Qed.
 
   Hint Resolve sbs : core.
@@ -553,8 +376,7 @@ Section LoggedDiskBisimulation.
       
       StrongBisimulationForValidStates LoggedDiskRefinement
         (refines_to_valid LoggedDiskRefinement valid_state_h)
-        valid_state_h
-        (compiles_to_valid LoggedDiskRefinement valid_prog_h)        
+        valid_state_h      
         valid_prog_h.  
   Proof.
     intros.
@@ -563,84 +385,73 @@ Section LoggedDiskBisimulation.
 End LoggedDiskBisimulation.
 
 Section TransferToCachedDisk.
-              
-Lemma high_oracle_exists_ok':
-  forall T p2 p1 ol sl sl',
-    (exists sh, refines_to sl sh) ->
-    low.(exec) ol sl p1 sl' ->
-     T p1 p2 ->
-    exists oh, oracle_refines_to T sl p2 ol oh.
-Proof.
-  unfold refines_to, ;
-  induction p2; simpl; intros; cleanup.
-  {
-    destruct p; simpl in *.
-    - (* Read *)
-      destruct sl'; do 2 eexists; intuition eauto.
-    - (* Write *)
-      destruct sl'; try solve [do 2 eexists; intuition eauto].
-      do 2 eexists; intuition eauto;
-      right; eauto.
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; unfold refines_to in *; eauto.
-      do 2 eexists; intuition eauto.
-      admit. (* Doable *)
-      
-    destruct (excluded_middle_dec (s = sl));
-    do 2 eexists; intuition eauto;
-    left; eauto.
-  }  
-  - (* Ret *)
-    destruct sl'; eexists; eauto.
-  - (* Bind *)
-    invert_exec.
-    + (* Finished *)
-      edestruct IHp2; eauto.
-      eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; unfold refines_to in *; eauto.
-      cleanup; simpl in *; eauto.
-      edestruct H; eauto.
-      do 5 eexists; repeat (split; eauto).
-      right; eauto.
-      do 3 eexists; repeat (split; eauto).        
-      unfold ; eauto.
-    + (* Crashed *)
-      split_ors; cleanup.
-      * (* p1 crashed *)
-        edestruct IHp2; eauto.
-        do 5 eexists; repeat (split; eauto).
-      * (* p2 Crashed *)
+  
+  Lemma high_oracle_exists_ok:
+    high_oracle_exists LoggedDiskRefinement. 
+  Proof.
+    unfold high_oracle_exists, refines_to;
+    induction p2; simpl; intros; cleanup.
+    {
+      destruct p; simpl in *.
+      - (* Read *)
+        destruct s1'; do 2 eexists; intuition eauto.
+      - (* Write *)
+        destruct s1'.
+        + do 2 eexists; intuition eauto;
+          right; eauto.
+          eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; unfold refines_to in *; eauto.
+          do 2 eexists; intuition eauto.
+          admit. (* Doable *)
+          
+        + destruct (excluded_middle_dec (s = s1));
+          do 2 eexists; intuition eauto;
+          left; eauto.        
+    }
+    - (* Ret *)
+      destruct s1'; eexists; eauto.
+    - (* Bind *)
+      invert_exec.
+      + (* Finished *)
         edestruct IHp2; eauto.
         eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; unfold refines_to in *; eauto.
         cleanup; simpl in *; eauto.
         edestruct H; eauto.
         do 5 eexists; repeat (split; eauto).
         right; eauto.
-        do 3 eexists; repeat (split; eauto).
-        unfold ; eauto.
-        Unshelve.
-        eauto.
-Admitted.
+        do 3 eexists; repeat (split; eauto).        
 
-Lemma high_oracle_exists_ok :
-  high_oracle_exists LoggedDiskRefinement. 
-Proof.
-  unfold high_oracle_exists; intros.
-  eapply high_oracle_exists_ok'; eauto.
-Qed.
+      + (* Crashed *)
+        split_ors; cleanup.
+        * (* p1 crashed *)
+          edestruct IHp2; eauto.
+          do 5 eexists; repeat (split; eauto).
+        * (* p2 Crashed *)
+          edestruct IHp2; eauto.
+          eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; unfold refines_to in *; eauto.
+          cleanup; simpl in *; eauto.
+          edestruct H; eauto.
+          do 5 eexists; repeat (split; eauto).
+          right; eauto.
+          do 3 eexists; repeat (split; eauto).
+          
+          Unshelve.
+          eauto.
+  Admitted.
 
 
-Theorem transfer_to_CachedDisk:
+  Theorem transfer_to_CachedDisk:
     forall related_states_h
-    valid_state_h
-    valid_prog_h,
-    
-    SelfSimulation
-      LoggedDiskLang
       valid_state_h
-      valid_prog_h
-      related_states_h ->
+      valid_prog_h,
+      
+      SelfSimulation
+        LoggedDiskLang
+        valid_state_h
+        valid_prog_h
+        related_states_h ->
     
     oracle_refines_to_same_from_related LoggedDiskRefinement related_states_h ->
-
+    
     exec_compiled_preserves_validity LoggedDiskRefinement                           
     (refines_to_valid LoggedDiskRefinement valid_state_h) ->
     
