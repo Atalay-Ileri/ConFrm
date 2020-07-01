@@ -5,8 +5,6 @@ Set Implicit Arguments.
 
 Create HintDb specs.
 
-Instance addr_eq_dec: EqDec addr := addr_dec.
-
 Section HoareLogic.
   Variable Ops: Operation.
   Variable Lang: Language Ops.
@@ -181,8 +179,8 @@ Theorem ret_ok:
           (fun o p' s => o = [Cont O] \/ o = [Crash O])
           (fun s => P s)
           (Ret v)
-          (fun r s' => P s' /\ r = v /\ s' = s)%pred
-          (fun s' => P s' /\ s' = s)%pred
+          (fun r s' => P s' /\ r = v /\ s' = s)%predicate
+          (fun s' => P s' /\ s' = s)%predicate
           (fun o s r s' => True)
           (fun o s s' => True)
           o s).
@@ -318,8 +316,8 @@ Notation
           (fun o p' s => opre)
           (fun s => pre)
           p
-          (fun r s' => post)%pred
-          (fun s' => crash)%pred
+          (fun r s' => post)%predicate
+          (fun s' => crash)%predicate
           (fun o s r s' => True)
           (fun o s s' => True)
           o s)      
@@ -332,8 +330,8 @@ Notation
           (fun o p' s => True)
           (fun s => pre)
           p
-          (fun r s' => post)%pred
-          (fun s' => crash)%pred
+          (fun r s' => post)%predicate
+          (fun s' => crash)%predicate
           (fun o s r s' => True)
           (fun o s s' => True)
           o s)      

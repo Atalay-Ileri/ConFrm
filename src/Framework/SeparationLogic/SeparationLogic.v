@@ -1,1 +1,1 @@
-Require Export Mem Pred SeparationLogic.Automation.
+Require Export Mem Pred SepStar PredicateRewrite SeparationLogic.Automation.

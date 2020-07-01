@@ -1,4 +1,4 @@
-
+Require EquivDec.
 (* For disk *)
 (* Axiom addr : Type. *)
 Definition addr := nat.
@@ -106,10 +106,6 @@ Proof.
   all: specialize IHtr with (1:= H1); intuition eauto.
 Qed.
 
-Notation "'addr_dec'" := addr_eq_dec.
-Notation "'handle_dec'" := handle_eq_dec.
-Notation "'permission_dec'" := permission_eq_dec.
-
 Inductive Result {State T: Type} :=
 | Finished : State -> T -> @Result State T
 | Crashed : State -> @Result State T.
@@ -119,10 +115,10 @@ Definition extract_state {State T} (res: @Result State T) :=
   | Finished s _ | Crashed s => s
   end.
 
-Definition extract_ret {State T} def (res: @Result State T) :=
+Definition extract_ret {State T} (res: @Result State T) :=
   match res with
-  | Finished _ r => r
-  | Crashed _ => def
+  | Finished _ r => Some r
+  | Crashed _ => None
   end.
 
 Definition map_state {State1 State2 T} (f:State1 -> State2) (res: @Result State1 T) :=
@@ -139,8 +135,8 @@ Proof.
 Qed.
 
 Lemma extract_ret_map_state_elim:
-  forall ST1 ST2 T (R:ST1 -> ST2) (r : @Result ST1 T) def,
-    extract_ret def (map_state R r) = extract_ret def r.
+  forall ST1 ST2 T (R:ST1 -> ST2) (r : @Result ST1 T),
+    extract_ret (map_state R r) = extract_ret r.
 Proof.
   intros; destruct r; simpl; eauto.
 Qed.
@@ -174,3 +170,10 @@ Proof.
   unfold result_same; intros.
   destruct res1, res2; intuition.
 Qed.
+
+Import EquivDec.
+
+Definition addr_dec : EqDec addr eq := nat_eq_eqdec.
+
+Notation "'handle_dec'" := handle_eq_dec.
+Notation "'permission_dec'" := permission_eq_dec.

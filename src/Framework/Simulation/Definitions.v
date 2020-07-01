@@ -134,12 +134,29 @@ Record SelfSimulation
         R s1 s2 ->
         exists s2',
           LH.(exec) o s2 p s2' /\
-          result_same s1' s2' /\
           R (extract_state s1') (extract_state s2') /\
-          (forall def, extract_ret def s1' = extract_ret def s2') /\
+          extract_ret s1' = extract_ret s2' /\
           valid_state (extract_state s1') /\
           valid_state (extract_state s2') ;
   }.
+
+Definition SelfSimulationForSecretInputs 
+       (valid_state: LH.(state) -> Prop)
+       (valid_prog: forall T, LH.(prog) T -> Prop)
+       (R: LH.(state) -> LH.(state) -> Prop)
+       {T T'} (p: T -> LH.(prog) T'):=
+  
+      forall o s s1 t1 t2,
+        valid_state s ->
+        valid_prog T' (p t1) ->
+        valid_prog T' (p t2) ->
+        LH.(exec) o s (p t1) s1 ->
+        exists s1',
+          LH.(exec) o s (p t2) s1' /\
+          R (extract_state s1) (extract_state s1') /\
+          extract_ret s1 = extract_ret s1' /\
+          valid_state (extract_state s1) /\
+          valid_state (extract_state s1').
 
 Record StrongBisimulation
   :=
@@ -154,16 +171,14 @@ Record StrongBisimulation
               LL.(exec) o1 s1 (R.(compile) p2) s1' ->
               exists s2',
                 LH.(exec) o2 s2 p2 s2' /\
-                result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
-                (forall def, extract_ret def s1' = extract_ret def s2')) /\
+                extract_ret s1' = extract_ret s2') /\
           (forall s2',
               LH.(exec) o2 s2 p2 s2' ->
               exists s1',
                 LL.(exec) o1 s1 (R.(compile) p2) s1' /\
-                result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
-                (forall def, extract_ret def s1' = extract_ret def s2')))
+                extract_ret s1' = extract_ret s2'))
   }.
 
 Record StrongBisimulationForValidStates
@@ -186,17 +201,15 @@ Record StrongBisimulationForValidStates
               LL.(exec) o1 s1 (R.(compile) p2) s1' ->
               exists s2',
                 LH.(exec) o2 s2 p2 s2' /\
-                result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
-                (forall def, extract_ret def s1' = extract_ret def s2') /\
+                extract_ret s1' = extract_ret s2' /\
                 valid_state1 (extract_state s1') /\ valid_state2 (extract_state s2')) /\
           (forall s2',
               LH.(exec) o2 s2 p2 s2' ->
               exists s1',
                 LL.(exec) o1 s1 (R.(compile) p2) s1' /\
-                result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
-                (forall def, extract_ret def s1' = extract_ret def s2')/\
+                extract_ret s1' = extract_ret s2' /\
                 valid_state1 (extract_state s1') /\ valid_state2 (extract_state s2')))
   }.
 
@@ -214,16 +227,14 @@ Record StrongBisimulationForProgram
               LL.(exec) o1 s1 (R.(compile) p2) s1' ->
               exists s2',
                 LH.(exec) o2 s2 p2 s2' /\
-                result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
-                (forall def, extract_ret def s1' = extract_ret def s2')) /\
+                extract_ret s1' = extract_ret s2') /\
           (forall s2',
               LH.(exec) o2 s2 p2 s2' ->
               exists s1',
                 LL.(exec) o1 s1 (R.(compile) p2) s1' /\
-                result_same s1' s2' /\
                 R.(refines_to) (extract_state s1') (extract_state s2') /\
-                (forall def, extract_ret def s1' = extract_ret def s2')))
+                extract_ret s1' = extract_ret s2'))
   }.
 End Relations.
 
@@ -235,7 +246,40 @@ Arguments exec_compiled_preserves_validity {_ _ _ _}.
 Arguments high_oracle_exists {_ _ _ _}.
 Arguments oracle_refines_to_same_from_related {_ _ _ _}.
 Arguments SelfSimulation {_}.
+Arguments SelfSimulationForSecretInputs {_} _ _ _ _ {_ _}.
 Arguments StrongBisimulation {_ _ _ _}.
 Arguments StrongBisimulationForValidStates {_ _ _ _}.
 Arguments StrongBisimulationForProgram {_ _ _ _} _ {_}.
 
+(*
+Theorem transfer_high_to_low':
+  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH)
+    related_states_h,
+    
+    StrongBisimulation R ->
+
+    (forall sl sh1 sh2,
+       R.(refines_to) sl sh1 ->
+       R.(refines_to) sl sh2 ->
+       related_states_h sh1 sh2).
+Proof.
+  intros.
+  destruct H.
+  eapply strong_bisimulation_correct0 in H0.
+  eapply strong_bisimulation_correct0 in H1.
+
+  
+    high_oracle_exists R ->
+    
+    oracle_refines_to_same_from_related R related_states_h ->
+
+    exec_compiled_preserves_validity  R                           
+    (refines_to_valid R valid_state_h) ->
+    
+    SelfSimulation
+      LL
+      (refines_to_valid R valid_state_h)
+      (compiles_to_valid R valid_prog_h)
+      (refines_to_related R related_states_h).
+Proof.
+*)

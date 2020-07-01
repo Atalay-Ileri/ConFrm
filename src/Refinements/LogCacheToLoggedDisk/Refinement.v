@@ -12,35 +12,7 @@ Axiom excluded_middle_dec: forall P: Prop, {P}+{~P}.
 
 Section LoggedDiskBisimulation.
 
-  Lemma sp_impl:
-    forall T (p: prog low T) (P P': 
-     list (Language.token' CachedDiskOperation) -> Operation.state CachedDiskOperation -> Prop) s' t,
-      (forall o s, P' o s -> P o s) ->
-      strongest_postcondition low p P' t s' ->
-      strongest_postcondition low p P t s'.
-  Proof.
-    intros.
-    eapply sp_to_exec in H0; cleanup.
-    eapply exec_to_sp; eauto.
-  Qed.
-
-  Lemma sp_bind:
-    forall T T' (p1: prog low T) (p2: T -> prog low T') P s' t,
-      strongest_postcondition low (Bind p1 p2) P t s' ->
-      exists s0 t0,
-        strongest_postcondition low p1 (fun o s => exists o2, P (o++o2) s) t0 s0 /\
-        strongest_postcondition low (p2 t0)
-        (fun o s => strongest_postcondition low p1 (fun ox sx => P (ox++o) sx) t0 s0) t s'.
-  Proof.
-    intros.
-    eapply sp_to_exec in H; cleanup.
-    invert_exec.
-    do 2 eexists; split.
-    eapply exec_to_sp; eauto.
-    intros.            
-    repeat (eapply exec_to_sp; eauto).
-  Qed.
-
+  
 
   
   Lemma exec_compiled_preserves_refinement:

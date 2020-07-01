@@ -41,7 +41,7 @@ Section RefinementLift.
          oracle_refines_to T2 d1' (p2 r) o1'' o2''
          ))
     end.
-
+  
   Definition LiftRefinement : Refinement L1 L2 := Build_Refinement compile OpRefinement.(refines_to_op) oracle_refines_to.
 
 End RefinementLift.

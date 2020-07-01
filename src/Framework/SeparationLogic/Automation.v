@@ -1,7 +1,7 @@
 Require Import Arith.
 Require Import Omega.
 Require Import List.
-Require Import Pred.
+Require Import Pred SepStar PredicateRewrite.
 Require Import Errno.
 Require Import DestructPair DestructVarname.
 
@@ -109,13 +109,13 @@ Ltac pimpl_crash :=
   end;
   subst_evars.
 
-Definition pred_fold_left AT AEQ V (l : list (@pred AT AEQ V)) : pred :=
+Definition pred_fold_left AT AEQ V (l : list (@predicate AT AEQ V)) : predicate :=
   match l with
   | nil => emp
   | a :: t => fold_left sep_star t a
   end.
 
-Definition stars {AT AEQ V} (ps : list (@pred AT AEQ V)) :=
+Definition stars {AT AEQ V} (ps : list (@predicate AT AEQ V)) :=
   pred_fold_left ps.
 Arguments stars : simpl never.
 
@@ -135,8 +135,8 @@ Ltac sep_imply :=
   | [ |- _ _ _ ?m ] => sep_imply' m
   end.
 
-Theorem start_normalizing_left : forall AT AEQ V PT (p : @pred AT AEQ V) q ps P,
-  p <=*=> (exists* (x:PT), stars (ps x) * [[P x]])%pred
+Theorem start_normalizing_left : forall AT AEQ V PT (p : @predicate AT AEQ V) q ps P,
+  p <=*=> (exists* (x:PT), stars (ps x) * [[P x]])%predicate
   -> ((exists* (x:PT), stars (ps x) * stars nil * [[P x]]) =*=> q)
   -> p =*=> q.
 Proof.
@@ -150,27 +150,26 @@ Proof.
   apply piff_star_r. apply sep_star_comm.
 Qed.
 
-Theorem start_normalizing_right : forall AT AEQ V QT (p : @pred AT AEQ V) q qs Q,
-  q <=*=> (exists* (x:QT), stars (qs x) * [[Q x]])%pred
+Theorem start_normalizing_right : forall AT AEQ V QT (p : @predicate AT AEQ V) q qs Q,
+  q <=*=> (exists* (x:QT), stars (qs x) * [[Q x]])%predicate
   -> (p =*=> (exists* (x:QT), stars (qs x) * [[Q x]]))
   -> p =*=> q.
 Proof.
   unfold stars; simpl; intros.
   rewrite H0.
-  rewrite <- H.
-  apply pimpl_refl.
+  rewrite <- H; eauto.
 Qed.
 
-Theorem start_normalizing_apply : forall AT AEQ V PT (p : @pred AT AEQ V) ps P m,
-  p <=*=> (exists* (x:PT), stars (ps x) * [[P x]])%pred
+Theorem start_normalizing_apply : forall AT AEQ V PT (p : @predicate AT AEQ V) ps P m,
+  p <=*=> (exists* (x:PT), stars (ps x) * [[P x]])%predicate
   -> p m
-  -> (exists* (x:PT), stars (ps x) * [[P x]])%pred m.
+  -> (exists* (x:PT), stars (ps x) * [[P x]])%predicate m.
 Proof.
   firstorder.
 Qed.
 
 Theorem restart_canceling:
-  forall AT AEQ V p (q : @pred AT AEQ V),
+  forall AT AEQ V p (q : @predicate AT AEQ V),
   (stars p * stars nil =*=> q) ->
   (stars nil * stars p =*=> q).
 Proof.
@@ -183,62 +182,54 @@ Lemma stars_prepend':
 Proof.
   induction l.
   - simpl. intros.
-    eapply piff_trans.
+    rewrite sep_star_comm.    
     apply emp_star.
-    apply sep_star_comm.
   - simpl. intros.
-    eapply piff_trans.
-    eapply IHl.
-    eapply piff_trans.
-    eapply sep_star_assoc.
+    rewrite IHl.
+    rewrite sep_star_assoc.
     eapply piff_star_l.
-    eapply piff_comm.
-    eapply piff_trans.
-    eapply IHl.
-    eapply piff_comm.
-    eapply piff_trans.
-    eapply emp_star.
-    eapply piff_comm.
-    eapply piff_trans.
-    eapply sep_star_assoc.
-    eapply piff_refl.
+    erewrite IHl.
+    setoid_rewrite IHl at 2.
+    erewrite <- sep_star_assoc.
+    apply piff_star_r.
+    apply sep_star_comm.
 Qed.
 
 Lemma stars_prepend:
-  forall AT AEQ V l (x : @pred AT AEQ V),
+  forall AT AEQ V l (x : @predicate AT AEQ V),
   stars (x :: l) <=*=> x * stars l.
 Proof.
   unfold stars, pred_fold_left; simpl; intros.
   destruct l.
-  - simpl; split.
-    eapply pimpl_trans; [| eapply sep_star_comm ]. eapply pimpl_star_emp.
-    eapply pimpl_trans; [eapply sep_star_comm |]. eapply star_emp_pimpl.
-  - eapply piff_trans. apply stars_prepend'.
+  - simpl; split;    
+    rewrite sep_star_comm;   
+    apply emp_star.
+  - rewrite stars_prepend'.
     eapply piff_star_l.
     simpl.
-    eapply piff_trans; [ apply stars_prepend' |].
-    eapply piff_trans; [| apply piff_comm; apply stars_prepend' ].
+    rewrite stars_prepend'.
+    setoid_rewrite stars_prepend' at 2.
     apply piff_star_r.
     split.
     apply star_emp_pimpl.
     apply pimpl_star_emp.
 Qed.
 
-Lemma flatten_default' : forall AT AEQ V (p : @pred AT AEQ V),
+Lemma flatten_default' : forall AT AEQ V (p : @predicate AT AEQ V),
   p <=*=> stars (p :: nil).
 Proof.
   firstorder.
 Qed.
 
-Lemma flatten_default : forall AT AEQ V (p : @pred AT AEQ V),
+Lemma flatten_default : forall AT AEQ V (p : @predicate AT AEQ V),
   p <=*=> exists* (x:unit), stars (p :: nil) * [[True]].
 Proof.
   unfold stars; split.
   - apply pimpl_exists_r; exists tt.
     apply sep_star_lift_r.
-    split; pred.
+    split; predicate.
   - apply pimpl_exists_l; intros.
-    eapply pimpl_trans; [apply sep_star_lift2and|].
+    rewrite sep_star_lift2and.
     firstorder.
 Qed.
 
@@ -259,52 +250,48 @@ Proof.
     firstorder.
 Qed.
 
-Lemma flatten_star' : forall AT AEQ V (p : @pred AT AEQ V) q ps qs,
+Lemma flatten_star' : forall AT AEQ V (p : @predicate AT AEQ V) q ps qs,
   p <=*=> stars ps
   -> q <=*=> stars qs
   -> p * q <=*=> stars (ps ++ qs).
 Proof.
   intros.
-  eapply piff_trans; [eapply piff_star_r; apply H|]; clear H.
-  eapply piff_trans; [eapply piff_star_l; apply H0|]; clear H0.
+  rewrite H, H0.
+  clear H H0.
   induction ps.
-  - eapply piff_trans; [apply piff_comm; apply emp_star|apply piff_refl].
-  - apply piff_comm.
-    eapply piff_trans; [apply stars_prepend|].
-    eapply piff_trans; [apply piff_star_l; apply piff_comm; apply IHps|].
-    eapply piff_trans; [apply piff_comm; apply sep_star_assoc|].
-    apply piff_star_r.
-    apply piff_comm.
-    eapply piff_trans; [eapply stars_prepend|].
-    apply piff_refl.
+  - simpl.
+    rewrite <- emp_star; eauto.
+  - simpl.
+    repeat rewrite stars_prepend.
+    rewrite sep_star_assoc, IHps; eauto.
 Qed.
 
-Lemma flatten_star : forall AT AEQ V PT QT (p : @pred AT AEQ V) q ps qs P Q,
-  p <=*=> (exists* (x:PT), stars (ps x) * [[P x]])%pred
-  -> q <=*=> (exists* (x:QT), stars (qs x) * [[Q x]])%pred
+Lemma flatten_star : forall AT AEQ V PT QT (p : @predicate AT AEQ V) q ps qs P Q,
+  p <=*=> (exists* (x:PT), stars (ps x) * [[P x]])%predicate
+  -> q <=*=> (exists* (x:QT), stars (qs x) * [[Q x]])%predicate
   -> p * q <=*=> exists* (x:PT*QT), stars (ps (fst x) ++ qs (snd x)) * [[P (fst x) /\ Q (snd x)]].
 Proof.
   intros.
-  eapply piff_trans; [eapply piff_star_r; apply H|]; clear H.
-  eapply piff_trans; [eapply piff_star_l; apply H0|]; clear H0.
+  rewrite H; clear H.
+  rewrite H0; clear H0.
   split.
   - apply pimpl_exists_l_star. apply pimpl_exists_l. intro ePT.
-    eapply pimpl_trans; [apply sep_star_comm|].
+    rewrite sep_star_comm.
     apply pimpl_exists_l_star. apply pimpl_exists_l. intro eQT.
     apply pimpl_exists_r. exists (ePT, eQT). simpl.
-    eapply pimpl_trans; [apply sep_star_assoc_2|].
+    rewrite sep_star_assoc_2.
     apply sep_star_lift_l; intros.
-    eapply pimpl_trans; [apply sep_star_comm|].
-    eapply pimpl_trans; [apply sep_star_assoc_2|].
+    rewrite sep_star_comm.
+    rewrite sep_star_assoc_2.
     apply sep_star_lift_l; intros.
     apply sep_star_lift_r.
     apply pimpl_and_split; [|firstorder].
-    apply flatten_star'; apply piff_refl.
+    apply flatten_star'; eauto.
   - apply pimpl_exists_l. intro e. simpl.
-    eapply pimpl_trans; [|apply pimpl_exists_r_star].
+    rewrite <- pimpl_exists_r_star.
     apply pimpl_exists_r. exists (fst e).
-    eapply pimpl_trans; [|apply sep_star_comm].
-    eapply pimpl_trans; [|apply pimpl_exists_r_star].
+    setoid_rewrite sep_star_comm at 2.
+    setoid_rewrite <- pimpl_exists_r_star.
     apply pimpl_exists_r. exists (snd e).
     apply sep_star_lift_l; intros.
     eapply pimpl_trans; [|apply sep_star_assoc_1].
@@ -314,10 +301,10 @@ Proof.
     eapply pimpl_trans; [|apply sep_star_assoc_1].
     apply sep_star_lift_r.
     apply pimpl_and_split; [|firstorder].
-    apply flatten_star'; apply piff_refl.
+    apply flatten_star'; eauto.
 Qed.
 
-Lemma flatten_exists : forall AT AEQ V T PT (p : _ -> @pred AT AEQ V) ps P,
+Lemma flatten_exists : forall AT AEQ V T PT (p : _ -> @predicate AT AEQ V) ps P,
   (forall ( a : T ), (p a <=*=> exists* ( x : PT ), stars (ps a x) * [[ P a x ]]))
   -> (exists* ( a : T ), p a) <=*=>
       (exists* ( x : ( (VARNAME(dummy)*T) * PT ) ),
@@ -329,16 +316,16 @@ Proof.
     eapply pimpl_trans; [apply H|].
     apply pimpl_exists_l; intro ePT.
     apply pimpl_exists_r. exists (varname_val, eT, ePT).
-    apply pimpl_refl.
+    eauto.
   - apply pimpl_exists_l; intro e.
     apply pimpl_exists_r. exists (snd (fst e)).
     eapply pimpl_trans; [|apply H].
     apply pimpl_exists_r. exists (snd e).
-    apply pimpl_refl.
+    eauto.
 Qed.
 
 Lemma flatten_lift_empty: forall AT AEQ V P,
-  [[P]] <=*=> (exists* (x:unit), stars (@nil (@pred AT AEQ V)) * [[P]]).
+  [[P]] <=*=> (exists* (x:unit), stars (@nil (@predicate AT AEQ V)) * [[P]]).
 Proof.
   split.
   - apply pimpl_exists_r. exists tt. apply emp_star.
@@ -348,24 +335,47 @@ Qed.
 Ltac flatten_assign_name good_name :=
   match goal with
   | [ |- (exists* lv : (VARNAME(dummy) * ?T) * ?PT, ?body) <=*=> _ ] =>
-    set (LHS := (exists* lv : (VARNAME(good_name) * T) * PT, body)%pred);
+    set (LHS := (exists* lv : (VARNAME(good_name) * T) * PT, body)%predicate);
     unfold LHS in *; clear LHS;
-    apply piff_refl
+    reflexivity
   end.
+
+Theorem pimpl_refl:
+  forall A AEQ V (p: @predicate A AEQ V),
+    p =*=> p.
+Proof.
+  intros;  eauto.
+Qed.
+
+Theorem piff_refl:
+  forall A AEQ V (p: @predicate A AEQ V),
+    p <=*=> p.
+Proof.
+  intros;  eauto.
+Qed.
+
+Theorem piff_trans:
+  forall A AEQ V (p q r: @predicate A AEQ V),
+    p <=*=> q ->
+    q <=*=> r ->
+    p <=*=> r.
+Proof.
+  intros; rewrite H; eauto.
+Qed.
 
 Ltac flatten :=
   repeat match goal with
   | [ |- emp <=*=> _ ] => apply flatten_emp
   | [ |- _ * _ <=*=> _ ] =>
     eapply piff_trans; [ apply flatten_star | apply piff_refl ]
-  | [ |- (exists* (varname : _), _)%pred <=*=> _ ] =>
+  | [ |- (exists* (varname : _), _)%predicate <=*=> _ ] =>
     eapply piff_trans; [ apply flatten_exists | flatten_assign_name varname ]; intros ?varname
   | [ |- [[_]] <=*=> _ ] =>
     eapply piff_trans; [ apply flatten_lift_empty | apply piff_refl ]
   | _ => apply flatten_default
   end.
 
-Definition okToUnify {AT AEQ V} (p1 p2 : @pred AT AEQ V) := p1 = p2.
+Definition okToUnify {AT AEQ V} (p1 p2 : @predicate AT AEQ V) := p1 = p2.
 
 Hint Extern 0 (okToUnify (?p |-> _) (?p |-> _)) => constructor : okToUnify.
 Hint Extern 0 (okToUnify (?p |=> _) (?p |=> _)) => constructor : okToUnify.
@@ -439,7 +449,7 @@ Ltac wordcmp := repeat wordcmp_one.
 *)
 
 
-Inductive pick {AT AEQ V} (lhs : pred) : list (@pred AT AEQ V) -> list pred -> Prop :=
+Inductive pick {AT AEQ V} (lhs : predicate) : list (@predicate AT AEQ V) -> list predicate -> Prop :=
 | PickFirst : forall p ps,
   okToUnify lhs p
   -> pick lhs (p :: ps) ps
@@ -447,7 +457,7 @@ Inductive pick {AT AEQ V} (lhs : pred) : list (@pred AT AEQ V) -> list pred -> P
   pick lhs ps ps'
   -> pick lhs (p :: ps) (p :: ps').
 
-Lemma pick_later_and : forall AT AEQ V (p : @pred AT AEQ V) p' ps ps' (a b : @pred AT AEQ V),
+Lemma pick_later_and : forall AT AEQ V (p : @predicate AT AEQ V) p' ps ps' (a b : @predicate AT AEQ V),
   pick p ps ps' /\ (a =*=> b)
   -> pick p (p' :: ps) (p' :: ps') /\ (a =*=> b).
 Proof.
@@ -461,27 +471,27 @@ Ltac pick := solve [ repeat
            ) || apply PickLater) ].
 
 
-Theorem imply_one : forall AT AEQ V qs qs' (p : @pred AT AEQ V) q ps F,
+Theorem imply_one : forall AT AEQ V qs qs' (p : @predicate AT AEQ V) q ps F,
   (pick q qs qs' /\ (p =*=> q))
   -> (stars ps * F =*=> stars qs')
   -> stars (p :: ps) * F =*=> stars qs.
 Proof.
   intros. destruct H.
-  eapply pimpl_trans. eapply pimpl_sep_star. apply stars_prepend. apply pimpl_refl.
+  eapply pimpl_trans. eapply pimpl_sep_star. apply stars_prepend. eauto.
   eapply pimpl_trans. apply sep_star_assoc_1.
   eapply pimpl_trans. eapply pimpl_sep_star. eauto. eauto.
   clear dependent ps.
   induction H; intros.
   - inversion H; subst. apply stars_prepend.
   - eapply pimpl_trans; [|apply stars_prepend].
-    eapply pimpl_trans; [|eapply pimpl_sep_star; [apply pimpl_refl|apply IHpick] ].
-    eapply pimpl_trans. eapply pimpl_sep_star. eapply pimpl_refl. eapply stars_prepend.
+    eapply pimpl_trans; [|eapply pimpl_sep_star; [eauto|apply IHpick] ].
+    eapply pimpl_trans. eapply pimpl_sep_star. eauto. eapply stars_prepend.
     eapply pimpl_trans; [eapply sep_star_assoc_2|].
     eapply pimpl_trans; [|eapply sep_star_assoc_1].
-    eapply pimpl_sep_star. eapply sep_star_comm. eapply pimpl_refl.
+    eapply pimpl_sep_star. eapply sep_star_comm. eauto.
 Qed.
 
-Theorem cancel_one : forall AT AEQ V qs qs' (p : @pred AT AEQ V) ps F,
+Theorem cancel_one : forall AT AEQ V qs qs' (p : @predicate AT AEQ V) ps F,
   pick p qs qs'
   -> (stars ps * F =*=> stars qs')
   -> stars (p :: ps) * F =*=> stars qs.
@@ -492,16 +502,16 @@ Qed.
 
 Ltac cancel_one := eapply cancel_one; [ pick | ].
 
-Theorem delay_one : forall AT AEQ V (p : @pred AT AEQ V) ps q qs,
+Theorem delay_one : forall AT AEQ V (p : @predicate AT AEQ V) ps q qs,
   (stars ps * stars (p :: qs) =*=> q)
   -> stars (p :: ps) * stars qs =*=> q.
 Proof.
   unfold stars; simpl; intros.
   eapply pimpl_trans; [|eauto].
-  eapply pimpl_trans. eapply pimpl_sep_star; [|eapply pimpl_refl]. apply stars_prepend.
-  eapply pimpl_trans; [|eapply pimpl_sep_star; [apply pimpl_refl|apply stars_prepend] ].
+  eapply pimpl_trans. eapply pimpl_sep_star; [|eauto]. apply stars_prepend.
+  eapply pimpl_trans; [|eapply pimpl_sep_star; [eauto|apply stars_prepend] ].
   eapply pimpl_trans; [|eapply sep_star_assoc_1].
-  eapply pimpl_sep_star; [|eapply pimpl_refl].
+  eapply pimpl_sep_star; [|eauto].
   eapply sep_star_comm.
 Qed.
 
@@ -516,7 +526,7 @@ Proof.
   firstorder.
 Qed.
 
-Lemma finish_frame : forall AT AEQ V (p : @pred AT AEQ V),
+Lemma finish_frame : forall AT AEQ V (p : @predicate AT AEQ V),
   stars nil * p =*=> p.
 Proof.
   intros. apply star_emp_pimpl.
@@ -533,13 +543,13 @@ Ltac cancel' := repeat (cancel_one || delay_one);
                     simple apply finish_frame
                   end ].
 
-Theorem split_or_one : forall AT AEQ V (q : @pred AT AEQ V) pa pb ps F,
+Theorem split_or_one : forall AT AEQ V (q : @predicate AT AEQ V) pa pb ps F,
   stars (pa :: ps) * F =*=> q
   -> stars (pb :: ps) * F =*=> q
   -> stars ((pa \*/ pb) :: ps) * F =*=> q.
 Proof.
   intros.
-  eapply pimpl_trans. eapply piff_star_r. eapply piff_comm. apply stars_prepend.
+  rewrite stars_prepend.
   eapply pimpl_trans. eapply sep_star_assoc.
   eapply pimpl_trans. eapply sep_star_comm.
   eapply pimpl_trans. eapply sep_star_or_distr.
@@ -554,40 +564,40 @@ Proof.
     eauto.
 Qed.
 
-Theorem exists_one : forall AT AEQ V T p ps F (q : @pred AT AEQ V),
+Theorem exists_one : forall AT AEQ V T p ps F (q : @predicate AT AEQ V),
   (forall a:T, stars (p a :: ps) * F =*=> q)
   -> stars ((exists* a:T, p a) :: ps) * F =*=> q.
 Proof.
   intros.
-  eapply pimpl_trans. eapply piff_star_r. eapply piff_comm. apply stars_prepend.
+  rewrite stars_prepend.
   eapply pimpl_trans. eapply sep_star_assoc.
   eapply pimpl_exists_l_star.
   eapply pimpl_exists_l; intros.
   eapply pimpl_trans; [| eauto ].
   eapply pimpl_trans. eapply sep_star_assoc.
-  eapply pimpl_sep_star; [| eapply pimpl_refl ].
+  eapply pimpl_sep_star; [| eauto ].
   eapply pimpl_trans. apply stars_prepend.
-  apply pimpl_refl.
+  eauto.
 Qed.
 
 Ltac split_one := match goal with
                   | [ |- stars ((_ \*/ _) :: _) * _ =*=> _ ]
                     => apply split_or_one
-                  | [ |- stars ((exists* _, _)%pred :: _) * _ =*=> _ ]
+                  | [ |- stars ((exists* _, _)%predicate :: _) * _ =*=> _ ]
                     => apply exists_one; intro
                   end.
 
 Ltac split_or_l := repeat ( (repeat split_one) ; delay_one );
                    apply restart_canceling.
 
-Lemma stars_or_left: forall AT AEQ V (a b c : @pred AT AEQ V),
+Lemma stars_or_left: forall AT AEQ V (a b c : @predicate AT AEQ V),
   (a =*=> stars (b :: nil))
   -> (a =*=> stars ((b \*/ c) :: nil)).
 Proof.
   firstorder.
 Qed.
 
-Lemma stars_or_right: forall AT AEQ V (a b c : @pred AT AEQ V),
+Lemma stars_or_right: forall AT AEQ V (a b c : @predicate AT AEQ V),
   (a =*=> stars (c :: nil))
   -> (a =*=> stars ((b \*/ c) :: nil)).
 Proof.
@@ -626,7 +636,7 @@ Ltac destruct_lift' H :=
     unfold stars in H; simpl in H; destruct H as [? H1];
     apply sep_star_lift_apply in H1; destruct H1 as [? H2];
     destruct_lift' H2
-  | ((exists* _, _)%pred _) =>
+  | ((exists* _, _)%predicate _) =>
     eapply start_normalizing_apply in H; [| flatten ];
     let H1:=fresh in
     let H2:=fresh in
@@ -734,7 +744,6 @@ Tactic Notation "substl" constr(term) :=
   | [ H : _ = term  |- _ ] => setoid_rewrite <- H
   end.
 
-
 Ltac safecancel :=
   intros;
   unfold stars; simpl; try subst;
@@ -751,7 +760,7 @@ Ltac safecancel :=
   try congruence;
   unfold stars; simpl; inv_option_eq;
   try match goal with
-  | [ |- emp * _ =*=> _ ] => eapply pimpl_trans; [ apply star_emp_pimpl |]
+  | [ |- emp * _ =*=> _ ] =>  eapply pimpl_trans; [ apply star_emp_pimpl |]
   end.
 
 Ltac cancel_with' t intuition_t :=
@@ -801,21 +810,17 @@ Ltac cancel := cancel_with idtac.
                                            
 (* fastest version of cancel, should always try this first *)
 Ltac cancel_exact := repeat match goal with 
-  | [ |- (?a =*=> ?a)%pred ] =>
-        eapply pimpl_refl
-  | [ |- (_ * ?a =*=> _ * ?a)%pred ] =>
-        eapply pimpl_sep_star; [ | eapply pimpl_refl]
-  | [ |- ( ?a * _ =*=> ?a * _)%pred ] =>
-        eapply pimpl_sep_star; [ eapply pimpl_refl | ]
-  | [ |- ( ?a * _ =*=> _ * ?a)%pred ] =>
+  | [ |- (?a =*=> ?a)%predicate ] =>
+        reflexivity
+  | [ |- (_ * ?a =*=> _ * ?a)%predicate ] =>
+        eapply pimpl_sep_star; [ | reflexivity ]
+  | [ |- ( ?a * _ =*=> ?a * _)%predicate ] =>
+        eapply pimpl_sep_star; [ reflexivity | ]
+  | [ |- ( ?a * _ =*=> _ * ?a)%predicate ] =>
         rewrite sep_star_comm1
-  | [ |- ( (?a * _) * _ =*=> ?a * _)%pred ] =>
+  | [ |- ( (?a * _) * _ =*=> ?a * _)%predicate ] =>
         rewrite sep_star_assoc_1
 end.
-
-
-Ltac cancel_by H :=
-  eapply pimpl_ext; [ eapply H | cancel | cancel ].
 
 Ltac crush_pimpl :=
   intros; simpl in *;

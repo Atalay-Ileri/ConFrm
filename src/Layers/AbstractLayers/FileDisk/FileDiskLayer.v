@@ -1,6 +1,6 @@
 Require Import Omega Framework File.
 Import ListNotations.
-Close Scope pred_scope.
+Close Scope predicate_scope.
 
 Set Implicit Arguments.
 
@@ -930,7 +930,3 @@ Section FileDisk.
   Definition FileDiskHL := Build_HoareLogic FileDiskLang.
 
 End FileDisk.
-
-Notation "| p |" := (Op (FileDiskOperation _) p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op (FileDiskOperation _) p1) (fun x => p2))(right associativity, at level 60). 
-Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).

@@ -13,7 +13,7 @@ Section GenMem.
   Variable V : Type.
   Variable AEQ : EqDec A.
 
-  (* Operations *)
+  (** Operations **)
 
   Definition upd (m : @mem A AEQ V) (a : A) (v : V) : @mem A AEQ V :=
     fun a' => if AEQ a' a then Some v else m a'.
@@ -38,13 +38,12 @@ Section GenMem.
       end
     end.
 
-  Definition merge (m1: @mem A AEQ V)
-             (m2: @mem A AEQ V) : @mem A AEQ V :=
-  fun a =>
-    match m1 a with
-    | None => m2 a
-    | Some v => Some v
-    end.
+  Definition mem_union (m1 m2 : @mem A AEQ V) : (@mem A AEQ V) :=
+    fun a =>
+  match m1 a with
+  | Some v => Some v
+  | None => m2 a
+  end.
   
   Definition sync (m: @mem A AEQ (V * list V)) :=
     fun a =>
@@ -88,7 +87,9 @@ Section GenMem.
           | Some v => Some (f v)
           end.
 
-  (* Properties *)
+
+  
+  (** Properties **)
   Definition subset (m1 m2: @mem A AEQ V) :=
     forall a,
       (m2 a = None -> m1 a = None) /\
@@ -113,7 +114,13 @@ Section GenMem.
       consistent_with_upds (upd m a v) al' vl'
     | _, _ => False
     end.
-  
+
+Definition mem_except (m: @mem A AEQ V) (a: A) : @mem A AEQ V :=
+  fun a' => if AEQ a' a then None else m a'.
+
+
+
+  (** Facts **)  
   Theorem upd_eq : forall m (a : A) (v : V) a',
     a' = a -> upd m a v a' = Some v.
   Proof.
@@ -271,6 +278,7 @@ Section GenMem.
     case_eq (AEQ x a1); case_eq (AEQ x a0); intros; subst; try congruence.
   Qed.
 
+  
 End GenMem.
 
 Hint Rewrite upd_eq using (solve [ auto ]) : upd.

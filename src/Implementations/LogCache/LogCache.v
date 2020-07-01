@@ -43,6 +43,6 @@ Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLa
   exists hdr txns,
     fst s = txns_cache txns empty_mem /\
     addrs_match (fst s) (snd (snd s)) /\
-    (log_rep log_state hdr txns (fst (snd s)) * disk_frame)%pred (snd (snd s)) /\
+    (log_rep log_state hdr txns (fst (snd s)) * disk_frame)%predicate (snd (snd s)) /\
     merged_disk = shift (plus data_start) (merge_set (fst s) (snd (snd s))).
 

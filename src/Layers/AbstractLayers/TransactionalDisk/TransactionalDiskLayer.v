@@ -71,7 +71,7 @@ Section TransactionalDisk.
       forall s,
         let c := fst s in
         let d := snd s in
-        exec' [Cont] s Commit (Finished (empty_mem, merge c d) tt)
+        exec' [Cont] s Commit (Finished (empty_mem, mem_union c d) tt)
 
   | ExecAbort : 
       forall s,
@@ -141,7 +141,7 @@ Section TransactionalDisk.
        let c := fst s in
        let d := snd s in
        o = [Cont] /\
-       Q tt (empty_mem, merge c d))
+       Q tt (empty_mem, mem_union c d))
    | Abort =>
      (fun Q o s =>
        let c := fst s in
@@ -208,7 +208,7 @@ Section TransactionalDisk.
        (o = [CrashBefore] /\
         Q s) \/
        (o = [CrashAfter] /\
-        Q (empty_mem, merge c d)))
+        Q (empty_mem, mem_union c d)))
    | Abort =>
       (fun Q o s =>
          let c := fst s in
@@ -279,7 +279,7 @@ Section TransactionalDisk.
          let d := snd s in
          P [Cont] s /\
          t = tt /\
-         s' = (empty_mem, merge c d)
+         s' = (empty_mem, mem_union c d)
    | Abort =>
       fun P t s' =>
         exists s,
@@ -350,7 +350,7 @@ Section TransactionalDisk.
          (P [CrashBefore] s /\
           s' = s) \/
          (P [CrashAfter] s /\
-          s' = (empty_mem, merge c d))
+          s' = (empty_mem, mem_union c d))
    | Abort =>
       fun P s' =>
         exists s,

@@ -222,9 +222,10 @@ Abort.
         simpl in *; 
         edestruct strong_bisimulation_for_program_correct0; eauto.
         edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        cleanup.
+        destruct x, x0; simpl in *; cleanup.
         eexists; intuition eauto.
         econstructor; eauto.
+        simpl; eauto.
         simpl; eauto.
         
       +
@@ -235,6 +236,7 @@ Abort.
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
+          destruct x6; simpl in *; cleanup.
           exists (Crashed s); repeat (split; eauto).
           eapply ExecBindCrash; eauto.
 
@@ -243,13 +245,15 @@ Abort.
           eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
+          destruct x0; simpl in *; cleanup.
           edestruct H0.
           simpl in *;
           edestruct strong_bisimulation_for_program_correct0; eauto.
           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-          cleanup.
+          destruct x0; simpl in *; cleanup.
           eexists; intuition eauto.
           econstructor; eauto.
+          simpl; eauto.
           simpl; eauto.
 
     - (* High to Low *)
@@ -259,19 +263,25 @@ Abort.
       + split_ors; cleanup.
         edestruct strong_bisimulation_for_program_correct; eauto.
         edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; simpl in *; cleanup.
+        simpl in *; cleanup.
 
         edestruct strong_bisimulation_for_program_correct; eauto.
         edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
+        
+        destruct x10; simpl in *; cleanup; eauto.
         eapply_fresh exec_finished_deterministic_prefix in H2; eauto; cleanup.
         simpl in *.
         edestruct H0.
         simpl in *;
         edestruct strong_bisimulation_for_program_correct0; eauto.
         edestruct H5; eauto; simpl in *; cleanup; try intuition; clear H5 H9; cleanup.           
-        eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; simpl in *; cleanup.
+        destruct x9; simpl in *; cleanup; eauto.
         eexists; intuition eauto.
         econstructor; eauto.
+        simpl; eauto.
+        simpl; eauto.
         
       +
         split_ors; cleanup;
@@ -281,6 +291,7 @@ Abort.
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
+          destruct x6; simpl in *; cleanup.
           eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
           simpl in *.
           exists (Crashed x5); repeat (split; eauto).
@@ -289,25 +300,28 @@ Abort.
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H8 H9.
+          destruct x8; simpl in *; cleanup.
           eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
 
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
+          destruct x8; simpl in *; cleanup.
           eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
 
         *
           edestruct strong_bisimulation_for_program_correct; eauto.
           edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-           eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
-           edestruct H0.
-           simpl in *;
-           edestruct strong_bisimulation_for_program_correct0; eauto.
-           edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
-           cleanup.
-           eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
-           eexists; intuition eauto.
-           econstructor; eauto.
+          destruct x10; simpl in *; cleanup.
+          eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
+          edestruct H0.
+          simpl in *;
+          edestruct strong_bisimulation_for_program_correct0; eauto.
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
+          cleanup.
+          eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
+          eexists; intuition eauto.
+          econstructor; eauto.
     Unshelve.
     all: eauto.
   Qed.
@@ -375,7 +389,6 @@ Proof.
       eapply wp_high_to_low_prog; eauto.
       cleanup.
       eexists; split; simpl; eauto.
-      simpl; eauto.
     }
     {(* wcp *)
       pose proof exec_to_wcp as Hx.
@@ -387,11 +400,52 @@ Proof.
       eapply wcp_high_to_low_prog; eauto.
       cleanup.
       eexists; split; eauto.
-      simpl; eauto.
     }
   }
 Qed.
-        
+
+
+Lemma sp_impl:
+    forall O (L: Language O) T (p: prog L T) (P P': list (Language.token' O) -> Operation.state O -> Prop) s' t,
+      (forall o s, P' o s -> P o s) ->
+      strongest_postcondition L p P' t s' ->
+      strongest_postcondition L p P t s'.
+  Proof.
+    intros.
+    eapply sp_to_exec in H0; cleanup.
+    eapply exec_to_sp; eauto.
+  Qed.
+
+  Lemma sp_bind:
+    forall O (L: Language O) T T' (p1: prog L T) (p2: T -> prog L T') P s' t,
+      strongest_postcondition L (Bind p1 p2) P t s' ->
+      exists s0 t0,
+        strongest_postcondition L p1 (fun o s => exists o2, P (o++o2) s) t0 s0 /\
+        strongest_postcondition L (p2 t0)
+        (fun o s => strongest_postcondition L p1 (fun ox sx => P (ox++o) sx) t0 s) t s'.
+  Proof.
+    intros.
+    eapply sp_to_exec in H; cleanup.
+    invert_exec.
+    do 2 eexists; split.
+    eapply exec_to_sp; eauto.
+    intros.            
+    repeat (eapply exec_to_sp; eauto).
+  Qed.
+
+
+Lemma sp_exists_extract:
+    forall X O (L: Language O) T (p: prog L T) (P: X -> list (Language.token' O) -> Operation.state O -> Prop) s' t,
+      strongest_postcondition L p (fun o s => exists x, P x o s) t s' ->
+      (exists x, strongest_postcondition L p (P x) t s').
+  Proof.
+    intros.
+    eapply sp_to_exec in H; cleanup.
+    eexists; eapply exec_to_sp; eauto.
+  Qed.
+
+  
+
 (*
 Theorem bisimulation_from_wp:
   forall O1 O2 (low: Language O1) (high: Language O2)   

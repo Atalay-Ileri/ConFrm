@@ -1,4 +1,4 @@
-Require Import Framework CryptoDiskLayer BatchOperations.
+Require Import EquivDec Framework CryptoDiskLayer BatchOperations.
 Require Import Datatypes PeanoNat.
 Require Import FSParameters.
 
@@ -196,7 +196,9 @@ Fixpoint hashes_in_hashmap hm h vl :=
 Definition hash_valid log_blocks hash :=
   hash = rolling_hash hash0 log_blocks.
 
-Open Scope pred_scope.
+Open Scope predicate_scope.
+
+Instance nat_eq_dec: EqDec nat := nat_eq_eqdec.
 
 Definition log_rep_inner
            (log_state: Log_State)

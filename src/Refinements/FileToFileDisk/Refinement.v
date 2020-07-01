@@ -15,8 +15,55 @@ Section FileDiskBisimulation.
   Axiom exec_compiled_preserves_refinement:
     exec_compiled_preserves_refinement refinement.
 
-  Axiom exec_preserves_refinement:
+  Theorem exec_preserves_refinement:
     exec_preserves_refinement refinement.
+  Proof.
+    unfold exec_preserves_refinement;
+    induction p; simpl in *; intros.
+    { (* Op *)
+      cleanup; destruct ret.
+      { (* Finished *)
+        simpl.
+        
+        eapply exec_to_sp with (P:= fun o s => refines_to x s /\ s = s2 /\ o = o2) in H0; eauto.
+
+        Theorem sp_implies_refines_to:
+          forall T (p : file_disk_prog T) x s s2 t o2,
+            refines_to x s2 ->
+            strongest_postcondition Definitions.high (| DiskAllocator. |)
+         (fun o s' =>
+          refines_to x s' /\ s' = s2 /\ o = o2) t s ->
+            exists s1', refines_to s1' s.
+        
+        Theorem sp_implies_refines_to:
+          forall T (p : file_disk_prog T) x s s2 t o2,
+            refines_to x s2 ->
+            strongest_postcondition Definitions.high (| p |)
+         (fun o s' =>
+          refines_to x s' /\ s' = s2 /\ o = o2) t s ->
+            exists s1', refines_to s1' s.
+        Proof.
+          intros.
+          destruct p;
+          simpl in *; cleanup;
+          split_ors; cleanup; try solve [intuition eauto].
+          
+
+          unfold refines_to, files_rep, files_inner_rep  in *; cleanup; simpl in *.
+        destruct s2; simpl in *; cleanup.
+        destruct x; simpl in *; cleanup.
+        destruct_lift H0.
+        specialize (H0 a).
+        destruct_fresh (dummy a); [| exfalso; apply H0; intuition eauto; congruence ].
+        specialize H7 with (1:= D)(2:=H2).
+        unfold file_rep in *; cleanup.
+        unfold DiskAllocator.block_allocator_rep in *.
+        eexists; split; eauto.
+        
+      }
+      
+        
+        repeat invert
 
 
   Lemma merge_some_l:
@@ -50,13 +97,89 @@ Section FileDiskBisimulation.
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Read inum a|).
   Proof.
     unfold wp_low_to_high_prog'; intros; cleanup.
-    unfold  compilation_of in *; simpl; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    simpl in H1; cleanup.
+    destruct H3; cleanup.    
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H3; eauto; cleanup.
+ 
+    eapply wp_to_exec in H; cleanup.
+    eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
+    simpl in *.
     eexists; intuition eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H3; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = x) in H2; eauto.
+    
+    repeat (cleanup; simpl in *);
+    try match goal with
+        | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+          inversion H; clear H; cleanup
+        end;
 
-    cleanup; simpl in *; cleanup; eauto;
-    eexists; intuition eauto; unfold refines_to in *; cleanup;
+    unfold DiskAllocator.read in *; simpl in *;
+    repeat (cleanup; simpl in *);
+    repeat (split_ors; cleanup;
+    try match goal with
+    | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+      inversion H; clear H; cleanup
+    end).
+            
+
+            
+    - cleanup; eauto;
+      try match goal with
+          | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+            inversion H; clear H; cleanup
+          end;
+        cleanup.
+
+
+    unfold Inode.InodeAllocator.read in *; simpl in *.
+    repeat (cleanup; simpl in *);
+    repeat (split_ors; cleanup;
+    try match goal with
+    | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+      inversion H; clear H; cleanup
+    end);
+           
+    try solve [ cleanup; simpl in *;
+    repeat cleanup;
+    repeat (split_ors; cleanup);
+    unfold empty_mem in *; simpl in *; congruence];
+
+    cleanup; simpl in *;
+    repeat cleanup;
+    repeat (split_ors; cleanup);
+    repeat match goal with
+           | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+      inversion H; clear H; cleanup
+          end;
+      try solve [unfold empty_mem in *; simpl in *; congruence];
+
+      try destruct x6; simpl in *; cleanup;
+
+      repeat (split_ors; cleanup);
+      repeat match goal with
+          | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+      inversion H; clear H; cleanup
+          end;
+      try solve [unfold empty_mem in *; simpl in *; congruence].
+            
+    +
+
+      match goal with
+          | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+      inversion H; clear H; cleanup
+          end.
+      try solve [unfold empty_mem in *; simpl in *; congruence].
+      
+      repeat (split_ors; cleanup);
+    simpl in *.
+    
+    repeat (split_ors; cleanup;
+    try match goal with
+    | [H: strongest_postcondition _ _ _ _ _ |- _] =>
+      inversion H; clear H; cleanup
+        end).
+    repeat cleanup.
+            eexists; intuition eauto; unfold refines_to in *; cleanup;
     try congruence.      
     rewrite apply_list_get_latest_eq in D0; eauto.
     right; intuition.        
