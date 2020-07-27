@@ -122,7 +122,7 @@ Local Ltac clear_lists:=
   end; repeat clear_lists.
 
 
-Local Ltac split_match:=
+Ltac split_match:=
   match goal with
   |[H: context [match ?x with | _ => _ end] |- _] =>
    let name := fresh "D" in
@@ -135,6 +135,14 @@ Ltac cleanup:= try split_match; try logic_clean;
                try clear_dup; try invert_const;
                try clear_lists; try sigT_eq;
                subst; try rewriteall.
+
+Ltac cleanup_no_match
+  := try logic_clean;
+     subst; try rewriteall;
+     try clear_dup; try rewrite_upd_eq;
+     try clear_dup; try invert_const;
+     try clear_lists; try sigT_eq;
+     subst; try rewriteall.
 
 Ltac split_ors:=
   match goal with

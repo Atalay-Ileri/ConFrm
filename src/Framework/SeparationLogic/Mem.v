@@ -1,9 +1,6 @@
-Require Import List FunctionalExtensionality.
+Require Import BaseTypes List FunctionalExtensionality.
 
 Set Implicit Arguments.
-
-Class EqDec (T : Type) := eqdec : forall (a b : T), {a = b} + {a <> b}.
-(* generalized memory of any address / value type *)
 
 Definition mem {A : Type} {AEQ : EqDec A} {V : Type} := A -> option V.
 Definition empty_mem {A : Type} {AEQ : EqDec A} {V : Type} : @mem A AEQ V := fun a => None.
@@ -58,6 +55,12 @@ Section GenMem.
   Definition delete (m : @mem A AEQ V) (a : A) : @mem A AEQ V :=
     fun a' => if AEQ a' a then None else m a'.
 
+  Fixpoint delete_all (m : @mem A AEQ V) (la : list A) : @mem A AEQ V :=
+    match la with
+    | nil => m
+    | a::la' => delete (delete_all m la') a
+    end.
+
   Definition insert (m : @mem A AEQ V) (a : A) (v : V) : @mem A AEQ V :=
     fun a' => if AEQ a' a then
       match m a with
@@ -87,6 +90,7 @@ Section GenMem.
           | Some v => Some (f v)
           end.
 
+  Definition list_mem  al vl := upd_batch (@empty_mem A AEQ V) al vl.
 
   
   (** Properties **)
@@ -115,8 +119,6 @@ Section GenMem.
     | _, _ => False
     end.
 
-Definition mem_except (m: @mem A AEQ V) (a: A) : @mem A AEQ V :=
-  fun a' => if AEQ a' a then None else m a'.
 
 
 
@@ -144,6 +146,13 @@ Definition mem_except (m: @mem A AEQ V) (a: A) : @mem A AEQ V :=
     destruct (AEQ a a); congruence.
   Qed.
 
+  Theorem delete_eq : forall m (a a': A),
+    a' = a -> delete m a a' = None.
+  Proof.
+    intros; subst; unfold delete.
+    destruct (AEQ a a); tauto.
+  Qed.
+
   Theorem upd_ne : forall m (a : A) (v : V) a',
     a' <> a -> upd m a v a' = m a'.
   Proof.
@@ -163,6 +172,13 @@ Definition mem_except (m: @mem A AEQ V) (a: A) : @mem A AEQ V :=
   Proof.
     intros; subst; unfold insert.
     destruct (AEQ a' a); congruence.
+  Qed.
+
+  Theorem delete_ne : forall m (a a': A),
+    a' <> a -> delete m a a' = m a'.
+  Proof.
+    intros; subst; unfold delete.
+    destruct (AEQ a' a); tauto.
   Qed.
 
   Theorem upd_repeat: forall m (a : A) (v v':V),
@@ -278,6 +294,27 @@ Definition mem_except (m: @mem A AEQ V) (a: A) : @mem A AEQ V :=
     case_eq (AEQ x a1); case_eq (AEQ x a0); intros; subst; try congruence.
   Qed.
 
+  Lemma delete_all_in:
+      forall (l: list A) (m: @mem A AEQ V) a,
+        In a l ->
+        delete_all m l a = None.
+    Proof.
+      induction l; simpl; intros; intuition eauto.
+      subst; rewrite delete_eq; eauto.
+      destruct (AEQ a a0); subst;
+      [rewrite delete_eq
+      |rewrite delete_ne]; eauto.
+    Qed.
+
+  Lemma delete_all_not_in:
+      forall (l: list A) (m: @mem A AEQ V) a,
+        ~ In a l ->
+        delete_all m l a = m a.
+    Proof.
+      induction l; simpl; intros; eauto.
+      destruct (AEQ a a0); subst;
+      rewrite delete_ne in *; eauto.
+    Qed.
   
 End GenMem.
 

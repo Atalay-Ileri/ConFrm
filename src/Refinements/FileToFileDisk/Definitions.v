@@ -1,6 +1,6 @@
 Require Import Framework FSParameters.
 Require Import AuthenticatedDiskLayer FileDiskLayer File.
-Close Scope pred_scope.
+Close Scope predicate_scope.
 Import ListNotations.
 
 Local Definition low_op := (AuthenticatedDiskOperation).
@@ -29,7 +29,7 @@ Defined.
 Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 o2 : Prop :=
   let u := fst d1 in
   let dx := snd d1 in
-  let d := merge (fst dx) (snd dx) in
+  let d := mem_union (fst dx) (snd dx) in
   exists fm,
     files_rep fm d /\
     match p with
@@ -54,8 +54,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
            file.(owner) = u /\
            off < length (file.(blocks)) /\
            let new_file := Build_File file.(owner)
-                 (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
-           files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+                 (updN file.(blocks) off v) in
+           files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
          ) \/
          (
            exec low o1 d1 (write inum off v) (Finished (u, d') r) /\
@@ -84,8 +84,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
            file.(owner) = u /\
            off < length (file.(blocks)) /\
            let new_file := Build_File file.(owner)
-               (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
-           files_rep (upd fm inum new_file) (merge (fst d') (snd d'))     
+               (updN file.(blocks) off v) in
+           files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))     
          )
       )
 
@@ -98,7 +98,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             fm inum = Some file /\
             file.(owner) = u /\
             let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
-            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+            files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
           ) \/
           (
             exec low o1 d1 (extend inum v) (Finished (u, d') r) /\
@@ -132,7 +132,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             fm inum = Some file /\
             file.(owner) = u /\
             let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
-            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+            files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
           )
        )
          
@@ -145,7 +145,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             fm inum = Some file /\
             file.(owner) = u /\
             let new_file := Build_File own file.(blocks) in
-            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+            files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
           ) \/
           (
             exec low o1 d1 (change_owner inum own) (Finished (u, d') r) /\
@@ -171,7 +171,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             fm inum = Some file /\
             file.(owner) = u /\
             let new_file := Build_File own file.(blocks) in
-            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+            files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
           )
        )
      | Create own =>
@@ -182,7 +182,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             inum < disk_size /\
             fm inum = None /\
             let new_file := Build_File own [] in
-            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+            files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
           ) \/
           (
             exec low o1 d1 (create own) (Finished (u, d') None) /\
@@ -203,7 +203,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             inum < disk_size /\
             fm inum = None /\
             let new_file := Build_File own [] in
-            files_rep (upd fm inum new_file) (merge (fst d') (snd d'))
+            files_rep (upd fm inum new_file) (mem_union (fst d') (snd d'))
           )
        )
      | Delete inum =>
@@ -214,7 +214,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             inum < disk_size /\
             fm inum = Some file /\
             file.(owner) = u /\
-            files_rep (Mem.delete fm inum) (merge (fst d') (snd d'))
+            files_rep (Mem.delete fm inum) (mem_union (fst d') (snd d'))
           ) \/
           (
             exec low o1 d1 (delete inum) (Finished (u, d') r) /\
@@ -239,14 +239,14 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             inum < disk_size /\
             fm inum = Some file /\
             file.(owner) = u /\
-            files_rep (Mem.delete fm inum) (merge (fst d') (snd d'))
+            files_rep (Mem.delete fm inum) (mem_union (fst d') (snd d'))
           )
        )
      end.
 
    Definition refines_to (d1: state low) (d2: state high) :=
      fst d1 = fst d2 /\
-     files_rep (snd d2) (merge (fst (snd d1)) (snd (snd d1))).
+     files_rep (snd d2) (mem_union (fst (snd d1)) (snd (snd d1))).
 
   Definition FileDiskOperationRefinement := Build_OperationRefinement compile refines_to oracle_refines_to.
   Definition FileDiskRefinement := LiftRefinement high FileDiskOperationRefinement.

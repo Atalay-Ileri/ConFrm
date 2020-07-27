@@ -27,9 +27,18 @@ Set Implicit Arguments.
         d a = Some v ->
         exec' [Cont] d (Read a) (Finished d v)
              
-  | ExecWrite :
+  | ExecWriteSuccess :
       forall d la lv,
+        NoDup la ->
+        length la = length lv ->
+        (forall a, In a la -> d a <> None) ->
         exec' [Cont] d (Write la lv) (Finished (upd_batch d la lv) tt)
+
+  | ExecWriteFail :
+      forall d la lv,
+        ~NoDup la \/ length la <> length lv \/
+        (exists a, In a la /\ d a = None) ->
+        exec' [Cont] d (Write la lv) (Finished d tt)
 
   | ExecCrashBefore :
       forall d T (p: logged_disk_prog T),
@@ -37,6 +46,9 @@ Set Implicit Arguments.
 
   | ExecCrashWriteAfter :
       forall d la lv,
+        NoDup la ->
+        length la = length lv ->
+        (forall a, In a la -> d a <> None) ->
         exec' [CrashAfter] d (Write la lv) (Crashed (upd_batch d la lv)).
 
   Hint Constructors exec' : core.
@@ -51,8 +63,16 @@ Set Implicit Arguments.
          Q v s)
    | Write la lv =>
      (fun Q o s =>
-       o = [Cont] /\
-       Q tt (upd_batch s la lv))
+        (o = [Cont] /\
+         NoDup la /\
+         length la = length lv /\
+         (forall a, In a la -> s a <> None) /\
+         Q tt (upd_batch s la lv)) \/
+        (o = [Cont] /\
+        (~ NoDup la \/
+         length la <> length lv \/
+        (exists a, In a la /\ s a = None)) /\
+        Q tt s))
    end.
 
   Definition weakest_crash_precondition' T (p: logged_disk_prog T) :=
@@ -66,6 +86,9 @@ Set Implicit Arguments.
        (o = [CrashBefore] /\
         Q s) \/
        (o = [CrashAfter] /\
+        NoDup la /\
+        length la = length lv /\
+        (forall a, In a la -> s a <> None) /\
         Q (upd_batch s la lv)))
     end.
 
@@ -83,7 +106,18 @@ Set Implicit Arguments.
        exists s,
        P [Cont] s /\
        t = tt /\
-       s' = upd_batch s la lv
+       ((
+         NoDup la /\
+         length la = length lv /\
+         (forall a, In a la -> s a <> None) /\
+         s' = upd_batch s la lv
+       ) \/
+       (
+         (~NoDup la \/
+          length la <> length lv \/
+          (exists a, In a la /\ s a = None)) /\
+         s' = s
+       ))
    end.
 
   Definition strongest_crash_postcondition' T (p: logged_disk_prog T) :=
@@ -96,6 +130,9 @@ Set Implicit Arguments.
        (P [CrashBefore] s') \/
        (exists s,
           P [CrashAfter] s /\
+          NoDup la /\
+          length la = length lv /\
+          (forall a, In a la -> s a <> None) /\
           s' = upd_batch s la lv)
     end.
   
@@ -108,7 +145,10 @@ Set Implicit Arguments.
     split; intros;
     try inversion H1; cleanup;
     eapply H; eauto;
-    do 2 eexists; eauto.    
+    try solve [eexists; eauto].
+    eexists; intuition eauto.
+    split_ors; cleanup;
+    intuition eauto.
   Qed.
 
   Theorem scp_complete':
@@ -120,6 +160,7 @@ Set Implicit Arguments.
     split; intros;
     try inversion H1; cleanup;
     try split_ors; cleanup; eapply H; eauto.
+    right; eexists; intuition eauto.
   Qed.
 
   Theorem wp_complete':
@@ -132,6 +173,7 @@ Set Implicit Arguments.
     specialize H0 with (1:= X);
     cleanup; eauto;
     inversion H0; cleanup; eauto.
+    left; eauto.
   Qed.
   
   Theorem wcp_complete':
@@ -145,6 +187,7 @@ Set Implicit Arguments.
     specialize H0 with (1:= X);
     cleanup; eauto;
     inversion H0; cleanup; eauto.
+    right; eauto.
   Qed.
 
   Theorem exec_deterministic_wrt_oracle' :
@@ -158,7 +201,9 @@ Set Implicit Arguments.
       match goal with
       | [H: exec' _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
-      end; eauto.
+      end; eauto;
+    split_ors; intuition;
+    cleanup; exfalso; eauto.
   Qed.
   
   Definition LoggedDiskOperation :=

@@ -31,13 +31,24 @@ Import InodeAllocator.
 
 Open Scope predicate_scope.
 
+Definition free_block_number (inode_map: disk Inode) bn :=
+  forall i inode, inode_map i = Some inode -> ~ In bn inode.(block_numbers).
+
+Definition compatible_inode (inode_map: disk Inode) i inode :=
+  NoDup inode.(block_numbers) /\
+   forall j inode_j,
+     i <> j ->
+     inode_map j = Some inode_j ->
+     NoDup (inode.(block_numbers) ++ inode_j.(block_numbers)).
+  
 Definition inode_map_rep inode_block_map (inode_map: disk Inode) :=
   forall i, inode_map i = option_map decode_inode (inode_block_map i).
 
 Definition inode_rep (inode_map: disk Inode) : @predicate addr addr_dec value :=
   exists* inode_block_map,
     block_allocator_rep inode_block_map *
-    [[ forall i, inode_map i = option_map decode_inode (inode_block_map i) ]].
+    [[ forall i, inode_map i = option_map decode_inode (inode_block_map i) ]] *
+    [[ forall i inode, inode_map i = Some inode -> compatible_inode inode_map i inode ]].
 
 Local Definition get_inode inum :=
   r <- read inum;
@@ -108,7 +119,9 @@ Proof.
     eapply sp_impl in H.
     eapply (sp_exists_extract (disk value)) with (P:=fun inode_block_map o s =>  (F *
    (block_allocator_rep inode_block_map *
-    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]]))%predicate
+    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]] *
+    [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]))%predicate
     (mem_union (fst s) (snd s))) in H.
     cleanup.
     eapply sp_impl in H.
@@ -117,13 +130,14 @@ Proof.
       intros; cleanup.
       simpl; eauto.
       instantiate (1:= x).
-      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x i)]]).
+      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x i)]] * [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]).
       pred_apply' H0; cancel.
     }
     
     cleanup.
     destruct_lift H0.
-    rewrite H4; cleanup.
+    rewrite H5; cleanup.
     rewrite <- H; simpl.
     intuition eauto.
     pred_apply; cancel.
@@ -138,7 +152,8 @@ Proof.
     eapply sp_impl in H.
     eapply (sp_exists_extract (disk value)) with (P:=fun inode_block_map o s =>  (F *
    (block_allocator_rep inode_block_map *
-    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]]))%predicate
+    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]] *  [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]))%predicate
     (mem_union (fst s) (snd s))) in H.
     cleanup.
     eapply sp_impl in H.
@@ -147,13 +162,14 @@ Proof.
       intros; cleanup.
       simpl; eauto.
       instantiate (1:= x).
-      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x i)]]).
+      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x i)]] * [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]).
       pred_apply' H0; cancel.
     }
     
     cleanup.
     destruct_lift H0.
-    rewrite H4; cleanup.
+    rewrite H5; cleanup.
     rewrite <- H; simpl.
     intuition eauto.
     pred_apply; cancel.
@@ -170,6 +186,7 @@ Theorem set_inode_ok:
   forall inum inode s' t imap F,
     strongest_postcondition (TransactionalDiskLang data_length) (set_inode inum inode)
                             (fun o s => (F * inode_rep imap)%predicate (mem_union (fst s) (snd s)) /\
+                                     compatible_inode imap inum inode /\
                             (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list ) t s' ->
     (exists i, imap inum = Some i /\ t = Some tt /\ (F * inode_rep (upd imap inum inode))%predicate (mem_union (fst s') (snd s'))) \/
     (t = None /\ (F * inode_rep imap)%predicate (mem_union (fst s') (snd s'))).
@@ -178,8 +195,10 @@ Proof.
   eapply sp_impl in H.
   eapply (sp_exists_extract (disk value)) with (P:=fun inode_block_map o s =>  (F *
    (block_allocator_rep inode_block_map *
-    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]]))%predicate
-                                                                          (mem_union (fst s) (snd s)) /\
+    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]] * [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]))%predicate
+                                                             (mem_union (fst s) (snd s)) /\
+                                                                            compatible_inode imap inum inode /\
                                                (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list) in H.
     cleanup.
     eapply sp_impl in H.
@@ -188,7 +207,9 @@ Proof.
       intros; cleanup.
       simpl; eauto.
       instantiate (1:= x0).
-      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x0 i)]]).
+      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x0 i)]] *
+     [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]] * [[compatible_inode imap inum inode ]]).
       split; eauto.
       pred_apply' H0; cancel.
     }
@@ -196,7 +217,7 @@ Proof.
     
   -    destruct_lift H1.
     left; eexists; intuition eauto.
-    rewrite H4, H; simpl; eauto.
+    rewrite H6, H; simpl; eauto.
     pred_apply; cancel.
     exists (upd x0 inum (encode_inode inode)).
     pred_apply; cancel.
@@ -204,6 +225,23 @@ Proof.
     [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
     rewrite inode_encode_decode; eauto.
 
+    unfold compatible_inode in *;
+    destruct (addr_eq_dec inum i); subst;
+    [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
+    rewrite upd_eq in H2; eauto; cleanup.
+    intuition.
+    rewrite upd_ne in H7; eauto.
+
+    rewrite upd_ne in H2; eauto; cleanup.
+    specialize H5 with (1:= H2); cleanup.
+    intuition.
+     destruct (addr_eq_dec inum j); subst;
+    [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
+     rewrite upd_eq in H9; eauto; cleanup.
+     apply NoDup_app_comm;
+     eapply H4; eauto.
+     rewrite upd_ne in H9; eauto.
+    
   - right; intuition cleanup.
     pred_apply; cancel.
     exists x0.
@@ -212,7 +250,7 @@ Proof.
  - simpl; intros; cleanup.
    apply pimpl_exists_l_star_r in H0.
    destruct H0.
-   exists x0; eauto.
+   exists x0; intuition eauto.
 Qed.
 
 Global Opaque get_inode set_inode.
@@ -222,14 +260,16 @@ Theorem alloc_ok:
     strongest_postcondition (TransactionalDiskLang data_length) (alloc user)
                             (fun o s => (F * inode_rep imap)%predicate (mem_union (fst s) (snd s)) /\
                             (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list ) t s' ->
-    (exists inum, t = Some inum /\ (F * inode_rep (upd imap inum (Build_Inode user [])))%predicate (mem_union (fst s') (snd s'))) \/
+    (exists inum, t = Some inum /\ imap inum = None /\ (F * inode_rep (upd imap inum (Build_Inode user [])))%predicate (mem_union (fst s') (snd s'))) \/
     (t = None /\ (F * inode_rep imap)%predicate (mem_union (fst s') (snd s'))).
 Proof.
     unfold inode_rep; intros; simpl in *; cleanup.
   eapply sp_impl in H.
   eapply (sp_exists_extract (disk value)) with (P:=fun inode_block_map o s =>  (F *
    (block_allocator_rep inode_block_map *
-    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]]))%predicate
+    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]] *
+    [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]))%predicate
                                                                           (mem_union (fst s) (snd s)) /\
                                                (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list) in H.
     cleanup.
@@ -239,18 +279,42 @@ Proof.
       intros; cleanup.
       simpl; eauto.
       instantiate (1:= x0).
-      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x0 i)]]).
+      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x0 i)]]  *
+    [[forall (i : addr) (inode : Inode),
+      imap i = Some inode -> compatible_inode imap i inode]]).
       split; eauto.
       pred_apply' H0; cancel.
     }
     split_ors; cleanup.
-  - left; exists x1; intuition cleanup.
+    - left; exists x1; intuition cleanup.
+      destruct_lifts.
+      rewrite H5, H0; simpl; eauto.
     pred_apply; cancel.
     exists (upd x0 x1 (encode_inode (Build_Inode user []))).
     pred_apply; cancel.
     destruct (addr_dec x1 i); subst;
     [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
     rewrite inode_encode_decode; eauto.
+
+    unfold compatible_inode in *;
+    destruct (addr_eq_dec x1 i); subst;
+    [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
+    rewrite upd_eq in H2; eauto; cleanup.
+    simpl; intuition eauto.
+    constructor.
+    rewrite upd_ne in H3; eauto.
+    specialize H4 with (1:=H3); cleanup; eauto.
+
+    rewrite upd_ne in H2; eauto; cleanup.
+    specialize H4 with (1:= H2); cleanup.
+    intuition.
+     destruct (addr_eq_dec x1 j); subst;
+    [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
+     rewrite upd_eq in H7; eauto; cleanup.
+     simpl.
+     rewrite app_nil_r.
+     specialize H4 with (2:= H2); cleanup; eauto.
+     rewrite upd_ne in H7; eauto.
     
   - right; intuition cleanup.
     pred_apply; cancel.
@@ -276,7 +340,9 @@ Proof.
   eapply sp_impl in H.
   eapply (sp_exists_extract (disk value)) with (P:=fun inode_block_map o s =>  (F *
    (block_allocator_rep inode_block_map *
-    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]]))%predicate
+    [[forall i : addr, imap i = option_map decode_inode (inode_block_map i)]] *
+           [[forall (i : addr) (inode : Inode),
+             imap i = Some inode -> compatible_inode imap i inode]]))%predicate
                                                                           (mem_union (fst s) (snd s)) /\
                                                (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list) in H.
     cleanup.
@@ -286,7 +352,9 @@ Proof.
       intros; cleanup.
       simpl; eauto.
       instantiate (1:= x0).
-      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x0 i)]]).
+      instantiate (1:= F * [[forall i : addr, imap i = option_map decode_inode (x0 i)]] *
+           [[forall (i : addr) (inode : Inode),
+             imap i = Some inode -> compatible_inode imap i inode]]).
       split; eauto.
       pred_apply' H0; cancel.
     }
@@ -298,6 +366,16 @@ Proof.
     pred_apply; cancel.
     unfold delete.
     destruct (addr_dec i inum); eauto.
+
+    unfold delete, compatible_inode in *;
+    destruct (addr_dec i inum); subst;
+    [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto.
+    cleanup.
+    
+    specialize H3 with (1:=H1); cleanup; eauto.
+    simpl; intuition eauto.
+     destruct (addr_dec j inum); subst;
+    [ repeat rewrite upd_eq | repeat rewrite upd_ne]; simpl; eauto; cleanup.
     
   - right; intuition cleanup.
     pred_apply; cancel.
@@ -313,7 +391,7 @@ Qed.
 Theorem extend_ok:
   forall inum block_num s' t imap F,
     strongest_postcondition (TransactionalDiskLang data_length) (extend inum block_num)
-                            (fun o s => (F * inode_rep imap)%predicate (mem_union (fst s) (snd s)) /\
+                            (fun o s => (F * inode_rep imap)%predicate (mem_union (fst s) (snd s)) /\ free_block_number imap block_num /\
                             (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list ) t s' ->
     (exists inode, imap inum = Some inode /\ t = Some tt /\ (F * inode_rep (upd imap inum (Build_Inode inode.(owner) (inode.(block_numbers)++[block_num]))))%predicate (mem_union (fst s') (snd s'))) \/
     (t = None /\ (F * inode_rep imap)%predicate (mem_union (fst s') (snd s'))).
@@ -341,13 +419,41 @@ Proof.
     eapply sp_impl in H3;
     [> eapply get_inode_ok in H3; eauto
     |].
-    instantiate (2:= F * [[forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull]%list ]] ) in H3.
+    instantiate (2:= F * [[forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull]%list ]] *
+                     [[ free_block_number imap block_num ]] ) in H3.
     cleanup; destruct_lift H4.
     split; eauto.
+    
+    unfold inode_rep in *; destruct_lifts.
+    apply pimpl_exists_l_star_r in H4.
+    destruct H4.
+    destruct_lift H4.
+    split; unfold compatible_inode in *; simpl.
+    unfold free_block_number in *.
+    split.
+    apply NoDup_app_comm; simpl.
+    constructor; eauto.    
+    symmetry in H;
+    specialize H10 with (1:= H);
+    cleanup; eauto.
+    
+    intros.
+    apply NoDup_app_comm.
+    rewrite app_assoc.
+    apply NoDup_app_comm.
+    simpl in *.
+    constructor.
+    unfold not; intros.
+    apply in_app_or in H7; split_ors;    
+    try solve [eapply H8; [|eauto]; eauto].
+    edestruct H10; eauto.
+    
+    simpl; intros; eauto.
 
     simpl; intros; cleanup.
     pred_apply; cancel.
-    eapply H5; eauto.
+    eapply H6; eauto.
+    
   + simpl in *; cleanup.
     eapply sp_impl in H0;
     [> eapply get_inode_ok in H0; eauto
@@ -388,13 +494,25 @@ Proof.
     eapply sp_impl in H3;
     [> eapply get_inode_ok in H3; eauto
     |].
-    instantiate (2:= F * [[forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull]%list ]] ) in H3.
+    instantiate (2:= F * [[forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull]%list ]] *
+                [[forall (i : addr) (inode : Inode),
+             imap i = Some inode -> compatible_inode imap i inode]]) in H3.
     cleanup; destruct_lift H4.
     split; eauto.
+    symmetry in H; specialize H8 with (1:= H).
+    unfold compatible_inode in *; simpl; cleanup; eauto.
+
+    simpl; intros; eauto.
 
     simpl; intros; cleanup.
     pred_apply; cancel.
     eapply H5; eauto.
+
+    unfold inode_rep in *; destruct_lifts.
+    apply pimpl_exists_l_star_r in H4.
+    destruct H4.
+    destruct_lift H4; eauto.
+    
   + simpl in *; cleanup.
     eapply sp_impl in H0;
     [> eapply get_inode_ok in H0; eauto

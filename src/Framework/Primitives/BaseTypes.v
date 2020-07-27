@@ -1,8 +1,11 @@
 Require EquivDec.
 (* For disk *)
 (* Axiom addr : Type. *)
+
+Class EqDec (T : Type) := eqdec : forall (a b : T), {a = b} + {a <> b}.
+
 Definition addr := nat.
-Axiom addr_eq_dec : forall (a b: addr), {a=b}+{a<>b}.
+Axiom addr_eq_dec : EqDec addr.
 
 Axiom value : Type.
 Axiom nat_to_value : nat -> value.
@@ -13,11 +16,11 @@ Axiom nat_to_value_to_nat:
   forall n, value_to_nat (nat_to_value n) = n.
 Axiom value_to_nat_to_value:
   forall v, nat_to_value (value_to_nat v) = v.
-Axiom value_dec: forall v v': value, {v=v'}+{v<>v'}.
+Axiom value_eq_dec: EqDec value.
 
 (* For Crypto *)
 Axiom hash : Type.
-Axiom hash_dec: forall h1 h2: hash, {h1 = h2}+{h1<>h2}.
+Axiom hash_eq_dec: EqDec hash.
 Axiom hash_function: hash -> value -> hash.
 
 Fixpoint rolling_hash h vl :=
@@ -44,7 +47,7 @@ Fixpoint hash_and_pair h vl :=
 Axiom hash0 : hash.
 
 Axiom key: Type.
-Axiom key_dec: forall k1 k2: key, {k1 = k2}+{k1<>k2}.
+Axiom key_eq_dec: EqDec key.
 Axiom encrypt: key -> value -> value.
 Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
 
@@ -53,13 +56,13 @@ Axiom user : Type.
 Axiom user0: user.
 
 Axiom handle : Type.
-Axiom handle_eq_dec: forall (h1 h2: handle), {h1=h2}+{h1<>h2}.
+Axiom handle_eq_dec: EqDec handle.
 
 (* Axiom permission : Type. *)
 Inductive permission :=
 | Public
 | Owned (u: user).
-Axiom permission_eq_dec: forall (p1 p2: permission), {p1 = p2}+{p1<>p2}.
+Axiom permission_eq_dec: EqDec permission.
 
 Axiom can_access : user -> permission -> Prop.
 Axiom can_access_dec : forall u p, {can_access u p}+{~can_access u p}.
@@ -171,9 +174,10 @@ Proof.
   destruct res1, res2; intuition.
 Qed.
 
-Import EquivDec.
-
-Definition addr_dec : EqDec addr eq := nat_eq_eqdec.
+Instance addr_dec : EqDec addr := addr_eq_dec.
+Instance value_dec : EqDec value := value_eq_dec.
+Instance key_dec : EqDec key := key_eq_dec.
+Instance hash_dec : EqDec hash := hash_eq_dec.
 
 Notation "'handle_dec'" := handle_eq_dec.
 Notation "'permission_dec'" := permission_eq_dec.

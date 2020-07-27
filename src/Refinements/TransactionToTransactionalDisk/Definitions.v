@@ -1,6 +1,6 @@
 Require Import Framework FSParameters.
 Require Import TransactionCacheLayer TransactionalDiskLayer Transaction.
-Close Scope pred_scope.
+Close Scope predicate_scope.
 Import ListNotations.
 
 Local Definition low_op := TransactionCacheOperation.
@@ -59,9 +59,18 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
        (exists d1' r,
           exec low o1 d1 (write a v) (Finished d1' r) /\          
           ((o2 = [Cont] /\
-           d1' = (option_map (fun l => (a, v)::l) (fst d1), snd d1)) \/
-          (o2 = [TxnFull] /\
-           d1' = d1)
+            a < data_length /\
+            fst d1 <> None /\
+            d1' = (option_map (fun l => (a, v)::l) (fst d1), snd d1)) \/
+           (o2 = [Cont] /\
+            a >= data_length /\
+            d1' = d1) \/
+           (exists l,
+              o2 = [TxnFull] /\
+              fst d1 = Some l /\
+              a < data_length /\
+              length l >= log_length /\
+              d1' = d1)
           )
        ) \/
        
@@ -79,39 +88,41 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
           exec low o1 d1 commit (Finished d1' r) /\
           o2 = [Cont] /\
           (exists l, fst d1 = Some l /\
-                d1' = (None, merge (apply_list empty_mem (rev l)) (snd d1)))) \/
+                d1' = (Some [], mem_union (apply_list empty_mem (rev l)) (snd d1)))) \/
        
        (exists d1',
           exec low o1 d1 commit (Crashed d1') /\
           ((o2 =[CrashBefore] /\
-           d1' = d1) \/
+            d1' = d1) \/
+            (o2 = [CrashDuringCommit] /\
+            (exists l, fst d1 = Some l /\
+                d1' = (Some l,  mem_union (apply_list empty_mem (rev l)) (snd d1) ))) \/
            (o2 = [CrashAfter] /\
             (exists l, fst d1 = Some l /\
-                d1' = (None,  merge (apply_list empty_mem (rev l)) (snd d1) )))))
+                d1' = (Some [],  mem_union (apply_list empty_mem (rev l)) (snd d1) )))))
          
      | Abort =>
        (exists d1' r,
           exec low o1 d1 abort (Finished d1' r) /\
-          o2 = [Cont]) \/
+          o2 = [Cont] /\
+          d1' = (Some [], snd d1)) \/
        
        (exists d1',
           exec low o1 d1 abort (Crashed d1') /\
           ((o2 = [CrashBefore] /\
            d1' = d1) \/
            (o2 = [CrashAfter] /\
-          d1' = (None, snd d1))))
+          d1' = (Some [], snd d1))))
      end.
 
    Definition refines_to (d1: state low) (d2: state high) :=     
-     match fst d1 with
-     | Some l =>
+     exists l,
+       fst d1 = Some l /\
        let txn_cache := apply_list empty_mem (rev l) in
        fst d2 = txn_cache /\
-       addrs_match txn_cache (snd d1)
-     | None =>
-       fst d2 = empty_mem
-     end /\
-     snd d2 = snd d1.
+       addrs_match txn_cache (snd d1) /\
+       snd d2 = snd d1 /\
+       (forall a, a < data_length -> snd d1 a <> None).
 
    
   Definition TransactionalDiskOperationRefinement := Build_OperationRefinement compile refines_to oracle_refines_to.

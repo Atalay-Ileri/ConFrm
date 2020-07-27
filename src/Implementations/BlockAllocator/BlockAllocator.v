@@ -142,8 +142,6 @@ Definition block_allocator_rep (dh: disk value) : @predicate addr addr_dec value
      [[ length values = num_of_blocks ]] *
      [[ forall i, i >= num_of_blocks -> dh i = None ]])%predicate.
 
-Print state'.
-
 Lemma ptsto_bits'_split:
   forall dh a l1 l2 n,
     a < length l1 ->
@@ -218,7 +216,7 @@ Theorem alloc_ok:
     strongest_postcondition (TransactionalDiskLang data_length) (alloc v)
                             (fun o s => (F * block_allocator_rep dh)%predicate (mem_union (fst s) (snd s)) /\
                                      (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list ) t s' ->
-    (exists a, t = Some a /\ (F * block_allocator_rep (upd dh a v))%predicate (mem_union (fst s') (snd s'))) \/
+    (exists a, t = Some a /\ dh a = None /\ (F * block_allocator_rep (upd dh a v))%predicate (mem_union (fst s') (snd s'))) \/
     (t = None /\ (F * block_allocator_rep dh)%predicate (mem_union (fst s') (snd s'))).
 Proof. (*
   unfold block_allocator_rep; simpl; intros.

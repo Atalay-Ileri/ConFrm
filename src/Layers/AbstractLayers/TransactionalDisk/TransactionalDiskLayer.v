@@ -10,6 +10,7 @@ Section TransactionalDisk.
   Inductive token' :=
   | CrashBefore : token'
   | CrashAfter : token'
+  | CrashDuringCommit : token'
   | Cont : token'
   | TxnFull : token'.
 
@@ -55,11 +56,15 @@ Section TransactionalDisk.
         let c := fst s in
         let d := snd s in
         a < disk_size ->
+        d a <> None ->
         exec' [Cont] s (Write a v) (Finished ((upd c a v), d) tt)
 
   | ExecWriteInboundFull :
       forall s a v,
+        let c := fst s in
+        let d := snd s in
         a < disk_size ->
+        d a <> None ->
         exec' [TxnFull] s (Write a v) (Finished s tt)
               
   | ExecWriteOutbound :
@@ -86,7 +91,12 @@ Section TransactionalDisk.
   | ExecCrashAfter :
       forall s s' T (p: transactional_disk_prog T),
         (exists v, exec' [Cont] s p (Finished s' v)) ->
-        exec' [CrashAfter] s p (Crashed s').
+        exec' [CrashAfter] s p (Crashed s')
+
+  | ExecCrashDuringCommit :
+      forall s c d,
+        (exists v, exec' [Cont] s Commit (Finished (c, d) v)) ->
+        exec' [CrashDuringCommit] s Commit (Crashed (fst s, d)).
 
   Hint Constructors exec' : core.
 
@@ -123,11 +133,13 @@ Section TransactionalDisk.
        (
          o = [Cont] /\
          a < disk_size /\
+         d a <> None /\
          Q tt ((upd c a v), d)
        ) \/
        (
          o = [TxnFull] /\
          a < disk_size /\
+         d a <> None /\
          Q tt s
        ) \/
        (
@@ -193,6 +205,7 @@ Section TransactionalDisk.
         (
           o = [CrashAfter] /\
           a < disk_size /\
+          d a <> None /\
           Q (upd c a v, d)
         ) \/
         (
@@ -207,6 +220,8 @@ Section TransactionalDisk.
        let d := snd s in
        (o = [CrashBefore] /\
         Q s) \/
+       (o = [CrashDuringCommit] /\
+        Q (c, mem_union c d)) \/
        (o = [CrashAfter] /\
         Q (empty_mem, mem_union c d)))
    | Abort =>
@@ -257,11 +272,13 @@ Section TransactionalDisk.
          P [Cont] s /\
          a < disk_size /\
          t = tt /\
+         d a <> None /\
          s' = ((upd c a v), d)
        ) \/
        (
          P [TxnFull] s /\
          a < disk_size /\
+         d a <> None /\
          t = tt /\
          s' = s
        ) \/
@@ -334,6 +351,7 @@ Section TransactionalDisk.
          (
            P [CrashAfter] s /\
            a < disk_size /\
+           d a <> None /\
            s' = (upd c a v, d)
          ) \/
          (
@@ -350,7 +368,9 @@ Section TransactionalDisk.
          (P [CrashBefore] s /\
           s' = s) \/
          (P [CrashAfter] s /\
-          s' = (empty_mem, mem_union c d))
+          s' = (empty_mem, mem_union c d)) \/
+         (P [CrashDuringCommit] s /\
+          s' = (fst s, mem_union c d))
    | Abort =>
       fun P s' =>
         exists s,
@@ -406,7 +426,8 @@ Section TransactionalDisk.
     try inversion H0; cleanup; eauto.
     intuition eauto.
     repeat (split_ors; cleanup);
-    do 2 eexists; eauto.   
+    do 2 eexists; eauto.
+    right; eauto.
   Qed.
   
   Theorem wcp_complete':
@@ -421,6 +442,8 @@ Section TransactionalDisk.
     try split_ors; cleanup; repeat (try inversion H0; try clear H0; cleanup; eauto);
     try solve [eexists; econstructor; eauto].
     right; intuition eauto.
+    right; intuition eauto.
+    eexists; split; eauto; econstructor; eauto.
   Qed.
 
   Theorem exec_deterministic_wrt_oracle' :

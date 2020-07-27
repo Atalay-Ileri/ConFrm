@@ -1,5 +1,5 @@
 Require Import Framework CachedDiskLayer LoggedDiskLayer Log LogCache.
-Close Scope pred_scope.
+Close Scope predicate_scope.
 Import ListNotations.
 
 Local Definition low_op := CachedDiskOperation.

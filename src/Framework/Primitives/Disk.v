@@ -29,7 +29,7 @@ Section Disk.
   Definition write {V} (d: disk (set V)) (a: addr) (v: V) : disk (set V) :=
     match d a with
     | None => d
-    | Some vs => upd_disk d a (v, fst vs::snd vs)
+    | Some vs => upd d a (v, fst vs::snd vs)
     end.
 
   Fixpoint write_all {V} (d: disk (set V)) (la: list addr) (lv: list V) : disk (set V) :=
@@ -37,9 +37,17 @@ Section Disk.
     | a::la', v::lv' =>
       match d a with
       | None => d
-      | Some vs => write_all (upd_disk d a (v, fst vs::snd vs)) la' lv'
+      | Some vs => write_all (upd d a (v, fst vs::snd vs)) la' lv'
       end
     | _, _ => d
+    end.
+
+  Fixpoint write_all_to_set {V} (vl: list V) (vsl: list (set V)) :=
+    match vl, vsl with
+    | v::vl', vs::vsl' =>
+      (v, fst vs::snd vs)::write_all_to_set vl' vsl'
+    | _, _ =>
+      nil
     end.
 
 End Disk.

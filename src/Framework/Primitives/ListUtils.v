@@ -1,4 +1,4 @@
-Require Import List Omega SetoidList Permutation.
+Require Import BaseTypes List Omega SetoidList Permutation.
 Import ListNotations.
 Import Permutation.
 
@@ -35,14 +35,73 @@ Fixpoint updN T (vs : list T) (n : nat) (v : T) : list T :=
       end
   end.
 
-(* rewrite hints for various List facts *)
-Hint Rewrite repeat_length map_length app_length Nat.min_idempotent : lists.
 
 (** prevent eauto from unifying length ?a = length ?b *)
 Definition eqlen A B (a : list A) (b : list B) := length a = length b.
 
 Definition removeN {V} (l : list V) i :=
    (firstn i l) ++ (skipn (S i) l).
+
+(** Deduplicates by leaving last occurences **)
+Fixpoint dedup_last {A} AEQ(la: list A) :=
+  match la with
+  | nil => nil
+  | a :: la' =>
+    if In_dec AEQ a la' then
+      dedup_last AEQ la'
+    else
+      a :: dedup_last AEQ la'
+  end.
+
+
+Fixpoint dedup_by_list {A B} AEQ (la: list A) (lb: list B) :=
+  match la, lb with
+  | a :: la' , b :: lb' =>
+    if In_dec AEQ a la' then
+      dedup_by_list AEQ la' lb'
+    else
+      b :: dedup_by_list AEQ la' lb'
+  | _, _ => nil
+  end.
+
+Fixpoint dedup_by_fst {A B} AEQ (l: list (A * B)) :=
+  match l with
+  | ab :: l' =>
+    if In_dec AEQ (fst ab) (map fst l') then
+      dedup_by_fst AEQ l'
+    else
+      ab :: dedup_by_fst AEQ l'
+  | nil => nil
+  end.
+
+Definition in_dec_b {T} (TEQ: EqDec T) : T -> list T -> bool.
+  intros.
+  induction X0.
+  exact false.
+  destruct (TEQ X a).
+  exact true.
+  destruct (in_dec TEQ X X0).
+  exact true.
+  exact false.
+Defined.
+
+(* rewrite hints for various List facts *)
+Hint Rewrite repeat_length map_length app_length Nat.min_idempotent : lists.
+
+Lemma in_iff_in_dec_b :
+  forall A AEQ (l: list A) a,
+    In a l <-> in_dec_b AEQ a l = true.
+Proof.
+  induction l; simpl; intuition eauto; try congruence.
+  destruct (AEQ a0 a); try congruence.
+  destruct (AEQ a0 a); try congruence.
+  destruct (in_dec AEQ a0 l); try congruence.
+  
+  destruct (AEQ a0 a); try congruence; eauto.
+  destruct (in_dec AEQ a0 l); try congruence; eauto.
+Qed.
+
+
 
 Lemma fst_pair : forall T1 T2 (a : T1) (b : T2) c, 
   c = (a, b) -> fst c = a.
@@ -251,7 +310,6 @@ Lemma firstn_updN : forall T (v : T) vs i j,
   -> firstn i (updN vs j v) = firstn i vs.
 Proof.
   induction vs; destruct i, j; simpl; intuition.
-  omega.
   rewrite IHvs; auto; omega.
 Qed.
 
@@ -866,7 +924,6 @@ Lemma selN_oob: forall A n l (def : A),
   -> selN l n def = def.
 Proof.
   induction n; destruct l; simpl; firstorder.
-  inversion H.
 Qed.
 
 Lemma selN_inb : forall A (l : list A) n d1 d2,
@@ -939,7 +996,6 @@ Lemma firstn_plusone_selN : forall A n (l : list A) def,
   -> firstn (n + 1) l = firstn n l ++ (selN l n def :: nil).
 Proof.
   induction n; destruct l; intros; simpl in *; firstorder.
-  inversion H.
   rewrite IHn with (def:=def) by omega; auto.
 Qed.
 
@@ -1012,7 +1068,6 @@ Lemma firstn_is_nil : forall A n (l : list A),
   n > 0 -> firstn n l = nil -> l = nil.
 Proof.
   induction n; destruct l; firstorder.
-  inversion H.
   simpl in H0; inversion H0.
 Qed.
 
@@ -4077,7 +4132,7 @@ Proof.
   - intuition.
     apply incl_cons.
     + specialize (H a).
-      simpl in *. intuition. exfalso; eauto.
+      simpl in *. intuition.
     + eapply IHl1; eauto.
       eapply incl_cons_inv; eauto.
 Qed.
@@ -5192,7 +5247,6 @@ Proof.
   rewrite filter_In.
   unfold inb.
   destruct in_dec; intuition.
-  congruence.
 Qed.
 
 
@@ -5252,3 +5306,135 @@ Qed.
     destruct H1; subst.
     eexists; eauto.
   Qed.
+
+  
+Lemma dedup_last_app:
+  forall A AEQ (l1 l2: list A),
+    dedup_last AEQ (l1 ++ l2) =
+    filter (fun a => negb (in_dec_b AEQ a l2)) (dedup_last AEQ l1) ++
+           dedup_last AEQ l2.
+
+Proof.
+  induction l1; simpl; intros; eauto.
+  
+  destruct (in_dec AEQ a l1);
+  destruct (in_dec AEQ a (l1 ++ l2)); eauto.
+  exfalso; apply n; eauto.
+  apply in_app_or in i; intuition eauto.
+  simpl.
+  eapply in_iff_in_dec_b in H; eauto.
+  rewrite H; simpl; eauto.
+  simpl.
+  destruct (in_dec_b AEQ a l2) eqn:D; simpl; eauto.
+  eapply in_iff_in_dec_b in D.
+  exfalso; apply n0; eauto.
+  rewrite IHl1; eauto.
+Qed.
+  
+  Lemma dedup_last_length:
+    forall A AEQ (l: list A),
+      length (dedup_last AEQ l) <= length l.
+  Proof.
+    induction l; simpl; eauto.
+    destruct (in_dec AEQ a l); simpl; eauto; omega.
+  Qed.
+  
+  Lemma dedup_by_list_length:
+    forall A AEQ B (l1: list A) (l2: list B),
+      length (dedup_by_list AEQ l1 l2) <= length l1 /\
+      length (dedup_by_list AEQ l1 l2) <= length l2.
+  Proof.
+    induction l1; destruct l2;
+    simpl; intros; try solve [split; try omega].
+    
+    specialize (IHl1 l2); destruct IHl1.
+    destruct (in_dec AEQ a l1); simpl; split; try omega.
+  Qed.
+  
+  
+  Lemma dedup_last_dedup_by_list_length_le:
+    forall A AEQ B (l1: list A) (l2: list B),
+      length l1 <= length l2 ->
+      length (dedup_last AEQ l1) =
+      length (dedup_by_list AEQ l1 l2).
+  Proof.
+    induction l1; destruct l2;
+    simpl; intros; try omega.
+    
+    destruct (in_dec AEQ a l1);
+    simpl; try solve [ exfalso; eauto];
+    try omega.
+    apply IHl1; omega.
+    specialize (IHl1 l2); omega.
+  Qed.
+  
+  Lemma dedup_last_length_not_in_tail_S:
+    forall A AEQ (l: list A) a,
+      ~In a l ->
+      length (dedup_last AEQ (l ++ [a])) = S (length (dedup_last AEQ l)).
+  Proof.
+    induction l; simpl; intros; intuition.
+    destruct (in_dec AEQ a l);
+    destruct (in_dec AEQ a (l ++ [a0]));
+    eauto; try solve [exfalso; eauto].
+    apply in_app_or in i; simpl in *; intuition eauto.
+    congruence.
+    simpl; eauto.
+  Qed.
+  
+  Lemma dedup_last_length_in_tail:
+    forall A AEQ (l: list A) a,
+      In a l ->
+      length (dedup_last AEQ (l ++ [a])) = length (dedup_last AEQ l).
+  Proof.
+    induction l; simpl; intros; intuition.
+    - subst.
+      destruct (in_dec AEQ a0 l);
+      destruct (in_dec AEQ a0 (l ++ [a0]));
+      eauto; try solve [exfalso; eauto].
+      simpl.
+      apply dedup_last_length_not_in_tail_S; eauto.
+      exfalso; apply n0;
+      apply in_or_app; simpl; eauto.
+      
+    - destruct (in_dec AEQ a l);
+      destruct (in_dec AEQ a (l ++ [a0]));
+      eauto; try solve [exfalso; eauto].
+      apply in_app_or in i; simpl in *; intuition eauto.
+      subst; exfalso; eauto.
+      simpl; eauto.
+  Qed.
+  
+  Lemma dedup_last_app_length_comm:
+    forall A AEQ (l1 l2: list A),
+      length (dedup_last AEQ (l2++l1)) =
+      length (dedup_last AEQ (l1++l2)).
+  Proof.
+    induction l1;
+    simpl; intros;
+    try rewrite app_nil_r; try omega.
+    rewrite cons_app.
+    rewrite app_assoc.
+    erewrite IHl1.
+    rewrite app_assoc.
+    
+    destruct (in_dec AEQ a (l1 ++ l2));
+    simpl; try solve [ exfalso; eauto];
+    try omega; eauto.
+    apply dedup_last_length_in_tail; eauto.
+    apply dedup_last_length_not_in_tail_S; eauto.
+  Qed.
+  
+  Lemma dedup_last_app_length:
+    forall A AEQ  (l2 l1: list A),
+      length (dedup_last AEQ l1) <=
+      length (dedup_last AEQ (l2++l1)).
+  Proof.
+    induction l2;
+    simpl; intros; try omega.
+    
+    destruct (in_dec AEQ a (l2 ++ l1));
+    simpl; try solve [ exfalso; eauto];
+    try omega; eauto.
+  Qed.
+  

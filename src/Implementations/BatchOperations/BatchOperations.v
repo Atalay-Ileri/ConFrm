@@ -1,4 +1,4 @@
-Require Import Framework CryptoDiskLayer.
+Require Import Omega Framework CryptoDiskLayer.
 
   Fixpoint write_consecutive a vl :=
   match vl with
@@ -53,3 +53,78 @@ Fixpoint hash_all h vl :=
     h'' <- hash_all h' vl';
     Ret h''
   end.
+
+
+(** Specs **)
+
+Theorem sp_write_batch:
+  forall al vl F vsl t s' x,
+    length vsl = length vl ->
+    length al = length vl ->
+    strongest_postcondition CryptoDiskLang (write_batch al vl)
+       (fun o s => fst s = x /\ (F * al |L> vsl)%predicate (snd s)) t s' ->
+    fst s' = x /\ (F * al |L> (write_all_to_set vl vsl))%predicate (snd s').
+Proof.
+  induction al; simpl; intros;
+  cleanup; simpl in *;
+  cleanup; try omega; eauto.
+  repeat (apply sp_exists_extract in H1; cleanup).
+
+  edestruct IHal; try omega; eauto.
+  eapply sp_impl; eauto.
+  simpl; intros.
+  instantiate (2:= x).
+  cleanup; intuition eauto.
+  apply sep_star_assoc.
+  eapply ptsto_upd.
+  pred_apply; cancel.
+  cleanup; intuition eauto.
+  pred_apply; cancel.
+  eapply sp_extract_precondition in H1; cleanup.
+  
+  eapply_fresh pimpl_trans in H7.
+  eapply ptsto_valid with (a:= a) in Hx; cleanup.
+  2: eauto.
+  2: cancel.
+  cleanup; eauto.
+Qed.
+  
+Theorem sp_decrypt_all:
+  forall key evl t s' F,
+    strongest_postcondition CryptoDiskLang (decrypt_all key evl)
+       (fun o s => F s) t s' ->
+    exists plain_blocks, t = plain_blocks /\ evl = map (encrypt key) plain_blocks /\ F s'.
+Proof.
+  induction evl; simpl; intros;
+  cleanup; simpl in *;
+  cleanup; try omega; eauto.
+  repeat (apply sp_exists_extract in H; cleanup).
+  edestruct IHevl.
+  eapply sp_impl; eauto.
+  simpl; intros; cleanup.  
+  instantiate (1:= F); destruct s; eauto.
+  cleanup; intuition eauto.
+  eexists; intuition eauto.
+  simpl.
+  eapply sp_extract_precondition in H; cleanup; eauto.
+Qed.
+
+Theorem sp_hash_all:
+  forall vl h t s' F x,
+    strongest_postcondition CryptoDiskLang (hash_all h vl)
+       (fun o s => fst s = x /\ F (snd s)) t s' ->
+    t = rolling_hash h vl /\
+    fst s' = fst s' /\ (** TODO: Fix this **)
+    F (snd s').
+Proof.
+  induction vl; simpl; intros;
+  cleanup; simpl in *;
+  cleanup; try omega; eauto.
+  repeat (apply sp_exists_extract in H; cleanup).
+  edestruct IHvl.
+  eapply sp_impl; eauto.
+  simpl; intros; cleanup.  
+  instantiate (1:= F); destruct s; simpl in *; eauto.
+  cleanup; intuition eauto.
+  eapply sp_extract_precondition in H; cleanup; eauto.
+Qed.

@@ -15,16 +15,19 @@ Definition start :=
   _ <- |TCCO| Put [];
   Ret tt.
 
+(** Reverses before submitting **)
 Definition commit :=
   txn <- |TCCO| Get _;
   let al := fst (split (rev txn)) in
   let vl := snd (split (rev txn)) in
-  _ <- |TCDO| Write al vl;
-  _ <- |TCCO| Delete _;
+  let dedup_al := dedup_last addr_dec al in
+  let dedup_vl := dedup_by_list addr_dec al vl in
+  _ <- |TCDO| Write dedup_al dedup_vl;
+  _ <- |TCCO| Put [];
   Ret tt.
 
 Definition abort :=
-  _ <- |TCCO| Delete _;
+  _ <- |TCCO| Put [];
   Ret tt.
 
 (* if you read out of bounds, you get 0 block *)

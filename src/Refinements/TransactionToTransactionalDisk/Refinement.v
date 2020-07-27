@@ -10,31 +10,60 @@ Notation "'refinement'" := TransactionalDiskRefinement.
 
 Section TransactionalDiskBisimulation.
 
-  Axiom exec_compiled_preserves_refinement:
-    exec_compiled_preserves_refinement refinement.
+  Lemma addrs_match_upd:
+    forall A AEQ V1 V2 (m1: @mem A AEQ V1) (m2: @mem A AEQ V2) a v,
+      addrs_match m1 m2 ->
+      m2 a <> None ->
+      addrs_match (upd m1 a v) m2.
+  Proof.
+    unfold addrs_match; intros; simpl.
+    destruct (AEQ a a0); subst;
+    [rewrite upd_eq in *
+    |rewrite upd_ne in *]; eauto.
+  Qed.
 
-  Axiom exec_preserves_refinement:
-    exec_preserves_refinement refinement.
+  Lemma cons_l_neq:
+    forall V (l:list V) v,
+      ~ v::l = l.
+  Proof.
+    induction l; simpl; intros; try congruence.
+  Qed.
 
-
-  Lemma merge_some_l:
+  Lemma mem_union_some_l:
     forall AT AEQ V (m1: @mem AT AEQ V) m2 a v,
       m1 a = Some v ->
-      merge m1 m2 a = Some v.
+      mem_union m1 m2 a = Some v.
   Proof.
-    unfold merge; simpl; intros.
+    unfold mem_union; simpl; intros.
     cleanup; eauto.
   Qed.
   
-  Lemma merge_some_r:
+  Lemma mem_union_some_r:
     forall AT AEQ V (m1: @mem AT AEQ V) m2 a,
       m1 a = None ->
-      merge m1 m2 a = m2 a.
+      mem_union m1 m2 a = m2 a.
   Proof.
-    unfold merge; simpl; intros.
+    unfold mem_union; simpl; intros.
     cleanup; eauto.
   Qed.
 
+  Lemma addrs_match_mem_union1 :
+    forall A AEQ V (m1 m2: @mem A AEQ V),
+      addrs_match m1 (mem_union m1 m2).
+  Proof.
+    unfold addrs_match; intros.
+    destruct_fresh (m1 a); try congruence.
+    erewrite mem_union_some_l; eauto.
+  Qed.
+
+  Lemma addrs_match_empty_mem:
+    forall A AEQ V1 V2 (m: @mem A AEQ V1),
+      addrs_match (@empty_mem A AEQ V2) m.
+  Proof.
+    unfold addrs_match, empty_mem;
+    simpl; intros; congruence.
+  Qed.
+  
   Lemma apply_list_app:
     forall A AEQ V  l l' (m: @mem A AEQ V), 
       apply_list m (l++l') =
@@ -64,21 +93,474 @@ Section TransactionalDiskBisimulation.
     unfold empty_mem; simpl; congruence.
   Qed.
 
-  (*
-  Lemma refines_to_upd:
-    forall s1 s2 a vl,
-      fst s1 <> None ->
-      refines_to s1 s2 ->
-      refines_to (option_map (fun l : list (addr * value) => (a, vl) :: l) (fst s1), snd s1)
-                 (upd (fst s2) a vl, snd s2).
+  Lemma apply_list_in:
+    forall A AEQ V (l: list (A * V)) (m: @mem A AEQ V) a v,
+      In a (map fst l) ->
+      apply_list (upd m a v) l = apply_list m l.
   Proof.
-    unfold refines_to; intros;
-    cleanup; simpl in *; intuition.
-    destruct (fst s1); simpl in *; try congruence.
-    rewrite apply_list_app; simpl. eauto.
+    induction l; intros; simpl in *; intuition.
+    cleanup.
+    rewrite upd_repeat; eauto.
+    simpl.
+    destruct (AEQ a0 a1); subst.
+    rewrite upd_repeat; eauto.
+    rewrite upd_comm; eauto.
   Qed.
-   *)
+
+  Lemma mem_union_upd_batch_eq:
+    forall A AEQ V (l: list (A * V)) (m m1: @mem A AEQ V),
+      mem_union (apply_list m1 l) m =
+      upd_batch (mem_union m1 m) (dedup_last AEQ (map fst l))
+                (dedup_by_list AEQ (map fst l) (map snd l)).
+  Proof.
+    induction l; simpl; intros; eauto.
+    destruct a; simpl.
+    destruct (in_dec AEQ a (map fst l)); eauto.
+    rewrite apply_list_in; eauto.
+    simpl; eauto.
+    rewrite <- mem_union_upd; eauto.
+  Qed.
+
+  Lemma upd_batch_none:
+    forall A AEQ V (l1: list A) l2 (m: @mem A AEQ V) a,
+      upd_batch m l1 l2 a = None ->
+      m a = None.
+  Proof.
+    induction l1; simpl; intros; eauto.
+    destruct l2; eauto.
+    apply IHl1 in H.
+    destruct (AEQ a a0); subst.
+    rewrite upd_eq in *; eauto; congruence.
+    rewrite upd_ne in *; eauto.
+  Qed.
+
   
+  Lemma dedup_last_in:
+    forall A AEQ (l: list A) a,
+      In a l <-> In a (dedup_last AEQ l).
+  Proof.
+    induction l; simpl; intros; try tauto.
+    destruct (AEQ a a0); subst; split; intros; eauto.
+    destruct (in_dec AEQ a0 l); simpl; eauto.
+    apply IHl; eauto.
+    intuition.
+    destruct (in_dec AEQ a l); simpl; intuition eauto.
+    apply IHl; eauto.
+    right; apply IHl; eauto.
+
+    right; destruct (in_dec AEQ a l); intuition eauto.
+    apply IHl; eauto.
+    inversion H; intuition.
+    apply IHl; eauto.
+  Qed.
+  
+  Lemma dedup_last_NoDup:
+    forall A AEQ (l: list A),
+      NoDup (dedup_last AEQ l).
+  Proof.
+    induction l; simpl; intros; try constructor.
+    destruct (in_dec AEQ a l); eauto.
+    constructor; eauto.
+    intuition.
+    apply dedup_last_in in H; eauto.
+  Qed.
+
+  Lemma apply_list_in_not_none:
+    forall A AEQ V (l: list (A * V)) (m: @mem A AEQ V) a, 
+      In a (dedup_last AEQ (map fst (rev l))) ->
+      apply_list m (rev l) a <> None.
+  Proof.
+    induction l; simpl; intros; eauto.
+    rewrite map_app in *.
+    rewrite apply_list_app; simpl in *.
+    destruct a; simpl in *.
+    destruct (AEQ a a0).
+    rewrite upd_eq; eauto; congruence.
+    rewrite upd_ne; eauto.
+    apply dedup_last_in in H.
+    apply IHl.
+    apply dedup_last_in.
+    apply in_app_or in H; simpl in *; intuition eauto.
+  Qed.
+              
+  
+  Theorem exec_compiled_preserves_refinement:
+    exec_compiled_preserves_refinement refinement.
+  Proof.
+    unfold exec_compiled_preserves_refinement.
+    induction p2; simpl; intros; cleanup.
+     { (** Op p **)
+       destruct p; simpl in *.
+      
+       { (** Start **)
+         repeat match goal with
+          |[H: exec _ _ _ _ _ |- _ ] =>
+           inversion H; cleanup; clear H
+          |[H: Language.exec' _ _ _ _ |- _ ] =>
+           inversion H; cleanup; clear H
+          |[H: Operation.exec _ _ _ _ _ |- _ ] =>
+           inversion H; cleanup; clear H
+          end;
+         cleanup;
+         simpl; eauto.
+         
+         exists (empty_mem, snd x).
+         unfold refines_to in *; simpl; cleanup;
+         eexists; simpl; intuition eauto.
+         simpl; apply addrs_match_empty_mem. 
+         
+         exists (empty_mem, snd x).
+         unfold refines_to in *; simpl; cleanup;
+         eexists; intuition eauto.
+         simpl; apply addrs_match_empty_mem.
+      }
+       { (** Read **)
+         unfold read in *.
+         cleanup; repeat invert_exec;
+         simpl; eauto;
+         try split_ors; repeat cleanup;
+         repeat (
+             match goal with
+             |[H: exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Language.exec' _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Operation.exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             end;
+             cleanup;
+             simpl; eauto).
+      }
+       { (** Write **)
+         unfold write in *;
+         cleanup; repeat invert_exec;
+         simpl; eauto;
+         try split_ors; repeat cleanup;
+         repeat (
+             match goal with
+             |[H: exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Language.exec' _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Operation.exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             end;
+             cleanup;
+             simpl; eauto).
+
+         unfold refines_to in *; simpl; cleanup;
+         intuition eauto.
+         
+        exists (upd (fst x) a v, snd x).
+        eexists; intuition eauto.
+        simpl.
+        rewrite apply_list_app; simpl.
+        setoid_rewrite H0; eauto.
+        simpl; rewrite apply_list_app; simpl.
+        apply addrs_match_upd; eauto.
+
+        unfold refines_to in *; simpl; cleanup;
+        intuition eauto.
+         
+        exists (upd (fst x) a v, snd x).
+        eexists; intuition eauto.
+        simpl.
+        rewrite apply_list_app; simpl.
+        setoid_rewrite H0; eauto.
+        simpl; rewrite apply_list_app; simpl.
+        apply addrs_match_upd; eauto.      
+      }
+       { (** Commit **)
+         unfold commit in *;
+         cleanup; repeat invert_exec;
+         simpl; eauto;
+         try split_ors; repeat cleanup;
+         repeat (
+             match goal with
+             |[H: exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Language.exec' _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Operation.exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             end;
+             cleanup;
+             simpl; eauto).
+         
+        - unfold refines_to in *; simpl; cleanup;
+          intuition eauto.
+          exists (empty_mem, mem_union (fst x) (snd x)).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+          simpl.
+          rewrite H0, H2.
+          repeat rewrite <- map_fst_split.
+          repeat rewrite <- map_snd_split.
+          apply mem_union_upd_batch_eq.
+          simpl in *.
+          apply upd_batch_none in H5; eauto.
+
+        - unfold refines_to in *; simpl; cleanup;
+          intuition eauto.
+          exists (empty_mem, snd x).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+
+          exfalso; eapply H5.
+          apply dedup_last_dedup_by_list_length_le.
+          repeat rewrite <- map_fst_split.
+          repeat rewrite <- map_snd_split.
+          repeat rewrite map_length; eauto.
+
+          simpl in *; cleanup.
+          exists (empty_mem, snd x).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+
+        - unfold refines_to in *; simpl; cleanup;
+          intuition eauto.
+          exists (empty_mem, mem_union (fst x) (snd x)).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+          simpl.
+          rewrite H0, H2.
+          repeat rewrite <- map_fst_split.
+          repeat rewrite <- map_snd_split.
+          apply mem_union_upd_batch_eq.
+          apply upd_batch_none in H5; eauto.
+
+        - unfold refines_to in *; simpl; cleanup;
+          intuition eauto.
+          exists (empty_mem, snd x).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+
+          exfalso; eapply H5.
+          apply dedup_last_dedup_by_list_length_le.
+          repeat rewrite <- map_fst_split.
+          repeat rewrite <- map_snd_split.
+          repeat rewrite map_length; eauto.
+
+          exists (empty_mem, snd x).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+
+        - unfold refines_to in *; simpl; cleanup;
+          intuition eauto.
+          exists (fst x, mem_union (fst x) (snd x)).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+          eapply H1; eauto.
+          eapply upd_batch_none; eauto.
+          simpl; rewrite H0, H2.
+          repeat rewrite <- map_fst_split.
+          repeat rewrite <- map_snd_split.
+          apply mem_union_upd_batch_eq.          
+          apply upd_batch_none in H5; eauto.
+
+        - unfold refines_to in *; simpl; cleanup;
+          intuition eauto.
+          exists (fst x, mem_union (fst x) (snd x)).
+          eexists; intuition eauto.
+          simpl.
+          unfold addrs_match in *; intuition eauto; simpl in *.
+          eapply H1; eauto.
+          eapply upd_batch_none; eauto.
+          simpl; rewrite H0, H2.
+          repeat rewrite <- map_fst_split.
+          repeat rewrite <- map_snd_split.
+          apply mem_union_upd_batch_eq.
+          apply upd_batch_none in H6; eauto.
+          
+       }
+       { (** Abort **)
+         unfold abort in *;
+         cleanup; repeat invert_exec;
+         simpl; eauto;
+         try split_ors; repeat cleanup;
+         repeat (
+             match goal with
+             |[H: exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Language.exec' _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             |[H: Operation.exec _ _ _ _ _ |- _ ] =>
+              inversion H; cleanup; clear H
+             end;
+             cleanup;
+             simpl; eauto).
+         
+        exists (empty_mem, snd x).
+        unfold refines_to in *; simpl; cleanup;
+        eexists; intuition eauto.        
+        unfold addrs_match; intuition eauto.
+
+        exists (empty_mem, snd x).
+        unfold refines_to in *; simpl; cleanup;
+        eexists; intuition eauto.        
+        unfold addrs_match; intuition eauto.
+      }
+    }
+    {(** Ret **)
+      repeat invert_exec;
+      cleanup;
+      simpl; eauto.
+    }
+    {(** Bind **)
+      repeat invert_exec;
+      cleanup;
+      simpl in *; eauto.
+
+      {(** Finished **)
+        edestruct IHp2; eauto; simpl in *.
+        edestruct H; eauto; simpl in *.
+      }
+      {(** Crashed **)
+        split_ors; cleanup.
+        - edestruct IHp2; eauto; simpl in *.
+
+        - edestruct IHp2; eauto; simpl in *.
+          edestruct H; eauto; simpl in *.
+      }
+    }
+  Qed.
+    
+
+  Theorem exec_preserves_refinement:
+    exec_preserves_refinement refinement.
+  Proof.
+    unfold exec_preserves_refinement.
+    induction p; simpl; intros; cleanup.
+    { (** Op p **)
+      destruct p; simpl in *;
+      repeat invert_exec;
+      cleanup;
+      try match goal with
+          |[H: exec' _ _ _ _ _ |- _ ] =>
+           inversion H
+          end;
+      cleanup;
+      simpl; eauto.
+      { (** Start **)
+        exists (Some [], snd x).
+        unfold refines_to in *; simpl; cleanup;
+        eexists; intuition eauto.
+        
+        unfold addrs_match; intuition eauto.
+      }
+      { (** Start **)
+        exists (Some [], snd x).
+        unfold refines_to in *; simpl; cleanup;
+        eexists; intuition eauto.        
+        unfold addrs_match; intuition eauto.
+      }
+      { (** Write **)
+        unfold refines_to in *; simpl; cleanup;
+        intuition eauto.
+
+        exists (Some ((a,v)::x0), snd x).
+        eexists; intuition eauto.
+        simpl.
+        rewrite apply_list_app; simpl.
+        setoid_rewrite H0; eauto.
+        simpl; rewrite apply_list_app; simpl.
+        unfold addrs_match in *; intuition eauto; simpl in *.
+        destruct (addr_dec a a0); subst; cleanup; eauto.
+        rewrite upd_ne in H4; eauto.
+      }
+      { (** Write **)
+        unfold refines_to in *; simpl; cleanup;
+        intuition eauto.
+
+        exists (Some ((a,v)::x0), snd x).
+        eexists; intuition eauto.
+        simpl.
+        rewrite apply_list_app; simpl.
+        setoid_rewrite H1; eauto.
+        simpl; rewrite apply_list_app; simpl.
+        unfold addrs_match in *; intuition eauto; simpl in *.
+        destruct (addr_dec a a0); subst; cleanup; eauto.
+        rewrite upd_ne in H5; eauto.
+      }
+      { (** Commit **)
+        unfold refines_to in *; simpl; cleanup;
+        intuition eauto.
+
+        exists (Some [], mem_union (apply_list empty_mem (rev x0)) (snd x)).
+        eexists; intuition eauto.
+        simpl; apply addrs_match_empty_mem.
+        simpl in *; eauto.
+        apply mem_union_none_sel in H5; cleanup; eauto.
+      }
+      { (** Commit **)
+        unfold refines_to in *; simpl; cleanup;
+        intuition eauto.
+
+        exists (Some [], mem_union (apply_list empty_mem (rev x0)) (snd x)).
+        eexists; intuition eauto.
+        simpl;  apply addrs_match_empty_mem.
+        simpl in *; eauto.
+        apply mem_union_none_sel in H6; cleanup; eauto.
+      }
+      { (** Commit **)
+        unfold refines_to in *; simpl; cleanup;
+        intuition eauto.
+
+        exists (Some x0, mem_union (apply_list empty_mem (rev x0)) (snd x)).
+        eexists; intuition eauto.
+        simpl.
+        unfold addrs_match in *; intuition eauto; simpl in *.
+        destruct_fresh (apply_list empty_mem (rev x0) a); try congruence.
+        erewrite mem_union_some_l in H6; eauto; congruence.
+        simpl in *; eauto.
+        apply mem_union_none_sel in H6; cleanup; eauto.
+      }
+      
+      { (** Abort **)
+        exists (Some [], snd x).
+        unfold refines_to in *; simpl; cleanup;
+        eexists; intuition eauto.
+        unfold addrs_match; intuition eauto.
+      }
+      { (** Abort **)
+        exists (Some [], snd x).
+        unfold refines_to in *; simpl; cleanup;
+        eexists; intuition eauto.
+        unfold addrs_match; intuition eauto.
+      }
+    }
+    {(** Ret **)
+      repeat invert_exec;
+      cleanup;
+      simpl; eauto.
+    }
+    {(** Bind **)
+      repeat invert_exec;
+      cleanup;
+      simpl; eauto.
+
+      {(** Finished **)
+        edestruct IHp; eauto; simpl in *.
+        edestruct H; eauto; simpl in *.
+      }
+      {(** Crashed **)
+        split_ors; cleanup.
+        - edestruct IHp; eauto; simpl in *.
+
+        - edestruct IHp; eauto; simpl in *.
+          edestruct H; eauto; simpl in *.
+      }
+    }
+  Qed.
+  
+  (** w(c)p and s(c)p implications **)
   Lemma wp_low_to_high_read :
     forall a,
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Read a|).
@@ -96,17 +578,10 @@ Section TransactionalDiskBisimulation.
     destruct s1; simpl in *; cleanup.
     unfold read in *; repeat (simpl in *; cleanup);
     try rewrite apply_list_get_latest_eq in D1; eauto;
-    try solve [left; intuition eauto; eexists; intuition eauto ];
+    try solve [left; intuition eauto; repeat (eexists; intuition eauto) ];
     try solve [right; intuition eauto; omega ].
-
-    clear H.
-    unfold read in *; simpl in *; cleanup.
-    simpl in *; cleanup.
-    simpl in *; cleanup.
-    simpl in *; cleanup.
-    simpl in *; cleanup.
     right; intuition eauto; try omega.
-    inversion H2; eauto.
+    repeat (eexists; intuition eauto).
   Qed.
 
   Lemma wp_high_to_low_read :
@@ -115,54 +590,104 @@ Section TransactionalDiskBisimulation.
   Proof.
     unfold wp_high_to_low_prog'; intros; cleanup.
     simpl in *; cleanup.
-    repeat invert_exec; cleanup.
-    destruct H3; try solve [cleanup; split_ors; cleanup ].
+    repeat (invert_exec; repeat cleanup).
+    destruct H3; try solve [cleanup; repeat split_ors; cleanup ].
+    
     cleanup.
     eapply exec_to_wp; eauto; simpl.
     split; eauto.
-    repeat (split_ors; cleanup).
-    eapply exec_to_sp with (P := fun o s => refines_to s s2') in H; eauto.
+    repeat (split_ors; cleanup); try congruence; try omega;
+    eapply exec_to_sp with (P := fun o s => refines_to s s2') in H;
+    unfold read in H; repeat (simpl in *; cleanup); eauto; try omega; try congruence.
     
-    rewrite apply_list_get_latest_eq in H; cleanup; simpl in *; cleanup;
+    rewrite apply_list_get_latest_eq in D0; cleanup; simpl in *; cleanup;
     unfold refines_to in H; simpl in *; cleanup;    
     repeat split_ors; cleanup; eauto;
     try setoid_rewrite H2 in D; cleanup; eauto.
-    try setoid_rewrite H3 in D; cleanup; eauto.
+
+    rewrite apply_list_get_latest_eq in D0; cleanup; simpl in *; cleanup;
+    unfold refines_to in H; simpl in *; cleanup;    
+    repeat split_ors; cleanup; eauto;
+    try setoid_rewrite H2 in D; cleanup; eauto.
+
+    setoid_rewrite H2 in H1;
+    cleanup.
+    setoid_rewrite H2 in H1;
+    cleanup.
+
+    setoid_rewrite H3 in H1;
+    cleanup.
+    setoid_rewrite H3 in H1;
+    cleanup.
+
+    rewrite apply_list_get_latest_eq in D0; cleanup; simpl in *; cleanup;
+    unfold refines_to in H; simpl in *; cleanup;    
+    repeat split_ors; cleanup; eauto;
+    try setoid_rewrite H2 in D; cleanup; eauto.
+
+    rewrite apply_list_get_latest_eq in D0; cleanup; simpl in *; cleanup;
+    unfold refines_to in H; simpl in *; cleanup;    
+    repeat split_ors; cleanup; eauto;
+    try setoid_rewrite H2 in D; cleanup; eauto.
+
+    repeat (split_ors; cleanup); try omega.
+    eapply exec_to_wp; eauto; simpl.
+    split; eauto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2') in H;
+    unfold read in H; repeat (simpl in *; cleanup); eauto; try omega; try congruence.
   Qed.
 
+ 
   Lemma wcp_low_to_high_read :
     forall a,
     wcp_low_to_high_prog' _ _ _ _ refinement _ (|Read a|).
   Proof.
-    unfold wcp_low_to_high_prog'; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; subst.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    unfold wcp_low_to_high_prog'; intros; cleanup.
+    simpl in H, H0, H1, H2; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H1; eauto; cleanup.
 
     split_ors; cleanup; eauto.
+    eapply exec_to_scp with (P:= fun o s => refines_to s s2 /\ s = s1 /\ o = o1) in H2; eauto.
+    clear H.
+    unfold read in *;
+    repeat (try split_ors; repeat cleanup; simpl in * ); try omega;
+    try solve [try (inversion H; clear H; cleanup);
+    eexists; intuition eauto].
     eexists; intuition eauto.
-    - right; intuition eauto.
-      unfold refines_to in *; cleanup;
-      setoid_rewrite H2 in D; cleanup.
-      rewrite <- apply_list_get_latest_eq; eauto.
-    - right; intuition eauto.
-      unfold refines_to in *; cleanup;
-      setoid_rewrite H2 in D; cleanup.
-      rewrite <- apply_list_get_latest_eq; eauto.
-  Qed.
 
+    eapply exec_to_scp with (P:= fun o s => refines_to s s2 /\ s = s1 /\ o = o1) in H2; eauto.
+    clear H.
+    unfold read in *;
+    repeat (try split_ors; repeat cleanup; simpl in * ); try omega;
+
+    try solve [
+          try (inversion H1; clear H1; cleanup);
+          eexists; intuition eauto;
+          right; left; intuition eauto;
+          try destruct s1; simpl in *; cleanup;
+          unfold refines_to in *; simpl in *; cleanup;
+          match goal with
+            |[H: get_latest _ _ = _ |- _ ] =>
+             rewrite apply_list_get_latest_eq in H
+          end;
+          eexists; eauto ];
+    try solve [
+          eexists; intuition eauto;
+          right; right; intuition eauto; omega].
+Qed.
+  
   Lemma wcp_high_to_low_read :
     forall a,
     wcp_high_to_low_prog' _ _ _ _ refinement _ (|Read a|).
   Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
+    unfold wcp_high_to_low_prog'; simpl; intros; cleanup.
     repeat (split_ors; cleanup);
     repeat invert_exec;
     cleanup;
     repeat match goal with
     | [H: Operation.exec _ _ _ _ _ |- _ ] =>
       inversion H; clear H; cleanup
-    | [H: exec' _ _ _ _ |- _ ] =>
+    | [H: exec' _ _ _ _ _ |- _ ] =>
       inversion H; clear H; cleanup
     end;
     eapply exec_to_wcp; eauto.
@@ -172,34 +697,99 @@ Section TransactionalDiskBisimulation.
     forall a vl,
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Write a vl|).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
+    unfold wp_low_to_high_prog'; simpl; intros; cleanup.
+    apply wp_to_exec in H; cleanup.
+    eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H2; eauto.
     unfold write in *.
-    simpl in *; cleanup.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H1 H17; unfold refines_to in *; simpl in *; cleanup.
-    rewrite apply_list_app; eauto.
-  Qed.
+    repeat (simpl in *; cleanup).
+    
+    - eexists; intuition eauto; cleanup.
+      left; simpl in *; intuition eauto.
+      unfold refines_to in *; simpl in *; cleanup; intuition eauto.
+      unfold refines_to in *; simpl in *; cleanup.
+      eexists; intuition eauto.
+      simpl; rewrite apply_list_app; eauto.
+      omega.
+      right; left; intuition eauto.      
+      unfold refines_to in *; simpl in *; cleanup; intuition eauto.
+
+    - eexists; intuition eauto; cleanup.
+      simpl in *.
+      left; intuition eauto.      
+      unfold refines_to in *; simpl in *; cleanup; intuition eauto.
+      unfold refines_to in *; simpl in *; cleanup; intuition eauto.      
+      simpl in *; cleanup.
+      simpl in *.
+      eexists; intuition eauto.
+      simpl.
+      rewrite apply_list_app; simpl.
+      apply upd_repeat.
+      omega.
+      right; left; intuition eauto.
+      unfold refines_to in *; simpl in *; cleanup; intuition eauto.
+
+    - eexists; intuition eauto; cleanup; try omega.
+Qed.
 
   Lemma wp_high_to_low_write :
     forall a vl,
     wp_high_to_low_prog' _ _ _ _ refinement _ (|Write a vl|).
   Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    repeat invert_exec; cleanup.
-    repeat (split_ors; cleanup).
-    eapply exec_to_wp; simpl; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    unfold write in *.
+    unfold wp_high_to_low_prog'; simpl; intros; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s1 s /\ s = s2 /\ o = [OpOracle (TransactionalDiskOperation data_length) x]) in H2; eauto.
     simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H1; unfold refines_to in *; simpl in *; cleanup.
-    rewrite apply_list_app; eauto.
-    rewrite <- H1 at 1; rewrite apply_list_app; simpl; eauto.
+    
+
+    repeat (split_ors; cleanup); try omega.
+    - eapply exec_to_wp; simpl; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H; eauto.
+      unfold write in *.
+      repeat (simpl in *; cleanup; try omega).
+      unfold refines_to in *; simpl in *; cleanup.
+      split; auto.
+      
+      destruct s1; simpl in *; cleanup.
+      eexists; intuition eauto.
+      simpl in *; cleanup.
+      rewrite apply_list_app; simpl; eauto.
+      simpl in *; cleanup.
+      rewrite apply_list_app; simpl; eauto.
+      unfold addrs_match in *; intros.
+      destruct (addr_dec a a0); subst; eauto.
+      rewrite upd_ne in H; eauto.
+      
+      destruct s1; simpl in *; cleanup.
+      simpl in *; cleanup.
+      exfalso; eapply cons_l_neq; eauto.
+
+    - eapply exec_to_wp; simpl; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1 /\ o = o1) in H; eauto.
+      unfold write in *.
+      repeat (simpl in *; cleanup; try omega).
+      
+      unfold refines_to in *; simpl in *; cleanup.
+      split; auto.
+      destruct s1; simpl in *.
+      inversion H11; subst; clear H11.
+      inversion H3; subst; clear H3.
+      symmetry in H2; exfalso; eapply cons_l_neq; eauto.
+      
+      destruct s1; simpl in *; cleanup.
+      unfold refines_to in *; simpl in *; cleanup.
+      split; auto.
+      eexists; intuition eauto.
+
+    - eapply exec_to_wp; simpl; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H; eauto.
+      unfold write in *.
+      repeat (simpl in *; cleanup; try omega).
+            
+      destruct s1; simpl in *; cleanup.
+      unfold refines_to in *; simpl in *; cleanup.
+      split; auto.
+      eexists; intuition eauto.
   Qed.
 
   
@@ -207,241 +797,338 @@ Section TransactionalDiskBisimulation.
     forall a vl,
     wcp_low_to_high_prog' _ _ _ _ refinement _ (|Write a vl|).
   Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
+    unfold wcp_low_to_high_prog'; simpl; intros; cleanup.
+    eapply wcp_to_exec in H; cleanup.
+    eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
     split_ors; cleanup;
     eexists; intuition eauto.
 
     right; intuition eauto.
-    apply refines_to_upd; eauto.
+    eapply exec_to_scp with (P := fun o s => refines_to s s2 /\ s = s1 /\ o = o1) in H2; eauto.
+    unfold write in *;
+    repeat (simpl in *; cleanup; try split_ors);
+    try (inversion H; cleanup; clear H);
+    destruct s1; simpl in *; cleanup; simpl in *; eauto;
+    try (destruct s; simpl in *; try congruence);
+    try solve [cleanup; exfalso; eapply cons_l_neq; eauto].
+    cleanup.
+    left; intuition eauto.
+    unfold refines_to in *; simpl in *; cleanup; intuition eauto.
+
+    unfold refines_to in *; simpl in *; cleanup.
+    eexists; intuition eauto.
+    simpl; rewrite apply_list_app; simpl; eauto.
   Qed.
 
   Lemma wcp_high_to_low_write :
     forall a vl,
     wcp_high_to_low_prog' _ _ _ _ refinement _ (|Write a vl|).
   Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
+    unfold wcp_high_to_low_prog'; simpl; intros; cleanup.
     repeat split_ors; cleanup; repeat invert_exec;
     try inversion H8; try clear H8; cleanup;
     try inversion H9; try clear H9; cleanup;
-    eapply exec_to_wcp; eauto.
-    - split_ors; cleanup; eauto.
+    eapply exec_to_wcp; eauto;
+    repeat (split_ors; cleanup); eauto;
+    
+    repeat invert_exec;
+    repeat match goal with
+           | [H: Operation.exec _ _ _ _ _ |- _ ] =>
+             inversion H; clear H; cleanup
+           | [H: exec' _ _ _ _ _ |- _ ] =>
+             inversion H; clear H; cleanup
+           end; try omega.
+    
+    unfold refines_to in *; simpl in *; cleanup.
+    eexists; intuition eauto.
+    simpl; rewrite apply_list_app; simpl; eauto.
+    setoid_rewrite H2; eauto.
+    simpl in *; cleanup.
+    rewrite apply_list_app; simpl; eauto.
+    apply addrs_match_upd; eauto.
       
-    - split_ors; cleanup; eauto.
-      repeat invert_exec;
-      repeat match goal with
-             | [H: Operation.exec _ _ _ _ _ |- _ ] =>
-               inversion H; clear H; cleanup
-             | [H: exec' _ _ _ _ |- _ ] =>
-               inversion H; clear H; cleanup
-             end.
-      eapply refines_to_upd; eauto.
+
+    -
+      eapply exec_to_scp with (P := fun o s => refines_to s s2' /\ s = s1 /\ o = o1) in H; eauto.
+      unfold write in *;
+      repeat (simpl in *; cleanup; try split_ors);
+      try (inversion H; cleanup; clear H);
+      destruct s1; simpl in *; cleanup; simpl in *; eauto;
+      try (destruct s; simpl in *; try congruence);
+      try solve [cleanup; exfalso; eapply cons_l_neq; eauto].
+      omega.
+      Unshelve.
+      all: eauto.
   Qed.
 
   Lemma wp_low_to_high_start :
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Start|).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
+    unfold wp_low_to_high_prog'; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H; eauto.
     simpl in *; cleanup.
     eexists; intuition eauto.
-    clear H0 H9.
     unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl; eauto.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   Lemma wp_high_to_low_start :
     wp_high_to_low_prog' _ _ _ _ refinement _ (|Start|).
   Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
+    unfold wp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H0, H1; cleanup.
     repeat (split_ors; cleanup).
 
     repeat invert_exec; cleanup.    
     eapply exec_to_wp; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H H5.
+    destruct x0; simpl; split; auto.
     unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   Lemma wcp_low_to_high_start :
     wcp_low_to_high_prog' _ _ _ _ refinement _ (|Start|).
   Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup; eauto.
+    unfold wcp_low_to_high_prog'; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    repeat (split_ors; cleanup; eauto);
+    inversion H3; clear H3; cleanup; eauto;
     eexists; intuition eauto.
-    right; unfold refines_to in *; cleanup; eauto.
+    right; split; eauto.    
+    unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
+    right; split; eauto.    
+    unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   Lemma wcp_high_to_low_start :
     wcp_high_to_low_prog' _ _ _ _ refinement _ (|Start|).
   Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
+    unfold wcp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H0, H1, H2; cleanup.
+    repeat (split_ors; cleanup);
+    repeat invert_exec; cleanup;
     eapply exec_to_wcp; eauto.
-    split_ors; cleanup.
-    repeat invert_exec; eauto.
-    repeat invert_exec; eauto.
-    cleanup.
+
     repeat
       match goal with
       | [H: Operation.exec _ _ _ _ _ |- _ ] =>
         inversion H; clear H; cleanup
-      | [H: exec' _ _ _ _ |- _ ] =>
+      | [H: exec' _ _ _ _ _ |- _ ] =>
         inversion H; clear H; cleanup
       end.
-    unfold refines_to in *; cleanup; eauto.
+
+    simpl; unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   
   Lemma wp_low_to_high_abort :
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Abort|).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
+     unfold wp_low_to_high_prog'; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H; eauto.
     simpl in *; cleanup.
     eexists; intuition eauto.
-    clear H1 H9.
-    unfold refines_to in *; simpl in *; cleanup; eauto.
+    unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl; eauto.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   Lemma wp_high_to_low_abort :
     wp_high_to_low_prog' _ _ _ _ refinement _ (|Abort|).
   Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
+    unfold wp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H0, H1; cleanup.
     repeat (split_ors; cleanup).
 
     repeat invert_exec; cleanup.    
     eapply exec_to_wp; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    simpl in *; cleanup.
+    destruct x0; simpl; split; auto.
+    unfold refines_to in *; cleanup; eauto.
     eexists; intuition eauto.
-    clear H1 H5.
-    unfold refines_to in *; simpl; cleanup; eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   Lemma wcp_low_to_high_abort :
     wcp_low_to_high_prog' _ _ _ _ refinement _ (|Abort|).
   Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup; eauto.
+    unfold wcp_low_to_high_prog'; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    repeat (split_ors; cleanup; eauto);
+    inversion H3; clear H3; cleanup; eauto;
     eexists; intuition eauto.
-    right; unfold refines_to in *; cleanup; eauto.
+    right; split; eauto.    
+    unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
+    right; split; eauto.    
+    unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   Lemma wcp_high_to_low_abort :
     wcp_high_to_low_prog' _ _ _ _ refinement _ (|Abort|).
   Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
+    unfold wcp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H0, H1, H2; cleanup.
+    repeat (split_ors; cleanup);
+    repeat invert_exec; cleanup;
     eapply exec_to_wcp; eauto.
-    split_ors; cleanup.
-    repeat invert_exec; eauto.
-    repeat invert_exec; eauto.
-    cleanup.
+
     repeat
       match goal with
       | [H: Operation.exec _ _ _ _ _ |- _ ] =>
         inversion H; clear H; cleanup
-      | [H: exec' _ _ _ _ |- _ ] =>
+      | [H: exec' _ _ _ _ _ |- _ ] =>
         inversion H; clear H; cleanup
       end.
-    unfold refines_to in *; cleanup; eauto.
+
+    simpl; unfold refines_to in *; cleanup; eauto.
+    eexists; intuition eauto.
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
   Qed.
 
   
   Lemma wp_low_to_high_commit :
     wp_low_to_high_prog' _ _ _ _ refinement _ (|Commit|).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
+    unfold wp_low_to_high_prog'; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H; eauto.
     simpl in *; cleanup.
-    eexists; intuition eauto.    
-    unfold refines_to; simpl; cleanup; eauto.
-    intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H14 in D; cleanup.
-    rewrite <- H7; eauto.
+    eexists; repeat (split; eauto); simpl in *;
+    unfold refines_to in *; simpl in *; cleanup; eauto.
+    eexists; repeat (split; eauto).
+    simpl; eauto.
+    apply addrs_match_empty_mem.
+    unfold not in *; intros.
+    apply mem_union_none_sel in H2.
+    cleanup; eauto.
   Qed.
 
   Lemma wp_high_to_low_commit :
     wp_high_to_low_prog' _ _ _ _ refinement _ (|Commit|).
   Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
+    unfold wp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H0, H1; cleanup.
     repeat (split_ors; cleanup).
 
     repeat invert_exec; cleanup.    
     eapply exec_to_wp; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    unfold refines_to; simpl; cleanup; eauto.
-    intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H2 in D; cleanup.
-    rewrite <- H7; eauto.
+    destruct x0; simpl; split; auto.
+    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1) in H; eauto.
+    simpl in *; cleanup; simpl in *.
+    unfold refines_to in *; cleanup; eauto.
+    eexists; repeat (split; eauto).
+    simpl.
+    unfold addrs_match; intros.
+    unfold empty_mem in *; simpl in *; congruence.
+    simpl in *.
+    inversion H; subst; eauto.
+    simpl; unfold not in *; intros.
+    apply mem_union_none_sel in H11.
+    cleanup; eauto.
   Qed.
 
   Lemma wcp_low_to_high_commit :
     wcp_low_to_high_prog' _ _ _ _ refinement _ (|Commit|).
   Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup; eauto.
-    eexists; intuition eauto.
-    right; intuition eauto.
-    unfold refines_to; simpl; cleanup; eauto.
-    intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H2 in D; cleanup; eauto.
+    unfold wcp_low_to_high_prog'; simpl; intros; cleanup.
+    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H2; eauto; cleanup.
+    unfold refines_to in *; simpl in *; cleanup.
+    repeat (split_ors; cleanup; eauto);
+    try (inversion H6; clear H6; simpl in *; cleanup); eauto;
+    eexists; repeat (split; eauto);
+    try solve [left; split; eauto; eexists; eauto;
+               unfold not in *; intros; eauto];
+    try solve [ right; left; split; eauto;
+                eexists; intuition eauto;
+                try apply addrs_match_mem_union1;
+                unfold not in *; simpl in *; intros; eauto;
+                match goal with
+                |[H: mem_union _ _ _ = None |- _] =>
+                 apply mem_union_none_sel in H
+                end; cleanup; eauto];
+    try solve [right; right; split; eauto;
+               eexists; intuition eauto;
+               simpl; try apply addrs_match_empty_mem;
+               unfold not in *; simpl in *; intros; eauto;
+               match goal with
+                |[H: mem_union _ _ _ = None |- _] =>
+                 apply mem_union_none_sel in H
+               end; cleanup; eauto].
   Qed.
 
   Lemma wcp_high_to_low_commit :
     wcp_high_to_low_prog' _ _ _ _ refinement _ (|Commit|).
   Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
+    unfold wcp_high_to_low_prog'; intros; cleanup.
+    simpl in H, H0, H1, H2; cleanup.
+    repeat (split_ors; cleanup);
+    repeat invert_exec; cleanup;
     eapply exec_to_wcp; eauto.
-    split_ors; cleanup.
-    repeat invert_exec; eauto.
-    repeat invert_exec; eauto.
-    cleanup.
+
     repeat
       match goal with
       | [H: Operation.exec _ _ _ _ _ |- _ ] =>
         inversion H; clear H; cleanup
-      | [H: exec' _ _ _ _ |- _ ] =>
+      | [H: exec' _ _ _ _ _ |- _ ] =>
         inversion H; clear H; cleanup
       end.
-    unfold refines_to; simpl; cleanup; eauto.
-    clear H4; intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H2 in D; cleanup; eauto.
+
+    eapply exec_to_scp with (P:= fun o s => refines_to s s2 /\ s = s1) in H; eauto.
+    simpl in *; cleanup.
+    repeat (try split_ors; cleanup; simpl in *);
+            try (inversion H; clear H; cleanup);
+            try (destruct s1; simpl in *; cleanup);
+            
+    simpl in *; unfold refines_to in *; cleanup; simpl in *; eauto;
+    eexists; intuition eauto; cleanup; eauto.
+            
+   inversion H1; clear H1; cleanup.
+   subst; simpl in *; eauto.
+   simpl in *; unfold refines_to in *; cleanup.
+   simpl in *; eauto;
+   eexists; intuition eauto.
+   simpl; apply addrs_match_empty_mem.
+   rewrite H0 in H3; congruence.
+    match goal with
+    |[H: mem_union _ _ _ = None |- _] =>
+     apply mem_union_none_sel in H; destruct H
+    end; eauto.
   Qed.
-  
-    
+      
   Theorem sbs_read :
     forall a,
       StrongBisimulationForProgram refinement (|Read a|).              
@@ -522,6 +1209,8 @@ Section TransactionalDiskBisimulation.
     apply bisimulation_restrict_prog.
     induction p; eauto.
     destruct p; eauto.
+    apply sbs_ret.
+    apply sbs_bind; eauto.
   Qed.
 
   Hint Resolve sbs : core.
@@ -531,12 +1220,11 @@ Section TransactionalDiskBisimulation.
       exec_compiled_preserves_validity refinement
         (refines_to_valid refinement valid_state_h) ->
       
-      exec_preserves_validity TransactionalDiskLang valid_state_h ->
+      exec_preserves_validity high valid_state_h ->
       
       StrongBisimulationForValidStates refinement
         (refines_to_valid refinement valid_state_h)
-        valid_state_h
-        (compiles_to_valid refinement valid_prog_h)        
+        valid_state_h     
         valid_prog_h.  
   Proof.
     intros.
@@ -547,193 +1235,213 @@ End TransactionalDiskBisimulation.
 
 Section TransferToTransactionCache.
 
-   Lemma write_all_app :
-          forall V l1 l2 (l3 l4: list V) m,
-            length l1 = length l3 ->
-            (forall i, In i l1 -> m i <> None) ->
-            write_all m (l1++l2) (l3++l4) = write_all (write_all m l1 l3) l2 l4.
-        Proof.
-          induction l1; simpl in *; destruct l3; simpl in *;
-          intros; cleanup; try congruence.
-          destruct_fresh (m a); simpl in *.
-          erewrite IHl1; eauto.
-          intros; simpl.
-          unfold upd_disk.
-          destruct (addr_dec a i); subst; [rewrite upd_eq; eauto | rewrite upd_ne; eauto];
-          congruence.
-          exfalso; eapply H0; eauto.
-        Qed.
-      
-      Lemma write_all_merge_apply_list:
-        forall x6 x4 x,
-          refines_to (Some x6, x4) x ->
-          write_all x4 (map fst (rev x6)) (map snd (rev x6)) =
-          merge (apply_list empty_mem (rev x6)) x4.
-      Proof.
-        induction x6; simpl in *; intros; eauto.
-        unfold refines_to in *; simpl in *; cleanup.
-        repeat rewrite map_app; simpl in *.
-        rewrite write_all_app, apply_list_app in *; eauto; simpl in *.
-        unfold addrs_match in *.
-        destruct a, x; simpl in *.
-        erewrite IHx6; eauto.
-        unfold upd_disk.
-        extensionality a'; simpl.
-        unfold merge at 4; simpl.
-        - destruct (addr_dec a a'); subst; simpl;
-        [rewrite upd_eq; eauto
-        | rewrite upd_ne; eauto].
-          
-          + destruct_fresh (d0 a');
-            [| exfalso; eapply H1; eauto;
-               rewrite upd_eq; eauto; congruence ].
-            destruct_fresh (apply_list empty_mem (rev x6) a').
-            * edestruct merge_some_l
-                with (m2:= d0); eauto.
-              congruence.
-              cleanup.
-              pose proof H.
-              unfold merge in H; simpl.
-              rewrite D0, D in H.
-              destruct (merge (apply_list
-                 empty_mem (rev x6)) d0 a');
-              try congruence; cleanup.
-              rewrite upd_eq; eauto.
-      Admitted.
-              
-Lemma high_oracle_exists_ok':
-  forall T p2 p1 ol sl sl',
-    (exists sh, refines_to sl sh) ->
-    low.(exec) ol sl p1 sl' ->
-    compilation_of T p1 p2 ->
-    exists oh, oracle_refines_to T sl p2 ol oh.
+Lemma high_oracle_exists_ok:
+    high_oracle_exists refinement.
 Proof.
-  unfold compilation_of;
+  unfold high_oracle_exists; simpl.
   induction p2; simpl; intros; cleanup.
-  - (* Start *)
-    destruct sl'.
-    {
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      simpl in *; cleanup.
-      eexists; left; do 2 eexists; intuition eauto.
-      destruct s; simpl in *.
-      unfold refines_to in *; simpl in *; intuition subst; eauto.
-    }
-    {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      simpl in *; cleanup.
-       split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
-       try (inversion H1; clear H1); cleanup; eauto;
-       try solve [
-             eexists; right; do 2 eexists; intuition eauto;
+  { (** Op p **)
+    destruct p; simpl in *.
+    { (** Start **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        simpl in *; cleanup.
+        do 2 eexists; intuition eauto.
+        left; do 2 eexists; intuition eauto.
+        destruct s; simpl in *; subst; eauto.
+      }
+      { (** Crashed **)
+        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        simpl in *; cleanup.
+        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
+        try (inversion H1; clear H1); cleanup; eauto;
+        try solve [
+              do 2 eexists; intuition eauto;
+              right; do 2 eexists; intuition eauto;
              destruct s; simpl in *; cleanup; eauto ].
+      }
     }
-  - (* Read *)
-    destruct sl'.
-    {
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      unfold read in Hx; simpl in Hx; cleanup;
-      cleanup; simpl in *; cleanup;
+    { (** Read **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        unfold read in Hx; simpl in Hx; cleanup;
+        cleanup; simpl in *; cleanup;
+        do 2 eexists; intuition eauto;
+        left; do 2 eexists; intuition eauto;
+        destruct s; cleanup; simpl in *; cleanup; eauto.
+      }
+      { (** Crashed **)
+        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        unfold read in Hx; repeat (simpl in *; cleanup).
+        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
+        try (inversion H1; clear H1); cleanup; eauto;
+        try solve [             
+           do 2 eexists; intuition eauto;
+           right; do 2 eexists; intuition eauto;
+           destruct s; simpl in *; cleanup; eauto ].
       
-      eexists; left; do 2 eexists; intuition eauto;
-      destruct s; cleanup; simpl in *; cleanup; eauto.
+        do 2 eexists; intuition eauto;
+        right; do 2 eexists; intuition eauto;
+        destruct s; simpl in *; cleanup; eauto.       
+      }
+    }
+    { (** Write **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        unfold write in Hx; simpl in *; cleanup;
+        cleanup; simpl in *; cleanup;      
+        try destruct s; cleanup; simpl in *; cleanup; eauto;
+        
+        do 2 eexists; intuition eauto;
+        left; do 2 eexists; intuition eauto;
+        try destruct s; cleanup; simpl in *; cleanup; eauto.
+        right; right; eexists; intuition eauto.
+        omega.
+        right; left; intuition eauto.
+        omega.
+      }
+      { (** Crashed **)
+        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        unfold write in Hx; repeat (simpl in *; cleanup).
+        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
+        inversion H1; clear H1; cleanup; eauto;
+        try solve [    
+              do 2 eexists; intuition eauto;
+              right; do 2 eexists; intuition eauto;
+              destruct s; simpl in *; cleanup; eauto ].
+        do 2 eexists; intuition eauto;
+        right; do 2 eexists; intuition eauto;
+        destruct s; simpl in *; cleanup; eauto.
+      }
+    }
+    { (** Commit **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        simpl in *; cleanup.
+        cleanup; simpl in *; cleanup;        
+        do 2 eexists; intuition eauto;
+        left; do 2 eexists; intuition eauto;
+        destruct s; cleanup; simpl in *; cleanup; eauto;
+        eexists; intuition eauto.
+        
+        rewrite <- map_fst_split, <- map_snd_split.
+        rewrite mem_union_upd_batch_eq; eauto.
+        
+        exfalso; apply H; apply dedup_last_NoDup.
+        
+
+        exfalso; apply H2; apply dedup_last_dedup_by_list_length_le.
+        rewrite <- map_fst_split, <- map_snd_split; repeat rewrite map_length; omega.
+        unfold refines_to in *; cleanup; simpl in *; eauto.
+        cleanup.
+
+         unfold refines_to in *; simpl in *;
+         cleanup; exfalso; eauto;
+         match goal with
+         | [H: addrs_match _ _ |- _ ] =>
+           unfold addrs_match in H;
+           eapply H
+         end; eauto;
+         apply apply_list_in_not_none; eauto;
+         rewrite map_fst_split; eauto.
     }
     {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-       unfold read in Hx; repeat (simpl in *; cleanup).
-       split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
-       try (inversion H1; clear H1); cleanup; eauto;
-       try solve [
-             eexists; right; do 2 eexists; intuition eauto;
-             destruct s; simpl in *; cleanup; eauto ].
-       eexists; right; do 2 eexists; intuition eauto;
-             destruct s; simpl in *; cleanup; eauto.       
-    }
-  - (* Write *)
-    destruct sl'.
-    {
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      unfold write in Hx; simpl in *; cleanup;
-      cleanup; simpl in *; cleanup;      
-      try destruct s; cleanup; simpl in *; cleanup; eauto;
-      eexists; left; do 2 eexists; intuition eauto;
-      try destruct s; cleanup; simpl in *; cleanup; eauto.
-    }
-    {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      unfold write in Hx; repeat (simpl in *; cleanup).
-       split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
-       inversion H1; clear H1; cleanup; eauto;
-       try solve [
-             eexists; right; do 2 eexists; intuition eauto;
-             destruct s; simpl in *; cleanup; eauto ].
-       eexists; right; do 2 eexists; intuition eauto;
-       destruct s; simpl in *; cleanup; eauto.
-    }
-  - (* Commit *)
-    destruct sl'.
-    {
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-      simpl in *; cleanup.
-      cleanup; simpl in *; cleanup;
-      eexists; left; do 2 eexists; intuition eauto;
-      destruct s; cleanup; simpl in *; cleanup; eauto.
-      eexists; intuition eauto.
-      rewrite <- map_fst_split, <- map_snd_split.
-      erewrite write_all_merge_apply_list; eauto.
-    }
-    {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
        simpl in *; cleanup.
        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
-       try solve [
-             inversion H1; clear H1; cleanup; eauto;
-             eexists; right; do 2 eexists; intuition eauto;
-             destruct s; simpl in *; cleanup; eauto ].
        
-       destruct s; simpl in *; cleanup; eauto.
-       eexists; right; do 2 eexists; intuition eauto.
-       admit. (* TODO: Solve this *)
+       try solve [
+             inversion H1; clear H1; cleanup; eauto;        
+             do 2 eexists; intuition eauto;
+             right; do 2 eexists; intuition eauto;
+             destruct s; simpl in *; cleanup; eauto ];
 
-       inversion H1; clear H1; cleanup; eauto.
-       eexists; right; do 2 eexists; intuition eauto;
-       destruct s; simpl in *; cleanup; eauto.
-       admit. (* TODO: Solve this *)
-    
-       eexists; right; do 2 eexists; intuition eauto;
-       destruct s; simpl in *; cleanup; eauto.
-       right; intuition eauto; eexists; intuition eauto.
-       admit. (* TODO: Solve this *)       
+       
+       try solve [
+             try (inversion H1; clear H1; cleanup; eauto);  
+             repeat (split_ors; cleanup);
+             try solve [
+                   exfalso;
+                   match goal with
+                   | [H: ~ NoDup _ |- _] =>
+                     apply H
+                   end; apply dedup_last_NoDup ];
+             try solve [
+                   exfalso;
+                   match goal with
+                   | [H: ~ length _ = length _ |- _] =>
+                     apply H
+                   end;
+                   apply dedup_last_dedup_by_list_length_le; eauto;        
+                   rewrite <- map_fst_split, <- map_snd_split;
+                   repeat rewrite map_length; eauto ];
+             try solve [
+                   unfold refines_to in *; simpl in *;
+                   cleanup; exfalso; eauto;
+                   match goal with
+                   | [H: addrs_match _ _ |- _ ] =>
+                     unfold addrs_match in H;
+                     eapply H
+                   end; eauto;
+                   apply apply_list_in_not_none; eauto;
+                   rewrite map_fst_split; eauto ];
+             
+             do 2 eexists; intuition eauto;
+             right; do 2 eexists; intuition eauto;
+             try solve [
+                   right; left; intuition eauto;
+                   destruct s; simpl in *; cleanup; eauto;
+                   eexists; intuition eauto;        
+                   setoid_rewrite mem_union_upd_batch_eq;
+                   rewrite mem_union_empty_mem;
+                   rewrite map_fst_split, map_snd_split; eauto ];
+             try solve [
+                   right; right; intuition eauto;
+                   destruct s; simpl in *; cleanup; eauto;
+                   eexists; intuition eauto;        
+                   setoid_rewrite mem_union_upd_batch_eq;
+                   rewrite mem_union_empty_mem;
+                   rewrite map_fst_split, map_snd_split; eauto ]
+           ].
+       }
     }
     
-  - (* Abort *)
-    destruct sl'.
+  - (** Abort **)
+    destruct s1'.
     {
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
       simpl in *; cleanup.
-      eexists; left; do 2 eexists; intuition eauto.
+      do 2 eexists; intuition eauto.
+      left; do 2 eexists; intuition eauto.
+      destruct s; simpl in *; subst; eauto.
     }
     {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
       simpl in *; cleanup.
        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
        try (inversion H1; clear H1); cleanup; eauto;
        try solve [
-             eexists; right; do 2 eexists; intuition eauto;
+             do 2 eexists; intuition eauto;
+             right; do 2 eexists; intuition eauto;
              destruct s; simpl in *; cleanup; eauto ].
     }
-  - destruct sl'; eexists; eauto.
-  - (* Bind *)
+  }
+  - (** Ret **)
+    destruct s1'; eexists; eauto.
+  - (** Bind **)
     invert_exec.
-    + (* Finished *)
+    + (** Finished **)
       edestruct IHp2; eauto.
       eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *;  eauto.
       cleanup; simpl in *; eauto.
       edestruct H; eauto.
       do 5 eexists; repeat (split; eauto).
       right; eauto.
-      do 3 eexists; repeat (split; eauto).        
-      unfold compilation_of; eauto.
+      do 3 eexists; repeat (split; eauto).
     + (* Crashed *)
       split_ors; cleanup.
       * (* p1 crashed *)
@@ -747,16 +1455,8 @@ Proof.
         do 5 eexists; repeat (split; eauto).
         right; eauto.
         do 3 eexists; repeat (split; eauto).
-        unfold compilation_of; eauto.
         Unshelve.
         all: constructor.
-Admitted.
-
-Lemma high_oracle_exists_ok :
-  high_oracle_exists refinement. 
-Proof.
-  unfold high_oracle_exists; intros.
-  eapply high_oracle_exists_ok'; eauto.
 Qed.
 
 

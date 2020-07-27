@@ -65,7 +65,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         off < length (file.(blocks)) ->
-        let new_file := Build_File file.(owner) (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
+        let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
         exec' [Cont] s (Write inum off v) (Finished (u, (upd d inum new_file)) (Some tt))
 
   | ExecWriteFail :
@@ -181,7 +181,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         off < length (file.(blocks)) ->
-        let new_file := Build_File file.(owner) (firstn off file.(blocks) ++ v :: skipn (S off) file.(blocks)) in
+        let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
         exec' [CrashAfter] s (Write inum off v) (Crashed (u, (upd d inum new_file)))
 
   | ExecExtendCrashAfter :
@@ -256,8 +256,7 @@ Section FileDisk.
             file.(owner) = u /\
             a < length (file.(blocks)) /\
             let new_file :=
-                Build_File file.(owner)
-                                  (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
+                Build_File file.(owner) (updN file.(blocks) a v) in
             Q (Some tt) (u, upd d inum new_file)
         ) \/
         (
@@ -395,8 +394,7 @@ Section FileDisk.
             file.(owner) = u /\
             a < length (file.(blocks)) /\
             let new_file :=
-                Build_File file.(owner)
-                                  (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
+                Build_File file.(owner) (updN file.(blocks) a v) in
             Q (u, upd d inum new_file)
         )
           
@@ -519,8 +517,7 @@ Section FileDisk.
               file.(owner) = u /\
               a < length (file.(blocks)) /\
               let new_file :=
-                  Build_File file.(owner)
-                                    (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
+                  Build_File file.(owner) (updN file.(blocks) a v) in
               t = (Some tt) /\
               s' = (u, upd d inum new_file)
         ) \/
@@ -683,8 +680,7 @@ Section FileDisk.
              file.(owner) = u /\
              a < length (file.(blocks)) /\
              let new_file :=
-                 Build_File file.(owner)
-                                   (firstn a file.(blocks) ++ v :: skipn (S a) file.(blocks)) in
+                 Build_File file.(owner) (updN file.(blocks) a v) in
              s' = (u, upd d inum new_file)
         )
           

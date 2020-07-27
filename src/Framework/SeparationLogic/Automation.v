@@ -4,6 +4,7 @@ Require Import List.
 Require Import Pred SepStar PredicateRewrite.
 Require Import Errno.
 Require Import DestructPair DestructVarname.
+Require Import BaseTypes.
 
 Set Implicit Arguments.
 
@@ -449,7 +450,7 @@ Ltac wordcmp := repeat wordcmp_one.
 *)
 
 
-Inductive pick {AT AEQ V} (lhs : predicate) : list (@predicate AT AEQ V) -> list predicate -> Prop :=
+Inductive pick {AT} {AEQ: EqDec AT} {V} (lhs : predicate) : list (@predicate AT AEQ V) -> list predicate -> Prop :=
 | PickFirst : forall p ps,
   okToUnify lhs p
   -> pick lhs (p :: ps) ps

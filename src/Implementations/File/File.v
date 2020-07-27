@@ -12,8 +12,7 @@ End DiskAllocatorParams.
 
 Module DiskAllocator := BlockAllocator DiskAllocatorParams.
 
-Record File :=
-  {
+Record File := {
     owner: user;
     blocks: list value;
   }.
@@ -33,8 +32,9 @@ Definition files_inner_rep (file_map: @mem Inum addr_dec File) inode_map file_bl
      file_rep file inode file_block_map).
 
 Definition files_rep (file_map: disk File) :=
-  exists* inode_map file_block_map,
+  exists* inode_map,
     inode_rep inode_map *
+    exists* file_block_map,
     DiskAllocator.block_allocator_rep file_block_map *
     [[ files_inner_rep file_map inode_map file_block_map ]].
 
@@ -143,68 +143,95 @@ Definition create owner :=
     _ <- |ADDO| Abort;
     Ret None.
 
-
-
-Theorem sp_lift1_ok:
-  forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
-    T (p: prog L1 T) s t P,
-    strongest_postcondition HL (lift_L1 O2 p) P t s ->
-    strongest_postcondition L1 p (fun o sx => P (map (fun o' =>
-                                                     match o' with
-                                                     |OpOracle _ o1 =>
-                                                      OpOracle (HorizontalComposition O1 O2) [Oracle1 O1 O2 o1]%list
-                                                     |Language.Cont _ =>
-                                                      Language.Cont _
-                                                     |Language.Crash _ =>
-                                                      Language.Crash _
-                                                     end) o) (sx, snd s)) t (fst s).
+Set Nested Proofs Allowed.
+Local Lemma get_owner_files_rep_ok :
+  forall inum t sx F fmap,
+    strongest_postcondition
+      AuthenticatedDiskLang
+      (|ADDP| get_owner inum)
+      (fun o s =>
+         exists s0 : disk value * disk value,
+           ((F * files_rep fmap)%predicate
+            (mem_union (fst s0) (snd s0)) /\ 
+            fst s0 = empty_mem) /\
+           tt = tt /\ snd s = (empty_mem, snd s0)) 
+      t sx ->
+    exists imap fbmap,
+      (exists inode : Inode,
+         imap inum = Some inode /\
+         t = Some (Inode.owner inode) /\
+         (F * DiskAllocator.block_allocator_rep fbmap *
+          [[files_inner_rep fmap  imap fbmap ]] * inode_rep imap)%predicate
+           (mem_union (fst (snd sx)) (snd (snd sx)))) \/
+      t = None /\
+      imap inum = None /\
+      (F * DiskAllocator.block_allocator_rep fbmap *
+       [[files_inner_rep fmap imap fbmap ]] * inode_rep imap)%predicate
+        (mem_union (fst (snd sx)) (snd (snd sx))).
 Proof.
-  induction p; destruct s; simpl in *; intros; cleanup; eauto.
-  eapply H in H0; simpl in *.
-  eapply sp_to_exec in H0; cleanup.
-  eapply IHp in H1; simpl in *.
-  setoid_rewrite <- map_app in H1.
-  exists x; intuition eauto.
-  eapply exec_to_sp; eauto.
-Qed.
+  intros.
+  repeat (apply sp_exists_extract in H; cleanup).
+  apply sp_lift2 in H; simpl in H; cleanup.
+        
+  eapply sp_impl in H.
+  apply (sp_exists_extract (disk Inode)) with
+      (P:= fun (inode_map: disk Inode) o (sx : state') =>
+             (F * inode_rep inode_map *
+              (exists* (file_block_map : disk value),
+  
+              DiskAllocator.block_allocator_rep file_block_map *
+              [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
+             tt = tt /\ sx = (empty_mem, snd x)) in H; cleanup.
 
-Theorem sp_lift2_ok:
-  forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
-    T (p: prog L2 T) s t P,
-    strongest_postcondition HL (lift_L2 O1 p) P t s ->
-    strongest_postcondition L2 p (fun o sx => P (map (fun o' =>
-                                                     match o' with
-                                                     |OpOracle _ o2 =>
-                                                      OpOracle (HorizontalComposition O1 O2) [Oracle2 O1 O2 o2]%list
-                                                     |Language.Cont _ =>
-                                                      Language.Cont _
-                                                     |Language.Crash _ =>
-                                                      Language.Crash _
-                                                     end) o) (fst s, sx)) t (snd s).
-Proof.
-  induction p; destruct s; simpl in *; intros; cleanup; eauto.
-  eapply H in H0; simpl in *.
-  eapply sp_to_exec in H0; cleanup.
-  eapply IHp in H1; simpl in *.
-  setoid_rewrite <- map_app in H1.
-  exists x; intuition eauto.
-  eapply exec_to_sp; eauto.
-Qed.
+  2: {
+    simpl; intros; cleanup.            
+    unfold files_rep in H0.
+    apply pimpl_exists_l_star_r in H0.
+    destruct H0.
+    exists x0; simpl; eauto.
+    intuition eauto.
+    pred_apply; cancel.
+  }
+          
+  eapply sp_impl in H.
+  apply (sp_exists_extract (disk value)) with
+      (P:= fun (file_block_map: disk value) o (sx : state') =>
+             (F *
+              (inode_rep x0 *
+               DiskAllocator.block_allocator_rep file_block_map *
+               [[files_inner_rep fmap x0 file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
+             tt = tt /\ sx = (empty_mem, snd x)) in H; cleanup.
 
-Theorem sp_extract_precondition:
-  forall O (L : Language O) T (p: prog L T) s t P,
-    strongest_postcondition L p P t s ->
-    strongest_postcondition L p P t s /\ (exists o s, P o s).
-Proof.
-  intros; eapply_fresh sp_to_exec in H; cleanup; eauto.
-Qed.
+  2: {
+    simpl; intros; cleanup.            
+    apply pimpl_exists_l_star_r in H0.
+    destruct H0.
+    exists x1; simpl in *; eauto.
+    intuition eauto.
+    pred_apply; cancel.
+  }
+  
+  eapply sp_impl in H.
+  apply get_owner_ok in H; eauto.
+
+  simpl; intros; cleanup.
+  simpl in *.
+  instantiate (1:= x0).
+  instantiate (1:= x1).
+  pred_apply; cancel.
+  exact AuthenticationLang.
+Qed.  
+           
 
 Theorem auth_then_exec_ok:
   forall inum T (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) s' t fmap F (Q: option T -> state  (TransactionalDiskLang data_length) -> Prop),
     
-    (forall fmap' t' s'',
-       strongest_postcondition (TransactionalDiskLang data_length) (p inum)
-                               (fun o s => (F * files_rep fmap')%predicate (mem_union (fst s) (snd s))) t' s'' ->
+    (forall t' s'',
+       strongest_postcondition
+         (TransactionalDiskLang data_length) (p inum)
+         (fun o s => (F * files_rep fmap)%predicate
+                                      (mem_union (fst s) (snd s)) /\
+                  exists file, fmap inum = Some file) t' s'' ->
        (t' = None /\ Q t' (empty_mem, snd s'')) \/
        (t' <> None /\ Q t' (empty_mem, mem_union (fst s'') (snd s'')))) -> 
     (strongest_postcondition AuthenticatedDiskLang (auth_then_exec inum p)
@@ -226,357 +253,331 @@ Proof.
         { (* p success *)
           cleanup; simpl in *.
           repeat (apply sp_exists_extract in H1; cleanup).
-          apply sp_lift2_ok in H1; simpl in H1.
+          apply sp_lift2 in H1; simpl in H1.
           apply sp_extract_precondition in H1; cleanup.
-          repeat (apply sp_exists_extract in H2; cleanup).
-          split_ors; cleanup.
-          apply sp_lift2_ok in H2; simpl in H2; cleanup.
+          apply get_owner_files_rep_ok in H2.
+          repeat (split_ors; cleanup; simpl in *).
           
-          eapply sp_impl in H2.
-          apply (sp_exists_extract (disk Inode)) with
-          (P:= fun (inode_map: disk Inode) o (sx : state') => (F *
-           (exists* (file_block_map : disk value),
-            inode_rep inode_map * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
-                                                           tt = tt /\ sx = (empty_mem, snd x0)) in H2; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            unfold files_rep in H5.
-            apply pimpl_exists_l_star_r in H5.
-            destruct H5.
-            exists x6; simpl; eauto.
-          }
-          
-          eapply sp_impl in H2.
-          apply (sp_exists_extract (disk value)) with
-          (P:= fun (file_block_map: disk value) o (sx : state') => (F *
-           (inode_rep x6 * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap x6 file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
-                                                           tt = tt /\ sx = (empty_mem, snd x0)) in H2; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            apply pimpl_exists_l_star_r in H5.
-            destruct H5.
-            exists x7; simpl; eauto.
-          }
-          
-          apply sp_extract_precondition in H2; cleanup.
-          simpl in *.
-          eapply sp_impl in H2.
-          apply get_owner_ok in H2.
-          
-          2: {
-            simpl; intros; cleanup.
-            simpl in *.
-            instantiate (1:= x6).
-            instantiate (1:= (F * DiskAllocator.block_allocator_rep x7 * [[files_inner_rep fmap x6 x7]])).
-            pred_apply; cancel.
-          }
-          
-          split_ors; cleanup.
           destruct_lifts; cleanup.
           unfold files_inner_rep in *; cleanup.
           specialize (H4 inum).
           destruct_fresh (fmap inum); intuition eauto.
           
           left; eexists; intuition eauto.
-          specialize H8 with (1:= H2)(2:=D).
+          specialize H7 with (1:= H2)(2:=D).
           unfold file_rep in *; cleanup; eauto.
           eapply sp_impl in H1; eauto.
           eapply H in H1; simpl in *; eauto.
           split_ors; cleanup; eauto.
 
           intros; simpl in *; cleanup.
-          apply sp_lift2_ok in H4; simpl in H4; cleanup.
+          eapply get_owner_files_rep_ok in H4.
+          repeat (split_ors; cleanup; simpl in *); eauto.
 
-          eapply sp_impl in H4.
-          apply (sp_exists_extract (disk Inode)) with
-          (P:= fun (inode_map: disk Inode) o (sx : state') => (F *
-           (exists* (file_block_map : disk value),
-            inode_rep inode_map * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx))) in H4; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            unfold files_rep in H12.
-            apply pimpl_exists_l_star_r in H12.
-            destruct H12.
-            exists x1; simpl; eauto.
-          }
-          
-          eapply sp_impl in H4.
-          apply (sp_exists_extract (disk value)) with
-          (P:= fun (file_block_map: disk value) o (sx : state') => (F *
-           (inode_rep x0 * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap x0 file_block_map]]))%predicate (mem_union (fst sx) (snd sx))) in H4; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            apply pimpl_exists_l_star_r in H12.
-            destruct H12.
-            exists x1; simpl in *; eauto.
-          }
-          
-          
-          apply sp_extract_precondition in H4; cleanup.
-          simpl in *.
-          eapply sp_impl in H4.
-          apply get_owner_ok in H4.
-          split_ors; cleanup.
-
-          2: {
-            simpl; intros; cleanup.
-            simpl in *.
-            instantiate (1:= x0).
-            instantiate (1:= (F * DiskAllocator.block_allocator_rep x1 * [[files_inner_rep fmap x0 x1]])).
-            pred_apply; cancel.
-          }
-
+          intuition eauto.
           unfold files_rep.         
           apply sep_star_comm.
           repeat apply pimpl_exists_r_star.
-          exists x0.
-          apply pimpl_exists_r_star.
           exists x1.
           pred_apply; cancel.
+          exists x2.
+          pred_apply; cancel.
+          eauto.
           all: exact AuthenticationLang.
         }
         { (* p Failed. *)
           cleanup; simpl in *.
           repeat (apply sp_exists_extract in H1; cleanup).
-          apply sp_lift2_ok in H1; simpl in H1.
+          apply sp_lift2 in H1; simpl in H1.
           apply sp_extract_precondition in H1; cleanup.
-          repeat (apply sp_exists_extract in H2; cleanup).
-          split_ors; cleanup.
-          apply sp_lift2_ok in H2; simpl in H2; cleanup.
-          
-          eapply sp_impl in H2.
-          apply (sp_exists_extract (disk Inode)) with
-          (P:= fun (inode_map: disk Inode) o (sx : state') => (F *
-           (exists* (file_block_map : disk value),
-            inode_rep inode_map * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
-                                                           tt = tt /\ sx = (empty_mem, snd x0)) in H2; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            unfold files_rep in H5.
-            apply pimpl_exists_l_star_r in H5.
-            destruct H5.
-            exists x6; simpl; eauto.
-          }
-          
-          eapply sp_impl in H2.
-          apply (sp_exists_extract (disk value)) with
-          (P:= fun (file_block_map: disk value) o (sx : state') => (F *
-           (inode_rep x6 * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap x6 file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
-                                                           tt = tt /\ sx = (empty_mem, snd x0)) in H2; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            apply pimpl_exists_l_star_r in H5.
-            destruct H5.
-            exists x7; simpl; eauto.
-          }
-          
-          apply sp_extract_precondition in H2; cleanup.
-          simpl in *.
-          eapply sp_impl in H2.
-          apply get_owner_ok in H2.
-          
-          2: {
-            simpl; intros; cleanup.
-            simpl in *.
-            instantiate (1:= x6).
-            instantiate (1:= (F * DiskAllocator.block_allocator_rep x7 * [[files_inner_rep fmap x6 x7]])).
-            pred_apply; cancel.
-          }
-          
-          split_ors; cleanup.
+          apply get_owner_files_rep_ok in H2.
+          repeat (split_ors; cleanup; simpl in *).
           destruct_lifts; cleanup.
           unfold files_inner_rep in *; cleanup.
           specialize (H4 inum).
           destruct_fresh (fmap inum); intuition eauto.
           
           left; eexists; intuition eauto.
-          specialize H8 with (1:= H2)(2:=D).
+          specialize H7 with (1:= H2)(2:=D).
           unfold file_rep in *; cleanup; eauto.
           eapply sp_impl in H1; eauto.
           eapply H in H1; simpl in *; eauto.        
           split_ors; cleanup; intuition eauto.
           
+          
           simpl; intros; cleanup.
-          repeat (apply sp_exists_extract in H4; cleanup).
-          apply sp_lift2_ok in H4; simpl in H4; cleanup.
-
-          eapply sp_impl in H4.
-          apply (sp_exists_extract (disk Inode)) with
-          (P:= fun (inode_map: disk Inode) o (sx : state') => (F *
-           (exists* (file_block_map : disk value),
-            inode_rep inode_map * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
-                                                           tt = tt /\ sx = (empty_mem, snd x0)) in H4; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            unfold files_rep in H12.
-            apply pimpl_exists_l_star_r in H12.
-            destruct H12.
-            exists x1; simpl; eauto.
-          }
-          
-          eapply sp_impl in H4.
-          apply (sp_exists_extract (disk value)) with
-          (P:= fun (file_block_map: disk value) o (sx : state') => (F *
-           (inode_rep x1 * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap x1 file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\
-                                                           tt = tt /\ sx = (empty_mem, snd x0)) in H4; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            apply pimpl_exists_l_star_r in H12.
-            destruct H12.
-            exists x2; simpl in *; eauto.
-          }
-          
-          
-          apply sp_extract_precondition in H4; cleanup.
-          simpl in *.
-          eapply sp_impl in H4.
-          apply get_owner_ok in H4.
-          split_ors; cleanup.
-
-          2: {
-            simpl; intros; cleanup.
-            simpl in *.
-            instantiate (1:= x1).
-            instantiate (1:= (F * DiskAllocator.block_allocator_rep x2 * [[files_inner_rep fmap x1 x2]])).
-            pred_apply; cancel.
-          }
-
+          apply get_owner_files_rep_ok in H4.
+          repeat (split_ors; cleanup; simpl in *).
+          intuition eauto.
           unfold files_rep.         
           apply sep_star_comm.
           repeat apply pimpl_exists_r_star.
           exists x1.
-          apply pimpl_exists_r_star.
+          pred_apply; cancel.
           exists x2.
           pred_apply; cancel.
+          eauto.
           all: exact AuthenticationLang.
         }
       }
       { (* Auth Fail *)
         simpl in *; cleanup.
         split_ors; cleanup.
-
-        apply sp_lift2_ok in H1; simpl in H1; cleanup.        
-        repeat (apply sp_exists_extract in H1; cleanup).
-        eapply sp_impl in H1.
-          apply (sp_exists_extract (disk Inode)) with
-          (P:= fun (inode_map: disk Inode) o (sx : state') => (F *
-           (exists* (file_block_map : disk value),
-            inode_rep inode_map * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx))) in H1; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            unfold files_rep in H5.
-            apply pimpl_exists_l_star_r in H5.
-            destruct H5.
-            exists x4; simpl; eauto.
-          }
-          
-          eapply sp_impl in H1.
-          apply (sp_exists_extract (disk value)) with
-          (P:= fun (file_block_map: disk value) o (sx : state') => (F *
-           (inode_rep x4 * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap x4 file_block_map]]))%predicate (mem_union (fst sx) (snd sx))) in H1; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            apply pimpl_exists_l_star_r in H5.
-            destruct H5.
-            exists x0; simpl; eauto.
-          }
-          
-          eapply sp_impl in H1.
-          apply get_owner_ok in H1.
-          
-          2: {
-            simpl; intros; cleanup.
-            simpl in *.
-            instantiate (1:= x4).
-            instantiate (1:= (F * DiskAllocator.block_allocator_rep x0 * [[files_inner_rep fmap x4 x0]])).
-            pred_apply; cancel.
-          }
-          
-          split_ors; cleanup.
-          destruct_lifts; cleanup.
-          unfold files_inner_rep in *; cleanup.
-          specialize (H4 inum).
-          destruct_fresh (fmap inum); intuition eauto.
-          
-          right; intuition eauto.
-          specialize H7 with (1:= H1)(2:=D).
-          unfold file_rep in *; cleanup; eauto.
-          right; eexists; intuition eauto.
-          apply H2; cleanup; eauto.
-          all: exact AuthenticationLang.
+        
+        apply get_owner_files_rep_ok in H1.
+        cleanup.
+        repeat (split_ors; cleanup; simpl in *).
+        destruct_lifts; cleanup.
+        unfold files_inner_rep in *; cleanup.
+        specialize (H4 inum).
+        destruct_fresh (fmap inum); intuition eauto.
+        
+        right; intuition eauto.
+        specialize H7 with (1:= H1)(2:=D).
+        unfold file_rep in *; cleanup; eauto.
+        right; eexists; intuition eauto.
+        apply H2; cleanup; eauto.
       }
     }
     { (* Invalid Inum *)
       cleanup; simpl in *.
-       apply sp_lift2_ok in H1; simpl in H1; cleanup.        
-       repeat (apply sp_exists_extract in H1; cleanup).
-       eapply sp_impl in H1.
-       apply (sp_exists_extract (disk Inode)) with
-          (P:= fun (inode_map: disk Inode) o (sx : state') => (F *
-           (exists* (file_block_map : disk value),
-            inode_rep inode_map * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx))) in H1; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            unfold files_rep in H2.
-            apply pimpl_exists_l_star_r in H2.
-            destruct H2.
-            exists x4; simpl; eauto.
-          }
+      
+      apply get_owner_files_rep_ok in H1; cleanup.
           
-          eapply sp_impl in H1.
-          apply (sp_exists_extract (disk value)) with
-          (P:= fun (file_block_map: disk value) o (sx : state') => (F *
-           (inode_rep x4 * DiskAllocator.block_allocator_rep file_block_map *
-            [[files_inner_rep fmap x4 file_block_map]]))%predicate (mem_union (fst sx) (snd sx))) in H1; cleanup.
-
-          2: {
-            simpl; intros; cleanup.            
-            apply pimpl_exists_l_star_r in H2.
-            destruct H2.
-            exists x0; simpl; eauto.
-          }
-          
-          eapply sp_impl in H1.
-          apply get_owner_ok in H1.
-          
-          2: {
-            simpl; intros; cleanup.
-            simpl in *.
-            instantiate (1:= x4).
-            instantiate (1:= (F * DiskAllocator.block_allocator_rep x0 * [[files_inner_rep fmap x4 x0]])).
-            pred_apply; cancel.
-          }
-          
-          split_ors; cleanup.
-          destruct_lifts; cleanup.
-          unfold files_inner_rep in *; cleanup.
-          specialize (H4 inum).
-          destruct_fresh (fmap inum); intuition eauto.
-
-          exfalso; apply H7; intuition eauto; congruence.
-          all: exact AuthenticationLang.
+      split_ors; cleanup.
+      destruct_lifts; cleanup.
+      unfold files_inner_rep in *; cleanup.
+      specialize (H4 inum).
+      destruct_fresh (fmap inum); intuition eauto.
+      
+      exfalso; apply H7; intuition eauto; congruence.
     }      
   }
 Qed.
+
+Open Scope predicate_scope.
+                            
+Local Lemma get_block_number_files_rep_ok :
+  forall inum t sx F fmap file off,
+    strongest_postcondition (TransactionalDiskLang data_length)
+      (get_block_number inum off)
+      (fun o s => (F * files_rep fmap)%predicate
+                (mem_union (fst s) (snd s)) /\
+               fmap inum = Some file) t sx ->
+    exists imap fbmap,
+      (exists inode : Inode,
+         imap inum = Some inode /\
+         fmap inum = Some file /\
+         t = nth_error inode.(block_numbers) off /\
+         (t = None -> off >= length inode.(block_numbers)) /\
+         (F * DiskAllocator.block_allocator_rep fbmap *
+          [[files_inner_rep fmap  imap fbmap ]] * inode_rep imap)%predicate
+           (mem_union (fst sx) (snd sx))).
+Proof.
+  intros.
+        
+  eapply sp_impl in H.
+  apply (sp_exists_extract (disk Inode)) with
+      (P:= fun (inode_map: disk Inode) o (sx : state') =>
+             (F * inode_rep inode_map *
+              (exists* (file_block_map : disk value),  
+              DiskAllocator.block_allocator_rep file_block_map *
+              [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\ fmap inum = Some file) in H; cleanup.
+
+  2: {
+    simpl; intros; cleanup.            
+    unfold files_rep in H0.
+    apply pimpl_exists_l_star_r in H0.
+    destruct H0.
+    exists x; simpl; eauto.
+    intuition eauto.
+    pred_apply; cancel.
+  }
+          
+  eapply sp_impl in H.
+  apply (sp_exists_extract (disk value)) with
+      (P:= fun (file_block_map: disk value) o (sx : state') =>
+             (F *
+              (inode_rep x *
+               DiskAllocator.block_allocator_rep file_block_map *
+               [[files_inner_rep fmap x file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\ fmap inum = Some file) in H; cleanup.
+
+  2: {
+    simpl; intros; cleanup.            
+    apply pimpl_exists_l_star_r in H0.
+    destruct H0.
+    exists x0; simpl in *; eauto.
+    intuition eauto.
+    pred_apply; cancel.
+  }
+  
+  apply sp_extract_precondition in H; cleanup.
+  destruct_lifts.
+  destruct_fresh (x inum).
+  {
+    eapply sp_impl in H.
+    apply get_block_number_ok in H; eauto.
+
+    2: {
+      simpl; intros; cleanup.
+      pred_apply; cancel.
+      instantiate (1:= x); cancel.
+    }
+    split_ors; cleanup.
+    unfold files_inner_rep in *; cleanup.
+    specialize H2 with (1:= D)(2:= H1) as Hx.
+    unfold file_rep in *; cleanup.
+    do 3 eexists; intuition eauto.
+    apply nth_error_None; eauto.
+    pred_apply; cancel; eauto.
+  }    
+  {
+    unfold files_inner_rep in *; cleanup.
+    specialize (H2 inum); cleanup; exfalso; intuition eauto.
+    apply H4; congruence.
+  }
+Qed.
+
+Theorem read_inner_ok:
+  forall inum off s' t fmap F file,
+    strongest_postcondition (TransactionalDiskLang data_length) (read_inner off inum)
+     (fun o s => (F * files_rep fmap)%predicate (mem_union (fst s) (snd s)) /\ fmap inum = Some file) t s' ->
+     ( t = nth_error file.(blocks) off /\ (F * files_rep fmap)%predicate (mem_union (fst s') (snd s'))).
+Proof.
+  unfold read_inner; simpl; intros.
+  repeat (cleanup; simpl in *).
+  {
+    apply sp_extract_precondition in H; cleanup.
+    apply get_block_number_files_rep_ok in H0; cleanup.
+    eapply sp_impl in H.
+    2: {
+      simpl; intros.
+      eapply get_block_number_files_rep_ok; eauto.
+      rewrite H1; eauto.
+    }
+    
+    repeat (apply sp_exists_extract in H; cleanup).
+    apply sp_extract_precondition in H; cleanup.
+    
+    
+    eapply sp_impl in H.
+    eapply DiskAllocator.read_ok in H; cleanup.
+    rewrite <- H.
+    2: {
+      simpl. intros; cleanup.
+      pred_apply; cancel.
+      instantiate (1:=x5); cancel; eauto.
+    }
+    destruct_lifts.
+    unfold files_inner_rep in *; cleanup.
+    specialize H13 with (1:= H5)(2:= H1) as Hx.
+    unfold file_rep in *; cleanup.
+    erewrite H16; eauto.
+    intuition eauto.
+    pred_apply; cancel; eauto.
+    
+    unfold files_rep.         
+    exists x4.
+    pred_apply; cancel.
+    exists x5.
+    pred_apply; cancel.
+    unfold files_inner_rep in *; intuition eauto.
+  }
+
+  {
+    apply sp_extract_precondition in H; cleanup.
+    apply get_block_number_files_rep_ok in H0; cleanup.
+    eapply sp_impl in H.
+    2: {
+      simpl; intros.
+      eapply get_block_number_files_rep_ok; eauto.
+      rewrite H1; eauto.
+    }
+    
+    repeat (apply sp_exists_extract in H; cleanup).
+    apply sp_extract_precondition in H; cleanup.
+    
+    
+    eapply sp_impl in H.
+    eapply DiskAllocator.read_ok in H; cleanup.
+    rewrite <- H.
+    2: {
+      simpl. intros; cleanup.
+      pred_apply; cancel.
+      instantiate (1:=x5); cancel; eauto.
+    }
+    destruct_lifts.
+    unfold files_inner_rep in *; cleanup.
+    specialize H13 with (1:= H5)(2:= H1) as Hx.
+    unfold file_rep in *; cleanup.
+    erewrite H16; eauto.
+    intuition eauto.
+    pred_apply; cancel; eauto.
+    
+    unfold files_rep.         
+    exists x4.
+    pred_apply; cancel.
+    exists x5.
+    pred_apply; cancel.
+    unfold files_inner_rep in *; intuition eauto.
+  }
+  {    
+    apply get_block_number_files_rep_ok in H; cleanup.
+    destruct_lifts.
+    unfold files_inner_rep in *; cleanup.
+    specialize H5 with (1:= H)(2:= H0) as Hx.
+    unfold file_rep in *; cleanup.
+    split; [symmetry; apply nth_error_None; rewrite H7; apply H2; eauto|].
+    pred_apply; cancel; eauto.
+    
+    unfold files_rep.         
+    exists x.
+    pred_apply; cancel.
+    exists x0.
+    pred_apply; cancel.
+    unfold files_inner_rep in *; intuition eauto.
+  }
+Qed.
+
+Global Opaque read_inner.
+          
+Theorem read_ok:
+  forall inum off s' t fmap F,
+    strongest_postcondition AuthenticatedDiskLang (read inum off)
+     (fun o s => (F * files_rep fmap)%predicate (mem_union (fst (snd s)) (snd (snd s))) /\ (fst (snd s)) = empty_mem) t s' ->
+    (exists file, fmap inum = Some file /\
+             t = nth_error file.(blocks) off /\
+             (F * files_rep fmap)%predicate (mem_union (fst (snd s')) (snd (snd s'))) /\
+             (fst (snd s')) = empty_mem) \/
+((fmap inum = None \/
+       (exists file : File,
+          fmap inum = Some file /\ fst s' <> owner file)) /\
+         (fst (snd s')) = empty_mem).
+Proof.
+  unfold read; intros.
+  eapply auth_then_exec_ok in H.
+  2: {
+    simpl; intros.
+    apply sp_extract_precondition in H0; cleanup.
+    eapply sp_impl in H0.
+    eapply read_inner_ok in H0.
+    2: simpl; intros; cleanup; eauto.
+    
+    instantiate (1:= fun t' s'' =>
+       exists file, fmap inum = Some file /\
+       t' = nth_error (blocks file) off /\
+       (F * files_rep fmap)%predicate
+                           (mem_union (fst s'') (snd s''))).
+    simpl.
+    repeat rewrite mem_union_empty_mem.
+    destruct t'; intuition eauto.
+    right; intuition eauto; congruence.
+    left; intuition eauto.    
+    admit.
+  }
+  
+  simpl in *.
+  split_ors; cleanup.
+  left; eexists; intuition eauto.
+  right; intuition eauto.
+Admitted.
