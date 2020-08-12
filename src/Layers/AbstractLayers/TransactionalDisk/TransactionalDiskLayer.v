@@ -21,6 +21,10 @@ Section TransactionalDisk.
   Definition oracle' := list token'.  
 
   Definition state' := ((disk value) * (disk value))%type.
+
+  Definition after_crash' (s1 s2: state') :=
+    fst s2 = empty_mem /\
+    snd s1 = snd s2.
   
   Inductive transactional_disk_prog : Type -> Type :=
   | Start : transactional_disk_prog unit
@@ -464,6 +468,7 @@ Section TransactionalDisk.
   Definition TransactionalDiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       transactional_disk_prog
       exec'
       weakest_precondition'
@@ -477,7 +482,6 @@ Section TransactionalDisk.
       exec_deterministic_wrt_oracle'.
 
   Definition TransactionalDiskLang := Build_Language TransactionalDiskOperation.
-  Definition TransactionalDiskHL := Build_HoareLogic TransactionalDiskLang.
 
 End TransactionalDisk.
 

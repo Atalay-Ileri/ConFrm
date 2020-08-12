@@ -64,6 +64,21 @@ Section Language.
         exec' o1 d1 p1 (Crashed d1') ->
         exec' (o1++o2) d1 (Bind p1 p2) (Crashed d1').
 
+  Inductive recovery_exec' :
+    forall T, oracle' ->  oracle' -> state' -> prog' T -> prog' unit -> @Recovery_Result state' T -> Prop :=
+  | ExecFinished :
+      forall T (p: prog' T) p_rec
+        o1 o2 d d' t,
+        exec' o1 d p (Finished d' t) ->
+        recovery_exec' o1 o2 d p p_rec (RFinished d' t)
+  | ExecRecover :
+      forall T (p: prog' T) p_rec
+        o1 o2 d d' d_ac d_rec,
+        exec' o1 d p (Crashed d') ->
+        O.(after_crash) d' d_ac ->
+        exec' o2 d_ac p_rec (Finished d_rec tt) ->
+        recovery_exec' o1 o2 d p p_rec (Recovered d_rec).
+
   Fixpoint weakest_precondition' T (p: prog' T) :=    
       match p with
     | Bind p1 p2 =>
@@ -141,8 +156,10 @@ Section Language.
       oracle := oracle';
       oracle_dec := oracle_dec';
       state := state';
+      after_crash := O.(after_crash);
       prog := prog';
       exec := exec';
+      recovery_exec := recovery_exec';
       weakest_precondition := weakest_precondition';
       weakest_crash_precondition := weakest_crash_precondition';
       strongest_postcondition := strongest_postcondition';
@@ -164,6 +181,12 @@ Notation "x <-| p1 ; p2" := (Bind (Op _ p1) (fun x => p2))(right associativity, 
   Local Ltac invert_exec' :=
   match goal with
   | [ H: exec _ _ _ ?p _ |- _ ] =>
+    match p with
+    | Bind _ _ => idtac
+    | Op _ _ => invert_exec'' H
+    | Ret _ => invert_exec'' H
+    end
+  | [ H: exec' _ _ ?p _ |- _ ] =>
     match p with
     | Bind _ _ => idtac
     | Op _ _ => invert_exec'' H
@@ -200,9 +223,15 @@ Qed.
 
 Ltac invert_exec :=
   match goal with
+  |[H : recovery_exec _ _ _ _ _ _ _ |- _ ] =>
+   invert_exec'' H; repeat cleanup
   |[H : exec _ _ _ (Bind _ _) _ |- _ ] =>
    apply bind_sep in H; repeat cleanup
   |[H : exec _ _ _ _ _ |- _ ] =>
+   invert_exec'
+  |[H : exec' _ _ (Bind _ _) _ |- _ ] =>
+   apply bind_sep in H; repeat cleanup
+  |[H : exec' _ _ _ _ |- _ ] =>
    invert_exec'
   |[H: Operation.exec _ _ _ _ _ |- _ ] =>
    invert_exec'

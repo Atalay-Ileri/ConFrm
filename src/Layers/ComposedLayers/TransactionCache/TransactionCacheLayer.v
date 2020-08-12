@@ -6,7 +6,6 @@ Set Implicit Arguments.
 
 Definition TransactionCacheOperation :=  HorizontalComposition (StorageOperation (list (addr * value))) LoggedDiskOperation.
 Definition TransactionCacheLang := Build_Language TransactionCacheOperation.
-Definition TransactionCacheHL := Build_HoareLogic TransactionCacheLang.
 
 Notation "'|TCCP|' p" := (@lift_L1 (StorageOperation (list (addr * value))) LoggedDiskOperation (StorageLang (list (addr * value))) _ p) (at level 59).
 Notation "'|TCDP|' p" := (@lift_L2 (StorageOperation (list (addr * value))) LoggedDiskOperation LoggedDiskLang _ p) (at level 59).

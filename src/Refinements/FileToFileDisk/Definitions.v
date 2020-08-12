@@ -30,8 +30,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
   let u := fst d1 in
   let dx := snd d1 in
   let d := mem_union (fst dx) (snd dx) in
-  exists fm,
-    files_rep fm d /\
+  exists F fm,
+    (F * files_rep fm)%predicate d /\
     match p with
     | Read inum a =>
       (exists d1' r,
@@ -246,7 +246,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
 
    Definition refines_to (d1: state low) (d2: state high) :=
      fst d1 = fst d2 /\
-     files_rep (snd d2) (mem_union (fst (snd d1)) (snd (snd d1))).
+     fst (snd d1) = empty_mem /\
+     exists F, (F * files_rep (snd d2))%predicate (snd (snd d1)).
 
   Definition FileDiskOperationRefinement := Build_OperationRefinement compile refines_to oracle_refines_to.
   Definition FileDiskRefinement := LiftRefinement high FileDiskOperationRefinement.

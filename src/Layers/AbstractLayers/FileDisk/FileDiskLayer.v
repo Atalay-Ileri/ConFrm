@@ -26,6 +26,8 @@ Section FileDisk.
   Definition oracle' := list token'.  
 
   Definition state' := (user * disk File)%type.
+
+  Definition after_crash' (s1 s2: state') := s1 = s2.
   
   Inductive file_disk_prog : Type -> Type :=
   | Read : Inum -> addr -> file_disk_prog (option value)
@@ -910,6 +912,7 @@ Section FileDisk.
   Definition FileDiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       file_disk_prog
       exec'
       weakest_precondition'
@@ -923,6 +926,5 @@ Section FileDisk.
       exec_deterministic_wrt_oracle'.
 
   Definition FileDiskLang := Build_Language FileDiskOperation.
-  Definition FileDiskHL := Build_HoareLogic FileDiskLang.
 
 End FileDisk.

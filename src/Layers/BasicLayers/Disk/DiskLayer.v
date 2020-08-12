@@ -20,6 +20,14 @@ Section DiskLayer.
   Definition oracle' := list token'.
 
   Definition state' :=  @mem A AEQ (V * list V).
+
+  Definition after_crash' (s1 s2: state') :=
+    addrs_match_exactly s1 s2 /\
+    forall a vs,
+      s1 a = Some vs ->
+      exists v,
+        s2 a = Some (v, []) /\
+        In v (fst vs::snd vs).
   
   Inductive disk_prog : Type -> Type :=
   | Read : A -> disk_prog V
@@ -167,6 +175,7 @@ Section DiskLayer.
   Definition DiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       disk_prog
       exec'
       weakest_precondition'
@@ -180,7 +189,6 @@ Section DiskLayer.
       exec_deterministic_wrt_oracle'.
   
   Definition DiskLang := Build_Language DiskOperation.
-  Definition DiskHL := Build_HoareLogic DiskLang.
 
 Notation "| p |" := (Op DiskOperation p)(at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op DiskOperation p1) (fun x => p2))(right associativity, at level 60). 

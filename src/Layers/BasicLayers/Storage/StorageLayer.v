@@ -18,6 +18,8 @@ Section StorageLayer.
   Definition oracle' := list token'.  
 
   Definition state' := option V.
+
+  Definition after_crash' (s1 s2: state') := s2 = None.
   
   Inductive storage_prog : Type -> Type :=
   | Get : storage_prog V
@@ -158,6 +160,7 @@ Section StorageLayer.
   Definition StorageOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       storage_prog
       exec'
       weakest_precondition'
@@ -171,7 +174,6 @@ Section StorageLayer.
       exec_deterministic_wrt_oracle'.
 
   Definition StorageLang := Build_Language StorageOperation.
-  Definition StorageHL := Build_HoareLogic StorageLang.
 
   Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
   

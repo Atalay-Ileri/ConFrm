@@ -22,6 +22,8 @@ Definition encryptionmap := @mem value value_dec (key * value).
   Definition oracle' := list token'.
 
   Definition state' := ((list key * encryptionmap)* hashmap)%type.
+
+  Definition after_crash' (s1 s2: state') := s1 = s2.
   
   Inductive crypto_prog : Type -> Type :=
   | GetKey : list value -> crypto_prog key
@@ -242,6 +244,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
   Definition CryptoOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       crypto_prog
       exec'
       weakest_precondition'
@@ -255,7 +258,6 @@ Definition encryptionmap := @mem value value_dec (key * value).
       exec_deterministic_wrt_oracle'.
   
   Definition CryptoLang := Build_Language CryptoOperation.
-  Definition CryptoHL := Build_HoareLogic CryptoLang.
 
 Notation "| p |" := (Op CryptoOperation p)(at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op CryptoOperation p1) (fun x => p2))(right associativity, at level 60).

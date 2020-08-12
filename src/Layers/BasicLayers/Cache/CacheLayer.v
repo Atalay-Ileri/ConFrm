@@ -20,6 +20,8 @@ Section CacheLayer.
   Definition oracle' := list token'.  
 
   Definition state' := @mem A AEQ V.
+
+  Definition after_crash' (s1 s2: state') := s2 = empty_mem.
   
   Inductive cache_prog : Type -> Type :=
   | Read : A -> cache_prog (option V)
@@ -156,6 +158,7 @@ Section CacheLayer.
   Definition CacheOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       cache_prog
       exec'
       weakest_precondition'
@@ -169,7 +172,6 @@ Section CacheLayer.
       exec_deterministic_wrt_oracle'.
 
   Definition CacheLang := Build_Language CacheOperation.
-  Definition CacheHL := Build_HoareLogic CacheLang.
 
 Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).
 

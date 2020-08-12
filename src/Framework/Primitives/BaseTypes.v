@@ -113,6 +113,10 @@ Inductive Result {State T: Type} :=
 | Finished : State -> T -> @Result State T
 | Crashed : State -> @Result State T.
 
+Inductive Recovery_Result {State T: Type} :=
+| RFinished : State -> T -> @Recovery_Result State T
+| Recovered : State -> @Recovery_Result State T.
+
 Definition extract_state {State T} (res: @Result State T) :=
   match res with
   | Finished s _ | Crashed s => s
@@ -122,6 +126,17 @@ Definition extract_ret {State T} (res: @Result State T) :=
   match res with
   | Finished _ r => Some r
   | Crashed _ => None
+  end.
+
+Definition extract_state_r {State T} (res: @Recovery_Result State T) :=
+  match res with
+  | RFinished s _ | Recovered s => s
+  end.
+
+Definition extract_ret_r {State T} (res: @Recovery_Result State T) :=
+  match res with
+  | RFinished _ r => Some r
+  | Recovered _ => None
   end.
 
 Definition map_state {State1 State2 T} (f:State1 -> State2) (res: @Result State1 T) :=
@@ -142,36 +157,6 @@ Lemma extract_ret_map_state_elim:
     extract_ret (map_state R r) = extract_ret r.
 Proof.
   intros; destruct r; simpl; eauto.
-Qed.
-
-Definition result_same {State1 State2 T1 T2} (res1: @Result State1 T1) (res2: @Result State2 T2) :=
-  match res1, res2 with
-  | Finished _ _, Finished _ _ | Crashed _, Crashed _ => True
-  | _, _ => False
-  end.
-
-Lemma result_same_transitive:
-  forall State1 State2 State3 T1 T2 T3
-    (res1: @Result State1 T1)
-    (res2: @Result State2 T2)
-    (res3: @Result State3 T3),
-    result_same res1 res2 ->
-    result_same res2 res3 ->
-    result_same res1 res3.
-Proof.
-  unfold result_same; intros.
-  destruct res1, res2, res3; intuition.
-Qed.
-
-Lemma result_same_symmetric:
-  forall State1 State2 T1 T2
-    (res1: @Result State1 T1)
-    (res2: @Result State2 T2),
-    result_same res1 res2 ->
-    result_same res2 res1.
-Proof.
-  unfold result_same; intros.
-  destruct res1, res2; intuition.
 Qed.
 
 Instance addr_dec : EqDec addr := addr_eq_dec.

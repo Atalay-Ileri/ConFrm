@@ -8,6 +8,7 @@ Record Operation :=
     oracle : Type;
     oracle_dec: forall (o o': oracle), {o = o'}+{o <> o'};
     state : Type;
+    after_crash: state -> state -> Prop;
     prog : Type -> Type;
     exec: forall T, oracle -> state -> prog T -> @Result state T -> Prop;
     weakest_precondition: forall T, prog T -> (T -> state -> Prop) -> (oracle -> state -> Prop);

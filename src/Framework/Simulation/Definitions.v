@@ -1,5 +1,5 @@
 Require Import Primitives Layer.
-
+                       
 Record OperationRefinement {O1} (L1: Language O1) (O2: Operation) :=
   {
     compile_op : forall T, O2.(Operation.prog) T -> L1.(prog) T;
@@ -119,76 +119,51 @@ Definition oracle_refines_to_same_from_related
   valid_state: This predicate restrict the statement to "well-formed" states.
   valid_op: This predicate restrict programs to valid ones
   R: This is the actual simulation relation
-*)
-Record SelfSimulation 
+ *)
+Definition SelfSimulation
+       (rec: LH.(prog) unit)
        (valid_state: LH.(state) -> Prop)
        (valid_prog: forall T, LH.(prog) T -> Prop)
        (R: LH.(state) -> LH.(state) -> Prop) :=
-  {
-    self_simulation_correct:
-      forall T o p s1 s1' s2,
+      forall T o1 o2 p s1 s1' s2,
         valid_state s1 ->
         valid_state s2 ->
         valid_prog T p ->
-        LH.(exec) o s1 p s1' ->
+        LH.(recovery_exec) o1 o2 s1 p rec s1' ->
         R s1 s2 ->
         exists s2',
-          LH.(exec) o s2 p s2' /\
-          R (extract_state s1') (extract_state s2') /\
-          extract_ret s1' = extract_ret s2' /\
-          valid_state (extract_state s1') /\
-          valid_state (extract_state s2') ;
-  }.
+          LH.(recovery_exec) o1 o2 s2 p rec s2' /\
+          R (extract_state_r s1') (extract_state_r s2') /\
+          extract_ret_r s1' = extract_ret_r s2' /\
+          valid_state (extract_state_r s1') /\
+          valid_state (extract_state_r s2').
 
-Definition SelfSimulationForSecretInputs 
+Definition SelfSimulationForSecretInputs
+       (rec : LH.(prog) unit)
        (valid_state: LH.(state) -> Prop)
        (valid_prog: forall T, LH.(prog) T -> Prop)
        (R: LH.(state) -> LH.(state) -> Prop)
        {T T'} (p: T -> LH.(prog) T'):=
   
-      forall o s s1 t1 t2,
+      forall o1 o2 s s1 t1 t2,
         valid_state s ->
         valid_prog T' (p t1) ->
         valid_prog T' (p t2) ->
-        LH.(exec) o s (p t1) s1 ->
+        LH.(recovery_exec) o1 o2 s (p t1) rec s1 ->
         exists s1',
-          LH.(exec) o s (p t2) s1' /\
-          R (extract_state s1) (extract_state s1') /\
-          extract_ret s1 = extract_ret s1' /\
-          valid_state (extract_state s1) /\
-          valid_state (extract_state s1').
+          LH.(recovery_exec) o1 o2 s (p t2) rec s1' ->
+          R (extract_state_r s1) (extract_state_r s1') /\
+          extract_ret_r s1 = extract_ret_r s1' /\
+          valid_state (extract_state_r s1) /\
+          valid_state (extract_state_r s1').
 
-Record StrongBisimulation
-  :=
-  {
-    strong_bisimulation_correct:
-      (forall T (p2: LH.(prog) T) s1 s2 o1 o2,
-          
-          R.(refines_to) s1 s2 ->
-          R.(oracle_refines_to) s1 p2 o1 o2 ->
-          
-          (forall s1',
-              LL.(exec) o1 s1 (R.(compile) p2) s1' ->
-              exists s2',
-                LH.(exec) o2 s2 p2 s2' /\
-                R.(refines_to) (extract_state s1') (extract_state s2') /\
-                extract_ret s1' = extract_ret s2') /\
-          (forall s2',
-              LH.(exec) o2 s2 p2 s2' ->
-              exists s1',
-                LL.(exec) o1 s1 (R.(compile) p2) s1' /\
-                R.(refines_to) (extract_state s1') (extract_state s2') /\
-                extract_ret s1' = extract_ret s2'))
-  }.
 
-Record StrongBisimulationForValidStates
+Definition StrongBisimulationForValidStates
        (valid_state1 : LL.(state) -> Prop)
        (valid_state2 : LH.(state) -> Prop)
        (valid_prog2: forall T, LH.(prog) T -> Prop)
   :=
-  {
-    strong_bisimulation_for_valid_states_correct:
-      (forall T p2 s1 s2 o1 o2,
+      forall T p2 s1 s2 o1 o2,
           valid_state1 s1 ->
           
           valid_state2 s2 ->
@@ -196,46 +171,79 @@ Record StrongBisimulationForValidStates
           
           R.(refines_to) s1 s2 ->
           R.(oracle_refines_to) s1 p2 o1 o2 ->
-          
-          (forall s1',
-              LL.(exec) o1 s1 (R.(compile) p2) s1' ->
-              exists s2',
-                LH.(exec) o2 s2 p2 s2' /\
-                R.(refines_to) (extract_state s1') (extract_state s2') /\
-                extract_ret s1' = extract_ret s2' /\
-                valid_state1 (extract_state s1') /\ valid_state2 (extract_state s2')) /\
-          (forall s2',
-              LH.(exec) o2 s2 p2 s2' ->
-              exists s1',
-                LL.(exec) o1 s1 (R.(compile) p2) s1' /\
-                R.(refines_to) (extract_state s1') (extract_state s2') /\
-                extract_ret s1' = extract_ret s2' /\
-                valid_state1 (extract_state s1') /\ valid_state2 (extract_state s2')))
-  }.
 
-Record StrongBisimulationForProgram
-       {T} (p2: LH.(prog) T)
-  :=
-  {
-    strong_bisimulation_for_program_correct:
-      (forall s1 s2 o1 o2,
-          
-          R.(refines_to) s1 s2 ->
-          R.(oracle_refines_to) s1 p2 o1 o2 ->
-          
           (forall s1',
-              LL.(exec) o1 s1 (R.(compile) p2) s1' ->
-              exists s2',
-                LH.(exec) o2 s2 p2 s2' /\
-                R.(refines_to) (extract_state s1') (extract_state s2') /\
-                extract_ret s1' = extract_ret s2') /\
+          LL.(exec) o1 s1 (R.(compile) p2) s1' ->
+          match s1' with
+          | Finished s1' t =>
+            exists s2',
+            LH.(exec) o2 s2 p2 (Finished s2' t) /\
+            R.(refines_to) s1' s2' /\
+            valid_state1 s1' /\
+            valid_state2 s2'
+                         
+          | Crashed s1' =>
+            exists s2',
+            LH.(exec) o2 s2 p2 (Crashed s2') /\
+            R.(refines_to) s1' s2' /\
+            forall s1r,
+              LL.(after_crash) s1' s1r ->
+              exists s2r,
+                LH.(after_crash) s2' s2r /\
+                R.(refines_to) s1r s2r /\
+                valid_state1 s1r /\
+                valid_state2 s2r
+          end
+          ) /\
           (forall s2',
-              LH.(exec) o2 s2 p2 s2' ->
-              exists s1',
-                LL.(exec) o1 s1 (R.(compile) p2) s1' /\
-                R.(refines_to) (extract_state s1') (extract_state s2') /\
-                extract_ret s1' = extract_ret s2'))
-  }.
+             LH.(exec) o2 s2 p2 s2' ->
+             match s2' with
+             | Finished s2' t =>
+               exists s1',
+               LL.(exec) o1 s1 (R.(compile) p2) (Finished s1' t) /\
+               R.(refines_to) s1' s2' /\
+               valid_state1 s1' /\
+               valid_state2 s2'
+             | Crashed s2' =>
+               exists s1',
+               LL.(exec) o1 s1 (R.(compile) p2) (Crashed s1') /\
+               R.(refines_to) s1' s2' /\
+               forall s2r,
+                 LH.(after_crash) s2' s2r ->
+                 exists s1r,
+                   LL.(after_crash) s1' s1r /\
+                   R.(refines_to) s1r s2r /\
+                   valid_state1 s1r /\
+                   valid_state2 s2r
+             end).
+
+Definition StrongBisimulationForProgram {T} (p2: LH.(prog) T) (rec : LH.(prog) unit):=
+  forall s1 s2 o1 o2 o1r o2r,
+      R.(refines_to) s1 s2 ->
+      R.(oracle_refines_to) s1 p2 o1 o2 ->
+      (forall s1c s1r,
+         LL.(exec) o1 s1 (R.(compile) p2) (Crashed s1c) ->
+         LL.(after_crash) s1c s1r ->
+         R.(oracle_refines_to) s1r rec o1r o2r) ->
+
+      (forall s1',
+          LL.(recovery_exec) o1 o1r s1 (R.(compile) p2) (R.(compile) rec) s1' ->
+          exists s2',
+            LH.(recovery_exec) o2 o2r s2 p2 rec s2' /\
+            R.(refines_to) (extract_state_r s1') (extract_state_r s2') /\
+            extract_ret_r s1' = extract_ret_r s2'
+       ) /\
+       (forall s2',
+          LH.(recovery_exec) o2 o2r s2 p2 rec s2' ->
+          exists s1',
+            LL.(recovery_exec) o1 o1r s1 (R.(compile) p2) (R.(compile) rec) s1' /\
+            R.(refines_to) (extract_state_r s1') (extract_state_r s2') /\
+            extract_ret_r s1' = extract_ret_r s2').
+
+Definition StrongBisimulation rec
+  := forall T (p2: LH.(prog) T), StrongBisimulationForProgram p2 rec.
+   
+
 End Relations.
 
 Arguments refines_to_related {_ _ _ _}.

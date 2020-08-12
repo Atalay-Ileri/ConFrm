@@ -22,6 +22,10 @@ Section HorizontalComposition.
   Definition oracle_dec' := list_eq_dec token_dec.
   Definition state' := (O1.(state) * O2.(state))%type.
 
+  Definition after_crash' (s1 s2: state') :=
+    O1.(after_crash) (fst s1) (fst s2) /\
+    O2.(after_crash) (snd s1) (snd s2).
+  
   Inductive horizontal_composition_prog : Type -> Type :=
   | P1 : forall T, O1.(prog) T -> horizontal_composition_prog T
   | P2 : forall T, O2.(prog) T -> horizontal_composition_prog T.
@@ -179,10 +183,12 @@ Qed.
   Qed.
 
   Hint Constructors exec': core.
+  
 
   Definition HorizontalComposition :=
     Build_Operation
-      oracle_dec' horizontal_composition_prog exec'
+      oracle_dec' after_crash'
+      horizontal_composition_prog exec'
       weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'

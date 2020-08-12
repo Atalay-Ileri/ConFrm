@@ -438,6 +438,28 @@ Admitted.
 
 Global Opaque alloc free read write.
 
+(*
+Theorem block_allocator_rep_upd:
+  forall m F dh a v,
+    (F * block_allocator_rep dh)%predicate m ->
+    (F * block_allocator_rep (upd dh a v))%predicate (upd m (S a) v).
+Proof.
+  unfold block_allocator_rep;
+  intros.
+  apply pimpl_exists_l_star_r in H.
+  destruct H.
+  apply pimpl_exists_l_star_r in H.
+  destruct H.
+  destruct_lifts.
+  Search ptsto_bits.
+  rewrite ptsto_bits_extract in H.
+  apply sep_star_assoc in H.
+  eapply ptsto_upd' in H.
+  pred_apply' H.
+  cancel.
+*)
+  
+
 End BlockAllocator.
 
 

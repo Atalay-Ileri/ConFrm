@@ -180,108 +180,205 @@ Abort.
 *)
 
   Import RefinementLift.
-  
+ (* 
   Theorem sbs_ret :
-    forall OL OH (LL: Language OL) (LH: Language OH) (Refinement: OperationRefinement LL OH) T (v: T),
-    StrongBisimulationForProgram (LiftRefinement LH Refinement) (Ret v).              
+    forall OL OH (LL: Language OL) (LH: Language OH) (Refinement: OperationRefinement LL OH) rec T (v: T),
+      StrongBisimulationForProgram (LiftRefinement LH Refinement) rec rec ->
+    StrongBisimulationForProgram (LiftRefinement LH Refinement) (Ret v) rec.              
   Proof.
-    intros.
-    constructor; simpl; split; intros;
-    invert_exec; cleanup;
+    unfold StrongBisimulationForProgram; simpl; intros.
+    split; intros;
+    
+    repeat invert_exec; cleanup;
     split_ors; cleanup;
     invert_exec; cleanup;
-    eexists; intuition eauto;
-    try solve [ econstructor; eauto ];
-    simpl eauto.
-  Qed.
+    try solve [
+          eexists; intuition eauto;
+          try solve [ repeat econstructor; eauto ];
+          simpl; eauto].
+    {
+      edestruct H.
+      2: eapply H2; eauto; econstructor; eauto.
+      (** TODO: we need to know that after_crash state refines_to something. **)
+      admit.
+      intros.
+      eapply exec_deterministic_wrt_oracle in H13; eauto; cleanup.
+      
+      edestruct H1; try solve [econstructor; eauto]; simpl in *; cleanup.
+      repeat invert_exec; simpl in *; cleanup.
+      eexists; intuition eauto;
+      eapply ExecRecover; try econstructor; simpl in *; eauto.
+      (** TODO: we need to know that there is an after_crash state for each state. **)
+      admit.
+    }
 
+    {
+      edestruct H.
+      eauto.
+      eapply H2; eauto; try econstructor; eauto.
+      (** TODO: we need to know that after_crash state refines_to something. **)
+      admit.
+      (** TODO: we need to know that there is an after_crash state for each state. **)
+      admit.
+      
+      intros.
+      eapply H2; eauto; try econstructor; eauto.
+      eapply exec_deterministic_wrt_oracle in H13; eauto; cleanup.
+      
+      edestruct H1; try solve [econstructor; eauto]; simpl in *; cleanup.
+      repeat invert_exec; simpl in *; cleanup.
+      eexists; intuition eauto;
+      eapply ExecRecover; try econstructor; simpl in *; eauto.
+      (** TODO: we need to know that there is an after_crash state for each state. **)
+      admit.
+  Qed.
+   
   Theorem sbs_bind:
     forall OL OH (LL: Language OL) (LH: Language OH) (Refinement: OperationRefinement LL OH)
-      T1 T2 (p1: LH.(prog) T1) (p2: T1 -> LH.(prog) T2),
-      StrongBisimulationForProgram (LiftRefinement LH Refinement) p1 ->
-      (forall t, StrongBisimulationForProgram (LiftRefinement LH Refinement) (p2 t)) ->
-      StrongBisimulationForProgram (LiftRefinement LH Refinement) (Bind p1 p2).
+      T1 T2 (p1: LH.(prog) T1) (p2: T1 -> LH.(prog) T2) ret,
+      StrongBisimulationForProgram (LiftRefinement LH Refinement) p1 ret ->
+      (forall t, StrongBisimulationForProgram (LiftRefinement LH Refinement) (p2 t) ret) ->
+      StrongBisimulationForProgram (LiftRefinement LH Refinement) (Bind p1 p2) ret.
   Proof.
-    intros.
-    edestruct H.
-    constructor; intros.
+    unfold StrongBisimulationForProgram; simpl; intros.
     simpl in *; cleanup.
 
     split; intros.
     - (* Low to High *)
       invert_exec; cleanup.
-      
-      + split_ors; cleanup.
+      { (** Finished **)
+        invert_exec; cleanup.
+        split_ors; cleanup.
         eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
-     
-        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
-        eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        edestruct H0.
-        simpl in *; 
-        edestruct strong_bisimulation_for_program_correct0; eauto.
-        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        destruct x, x0; simpl in *; cleanup.
-        eexists; intuition eauto.
-        econstructor; eauto.
-        simpl; eauto.
-        simpl; eauto.
         
-      +
+        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle in H7; eauto; cleanup.
+        edestruct H; eauto.
+        
+        intros; eapply H3; eauto;
+        solve [econstructor; eauto].
+        
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.          
+        solve [econstructor; eauto].
+        
+        edestruct H0; eauto.
+        intros; eapply H3; eauto;
+        solve [econstructor; eauto].
+        
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+        try solve [econstructor; eauto].
+        
+        simpl in *; cleanup.
+        repeat invert_exec; simpl in *; cleanup.
+        eexists; intuition eauto.          
+        try solve [repeat econstructor; eauto].
+        simpl; eauto.
+        simpl; eauto.
+      }        
+      { (** Recovered **)
+        invert_exec; cleanup;
         split_ors; cleanup;
         split_ors; cleanup;
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
-        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup;
+        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup].
         *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          destruct x6; simpl in *; cleanup.
-          exists (Crashed s); repeat (split; eauto).
-          eapply ExecBindCrash; eauto.
+          edestruct H; eauto.
+          
+          intros; eapply H3; eauto;
+          try solve [repeat econstructor; eauto].
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
+          try solve [repeat econstructor; eauto].
+          
+          edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.          
+          solve [econstructor; eauto].
+         
+          simpl in *; cleanup.
+          repeat invert_exec; simpl in *; cleanup.
+          eexists; intuition eauto.          
+          try solve [repeat econstructor; eauto].
+          simpl; eauto.
+          simpl; eauto.
 
         *
-          eapply_fresh exec_finished_deterministic_prefix in H4; eauto; cleanup.
-          eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-          destruct x0; simpl in *; cleanup.
-          edestruct H0.
-          simpl in *;
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-          destruct x0; simpl in *; cleanup.
-          eexists; intuition eauto.
-          econstructor; eauto.
+          eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+          eapply_fresh exec_deterministic_wrt_oracle in H7; eauto; cleanup.
+
+          edestruct H; eauto.
+
+          intros; eapply H3; eauto;
+          solve [econstructor; eauto].
+          
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.          
+          solve [econstructor; eauto].
+          
+          edestruct H0; eauto.
+          intros; eapply H3; eauto;
+          solve [econstructor; eauto].
+          
+          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+          try solve [econstructor; eauto].
+          
+          simpl in *; cleanup.
+          repeat invert_exec; simpl in *; cleanup.
+          eexists; intuition eauto.          
+          try solve [repeat econstructor; eauto].
           simpl; eauto.
           simpl; eauto.
+      }
 
     - (* High to Low *)
       invert_exec; cleanup.
-      
+      { (** Finished **)
+        invert_exec; cleanup.
+        split_ors; cleanup.
+        +
+          edestruct H; eauto.
+        
+          intros; eapply H3; eauto;
+          solve [econstructor; eauto].
+          
+          edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H8 H9.          
+          try solve [econstructor; eauto].
+          eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
+        
+        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle in H7; eauto; cleanup.
+        edestruct H; eauto.
+        
+        intros; eapply H3; eauto;
+        solve [econstructor; eauto].
+        
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.          
+        solve [econstructor; eauto].
+        
+        edestruct H0; eauto.
+        intros; eapply H3; eauto;
+        solve [econstructor; eauto].
+        
+        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H4.
+        try solve [econstructor; eauto].
+        
+        simpl in *; cleanup.
+        repeat invert_exec; simpl in *; cleanup.
+        eexists; intuition eauto.          
+        try solve [repeat econstructor; eauto].
+        simpl; eauto.
+        simpl; eauto.
 
       + split_ors; cleanup.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
+        edestruct H; eauto.
+        specialize H7 with (1:=H4); eauto; simpl in *; cleanup; try intuition; clear H8.
         eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; simpl in *; cleanup.
-        simpl in *; cleanup.
 
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-        
-        destruct x10; simpl in *; cleanup; eauto.
+        edestruct H; eauto.
+        specialize H9 with (1:=H4); eauto; simpl in *; cleanup; try intuition; clear H10.
         eapply_fresh exec_finished_deterministic_prefix in H2; eauto; cleanup.
-        simpl in *.
-        edestruct H0.
-        simpl in *;
-        edestruct strong_bisimulation_for_program_correct0; eauto.
-        edestruct H5; eauto; simpl in *; cleanup; try intuition; clear H5 H9; cleanup.           
+ 
+        edestruct H0; eauto.
+        specialize H5 with (1:=H6); eauto; simpl in *; cleanup; try intuition; clear H9;       
         eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; simpl in *; cleanup.
-        destruct x9; simpl in *; cleanup; eauto.
         eexists; intuition eauto.
         econstructor; eauto.
-        simpl; eauto.
-        simpl; eauto.
         
       +
         split_ors; cleanup;
@@ -289,121 +386,209 @@ Abort.
         eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
         try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
         *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          destruct x6; simpl in *; cleanup.
+          edestruct H; eauto.
+          specialize H6 with (1:=H4); eauto; simpl in *; cleanup; try intuition; clear H7.
           eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-          simpl in *.
-          exists (Crashed x5); repeat (split; eauto).
+          eexists; repeat (split; eauto).
           eapply ExecBindCrash; eauto.
+          clear H8; edestruct H; eauto.
+          specialize H8 with (1:=H6); eauto; simpl in *; cleanup; try intuition; clear H7.
+          eapply_fresh exec_deterministic_wrt_oracle in H4; eauto; cleanup; eauto.
 
         *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H8 H9.
-          destruct x8; simpl in *; cleanup.
+          edestruct H; eauto.
+          specialize H8 with (1:=H4); eauto; simpl in *; cleanup; try intuition; clear H9.
           eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
 
         *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
-          destruct x8; simpl in *; cleanup.
+          edestruct H; eauto.
+          specialize H7 with (1:=H4); eauto; simpl in *; cleanup; try intuition; clear H8.
           eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
 
         *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-          destruct x10; simpl in *; cleanup.
+          edestruct H; eauto.
+          specialize H9 with (1:=H4); eauto; simpl in *; cleanup; try intuition; clear H10.
           eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
-          edestruct H0.
-          simpl in *;
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
-          cleanup.
+          edestruct H0; eauto.
+          specialize H2 with (1:=H6); eauto; simpl in *; cleanup; try intuition; clear H9;
           eapply_fresh exec_deterministic_wrt_oracle in H5; eauto; cleanup.
           eexists; intuition eauto.
           econstructor; eauto.
+          clear H10; edestruct H0; eauto.
+          specialize H10 with (1:=H5); eauto; simpl in *; cleanup; try intuition; clear H9.
+          eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup; eauto.
     Unshelve.
     all: eauto.
   Qed.
-
-  Hint Resolve sbs_ret sbs_bind.
-
+  *)
+  
 Theorem bisimulation_from_wp_prog :
-  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH) T (p2: LH.(prog) T),
+  forall OL OH (LL: Language OL) (LH: Language OH) (R: Refinement LL LH) T (p2: LH.(prog) T) rec,
 
     exec_preserves_refinement R ->
 
     exec_compiled_preserves_refinement R ->
     
     WP_Bisimulation_prog R p2 ->
-    
-    StrongBisimulationForProgram R p2.
+
+    WP_Bisimulation_prog R rec ->
+
+    (forall sl sh slc,
+       R.(refines_to) sl sh ->
+       LL.(after_crash) sl slc ->
+       
+       exists shc,
+         LH.(after_crash) sh shc /\
+         R.(refines_to) slc shc) ->
+
+    (forall sl sh shc,
+       R.(refines_to) sl sh ->
+       LH.(after_crash) sh shc ->
+       
+       exists slc,
+         LL.(after_crash) sl slc /\
+         R.(refines_to) slc shc) ->
+      
+    StrongBisimulationForProgram R p2 rec.
 Proof.  
-  intros; eapply Build_StrongBisimulationForProgram;
+  unfold StrongBisimulationForProgram;
   intros; cleanup; split; intros.
   {(* low -> high *)
-    match goal with
-    |[H: exec LL  _ _ _ _,
-      H0: exec_compiled_preserves_refinement _ |- _ ] =>
-     eapply_fresh H0 in H; eauto; cleanup
-    end.
-    destruct s1'; simpl in *.
+    invert_exec.
     {(* wp *)
+      match goal with
+      |[H: Language.exec' _ _ _ _,
+           H0: exec_compiled_preserves_refinement _ |- _ ] =>
+       eapply_fresh H0 in H; eauto; cleanup
+      end.
+    
       pose proof exec_to_wp as Hx.
       match goal with
-      |[H: exec LL _ _ _ _  |- _ ] =>
+      |[H: Language.exec' _ _ _ _  |- _ ] =>
        specialize Hx with (1:= H); simpl in *
       end.
       edestruct wp_to_exec.
-      eapply wp_low_to_high_prog; eauto.
+      eapply wp_low_to_high_prog.
+      apply H1.
+      all: eauto.
       cleanup.
       eexists; split; eauto.
+      econstructor; eauto.
+      simpl; eauto.
     }
     {(* wcp *)
+      match goal with
+      |[H: Language.exec' _ _ _ (Crashed _),
+           H0: exec_compiled_preserves_refinement _ |- _ ] =>
+       eapply_fresh H0 in H; eauto; cleanup
+      end.
+
+      
+      
       pose proof exec_to_wcp as Hx.
       match goal with
-      |[H: exec LL _ _ _ _  |- _ ] =>
+      |[H: Language.exec' _ _ _ (Crashed _)  |- _ ] =>
        specialize Hx with (1:= H); simpl in *
       end.
       edestruct wcp_to_exec.
-      eapply wcp_low_to_high_prog; eauto.
+      eapply wcp_low_to_high_prog.
+      apply H1.
+      all: eauto.
       cleanup.
-      eexists; split; eauto.
+
+      edestruct H3; eauto; cleanup.
+             
+      match goal with
+      |[H: Language.exec' _ _ _ (Finished _ _),
+           H0: exec_compiled_preserves_refinement _ |- _ ] =>
+       eapply_fresh H0 in H; eauto; cleanup
+      end.
+
+      pose proof exec_to_wp as Hy.
+      match goal with
+      |[H: Language.exec' _ _ _ (Finished _ _)  |- _ ] =>
+       specialize Hy with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      eapply wp_low_to_high_prog.
+      apply H2.
+      all: eauto.
+      cleanup.
+      
+      eexists; repeat (split; eauto).
+      eapply ExecRecover; eauto.
+      simpl; eauto.
+      simpl; eauto.
     }
   }
 
   {(* high -> low *)
-    match goal with
-    |[H: exec LH _ _ _ _,
-      H0: exec_preserves_refinement _ |- _ ] =>
-     eapply_fresh H0 in H; eauto; cleanup
-    end.
-    destruct s2'; simpl in *.
+    invert_exec.
     {(* wp *)
+      match goal with
+      |[H: Language.exec' _ _ _ _,
+           H0: exec_preserves_refinement _ |- _ ] =>
+       eapply_fresh H0 in H; eauto; cleanup
+      end.
+    
       pose proof exec_to_wp as Hx.
       match goal with
-      |[H: exec LH _ _ _ _  |- _ ] =>
+      |[H: Language.exec' _ _ _ _  |- _ ] =>
        specialize Hx with (1:= H); simpl in *
       end.
       edestruct wp_to_exec.
-      eapply wp_high_to_low_prog; eauto.
+      eapply wp_high_to_low_prog.
+      apply H1.
+      all: eauto.
       cleanup.
       eexists; split; simpl; eauto.
+      econstructor; eauto.
+      simpl; eauto.
     }
     {(* wcp *)
+       match goal with
+      |[H: Language.exec' _ _ _ (Crashed _),
+           H0: exec_preserves_refinement _ |- _ ] =>
+       eapply_fresh H0 in H; eauto; cleanup
+       end.
+       
       pose proof exec_to_wcp as Hx.
       match goal with
-      |[H: exec LH _ _ _ _  |- _ ] =>
+      |[H: Language.exec' _ _ _ (Crashed _)  |- _ ] =>
        specialize Hx with (1:= H); simpl in *
       end.
       edestruct wcp_to_exec.
-      eapply wcp_high_to_low_prog; eauto.
+      eapply wcp_high_to_low_prog.
+      apply H1.
+      all: eauto.
       cleanup.
-      eexists; split; eauto.
+      
+      edestruct H4; eauto; cleanup.
+      
+      match goal with
+      |[H: Language.exec' _ _ _ (Finished _ _),
+           H0: exec_preserves_refinement _ |- _ ] =>
+       eapply_fresh H0 in H; eauto; cleanup
+       end.
+
+      pose proof exec_to_wp as Hy.
+      match goal with
+      |[H: Language.exec' _ _ _ (Finished _ _)  |- _ ] =>
+       specialize Hy with (1:= H); simpl in *
+      end.
+      edestruct wp_to_exec.
+      eapply wp_high_to_low_prog.
+      apply H2.
+      all: eauto.
+      cleanup.
+      
+      eexists; repeat (split; eauto).
+      eapply ExecRecover; eauto.
+      simpl; eauto.
+      simpl; eauto.
     }
   }
 Qed.
-
 
 Lemma sp_impl:
     forall O (L: Language O) T (p: prog L T) (P P': list (Language.token' O) -> Operation.state O -> Prop) s' t,

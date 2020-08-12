@@ -6,7 +6,6 @@ Set Implicit Arguments.
 
 Definition CryptoDiskOperation :=  HorizontalComposition CryptoOperation (DiskOperation addr_dec value).
 Definition CryptoDiskLang := Build_Language CryptoDiskOperation.
-Definition CryptoDiskHL := Build_HoareLogic CryptoDiskLang.
 
 
 Notation "'|CP|' p" := (@lift_L1 CryptoOperation (DiskOperation addr_dec value) CryptoLang _ p) (at level 59).

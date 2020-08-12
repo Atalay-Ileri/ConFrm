@@ -237,7 +237,7 @@ Theorem auth_then_exec_ok:
     (strongest_postcondition AuthenticatedDiskLang (auth_then_exec inum p)
      (fun o s => (F * files_rep fmap)%predicate (mem_union (fst (snd s)) (snd (snd s))) /\ (fst (snd s)) = empty_mem) t s' ->
      (exists file, fmap inum = Some file /\ fst s' = file.(owner) /\ fst (snd s') = empty_mem /\ Q t (snd s')) \/
-    (fst (snd s') = empty_mem /\ (fmap inum = None \/ (exists file, fmap inum = Some file /\ fst s' <> file.(owner))))).
+     (fst (snd s') = empty_mem /\ (fmap inum = None \/ (exists file, fmap inum = Some file /\ fst s' <> file.(owner))))).
 Proof.
   unfold auth_then_exec; intros.
   apply sp_bind in H0; simpl in *.
@@ -282,7 +282,6 @@ Proof.
           pred_apply; cancel.
           exists x2.
           pred_apply; cancel.
-          eauto.
           all: exact AuthenticationLang.
         }
         { (* p Failed. *)
@@ -316,7 +315,6 @@ Proof.
           pred_apply; cancel.
           exists x2.
           pred_apply; cancel.
-          eauto.
           all: exact AuthenticationLang.
         }
       }
@@ -358,12 +356,13 @@ Qed.
 Open Scope predicate_scope.
                             
 Local Lemma get_block_number_files_rep_ok :
-  forall inum t sx F fmap file off,
+  forall inum t sx x F fmap file off,
     strongest_postcondition (TransactionalDiskLang data_length)
       (get_block_number inum off)
       (fun o s => (F * files_rep fmap)%predicate
                 (mem_union (fst s) (snd s)) /\
-               fmap inum = Some file) t sx ->
+               fmap inum = Some file /\
+               fst s = x) t sx ->
     exists imap fbmap,
       (exists inode : Inode,
          imap inum = Some inode /\
@@ -372,8 +371,9 @@ Local Lemma get_block_number_files_rep_ok :
          (t = None -> off >= length inode.(block_numbers)) /\
          (F * DiskAllocator.block_allocator_rep fbmap *
           [[files_inner_rep fmap  imap fbmap ]] * inode_rep imap)%predicate
-           (mem_union (fst sx) (snd sx))).
-Proof.
+          (mem_union (fst sx) (snd sx))) /\
+      fst sx = x.
+Proof. Admitted. (*
   intros.
         
   eapply sp_impl in H.
@@ -382,7 +382,7 @@ Proof.
              (F * inode_rep inode_map *
               (exists* (file_block_map : disk value),  
               DiskAllocator.block_allocator_rep file_block_map *
-              [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\ fmap inum = Some file) in H; cleanup.
+              [[files_inner_rep fmap inode_map file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\ fmap inum = Some file /\ fst sx = x) in H; cleanup.
 
   2: {
     simpl; intros; cleanup.            
@@ -398,22 +398,22 @@ Proof.
   apply (sp_exists_extract (disk value)) with
       (P:= fun (file_block_map: disk value) o (sx : state') =>
              (F *
-              (inode_rep x *
+              (inode_rep x0 *
                DiskAllocator.block_allocator_rep file_block_map *
-               [[files_inner_rep fmap x file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\ fmap inum = Some file) in H; cleanup.
+               [[files_inner_rep fmap x0 file_block_map]]))%predicate (mem_union (fst sx) (snd sx)) /\ fmap inum = Some file /\ fst sx = x) in H; cleanup.
 
   2: {
     simpl; intros; cleanup.            
     apply pimpl_exists_l_star_r in H0.
     destruct H0.
-    exists x0; simpl in *; eauto.
+    exists x; simpl in *; eauto.
     intuition eauto.
     pred_apply; cancel.
   }
   
   apply sp_extract_precondition in H; cleanup.
   destruct_lifts.
-  destruct_fresh (x inum).
+  destruct_fresh (x0 inum).
   {
     eapply sp_impl in H.
     apply get_block_number_ok in H; eauto.
@@ -421,13 +421,13 @@ Proof.
     2: {
       simpl; intros; cleanup.
       pred_apply; cancel.
-      instantiate (1:= x); cancel.
+      instantiate (1:= x0); cancel.
     }
     split_ors; cleanup.
     unfold files_inner_rep in *; cleanup.
     specialize H2 with (1:= D)(2:= H1) as Hx.
     unfold file_rep in *; cleanup.
-    do 3 eexists; intuition eauto.
+    do 2 eexists; intuition eauto.
     apply nth_error_None; eauto.
     pred_apply; cancel; eauto.
   }    
@@ -437,15 +437,16 @@ Proof.
     apply H4; congruence.
   }
 Qed.
-
+*)
 Theorem read_inner_ok:
-  forall inum off s' t fmap F file,
+  forall inum off x s' t fmap F file,
     strongest_postcondition (TransactionalDiskLang data_length) (read_inner off inum)
-     (fun o s => (F * files_rep fmap)%predicate (mem_union (fst s) (snd s)) /\ fmap inum = Some file) t s' ->
-     ( t = nth_error file.(blocks) off /\ (F * files_rep fmap)%predicate (mem_union (fst s') (snd s'))).
-Proof.
+     (fun o s => (F * files_rep fmap)%predicate (mem_union (fst s) (snd s)) /\ fmap inum = Some file /\ fst s =x) t s' ->
+    (t = nth_error file.(blocks) off /\ (F * files_rep fmap)%predicate (mem_union (fst s') (snd s')) /\
+    fst s' = x).
+Proof. Admitted. (*
   unfold read_inner; simpl; intros.
-  repeat (cleanup; simpl in *).
+  repeat (cleanup; simpl in * ).
   {
     apply sp_extract_precondition in H; cleanup.
     apply get_block_number_files_rep_ok in H0; cleanup.
@@ -466,7 +467,7 @@ Proof.
     2: {
       simpl. intros; cleanup.
       pred_apply; cancel.
-      instantiate (1:=x5); cancel; eauto.
+      instantiate (1:=x6); cancel; eauto.
     }
     destruct_lifts.
     unfold files_inner_rep in *; cleanup.
@@ -477,11 +478,12 @@ Proof.
     pred_apply; cancel; eauto.
     
     unfold files_rep.         
-    exists x4.
-    pred_apply; cancel.
     exists x5.
     pred_apply; cancel.
+    exists x6.
+    pred_apply; cancel.
     unfold files_inner_rep in *; intuition eauto.
+    eauto.
   }
 
   {
@@ -538,22 +540,25 @@ Proof.
     unfold files_inner_rep in *; intuition eauto.
   }
 Qed.
-
+*)
 Global Opaque read_inner.
           
 Theorem read_ok:
   forall inum off s' t fmap F,
     strongest_postcondition AuthenticatedDiskLang (read inum off)
-     (fun o s => (F * files_rep fmap)%predicate (mem_union (fst (snd s)) (snd (snd s))) /\ (fst (snd s)) = empty_mem) t s' ->
+     (fun o s => (F * files_rep fmap)%predicate (snd (snd s)) /\ fst (snd s) = empty_mem) t s' ->
     (exists file, fmap inum = Some file /\
              t = nth_error file.(blocks) off /\
-             (F * files_rep fmap)%predicate (mem_union (fst (snd s')) (snd (snd s'))) /\
+             owner file = fst s' /\
+             (F * files_rep fmap)%predicate (snd (snd s')) /\
              (fst (snd s')) = empty_mem) \/
-((fmap inum = None \/
-       (exists file : File,
-          fmap inum = Some file /\ fst s' <> owner file)) /\
-         (fst (snd s')) = empty_mem).
-Proof.
+    (t = None /\
+     (fmap inum = None \/
+      (exists file : File,
+         fmap inum = Some file /\ fst s' <> owner file)) /\
+     (F * files_rep fmap)%predicate (snd (snd s')) /\
+     fst (snd s') = empty_mem).
+Proof. Admitted. (*
   unfold read; intros.
   eapply auth_then_exec_ok in H.
   2: {
@@ -572,7 +577,8 @@ Proof.
     repeat rewrite mem_union_empty_mem.
     destruct t'; intuition eauto.
     right; intuition eauto; congruence.
-    left; intuition eauto.    
+    left; intuition eauto.
+    eexists; intuition eauto.
     admit.
   }
   
@@ -581,3 +587,23 @@ Proof.
   left; eexists; intuition eauto.
   right; intuition eauto.
 Admitted.
+*)
+
+Theorem write_ok:
+  forall inum off s' t fmap F v,
+    strongest_postcondition AuthenticatedDiskLang (write inum off v)
+     (fun o s => (F * files_rep fmap)%predicate (snd (snd s)) /\ fst (snd s) = empty_mem) t s' ->
+    (exists file, fmap inum = Some file /\
+             t = Some tt /\
+             owner file = fst s' /\
+             off < length (blocks file) /\
+             let new_file := Build_File (owner file) (updN (blocks file) off v) in
+             (F * files_rep (upd fmap inum new_file))%predicate (snd (snd s')) /\
+             (fst (snd s')) = empty_mem) \/
+    (t = None /\
+     (fmap inum = None \/
+      (exists file : File,
+         fmap inum = Some file /\ (fst s' <> owner file \/ off >= length (blocks file)))) /\
+     (F * files_rep fmap)%predicate (snd (snd s')) /\
+     fst (snd s') = empty_mem).
+Proof. Admitted.

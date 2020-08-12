@@ -15,6 +15,8 @@ Set Implicit Arguments.
   Definition oracle' := list token'.  
 
   Definition state' := disk value.
+
+  Definition after_crash' (s1 s2: state') := s1 = s2.
   
   Inductive logged_disk_prog : Type -> Type :=
   | Read : addr -> logged_disk_prog value
@@ -209,6 +211,7 @@ Set Implicit Arguments.
   Definition LoggedDiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
+      after_crash'
       logged_disk_prog
       exec'
       weakest_precondition'
@@ -222,7 +225,6 @@ Set Implicit Arguments.
       exec_deterministic_wrt_oracle'.
 
   Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
-  Definition LoggedDiskHL := Build_HoareLogic LoggedDiskLang.
 
 Notation "| p |" := (Op LoggedDiskOperation p)(at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op LoggedDiskOperation p1) (fun x => p2))(right associativity, at level 60). 

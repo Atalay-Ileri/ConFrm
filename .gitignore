@@ -15,3 +15,4 @@
 *.o
 *.hse
 /_build
+*.lia.cache

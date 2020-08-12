@@ -13,11 +13,7 @@ Section Disk.
   Defined.
     
   Definition disk V := @mem addr addr_dec V.
-  Definition upd_disk {V} := @upd addr V addr_dec.
   
-  Definition store V := @mem handle handle_dec V.
-  Definition upd_store {V} := @upd handle V handle_dec.
-
   
 
   Definition read {V} (d: disk (set V)) (a: addr) :=
