@@ -40,7 +40,7 @@ Ltac sigT_eq :=
     apply Eqdep.EqdepTheory.inj_pair2 in H; subst
   end; repeat sigT_eq.
 
-Local Ltac logic_clean:=
+Ltac logic_clean:=
   match goal with
   | [H: exists _, _ |- _] => destruct H
   | [H: _ /\ _ |- _] => destruct H

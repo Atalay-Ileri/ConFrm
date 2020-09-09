@@ -1,1 +1,2 @@
-Require Export  Layer.Operation Layer.Language Layer.HorizontalComposition.
+Require Export  Layer.Operation Layer.Language
+        Layer.HorizontalComposition Layer.Automation.

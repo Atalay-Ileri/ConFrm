@@ -20,7 +20,8 @@ Set Implicit Arguments.
   
   Inductive logged_disk_prog : Type -> Type :=
   | Read : addr -> logged_disk_prog value
-  | Write : list addr -> list value -> logged_disk_prog unit.
+  | Write : list addr -> list value -> logged_disk_prog unit
+  | Recover : logged_disk_prog unit.
    
   Inductive exec' :
     forall T, oracle' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
@@ -41,6 +42,10 @@ Set Implicit Arguments.
         ~NoDup la \/ length la <> length lv \/
         (exists a, In a la /\ d a = None) ->
         exec' [Cont] d (Write la lv) (Finished d tt)
+
+  | ExecRecover : 
+      forall d,
+        exec' [Cont] d Recover (Finished d tt)
 
   | ExecCrashBefore :
       forall d T (p: logged_disk_prog T),
@@ -75,6 +80,10 @@ Set Implicit Arguments.
          length la <> length lv \/
         (exists a, In a la /\ s a = None)) /\
         Q tt s))
+   | Recover =>
+     fun Q o s =>
+       o = [Cont] /\
+       Q tt s 
    end.
 
   Definition weakest_crash_precondition' T (p: logged_disk_prog T) :=
@@ -92,6 +101,10 @@ Set Implicit Arguments.
         length la = length lv /\
         (forall a, In a la -> s a <> None) /\
         Q (upd_batch s la lv)))
+   | Recover =>
+     fun Q o s =>
+       o = [CrashBefore] /\
+       Q s
     end.
 
   Definition strongest_postcondition' T (p: logged_disk_prog T) :=
@@ -120,6 +133,12 @@ Set Implicit Arguments.
           (exists a, In a la /\ s a = None)) /\
          s' = s
        ))
+   | Recover =>
+     fun P t s' =>
+       exists s,
+         P [Cont] s /\
+         t = tt /\
+         s' = s
    end.
 
   Definition strongest_crash_postcondition' T (p: logged_disk_prog T) :=
@@ -136,6 +155,9 @@ Set Implicit Arguments.
           length la = length lv /\
           (forall a, In a la -> s a <> None) /\
           s' = upd_batch s la lv)
+   | Recover =>
+     fun P s' =>
+       P [CrashBefore] s'
     end.
   
   Theorem sp_complete':
@@ -211,7 +233,7 @@ Set Implicit Arguments.
   Definition LoggedDiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       logged_disk_prog
       exec'
       weakest_precondition'

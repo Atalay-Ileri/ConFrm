@@ -15,6 +15,16 @@ Section GenMem.
   Definition upd (m : @mem A AEQ V) (a : A) (v : V) : @mem A AEQ V :=
     fun a' => if AEQ a' a then Some v else m a'.
 
+  Definition upd_set (m : @mem A AEQ (V * list V)) (a : A) (v : V) : @mem A AEQ (V * list V) :=
+    fun a' =>
+      if AEQ a' a then
+        match m a with
+        | Some vs => Some (v, fst vs :: snd vs)
+        | None => Some (v, nil)
+        end
+      else
+        m a'.
+
   Definition updSome (m : @mem A AEQ V) (a : A) (v : V) : @mem A AEQ V :=
     fun a' => if AEQ a' a then
       match m a with
@@ -73,6 +83,12 @@ Section GenMem.
     | a::al', v::vl' => upd_batch (upd m a v) al' vl'
     | _, _ => m
     end.
+
+  Fixpoint upd_batch_set m al vl :=
+    match al, vl with
+    | a::al', v::vl' => upd_batch_set (upd_set m a v) al' vl'
+    | _, _ => m
+    end.  
 
   Fixpoint get_all_existing (m: @mem A AEQ V) al :=
     match al with

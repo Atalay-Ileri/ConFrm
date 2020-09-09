@@ -55,3 +55,7 @@ Definition write a v :=
       Ret tt
   else
     Ret tt.
+
+Definition recover :=
+  _ <- |TCDO| Recover;
+  Ret tt.

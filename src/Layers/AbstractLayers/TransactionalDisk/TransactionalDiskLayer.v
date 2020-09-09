@@ -31,7 +31,8 @@ Section TransactionalDisk.
   | Read : addr -> transactional_disk_prog value
   | Write : addr -> value -> transactional_disk_prog unit
   | Commit : transactional_disk_prog unit
-  | Abort : transactional_disk_prog unit.
+  | Abort : transactional_disk_prog unit
+  | Recover : transactional_disk_prog unit.
    
   Inductive exec' :
     forall T, oracle' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=
@@ -87,6 +88,10 @@ Section TransactionalDisk.
         let c := fst s in
         let d := snd s in
         exec' [Cont] s Abort (Finished (empty_mem, d) tt)
+
+  | ExecRecover : 
+      forall s,
+        exec' [Cont] s Recover (Finished s tt)
 
   | ExecCrashBefore :
       forall d T (p: transactional_disk_prog T),
@@ -164,6 +169,10 @@ Section TransactionalDisk.
        let d := snd s in
        o = [Cont] /\
        Q tt (empty_mem, d))
+   | Recover =>
+     (fun Q o s =>
+       o = [Cont] /\
+       Q tt s)
    end.
 
   Definition weakest_crash_precondition' T (p: transactional_disk_prog T) :=
@@ -236,6 +245,12 @@ Section TransactionalDisk.
           Q s) \/
          (o = [CrashAfter] /\
           Q (empty_mem, d)))
+   | Recover =>
+      (fun Q o s =>
+         (o = [CrashBefore] /\
+          Q s) \/
+         (o = [CrashAfter] /\
+          Q s))
     end.
 
   Definition strongest_postcondition' T (p: transactional_disk_prog T) :=
@@ -309,6 +324,12 @@ Section TransactionalDisk.
          P [Cont] s /\
          t = tt /\
          s' = (empty_mem, d)
+   | Recover =>
+      fun P t s' =>
+        exists s,
+         P [Cont] s /\
+         t = tt /\
+         s' = s
    end.
 
   Definition strongest_crash_postcondition' T (p: transactional_disk_prog T) :=
@@ -384,6 +405,13 @@ Section TransactionalDisk.
            s' = s) \/
           (P [CrashAfter] s /\
            s' = (empty_mem, d))
+    | Recover =>
+      fun P s' =>
+        exists s,
+          (P [CrashBefore] s /\
+           s' = s) \/
+          (P [CrashAfter] s /\
+           s' = s)
     end.
   
   Theorem sp_complete':
@@ -468,7 +496,7 @@ Section TransactionalDisk.
   Definition TransactionalDiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       transactional_disk_prog
       exec'
       weakest_precondition'

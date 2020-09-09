@@ -1,4 +1,4 @@
-Require Import Datatypes PeanoNat Framework FSParameters Log.
+Require Import Lia Datatypes PeanoNat Framework FSParameters Log.
 Require Import DiskLayer CryptoDiskLayer CacheLayer CachedDiskLayer.
 
 Local Fixpoint write_batch_to_cache al vl :=
@@ -45,6 +45,22 @@ Definition read a :=
     Ret v
   end.
 
+Fixpoint write_lists_to_cache l_al_vl :=
+  match l_al_vl with
+  | nil =>
+    Ret tt
+  | al_vl :: l =>
+    _ <- write_batch_to_cache (fst al_vl) (snd al_vl);
+    _ <- write_lists_to_cache l;
+    Ret tt
+  end.
+
+Definition recover :=
+  log <- |CDDP| read_log;
+  _ <- write_lists_to_cache log;
+  Ret tt.
+
+(** Representation Invariants **)
 
 Fixpoint txns_cache (txns: list txn) cache : @mem addr addr_dec value :=
   match txns with
@@ -68,3 +84,17 @@ Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLa
     (log_rep log_state hdr txns (fst (snd s)) * disk_frame)%predicate (snd (snd s)) /\
     merged_disk = shift (plus data_start) (merge_set (fst s) (snd (snd s))).
 
+
+Theorem write_batch_to_cache_finished:
+  forall al vl o s s' t,
+    length al = length vl ->
+    exec CachedDiskLang o s (write_batch_to_cache al vl) (Finished s' t) ->
+    snd s' = snd s /\
+    fst s' = upd_batch (fst s) al vl.
+Proof.
+  induction al; simpl; intros;
+  repeat invert_exec; cleanup;
+  eauto; simpl in *; try lia.
+  repeat invert_exec.
+  edestruct IHal; eauto.
+Qed.

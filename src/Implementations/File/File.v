@@ -143,6 +143,12 @@ Definition create owner :=
     _ <- |ADDO| Abort;
     Ret None.
 
+Definition recover :=
+  _ <- |ADDO| Recover;
+  Ret tt.
+
+
+(*
 Set Nested Proofs Allowed.
 Local Lemma get_owner_files_rep_ok :
   forall inum t sx F fmap,
@@ -256,7 +262,7 @@ Proof.
           apply sp_lift2 in H1; simpl in H1.
           apply sp_extract_precondition in H1; cleanup.
           apply get_owner_files_rep_ok in H2.
-          repeat (split_ors; cleanup; simpl in *).
+          repeat (split_ors; cleanup; simpl in * ).
           
           destruct_lifts; cleanup.
           unfold files_inner_rep in *; cleanup.
@@ -272,7 +278,7 @@ Proof.
 
           intros; simpl in *; cleanup.
           eapply get_owner_files_rep_ok in H4.
-          repeat (split_ors; cleanup; simpl in *); eauto.
+          repeat (split_ors; cleanup; simpl in * ); eauto.
 
           intuition eauto.
           unfold files_rep.         
@@ -290,7 +296,7 @@ Proof.
           apply sp_lift2 in H1; simpl in H1.
           apply sp_extract_precondition in H1; cleanup.
           apply get_owner_files_rep_ok in H2.
-          repeat (split_ors; cleanup; simpl in *).
+          repeat (split_ors; cleanup; simpl in * ).
           destruct_lifts; cleanup.
           unfold files_inner_rep in *; cleanup.
           specialize (H4 inum).
@@ -306,7 +312,7 @@ Proof.
           
           simpl; intros; cleanup.
           apply get_owner_files_rep_ok in H4.
-          repeat (split_ors; cleanup; simpl in *).
+          repeat (split_ors; cleanup; simpl in * ).
           intuition eauto.
           unfold files_rep.         
           apply sep_star_comm.
@@ -324,7 +330,7 @@ Proof.
         
         apply get_owner_files_rep_ok in H1.
         cleanup.
-        repeat (split_ors; cleanup; simpl in *).
+        repeat (split_ors; cleanup; simpl in * ).
         destruct_lifts; cleanup.
         unfold files_inner_rep in *; cleanup.
         specialize (H4 inum).
@@ -607,3 +613,4 @@ Theorem write_ok:
      (F * files_rep fmap)%predicate (snd (snd s')) /\
      fst (snd s') = empty_mem).
 Proof. Admitted.
+*)

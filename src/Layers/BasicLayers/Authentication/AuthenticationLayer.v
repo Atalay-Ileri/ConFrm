@@ -15,8 +15,9 @@ Set Implicit Arguments.
 
   Definition state' := user.
 
-  (** TODO: This may need to change **)
+  (** TODO: This may need to change
   Definition after_crash' (s1 s2: state') := s1 = s2.
+   **)
   
   Inductive authentication_prog : Type -> Type :=
   | Auth : user -> authentication_prog (option unit).
@@ -132,7 +133,7 @@ Set Implicit Arguments.
   Definition AuthenticationOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       authentication_prog
       exec'
       weakest_precondition'

@@ -24,6 +24,7 @@ Fixpoint compile T (p2: Operation.prog high_op T) : prog low T.
   exact (change_owner a u).
   exact (create u).
   exact (delete a).
+  exact recover.
 Defined.
 
 Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 o2 : Prop :=
@@ -242,6 +243,16 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             files_rep (Mem.delete fm inum) (mem_union (fst d') (snd d'))
           )
        )
+     | Recover =>
+      (exists d1',
+         exec low o1 d1 recover (Finished d1' tt) /\
+         o2 = [Cont] /\
+         d1' = d1) \/
+      
+      (exists d1',
+         exec low o1 d1 recover (Crashed d1') /\
+         o2 = [CrashBefore] /\
+         d1' = d1)
      end.
 
    Definition refines_to (d1: state low) (d2: state high) :=

@@ -21,7 +21,7 @@ Section CacheLayer.
 
   Definition state' := @mem A AEQ V.
 
-  Definition after_crash' (s1 s2: state') := s2 = empty_mem.
+  (* Definition after_crash' (s1 s2: state') := s2 = empty_mem. *)
   
   Inductive cache_prog : Type -> Type :=
   | Read : A -> cache_prog (option V)
@@ -158,7 +158,7 @@ Section CacheLayer.
   Definition CacheOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       cache_prog
       exec'
       weakest_precondition'

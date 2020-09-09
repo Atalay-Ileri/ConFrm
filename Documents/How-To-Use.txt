@@ -1,0 +1,85 @@
+# Implementation Framework
+
+- Operation (Developer defined)
+    
+    Summary:
+        Defines core operations of a language.
+
+    Definitions
+        * state
+        * oracle
+        * operations
+        * execution semantics
+        * WP/SP and WCP/SCP
+        * after_crash relation
+
+    Proofs
+        * WP/SP and WCP/SCP completeness
+        * Determinism of execution modulo oracle
+
+
+- Language (Framework generated in Language.v)
+    
+    Requires: 
+        Operation.
+    
+    Summary:
+        Automatically adds stateful computation monad to an Operation.
+        
+    Definitions
+        * state
+        * oracle
+        * programming language
+        * execution semantics
+        * recovery_semantics
+        * WP/SP and WCP/SCP
+        * after_crash relation
+
+    Proofs
+        * WP/SP and WCP/SCP completeness
+        * Determinism of execution modulo oracle
+        
+
+- Horizontal Composition (Framework generated in HorizontalComposition.v)
+    Requires: 
+        two Operations.
+    
+    Summary:
+        Automatically generates a combined operation via putting them in a sum monad.
+
+
+
+
+# Refinement Framework
+
+- Operation Refinement (Developer defined)
+    Requires:
+        a low Language and a high Operation
+    
+    Summary:
+        relates 
+        * low states to high states (refines_to_op)
+        * every op-code in high operation to a low program (compile_op)
+        * low oracles to high oracles (oracle_refines_to_op)
+    
+    Definitions:
+        * a refinement relation for states
+        * a refinement relation for oracles
+        * a compilation function
+
+- Refinement (Framework generated in RefinementLift.v)
+    Requires:
+        an Operation Refinement and a Language generated from operation refinement's high Operation
+    
+    Summary:
+        relates 
+        * low states to high states (refines_to)
+        * every program in high language to a low program (compile)
+        * low oracles to high oracles (oracle_refines_to)
+    
+    Definitions:
+        * a refinement relation for states
+        * a refinement relation for oracles
+        * a compilation function
+
+- Bisimulation (Framework genarated)

@@ -8,7 +8,7 @@ Record Operation :=
     oracle : Type;
     oracle_dec: forall (o o': oracle), {o = o'}+{o <> o'};
     state : Type;
-    after_crash: state -> state -> Prop;
+    (* after_reboot: state -> state -> Prop; *)
     prog : Type -> Type;
     exec: forall T, oracle -> state -> prog T -> @Result state T -> Prop;
     weakest_precondition: forall T, prog T -> (T -> state -> Prop) -> (oracle -> state -> Prop);
@@ -128,8 +128,6 @@ Proof.
   intros. edestruct scp_complete; eauto.
   eapply H2; eauto.
 Qed.
-
-
 
 Lemma sp_post:
   forall O T (p: @prog O T) (P: oracle _ -> state _ -> Prop) o s s' t,

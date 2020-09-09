@@ -23,7 +23,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
 
   Definition state' := ((list key * encryptionmap)* hashmap)%type.
 
-  Definition after_crash' (s1 s2: state') := s1 = s2.
+  (* Definition after_crash' (s1 s2: state') := s1 = s2. *)
   
   Inductive crypto_prog : Type -> Type :=
   | GetKey : list value -> crypto_prog key
@@ -244,7 +244,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
   Definition CryptoOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       crypto_prog
       exec'
       weakest_precondition'

@@ -1,6 +1,6 @@
 Require Import EquivDec Framework CryptoDiskLayer BatchOperations.
 Require Import Datatypes PeanoNat.
-Require Import Omega Sumbool.
+Require Import Lia Sumbool.
 Require Import FSParameters.
 Require Import FunctionalExtensionality.
   
@@ -58,16 +58,26 @@ Definition write_header hdr :=
   _ <- |DO| Write hdr_block_num (encode_header hdr);
   Ret tt.
 
-Definition apply_txn txn log_blocks :=
+
+Definition decrypt_txn txn log_blocks :=
   let key := txn_key txn in
   let start := txn_start txn in
   let addr_count := addr_count txn in
   let data_count := data_count txn in
   let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
+  
   plain_blocks <- decrypt_all key txn_blocks;
+
   let addr_blocks := firstn addr_count plain_blocks in
   let data_blocks := skipn addr_count plain_blocks in
   let addr_list := firstn data_count (blocks_to_addr_list addr_blocks)in
+
+  Ret (addr_list, data_blocks).
+
+Definition apply_txn txn log_blocks :=
+  al_db <- decrypt_txn txn log_blocks;
+  let addr_list := fst al_db in
+  let data_blocks := snd al_db in
   _ <- write_batch addr_list data_blocks;
   Ret tt.
 
@@ -87,38 +97,48 @@ Definition flush_txns txns log_blocks :=
   _ <- |DO| Sync;
   Ret tt.
 
-Definition check_and_flush txns log hash :=
+Definition check_hash log hash :=
   log_hash <- hash_all hash0 log;
   if (hash_dec log_hash hash) then
-    _ <- flush_txns txns log;
     Ret true
   else
     Ret false.
 
-Definition apply_log :=
+Definition read_encrypted_log :=
   hdr <- read_header;
-  let old_hash := old_hash hdr in
-  let old_count := old_count hdr in
-  let old_txn_count := old_txn_count hdr in  
-  let cur_hash := cur_hash hdr in
   let cur_count := cur_count hdr in
-  let txns := txn_records hdr in
   log <- read_consecutive log_start cur_count;
-  success <- check_and_flush txns log cur_hash;
-  if success then
-    Ret tt
+  Ret (hdr, log).
+
+Definition apply_log :=
+  hdr_log <- read_encrypted_log;
+
+  let hdr := fst hdr_log in
+  let log := snd hdr_log in
+  
+  let cur_hash := cur_hash hdr in
+  let txns := txn_records hdr in
+
+  success <- check_hash log cur_hash;
+
+  _ <- if success then
+    flush_txns txns log
   else
+    let old_count := old_count hdr in
+    let old_txn_count := old_txn_count hdr in
     let old_txns := firstn old_txn_count txns in
     let old_log := firstn old_count log in
-    success <- check_and_flush old_txns old_log old_hash;
-    Ret tt.
+    flush_txns old_txns old_log;
+  Ret tt.
 
 
 Definition commit_txn (addr_l data_l: list value) :=
   hdr <- read_header;
+
   let cur_hash := cur_hash hdr in
   let cur_count := cur_count hdr in
   let txns := txn_records hdr in
+
   new_key <- |CO| GetKey (addr_l++data_l);
   enc_data <- encrypt_all new_key (addr_l ++ data_l);
   new_hash <- hash_all cur_hash enc_data;
@@ -128,6 +148,7 @@ Definition commit_txn (addr_l data_l: list value) :=
   let new_count := cur_count + (length addr_l + length data_l) in
   let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
   let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
+
   _ <- write_header new_hdr;
   _ <- |DO| Sync;
   Ret tt.
@@ -146,8 +167,40 @@ Definition commit (addr_l data_l: list value) :=
   _ <- commit_txn addr_l data_l;
   Ret tt.
 
+Fixpoint decrypt_txns txns log_blocks :=
+  match txns with
+  | nil =>
+    Ret nil
+  | txn::txns' =>
+    al_db <- decrypt_txn txn log_blocks;
+    l_al_db <- decrypt_txns txns' log_blocks;
+    Ret (al_db::l_al_db)  
+  end.
 
-(* Representation Invariants *)
+Definition read_log :=
+  hdr_log <- read_encrypted_log;
+
+  let hdr := fst hdr_log in
+  let log := snd hdr_log in
+
+  let cur_hash := cur_hash hdr in
+  let txns := txn_records hdr in
+
+  success <- check_hash log cur_hash;
+
+  l <- if success then
+    decrypt_txns txns log
+  else
+    let old_count := old_count hdr in
+    let old_txn_count := old_txn_count hdr in
+    let old_txns := firstn old_txn_count txns in
+    let old_log := firstn old_count log in
+    decrypt_txns old_txns old_log;
+  Ret l.
+
+Definition recover := read_log.
+
+(** Representation Invariants **)
 
 Inductive Log_State :=
 | Synced : Log_State
@@ -219,11 +272,14 @@ Definition log_rep_inner
     (* Log Blocks *)
     log_start |=> log_blocksets *
     [[ hdr = decode_header (fst hdr_blockset)]] *
+    (** Sync status **)
     [[ match log_state with
        | Synced =>
-         snd hdr_blockset = []
+         snd hdr_blockset = [] /\
+         (forall ls, In ls log_blocksets -> snd ls = [])
        | Not_Synced =>
-         exists v, snd hdr_blockset = v :: nil
+         (exists v, snd hdr_blockset = v :: nil) /\
+         (forall ls, In ls log_blocksets -> exists v, snd ls = v :: nil)
        end
     ]] *
     (* log length is valid *)
@@ -275,8 +331,8 @@ Set Nested Proofs Allowed.
     erewrite (H0 a a0), IHl1; eauto.
   Qed.
 
-Theorem sp_apply_txn:
-  forall  F t s' txn log_blocks plain_blocks vsl x,
+Theorem apply_txn_finished:
+  forall txn log_blocks plain_blocks t s' s o,
   let key := txn_key txn in
   let start := txn_start txn in
   let addr_count := addr_count txn in
@@ -286,41 +342,20 @@ Theorem sp_apply_txn:
   let data_blocks := skipn addr_count plain_blocks in
   let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
   txn_blocks = map (encrypt key) plain_blocks ->
-  length vsl = length data_blocks ->
   length addr_list = length data_blocks ->
-  strongest_postcondition CryptoDiskLang (apply_txn txn log_blocks)
-      (fun o s => fst s = x /\ (F * addr_list |L> vsl)%predicate (snd s)) t s' ->
-  fst s' = x /\ (F * addr_list |L> write_all_to_set data_blocks vsl)%predicate (snd s').
+  exec CryptoDiskLang o s (apply_txn txn log_blocks) (Finished s' t) ->
+  fst s' = fst s /\ snd s' = upd_batch_set (snd s) addr_list data_blocks.
 Proof.
-  simpl; intros.
+  unfold apply_txn, decrypt_txn; simpl; intros;
+  repeat invert_exec; simpl in *;
   cleanup.
-  eapply sp_impl in H2.
-  2:{
-    
-    simpl; intros.
-    cleanup.
-    
-    eapply sp_impl in H3.
-    apply sp_decrypt_all with (F:= fun s => fst s = x /\ (F * firstn (data_count txn0) (blocks_to_addr_list (firstn (addr_count txn0) plain_blocks)) |L> vsl)%predicate
-   (snd s)) in H3.
-    instantiate (1:= fun o s => exists plain_blocks0 : list value,
-                               (F * firstn (data_count txn0) (blocks_to_addr_list (firstn (addr_count txn0) plain_blocks)) |L> vsl)%predicate
-         (snd s) /\
-  
-         x0 = plain_blocks0 /\
-         map (encrypt (txn_key txn0)) plain_blocks = map (encrypt (txn_key txn0)) plain_blocks0 /\ fst s = x).
-    simpl; cleanup; eauto.
-    simpl in *; intros; cleanup; eauto.
-  }
-  apply sp_exists_extract in H2; cleanup.
-  apply sp_extract_precondition in H2; cleanup.
-  apply map_ext_eq in H5; eauto; cleanup.
 
-  eapply sp_impl in H2.
-  eapply sp_write_batch in H2; eauto.
-
-  simpl; intros; cleanup; intuition eauto.
-  apply encrypt_ext.
+  eapply decrypt_all_finished in H1; cleanup.
+  eapply map_ext_eq in H3; cleanup; eauto.
+  eapply write_batch_finished in H2; eauto; cleanup.
+  intuition eauto; cleanup.
+  intros.
+  eapply encrypt_ext; eauto.
 Qed.
 
 Definition to_plain_addr_list txn plain_addr_blocks :=
@@ -365,223 +400,70 @@ Fixpoint bimap {A B C} (f: A -> B -> C) (la: list A) (lb: list B): list C :=
   | _, _ => nil
   end.
 
-Fixpoint flat_bimap {A B C} (f: A -> B -> list C) (la: list A) (lb: list B): list C :=
-  match la, lb with
-  | a::la, b::lb => (f a b)++(flat_bimap f la lb)
-  | _, _ => nil
+Fixpoint list_upd_batch_set {A AEQ V} (m: @mem A AEQ (V * list V)) l_l_a l_l_v :=
+  match l_l_a, l_l_v with
+  | l_a :: lla, l_v :: llv =>
+    list_upd_batch_set (upd_batch_set m l_a l_v) lla llv
+  | _, _ => m
   end.
 
-Lemma ptsto_list_app_split:
-  forall V (l1 l2: list addr) (lv1 lv2: list V),
-    length l1 = length lv1 ->
-    l1 |L> lv1 * l2 |L> lv2 =*=> (l1++l2) |L> (lv1 ++ lv2).
-Proof.
-  induction l1; simpl; intros; cleanup; cancel.
-  destruct lv1; simpl in *; try omega.
-  cancel; eauto.
-Qed.
-
-
-  Lemma write_all_to_set_length:
-    forall V (l1: list V) l2,
-      length (write_all_to_set l1 l2) = min (length l1) (length l2).
-  Proof.
-    induction l1; simpl; intros; eauto.
-    destruct l2; simpl; eauto.
-  Qed.
-
-  Global Opaque apply_txn.
-    
 Theorem sp_apply_txns:
-  forall txns F t s' log_blocks plain_addr_blocks_list plain_data_blocks_list vsl x,
-    Forall2 (plain_addr_blocks_valid log_blocks) plain_addr_blocks_list txns ->
-    Forall2 (plain_data_blocks_valid log_blocks) plain_data_blocks_list txns ->
-    Forall2 (fun txn plain_addr_blocks => length (get_data_blocks log_blocks txn) = length (firstn (data_count txn) (blocks_to_addr_list plain_addr_blocks))) txns plain_addr_blocks_list ->
-    let full_addr_list := flat_bimap get_addr_list txns plain_addr_blocks_list in
-    let dedup_addr_list := dedup_last addr_dec full_addr_list in
-    let dedup_plain_data := dedup_by_list addr_dec full_addr_list (List.concat plain_data_blocks_list) in
-    length vsl = length dedup_addr_list ->
-  strongest_postcondition CryptoDiskLang (apply_txns txns log_blocks)
-    (fun o s => fst s = x /\
-        (F * dedup_addr_list |L> vsl)%predicate (snd s)) t s' ->
-  fst s' = x /\ (F * dedup_addr_list |L> write_all_to_set dedup_plain_data vsl)%predicate (snd s').
+  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
+    let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
+    
+    Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
+    Forall2 (plain_data_blocks_valid log_blocks) l_plain_data_blocks txns ->
+    Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
+    
+    exec CryptoDiskLang o s (apply_txns txns log_blocks) (Finished s' t) ->
+    fst s' = fst s /\
+    snd s' = list_upd_batch_set (snd s) l_addr_list l_plain_data_blocks.
 Proof.
-  induction txns; simpl; intros; eauto.
-  {
-    match goal with
-    |[H: Forall2 _ _ _ |- _ ] =>
-     apply forall2_length in H
-    end; simpl in *; cleanup; eauto.
+  induction txns; simpl; intros;
+  repeat invert_exec; cleanup; eauto;
+  inversion H; inversion H0; inversion H1; cleanup.
+  
+  assume (Al: (length l = addr_count a)).
+
+  eapply apply_txn_finished in H2; cleanup; eauto.
+  edestruct IHtxns in H3; eauto; cleanup.
+  simpl in *; intuition eauto.
+  unfold get_addr_list at 1; simpl.
+
+  2:{
+    unfold plain_addr_blocks_valid, plain_data_blocks_valid,
+    get_addr_blocks, get_data_blocks in *; simpl in *.
+    rewrite firstn_sum_split.
+    rewrite firstn_firstn in H7;
+    rewrite min_l in H7 by lia.
+    rewrite H7.
+    rewrite skipn_firstn_comm in H13.
+    rewrite H13, <- map_app; eauto.
   }
-  {
-    cleanup;
-    try solve[
-    match goal with
-    |[H: Forall2 _ _ _ |- _ ] =>
-     eapply_fresh forall2_length in H;
-     simpl in *; omega
-    end].
-    destruct plain_data_blocks_list;
-    try solve[
-    match goal with
-    |[H: Forall2 _ _ _ |- _ ] =>
-     eapply_fresh forall2_length in H;
-     simpl in *; omega
-    end].
-    
-    repeat
-    match goal with
-    |[H: Forall2 _ (_ :: _) (_ :: _) |- _ ] =>
-     inversion H; cleanup; clear H
-    end.
-    specialize IHtxns with (1:=H11)(2:=H10)(3:=H9).   
-    rewrite dedup_last_app.
-    eapply sp_impl in H3.
-    apply IHtxns in H3.
+  
+  rewrite <- Al in H6.
+  setoid_rewrite H6.  
+  rewrite skipn_app.
+  rewrite firstn_app2; eauto.
 
-    cleanup; eauto.
-    split; eauto.
+  rewrite <- Al. 
+  rewrite skipn_app.
+  rewrite firstn_app2; eauto.
 
-    erewrite <- firstn_skipn with (n:= length (filter (fun a0 : addr => negb (in_dec_b addr_dec a0 (flat_bimap get_addr_list txns l0)))
-      (dedup_last addr_dec (get_addr_list a l))))(l:= write_all_to_set
-         (dedup_by_list addr_dec (get_addr_list a l ++ flat_bimap get_addr_list txns l0)
-                        (List.concat (l1 :: plain_data_blocks_list))) vsl).
-
-    pred_apply' H0.
-    setoid_rewrite <- ptsto_list_app_split with (l2:=  dedup_last addr_dec (flat_bimap get_addr_list txns l0)).
-
-    erewrite <- eq_pimpl with (a:= dedup_last addr_dec (flat_bimap get_addr_list txns l0)
-                              |L> _) (b:=  dedup_last addr_dec (flat_bimap get_addr_list txns l0)
-   |L> skipn
-         (length
-            (filter (fun a0 : addr => negb (in_dec_b addr_dec a0 (flat_bimap get_addr_list txns l0)))
-               (dedup_last addr_dec (get_addr_list a l))))
-         (write_all_to_set
-            (dedup_by_list addr_dec (get_addr_list a l ++ flat_bimap get_addr_list txns l0)
-                           (List.concat (l1 :: plain_data_blocks_list))) vsl)).
-
-    rewrite <- sep_star_assoc.
-    apply pimpl_refl.
-
-    (** TODO: Solve this **)
-    admit.
-
-    rewrite firstn_length_l; eauto.
-    eapply le_trans.    
-    apply filter_length.
-          
-    rewrite write_all_to_set_length.
-    rewrite min_l.
-    
-    eapply le_trans; [>apply dedup_last_app_length|].
-    rewrite dedup_last_app_length_comm.
-    rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-
-    (** TODO: Solve this **)
-    admit.
-
-    setoid_rewrite H2.
-    erewrite dedup_last_dedup_by_list_length_le; eauto.
-
-     (** TODO: Solve this **)
-    admit.
-
-    rewrite dedup_last_app, app_length in H2.
-    
-    instantiate (1:= skipn (length
-         (filter (fun a : addr => negb (in_dec_b addr_dec a (flat_bimap get_addr_list txns l0)))
-                 (dedup_last addr_dec (get_addr_list a l)))) vsl).
-    rewrite skipn_length.
-    rewrite H2; omega.
-
-    simpl; intros.
-
-    eapply sp_impl in H.
-    apply sp_apply_txn in H.
-    cleanup; split; eauto.
-    
-    (** TODO: Solve this **)
-    admit.
-
-    erewrite map_app.
-    unfold plain_addr_blocks_valid, plain_data_blocks_valid in *.
-    rewrite <- H5.
-    rewrite <- H6.
-    unfold get_addr_blocks, get_data_blocks.
-    rewrite firstn_skipn; eauto.
-
-    (** TODO: Solve this **)
-    rewrite skipn_app_eq.
-    admit.
-    
-    unfold plain_addr_blocks_valid in *.
-    erewrite <- map_length.
-    rewrite <- H5.
-    unfold get_addr_blocks.
-    apply firstn_length_l.
-    rewrite firstn_length_l; try omega.
-    rewrite skipn_length.
-    (** TODO: Solve this **)
-    admit.
-
-    rewrite firstn_app_l.
-    rewrite skipn_app_eq.
-    rewrite firstn_length_l.
-    
-    unfold plain_data_blocks_valid in *.
-    erewrite <- map_length.
-    rewrite <- H6.
-    unfold get_data_blocks in *.
-    rewrite skipn_length.
-    rewrite firstn_length_l; try omega.
-    rewrite skipn_length.
-    (** TODO: Solve this **)
-    admit.
-    admit.
-
-    unfold plain_addr_blocks_valid in *.
-    erewrite <- map_length.
-    rewrite <- H5.
-    unfold get_addr_blocks.
-    apply firstn_length_l.
-    rewrite firstn_length_l; try omega.
-    rewrite skipn_length.
-    (** TODO: Solve this **)
-    admit.
-
-    unfold plain_addr_blocks_valid in *.
-    erewrite <- map_length.
-    rewrite <- H5.
-    unfold get_addr_blocks.
-    rewrite firstn_length_l; try omega.
-    rewrite firstn_length_l; try omega.
-    rewrite skipn_length.
-    (** TODO: Solve this **)
-    admit.
-
-
-    simpl; intros; cleanup.
-    split; eauto.
-    pred_apply.
-    rewrite firstn_app_l.
-    (** TODO: Solve this **)
-    admit.
-
-    unfold plain_addr_blocks_valid in *.
-    erewrite <- map_length.
-    rewrite <- H5.
-    unfold get_addr_blocks.
-    rewrite firstn_length_l; try omega.
-    rewrite firstn_length_l; try omega.
-    rewrite skipn_length.
-    (** TODO: Solve this **)
-    admit.
-
-    Unshelve.
-    all: eauto.
+  Unshelve.
+  unfold plain_addr_blocks_valid, get_addr_blocks in *; simpl in *.
+  erewrite <- map_length, <- H7.
+  rewrite firstn_length_l; eauto.
+  rewrite firstn_length_l; try lia.
+  rewrite skipn_length; try lia.
+  (** TODO: Make a premise **)
+  admit.
 Admitted.
+    
 
 Global Opaque apply_txns.
+
+(*
 
 Definition get_addr_list_direct txn :=
   let rec := record txn in
@@ -726,3 +608,4 @@ Proof.
  all: exact (fst s').
 Admitted.
 
+*)

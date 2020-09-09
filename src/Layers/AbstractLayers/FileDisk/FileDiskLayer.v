@@ -35,7 +35,8 @@ Section FileDisk.
   | Extend : Inum -> value -> file_disk_prog (option unit)
   | SetOwner : Inum -> user -> file_disk_prog (option unit)
   | Create : user -> file_disk_prog (option addr)
-  | Delete : Inum -> file_disk_prog (option unit).
+  | Delete : Inum -> file_disk_prog (option unit)
+  | Recover : file_disk_prog unit.
   
   Inductive exec' :
     forall T, oracle' ->  state' -> file_disk_prog T -> @Result state' T -> Prop :=
@@ -160,6 +161,10 @@ Section FileDisk.
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
         exec' [Cont] s (Delete inum) (Finished s None)
+
+  | ExecRecover : 
+      forall s,
+        exec' [Cont] s Recover (Finished s tt)
 
   | ExecCrashBefore :
       forall d T (p: file_disk_prog T),
@@ -366,6 +371,10 @@ Section FileDisk.
              file.(owner) <> u) /\
           Q None s
         )
+    | Recover =>
+      fun Q o s =>
+        o = [Cont] /\
+        Q tt s
     end.
 
   
@@ -468,6 +477,10 @@ Section FileDisk.
             let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
             Q (u, upd d inum new_file)
         )
+    | Recover =>
+      fun Q o s =>
+        o = [CrashBefore] /\
+        Q s
     end.
 
   Definition strongest_postcondition' T (p: file_disk_prog T) :=
@@ -655,6 +668,12 @@ Section FileDisk.
            t = None /\
            s' = s
         )
+    | Recover =>
+      fun P t s' =>
+          exists s,
+            P [Cont] s /\
+            t = tt /\
+            s' = s
     end.
   
   Definition strongest_crash_postcondition' T (p: file_disk_prog T) :=
@@ -753,6 +772,12 @@ Section FileDisk.
              let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
              s' = (u, upd d inum new_file)
         )
+
+    | Recover =>
+      fun P s' =>
+        exists s,
+           P [CrashBefore] s /\
+           s' = s
     end.
 
   Arguments skipn : simpl never.
@@ -912,7 +937,7 @@ Section FileDisk.
   Definition FileDiskOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       file_disk_prog
       exec'
       weakest_precondition'

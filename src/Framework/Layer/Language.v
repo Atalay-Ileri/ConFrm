@@ -65,20 +65,20 @@ Section Language.
         exec' (o1++o2) d1 (Bind p1 p2) (Crashed d1').
 
   Inductive recovery_exec' :
-    forall T, oracle' ->  oracle' -> state' -> prog' T -> prog' unit -> @Recovery_Result state' T -> Prop :=
+    forall T, list oracle' -> state' -> list (state' -> state') -> prog' T -> prog' unit -> @Recovery_Result state' T -> Prop :=
   | ExecFinished :
       forall T (p: prog' T) p_rec
-        o1 o2 d d' t,
-        exec' o1 d p (Finished d' t) ->
-        recovery_exec' o1 o2 d p p_rec (RFinished d' t)
-  | ExecRecover :
+        o d d' t,
+        exec' o d p (Finished d' t) ->
+        recovery_exec' [o] d [] p p_rec (RFinished d' t)
+  | ExecRecovered :
       forall T (p: prog' T) p_rec
-        o1 o2 d d' d_ac d_rec,
-        exec' o1 d p (Crashed d') ->
-        O.(after_crash) d' d_ac ->
-        exec' o2 d_ac p_rec (Finished d_rec tt) ->
-        recovery_exec' o1 o2 d p p_rec (Recovered d_rec).
-
+        o lo d d' get_reboot_state l_grs ret,
+        exec' o d p (Crashed d') ->
+        (* O.(after_reboot) d' (get_reboot_state d') -> *)
+        recovery_exec' lo (get_reboot_state d') l_grs p_rec p_rec ret ->
+        recovery_exec' (o::lo) d (get_reboot_state::l_grs) p p_rec (Recovered (extract_state_r ret)).
+  
   Fixpoint weakest_precondition' T (p: prog' T) :=    
       match p with
     | Bind p1 p2 =>
@@ -156,7 +156,7 @@ Section Language.
       oracle := oracle';
       oracle_dec := oracle_dec';
       state := state';
-      after_crash := O.(after_crash);
+      (* after_reboot := O.(after_reboot); *)
       prog := prog';
       exec := exec';
       recovery_exec := recovery_exec';
@@ -175,68 +175,6 @@ Notation "| p |" := (Op _ p)(at level 60).
 Notation "x <- p1 ; p2" := (Bind p1 (fun x => p2))(right associativity, at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op _ p1) (fun x => p2))(right associativity, at level 60).
 
-  Local Ltac invert_exec'' H :=
-  inversion H; subst; clear H; repeat sigT_eq.
-
-  Local Ltac invert_exec' :=
-  match goal with
-  | [ H: exec _ _ _ ?p _ |- _ ] =>
-    match p with
-    | Bind _ _ => idtac
-    | Op _ _ => invert_exec'' H
-    | Ret _ => invert_exec'' H
-    end
-  | [ H: exec' _ _ ?p _ |- _ ] =>
-    match p with
-    | Bind _ _ => idtac
-    | Op _ _ => invert_exec'' H
-    | Ret _ => invert_exec'' H
-    end
-  | [ H: Operation.exec _ _ _ _ _ |- _ ] =>
-    invert_exec'' H
-  end.
-
-Lemma bind_sep:
-  forall O (L: Language O) T T' o d (p1: prog L T) (p2: T -> prog L T') ret,
-    exec L o d (Bind p1 p2) ret ->
-    match ret with
-    | Finished d' r =>
-    (exists o1 o2 d1 r1,
-       exec L o1 d p1 (Finished d1 r1) /\
-       exec L o2 d1 (p2 r1) ret /\
-       o = o1++o2)
-  | Crashed d' =>
-    (exists o1 o2,
-    o = o1++o2 /\    
-    (exec L o1 d p1 (Crashed d') \/
-     (exists d1 r1,
-        exec L o1 d p1 (Finished d1 r1) /\
-        exec L o2 d1 (p2 r1) ret)))
-    end.
-Proof.
-  intros.
-  invert_exec'' H; eauto.
-  destruct ret.
-  do 2 eexists; eauto.
-  do 2 eexists; split; eauto.
-Qed.
-
-Ltac invert_exec :=
-  match goal with
-  |[H : recovery_exec _ _ _ _ _ _ _ |- _ ] =>
-   invert_exec'' H; repeat cleanup
-  |[H : exec _ _ _ (Bind _ _) _ |- _ ] =>
-   apply bind_sep in H; repeat cleanup
-  |[H : exec _ _ _ _ _ |- _ ] =>
-   invert_exec'
-  |[H : exec' _ _ (Bind _ _) _ |- _ ] =>
-   apply bind_sep in H; repeat cleanup
-  |[H : exec' _ _ _ _ |- _ ] =>
-   invert_exec'
-  |[H: Operation.exec _ _ _ _ _ |- _ ] =>
-   invert_exec'
-  end.
-
 Lemma wp_complete :
   forall O (L: Language O) T (p: L.(prog) T) H Q,
         (forall o s, H o s -> L.(weakest_precondition) p Q o s) <->
@@ -250,7 +188,7 @@ Proof.
       eapply wp_to_exec in H1; eauto; cleanup; eauto.
       
     - specialize H0 with (1:=X); cleanup.
-      invert_exec.
+      inversion H0; cleanup.
       eapply exec_to_wp in H1; eauto.
   }
   {(* Ret *)
@@ -260,7 +198,7 @@ Proof.
       econstructor; eauto.
       
     - specialize H0 with (1:=X); cleanup.
-      invert_exec; eauto.
+      inversion H0; sigT_eq; cleanup; eauto.
   }
   {(*Bind*)
     simpl in *; split; intros.
@@ -273,16 +211,16 @@ Proof.
       econstructor; eauto.
 
     - specialize H1 with (1:=X); cleanup.
-      invert_exec; eauto.
+      inversion H1; sigT_eq; cleanup; eauto.
       do 2 eexists; intuition eauto.
       eapply IHp.
       intros.
       do 2 eexists; intuition eauto.
-      instantiate (1:= fun o s => exec L o s p (Finished x3 x4)) in X0; simpl in *; eauto.
+      instantiate (1:= fun o s => exec L o s p (Finished d1' r)) in X0; simpl in *; eauto.
             
       eapply H; intros; eauto.  
       do 2 eexists; intuition eauto.
-      instantiate (1:= fun o s => exec L o s (p0 x4) (Finished x x0)) in X1; simpl in *; eauto.
+      instantiate (1:= fun o s => exec L o s (p0 r) (Finished x x0)) in X1; simpl in *; eauto.
       all: simpl in *; eauto.
   }
 Qed.
@@ -302,7 +240,7 @@ Proof.
       eapply ExecOpCrash; eauto.
       
     - specialize H0 with (1:=X); cleanup.
-      invert_exec.
+      inversion H0; sigT_eq; cleanup.
       eapply exec_to_wcp in H1; eauto.
   }
   {(* Ret *)
@@ -312,7 +250,7 @@ Proof.
       econstructor; eauto.
       
     - specialize H0 with (1:=X); cleanup.
-      invert_exec; eauto.
+      inversion H0; sigT_eq; cleanup; eauto.
   }
   {(*Bind*)
     simpl in *; split; intros.
@@ -327,21 +265,21 @@ Proof.
         econstructor; eauto.
 
     - specialize H1 with (1:=X); cleanup.
-      invert_exec; eauto.
-      split_ors; cleanup.
-      + do 2 eexists; intuition eauto.
-        left; eapply IHp.
-        intros.
-        eexists; intuition eauto.
-        instantiate (1:= fun o s => exec L o s p (Crashed x)) in X0; simpl in *; eauto.
-        simpl; eauto.
+      inversion H1; sigT_eq; cleanup; eauto.
             
       + do 2 eexists; intuition eauto.
         right; do 2 eexists; split; eauto.
         eapply H.
         intros.
         eexists; intuition eauto.
-        instantiate (1:= fun o s => exec L o s (p0 x3) (Crashed x)) in X0; simpl in *; eauto.
+        instantiate (1:= fun o s => exec L o s (p0 r) (Crashed x)) in X0; simpl in *; eauto.
+        simpl; eauto.
+
+      + do 2 eexists; intuition eauto.
+        left; eapply IHp.
+        intros.
+        eexists; intuition eauto.
+        instantiate (1:= fun o s => exec L o s p (Crashed x)) in X0; simpl in *; eauto.
         simpl; eauto.
   }
 Qed.
@@ -356,28 +294,28 @@ Proof.
   induction p; intros.
   { (* Op *)
     simpl; split; intros.
-    - invert_exec.      
+    - inversion H1; sigT_eq; cleanup;    
       eapply H.
       eapply exec_to_sp; eauto.
     - eapply sp_to_exec in H0; cleanup; eauto.
   }
   {(* Ret *)
     simpl; split; intros.
-    - invert_exec; eauto.
+    - inversion H1; sigT_eq; cleanup; eauto.
     - cleanup.
       eapply H; eauto.
       constructor.
   }
   {(*Bind*)
     simpl in *; split; intros.
-    - invert_exec.
+    - inversion H2; sigT_eq; cleanup.
       eapply H0; intros.
-      exists x2.
+      exists r.
       edestruct H.
-      eapply H4; simpl in *; eauto.
+      eapply H3; simpl in *; eauto.
       simpl; intuition.
       edestruct IHp.
-      eapply H6; simpl in *; eauto.
+      eapply H5; simpl in *; eauto.
       simpl; eauto.
 
     - cleanup.
@@ -401,7 +339,7 @@ Proof.
   induction p; intros.
   { (* Op *)
     simpl; split; intros.
-    - invert_exec.      
+    - inversion H1; sigT_eq; cleanup;     
       eapply H.
       eapply exec_to_scp; eauto.
     - eapply scp_to_exec in H0; cleanup; eauto.
@@ -410,27 +348,27 @@ Proof.
   }
   {(* Ret *)
     simpl; split; intros.
-    - invert_exec; eauto.
+    - inversion H1; sigT_eq; cleanup; eauto.
     - cleanup.
       eapply H; eauto.
       constructor.
   }
   {(*Bind*)
     simpl in *; split; intros.
-    - invert_exec.
-      split_ors; cleanup;
+    - inversion H2; sigT_eq; cleanup;
       eapply H0; intros.
+      + right.        
+        exists r.
+        edestruct H.
+        eapply H3; simpl in *; eauto.
+        simpl; intuition.
+        edestruct sp_complete.
+        eapply H5; simpl in *; eauto.
+        simpl; eauto.
+        
       + left.
         edestruct IHp.
         eapply H3; simpl in *; eauto.
-        simpl; eauto.
-      + right.        
-        exists x2.
-        edestruct H.
-        eapply H4; simpl in *; eauto.
-        simpl; intuition.
-        edestruct sp_complete.
-        eapply H6; simpl in *; eauto.
         simpl; eauto.
 
     - split_ors; cleanup.
@@ -452,6 +390,8 @@ Proof.
         econstructor; eauto.
       simpl; intros; eauto.
   }
+  Unshelve.
+  eauto.
 Qed.
 
 Lemma wp_to_exec:
@@ -532,8 +472,15 @@ Proof.
   eapply H2; eauto.
 Qed.
 
+(**********)
 
-  (* Facts *)
+
+
+
+
+
+
+ (** Facts **)
 
 Lemma exec_finished_deterministic_prefix:
   forall O (L: Language O) T (p: prog L T) o1 o2 o3 o4 s s1 s2 r1 r2,
@@ -543,13 +490,15 @@ Lemma exec_finished_deterministic_prefix:
       o1 = o2 /\ s1 = s2 /\ r1 = r2.
 Proof.
   induction p; simpl; intros;
-    repeat (invert_exec; simpl in *; cleanup);
+    (try inversion H; try inversion H0; try inversion H1; simpl in *; cleanup);
+    simpl in *; cleanup;
     simpl; eauto; try solve [intuition].
+  
   eapply O.(exec_deterministic_wrt_oracle) in H7; eauto; cleanup; eauto.
   
   repeat rewrite <- app_assoc in H2.
-  specialize IHp with (1:= H0)(2:= H1)(3:=H2); cleanup.
-  specialize H with (1:= H4)(2:= H3)(3:=H2); cleanup; eauto.
+  specialize IHp with (1:= H8)(2:= H17)(3:=H2); cleanup.
+  specialize H with (1:= H11)(2:= H20)(3:=H2); cleanup; eauto.
 Qed.
 
 Lemma finished_not_crashed_oracle_prefix:
@@ -559,15 +508,17 @@ Lemma finished_not_crashed_oracle_prefix:
     ~exec L o2 s p (Crashed s2).
 Proof.
   unfold not; induction p; simpl; intros;
-    repeat (invert_exec; simpl in *; cleanup); simpl; eauto.
+  (try inversion H; try inversion H0; try inversion H1;
+    try inversion H2; simpl in *; cleanup);
+  simpl in *; cleanup; simpl; eauto.
   eapply exec_deterministic_wrt_oracle in H7; eauto; cleanup.
-  
-  split_ors; cleanup.
   -
     repeat rewrite <- app_assoc in H1; eauto.
+    eapply exec_finished_deterministic_prefix in H8; eauto; cleanup; eauto.
   -
     repeat rewrite <- app_assoc in H1; eauto.
-    eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
+    Unshelve.
+    eauto.
 Qed.
 
 Lemma finished_not_crashed_oracle_app:
@@ -576,16 +527,18 @@ Lemma finished_not_crashed_oracle_app:
     ~exec L (o1++o2) s p (Crashed s2).
 Proof.
   unfold not; induction p; simpl; intros;
-    repeat (invert_exec; simpl in *; cleanup); simpl; eauto.
+  (try inversion H; try inversion H0; try inversion H1;
+    try inversion H2; simpl in *; cleanup);
+  simpl in *; cleanup; simpl; eauto.
   eapply exec_deterministic_wrt_oracle in H6; eauto; cleanup.
-  
-  split_ors; cleanup.
-  -
-    rewrite <- app_assoc in H1; eauto.
-    clear H3; eapply finished_not_crashed_oracle_prefix; eauto.
-  -
-    rewrite <- app_assoc in H1; eauto.
-    eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
+
+  - rewrite <- app_assoc in H11; eauto.
+    eapply exec_finished_deterministic_prefix in H7; eauto; cleanup; eauto.
+    
+  - rewrite <- app_assoc in H11; eauto.
+    clear H1; eapply finished_not_crashed_oracle_prefix in H7; eauto.
+    Unshelve.
+    all: eauto.  
 Qed.
 
 Lemma exec_deterministic_wrt_oracle_prefix:
@@ -596,48 +549,33 @@ Lemma exec_deterministic_wrt_oracle_prefix:
       ret1 = ret2.
     Proof.
        induction p; simpl; intros;
-    repeat (invert_exec; simpl in *; cleanup);
+    (try inversion H; try inversion H0; try inversion H1;
+    try inversion H2; simpl in *; cleanup);
+  simpl in *; cleanup;
     simpl; eauto; try solve [intuition].
   -
     eapply O.(exec_deterministic_wrt_oracle); eauto.
   -
-    eapply O.(exec_deterministic_wrt_oracle) in H6; eauto; cleanup.
+    eapply O.(exec_deterministic_wrt_oracle) in H7; eauto; cleanup.
   -
-    eapply O.(exec_deterministic_wrt_oracle) in H6; eauto; cleanup.
+    eapply O.(exec_deterministic_wrt_oracle) in H7; eauto; cleanup.
   -
     eapply O.(exec_deterministic_wrt_oracle); eauto; cleanup.
   -
-    eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
+    eapply exec_finished_deterministic_prefix in H8; eauto; cleanup; eauto.
     repeat rewrite <- app_assoc in H2; cleanup; eauto.
     repeat rewrite <- app_assoc in H2; eauto.
   -
-    split_ors; cleanup.
     repeat rewrite <- app_assoc in H2; eauto.
-    specialize IHp with (1:=H0)(2:=H1)(3:=H2); cleanup.
+    specialize IHp with (1:=H8)(2:=H16)(3:=H2); cleanup.
 
-    repeat rewrite <- app_assoc in H2.
-    eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-    
+  - repeat rewrite <- app_assoc in H2.
+    specialize IHp with (1:=H7)(2:=H16)(3:=H2); cleanup.
   -
-    split_ors; cleanup.
-    repeat rewrite <- app_assoc in H2; eauto.
-    specialize IHp with (1:=H0)(2:=H3)(3:=H2); cleanup.
-
     repeat rewrite <- app_assoc in H2.
-    eapply exec_finished_deterministic_prefix in H0; eauto; cleanup; eauto.
-  -
-    repeat split_ors; cleanup.
-    repeat rewrite <- app_assoc in H2; eauto.
-    specialize IHp with (1:= H1)(2:= H0)(3:=H2); cleanup; eauto.
-
-    repeat rewrite <- app_assoc in H2; eauto.
-    specialize IHp with (1:=H1)(2:=H0)(3:=H2); cleanup.
-
-    repeat rewrite <- app_assoc in H2; eauto.
-    specialize IHp with (1:=H1)(2:=H0)(3:=H2); cleanup.
-
-    repeat rewrite <- app_assoc in H2.
-    eapply exec_finished_deterministic_prefix in H1; eauto; cleanup; eauto.
+    specialize IHp with (1:=H7)(2:=H15)(3:=H2); cleanup; eauto.
+    Unshelve.
+    eauto.
  Qed.
     
 Lemma exec_deterministic_wrt_oracle:
@@ -651,3 +589,74 @@ Proof.
   Unshelve.
   eauto.
 Qed.
+
+Lemma recovery_exec_deterministic_wrt_reboot_state :
+  forall O (L: Language O) lo s T (p: L.(prog) T) rec l_get_reboot_state ret1 ret2,
+    recovery_exec L lo s l_get_reboot_state p rec ret1 ->
+    recovery_exec L lo s l_get_reboot_state p rec ret2 ->
+    ret1 = ret2.
+Proof.
+  induction 1; intros;  try repeat
+                             match goal with
+                             | [H: exec' _ _ (Bind _ _) _ |- _ ] =>
+                               inversion H; clear H; simpl in *; cleanup
+                             | [H: recovery_exec _ _ _ _ _ _ _ |- _ ] =>
+                               inversion H; clear H; simpl in *; cleanup
+                             end.
+  try solve [eapply exec_deterministic_wrt_oracle in H; eauto; cleanup; eauto].
+  eapply exec_deterministic_wrt_oracle in H; eauto; cleanup; eauto.
+  erewrite IHrecovery_exec'; eauto.
+  Unshelve.
+  all: eauto.
+Qed.
+
+
+(** SP Theorems **)
+(*
+Lemma sp_impl:
+    forall O (L: Language O) T (p: prog L T) (P P': list (Language.token' O) -> Operation.state O -> Prop) s' t,
+      (forall o s, P' o s -> P o s) ->
+      strongest_postcondition L p P' t s' ->
+      strongest_postcondition L p P t s'.
+  Proof.
+    intros.
+    eapply sp_to_exec in H0; cleanup.
+    eapply exec_to_sp; eauto.
+  Qed.
+
+  Lemma sp_bind:
+    forall O (L: Language O) T T' (p1: prog L T) (p2: T -> prog L T') P s' t,
+      strongest_postcondition L (Bind p1 p2) P t s' ->
+      exists s0 t0,
+        strongest_postcondition L p1 (fun o s => exists o2, P (o++o2) s) t0 s0 /\
+        strongest_postcondition L (p2 t0)
+        (fun o s => strongest_postcondition L p1 (fun ox sx => P (ox++o) sx) t0 s) t s'.
+  Proof.
+    intros.
+    eapply sp_to_exec in H; cleanup.
+    invert_exec.
+    do 2 eexists; split.
+    eapply exec_to_sp; eauto.
+    intros.            
+    repeat (eapply exec_to_sp; eauto).
+  Qed.
+
+
+Lemma sp_exists_extract:
+    forall X O (L: Language O) T (p: prog L T) (P: X -> list (Language.token' O) -> Operation.state O -> Prop) s' t,
+      strongest_postcondition L p (fun o s => exists x, P x o s) t s' ->
+      (exists x, strongest_postcondition L p (P x) t s').
+  Proof.
+    intros.
+    eapply sp_to_exec in H; cleanup.
+    eexists; eapply exec_to_sp; eauto.
+  Qed.
+
+Theorem sp_extract_precondition:
+  forall O (L : Language O) T (p: prog L T) s t P,
+    strongest_postcondition L p P t s ->
+    strongest_postcondition L p P t s /\ (exists o s, P o s).
+Proof.
+  intros; eapply_fresh sp_to_exec in H; cleanup; eauto.
+Qed.
+*)

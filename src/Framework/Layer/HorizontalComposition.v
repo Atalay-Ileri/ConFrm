@@ -22,9 +22,11 @@ Section HorizontalComposition.
   Definition oracle_dec' := list_eq_dec token_dec.
   Definition state' := (O1.(state) * O2.(state))%type.
 
-  Definition after_crash' (s1 s2: state') :=
-    O1.(after_crash) (fst s1) (fst s2) /\
-    O2.(after_crash) (snd s1) (snd s2).
+  (* 
+     Definition after_reboot' (s1 s2: state') :=
+    O1.(after_reboot) (fst s1) (fst s2) /\
+    O2.(after_reboot) (snd s1) (snd s2).
+   *)
   
   Inductive horizontal_composition_prog : Type -> Type :=
   | P1 : forall T, O1.(prog) T -> horizontal_composition_prog T
@@ -187,7 +189,7 @@ Qed.
 
   Definition HorizontalComposition :=
     Build_Operation
-      oracle_dec' after_crash'
+      oracle_dec' (* after_reboot' *)
       horizontal_composition_prog exec'
       weakest_precondition'
       weakest_crash_precondition'
@@ -226,3 +228,52 @@ Arguments P2 {O1 O2 T}.
 
 Notation "'<1|'  p >" := (P1 p)(right associativity, at level 60).
 Notation "'<2|'  p >" := (P2 p)(right associativity, at level 60).
+
+(** SP Theorems **)
+Import Language.
+
+Theorem sp_lift1:
+  forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
+    T (p: prog L1 T) s t P,
+    strongest_postcondition HL (lift_L1 O2 p) P t s ->
+    strongest_postcondition L1 p (fun o sx => P (map (fun o' =>
+                                                     match o' with
+                                                     |OpOracle _ o1 =>
+                                                      OpOracle (HorizontalComposition O1 O2) [Oracle1 O1 O2 o1]%list
+                                                     |Language.Cont _ =>
+                                                      Language.Cont _
+                                                     |Language.Crash _ =>
+                                                      Language.Crash _
+                                                     end) o) (sx, snd s)) t (fst s).
+Proof.
+  induction p; destruct s; simpl in *; intros; cleanup; eauto.
+  eapply H in H0; simpl in *.
+  eapply sp_to_exec in H0; cleanup.
+  eapply IHp in H1; simpl in *.
+  setoid_rewrite <- map_app in H1.
+  exists x; intuition eauto.
+  eapply exec_to_sp; eauto.
+Qed.
+
+Theorem sp_lift2:
+  forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
+    T (p: prog L2 T) s t P,
+    strongest_postcondition HL (lift_L2 O1 p) P t s ->
+    strongest_postcondition L2 p (fun o sx => P (map (fun o' =>
+                                                     match o' with
+                                                     |OpOracle _ o2 =>
+                                                      OpOracle (HorizontalComposition O1 O2) [Oracle2 O1 O2 o2]%list
+                                                     |Language.Cont _ =>
+                                                      Language.Cont _
+                                                     |Language.Crash _ =>
+                                                      Language.Crash _
+                                                     end) o) (fst s, sx)) t (snd s).
+Proof.
+  induction p; destruct s; simpl in *; intros; cleanup; eauto.
+  eapply H in H0; simpl in *.
+  eapply sp_to_exec in H0; cleanup.
+  eapply IHp in H1; simpl in *.
+  setoid_rewrite <- map_app in H1.
+  exists x; intuition eauto.
+  eapply exec_to_sp; eauto.
+Qed.

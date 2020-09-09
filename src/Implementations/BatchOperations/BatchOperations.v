@@ -1,13 +1,4 @@
-Require Import Omega Framework CryptoDiskLayer.
-
-  Fixpoint write_consecutive a vl :=
-  match vl with
-  | nil => Ret tt
-  | v::vl' =>
-    _ <- |DO| Write a v;
-    _ <- write_consecutive (S a) vl';
-    Ret tt
-  end.
+Require Import Lia Framework CryptoDiskLayer.
 
   Fixpoint read_consecutive a count:=
     match count with
@@ -26,6 +17,8 @@ Fixpoint write_batch al vl :=
     Ret tt            
   | _, _ => Ret tt
   end.
+
+ Fixpoint write_consecutive a vl := write_batch (seq a (length vl)) vl.
   
 Fixpoint encrypt_all k vl :=
   match vl with
@@ -57,74 +50,98 @@ Fixpoint hash_all h vl :=
 
 (** Specs **)
 
-Theorem sp_write_batch:
-  forall al vl F vsl t s' x,
-    length vsl = length vl ->
+Theorem write_batch_finished:
+  forall al vl o t s s',
     length al = length vl ->
-    strongest_postcondition CryptoDiskLang (write_batch al vl)
-       (fun o s => fst s = x /\ (F * al |L> vsl)%predicate (snd s)) t s' ->
-    fst s' = x /\ (F * al |L> (write_all_to_set vl vsl))%predicate (snd s').
+    exec CryptoDiskLang o s (write_batch al vl) (Finished s' t) ->
+    (forall a, In a al -> (snd s) a <> None) /\
+    fst s' = fst s /\ snd s' = upd_batch_set (snd s) al vl.
 Proof.
   induction al; simpl; intros;
-  cleanup; simpl in *;
-  cleanup; try omega; eauto.
-  repeat (apply sp_exists_extract in H1; cleanup).
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
 
-  edestruct IHal; try omega; eauto.
-  eapply sp_impl; eauto.
-  simpl; intros.
-  instantiate (2:= x).
-  cleanup; intuition eauto.
-  apply sep_star_assoc.
-  eapply ptsto_upd.
-  pred_apply; cancel.
-  cleanup; intuition eauto.
-  pred_apply; cancel.
-  eapply sp_extract_precondition in H1; cleanup.
-  
-  eapply_fresh pimpl_trans in H7.
-  eapply ptsto_valid with (a:= a) in Hx; cleanup.
-  2: eauto.
-  2: cancel.
-  cleanup; eauto.
+  eapply IHal in H1; try lia; cleanup.
+  simpl in *; cleanup.
+  intuition eauto.
+  subst; congruence.
+  destruct (addr_dec a a0); subst; try congruence.
+  eapply H0; eauto.
+  rewrite upd_ne; eauto.
+  unfold upd_set; cleanup; eauto.
 Qed.
   
-Theorem sp_decrypt_all:
-  forall key evl t s' F,
-    strongest_postcondition CryptoDiskLang (decrypt_all key evl)
-       (fun o s => F s) t s' ->
-    exists plain_blocks, t = plain_blocks /\ evl = map (encrypt key) plain_blocks /\ F s'.
+Theorem decrypt_all_finished:
+  forall key evl o s s' t,
+    exec CryptoDiskLang o s (decrypt_all key evl) (Finished s' t) ->
+    exists plain_blocks, t = plain_blocks /\ evl = map (encrypt key) plain_blocks /\ s' = s.
 Proof.
   induction evl; simpl; intros;
-  cleanup; simpl in *;
-  cleanup; try omega; eauto.
-  repeat (apply sp_exists_extract in H; cleanup).
-  edestruct IHevl.
-  eapply sp_impl; eauto.
-  simpl; intros; cleanup.  
-  instantiate (1:= F); destruct s; eauto.
-  cleanup; intuition eauto.
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
+  edestruct IHevl; eauto; cleanup.
   eexists; intuition eauto.
-  simpl.
-  eapply sp_extract_precondition in H; cleanup; eauto.
+  destruct s; eauto.
 Qed.
 
-Theorem sp_hash_all:
-  forall vl h t s' F x,
-    strongest_postcondition CryptoDiskLang (hash_all h vl)
-       (fun o s => fst s = x /\ F (snd s)) t s' ->
+Theorem hash_all_finished:
+  forall vl h o s t s',
+    exec CryptoDiskLang o s (hash_all h vl) (Finished s' t) ->
     t = rolling_hash h vl /\
-    fst s' = fst s' /\ (** TODO: Fix this **)
-    F (snd s').
+    consistent_with_upds (snd (fst s)) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
+    (snd (fst s')) = upd_batch (snd (fst s)) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
+    fst (fst s') = fst (fst s) /\
+    snd s' = snd s.
+Proof.
+  induction vl; simpl; intros.
+  repeat invert_exec; cleanup; eauto.
+  repeat invert_exec; cleanup.
+  edestruct IHvl; eauto; cleanup.
+  simpl in *; intuition eauto.
+  repeat destruct s; destruct p; simpl in *; eauto.
+Qed.
+
+Theorem encrypt_all_finished:
+  forall key vl o s s' t,
+    exec CryptoDiskLang o s (encrypt_all key vl) (Finished s' t) ->
+    consistent_with_upds (snd (fst (fst s))) (map (encrypt key) vl) (map (fun v => (key, v)) vl) /\
+    t = map (encrypt key) vl /\
+    snd s' = snd s /\
+fst s' = ((fst (fst (fst s)), upd_batch (snd (fst (fst s))) (map (encrypt key) vl) (map (fun v => (key, v)) vl)), snd (fst s)).
 Proof.
   induction vl; simpl; intros;
-  cleanup; simpl in *;
-  cleanup; try omega; eauto.
-  repeat (apply sp_exists_extract in H; cleanup).
-  edestruct IHvl.
-  eapply sp_impl; eauto.
-  simpl; intros; cleanup.  
-  instantiate (1:= F); destruct s; simpl in *; eauto.
-  cleanup; intuition eauto.
-  eapply sp_extract_precondition in H; cleanup; eauto.
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
+  
+  - intuition eauto.
+    destruct s', s; simpl; intuition eauto.
+
+  - edestruct IHvl; eauto; cleanup.
+    eexists; intuition eauto.
 Qed.
+
+Theorem read_consecutive_finished:
+  forall count a o s s' t,
+    exec CryptoDiskLang o s (read_consecutive a count) (Finished s' t) ->
+    (forall i,
+       i < count ->
+       exists vs,
+         (snd s) (a + i) = Some vs /\
+         fst vs = selN t i value0) /\
+    s' = s.
+Proof.
+  induction count; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try solve [intuition eauto; lia].
+
+  edestruct IHcount; eauto; cleanup.
+  split; intros; eauto.
+  destruct i; eauto.
+  rewrite PeanoNat.Nat.add_0_r.
+  simpl; eexists; eauto.
+  simpl.
+  rewrite <- PeanoNat.Nat.add_succ_comm.
+  eapply H; lia.
+  destruct s; eauto.
+Qed.
+

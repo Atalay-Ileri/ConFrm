@@ -160,7 +160,7 @@ Section StorageLayer.
   Definition StorageOperation :=
     Build_Operation
       (list_eq_dec token_dec')
-      after_crash'
+      (* after_crash' *)
       storage_prog
       exec'
       weakest_precondition'

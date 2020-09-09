@@ -106,7 +106,7 @@ Definition get_owner inum :=
   else
     Ret None.
 
-
+(*
 Theorem get_inode_ok:
   forall inum s' t imap F,
     strongest_postcondition (TransactionalDiskLang data_length) (get_inode inum)
@@ -597,3 +597,4 @@ Proof.
 Qed.
 
 Global Opaque alloc free extend change_owner get_block_number get_block_numbers get_owner.
+*)
