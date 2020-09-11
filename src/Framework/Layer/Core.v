@@ -3,40 +3,38 @@ Import ListNotations.
 
 Set Implicit Arguments.
 
-Record Operation :=
+Record Core :=
   {
-    oracle : Type;
-    oracle_dec: forall (o o': oracle), {o = o'}+{o <> o'};
+    token : Type;
     state : Type;
-    (* after_reboot: state -> state -> Prop; *)
-    prog : Type -> Type;
-    exec: forall T, oracle -> state -> prog T -> @Result state T -> Prop;
-    weakest_precondition: forall T, prog T -> (T -> state -> Prop) -> (oracle -> state -> Prop);
-    weakest_crash_precondition: forall T, prog T -> (state -> Prop) -> (oracle -> state -> Prop);
-    strongest_postcondition: forall T, prog T -> (oracle -> state -> Prop) -> (T -> state -> Prop);
-    strongest_crash_postcondition: forall T, prog T -> (oracle -> state -> Prop) -> (state -> Prop);
+    operation : Type -> Type;
+    exec: forall T, token -> state -> operation T -> @Result state T -> Prop;
+    weakest_precondition: forall T, operation T -> (T -> state -> Prop) -> (token -> state -> Prop);
+    weakest_crash_precondition: forall T, operation T -> (state -> Prop) -> (token -> state -> Prop);
+    strongest_postcondition: forall T, operation T -> (token -> state -> Prop) -> (T -> state -> Prop);
+    strongest_crash_postcondition: forall T, operation T -> (token -> state -> Prop) -> (state -> Prop);
 
     wp_complete:
-      forall T (p: prog T) P Q,
+      forall T (p: operation T) P Q,
         (forall o s, P o s -> weakest_precondition p Q o s) <->
         (forall o s, P o s -> exists s' v, exec o s p (Finished s' v) /\ Q v s');
     wcp_complete:
-      forall T (p: prog T) P C,
+      forall T (p: operation T) P C,
         (forall o s, P o s -> weakest_crash_precondition p C o s) <->
         (forall o s, P o s -> exists s', exec o s p (Crashed s') /\ C s');
 
     sp_complete:
-      forall T (p: prog T) P (Q: T -> state -> Prop),
+      forall T (p: operation T) P (Q: T -> state -> Prop),
         (forall t s', strongest_postcondition p P t s' -> Q t s') <->
         (forall o s s' t, P o s -> exec o s p (Finished s' t) -> Q t s');
 
     scp_complete:
-      forall T (p: prog T) P (C: state -> Prop),
+      forall T (p: operation T) P (C: state -> Prop),
         (forall s', strongest_crash_postcondition p P s' -> C s') <->
         (forall o s s', P o s -> exec o s p (Crashed s') ->  C s');
     
-    exec_deterministic_wrt_oracle :
-      forall o s T (p: prog T) ret1 ret2,
+    exec_deterministic_wrt_token :
+      forall o s T (p: operation T) ret1 ret2,
         exec o s p ret1 ->
         exec o s p ret2 ->
         ret1 = ret2;
@@ -51,14 +49,14 @@ Arguments strongest_crash_postcondition _ {T}.
 
 
 Lemma wp_to_exec:
-  forall O T (p: @prog O T) Q o s,
+  forall O T (p: @operation O T) Q o s,
     weakest_precondition _ p Q o s -> (exists s' v, exec _ o s p (Finished s' v) /\ Q v s').
 Proof.
   intros. eapply wp_complete; eauto.
 Qed.
 
 Lemma exec_to_wp:
-  forall O T (p: @prog O T) (Q: T -> state _ -> Prop) o s s' v,
+  forall O T (p: @operation O T) (Q: T -> state _ -> Prop) o s s' v,
     exec _ o s p (Finished s' v) ->
     Q v s' ->
     weakest_precondition _ p Q o s.
@@ -70,14 +68,14 @@ Proof.
 Qed.
 
 Lemma wcp_to_exec:
-  forall O T (p: O.(@prog) T) Q o s,
+  forall O T (p: O.(@operation) T) Q o s,
     weakest_crash_precondition _ p Q o s -> (exists s', exec _ o s p (Crashed s') /\ Q s').
 Proof.
   intros. eapply wcp_complete; eauto.
 Qed.
   
 Lemma exec_to_wcp:
-  forall O T (p: O.(@prog) T) (Q: state _ -> Prop) o s s',
+  forall O T (p: O.(@operation) T) (Q: state _ -> Prop) o s s',
     exec _ o s p (Crashed s') ->
     Q s' ->
     weakest_crash_precondition _ p Q o s.
@@ -90,17 +88,17 @@ Qed.
 
 
 Lemma sp_to_exec:
-  forall O T (p: @prog O T) P t s',
+  forall O T (p: @operation O T) P t s',
     strongest_postcondition _ p P t s' -> (exists o s, exec _ o s p (Finished s' t) /\ P o s).
 Proof.
   intros. edestruct sp_complete; eauto.
-  instantiate (1:= fun t s' => exists (o : oracle O) (s : state O), exec O o s p (Finished s' t) /\ P o s) in H1;
+  instantiate (1:= fun t s' => exists (o : token O) (s : state O), exec O o s p (Finished s' t) /\ P o s) in H1;
   simpl in *.
   eapply H1; intros; eauto.
 Qed.
 
 Lemma exec_to_sp:
-  forall O T (p: @prog O T) (P: _ -> _ -> Prop) o s t s',
+  forall O T (p: @operation O T) (P: _ -> _ -> Prop) o s t s',
     P o s ->
     exec _ o s p (Finished s' t) ->
     strongest_postcondition _ p P t s'.
@@ -110,17 +108,17 @@ Proof.
 Qed.
 
 Lemma scp_to_exec:
-  forall O T (p: @prog O T) P s',
+  forall O T (p: @operation O T) P s',
     strongest_crash_postcondition _ p P s' -> (exists o s, exec _ o s p (Crashed s') /\ P o s).
 Proof.
   intros. edestruct scp_complete; eauto.
-  instantiate (1:= fun s' => exists (o : oracle O) (s : state O), exec O o s p (Crashed s') /\ P o s) in H1;
+  instantiate (1:= fun s' => exists (o : token O) (s : state O), exec O o s p (Crashed s') /\ P o s) in H1;
   simpl in *.
   eapply H1; intros; eauto.
 Qed.
 
 Lemma exec_to_scp:
-  forall O T (p: @prog O T) (P: _ -> _ -> Prop) o s s',
+  forall O T (p: @operation O T) (P: _ -> _ -> Prop) o s s',
     P o s ->
     exec _ o s p (Crashed s') ->
     strongest_crash_postcondition _ p P s'.
@@ -130,7 +128,7 @@ Proof.
 Qed.
 
 Lemma sp_post:
-  forall O T (p: @prog O T) (P: oracle _ -> state _ -> Prop) o s s' t,
+  forall O T (p: @operation O T) (P: token _ -> state _ -> Prop) o s s' t,
     P o s ->
     exec _ o s p (Finished s' t) ->
     strongest_postcondition _ p P t s'.
@@ -141,7 +139,7 @@ Proof.
 Qed.
 
 Lemma sp_strongest:
-  forall O T (p: @prog O T) (P: oracle _ -> state _ -> Prop) (Q: T -> state _ -> Prop),
+  forall O T (p: @operation O T) (P: token _ -> state _ -> Prop) (Q: T -> state _ -> Prop),
     (forall o s s' t,
        P o s -> 
        exec _ o s p (Finished s' t) ->

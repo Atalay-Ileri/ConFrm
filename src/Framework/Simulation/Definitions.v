@@ -1,20 +1,20 @@
 Require Import Primitives Layer.
 
 
-Record OperationRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Operation) :=
+Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
   {
-    compile_op : forall T, O_abs.(Operation.prog) T -> L_imp.(prog) T;
-    refines_to_op: L_imp.(state) -> O_abs.(Operation.state) -> Prop;
-    oracle_refines_to_op: forall T, L_imp.(state) -> O_abs.(Operation.prog) T -> L_imp.(oracle) -> O_abs.(Operation.oracle) -> Prop;
+    compile_op : forall T, O_abs.(Core.operation) T -> L_imp.(prog) T;
+    refines_to_op: L_imp.(state) -> O_abs.(Core.state) -> Prop;
+    token_refines_to: forall T, L_imp.(state) -> O_abs.(Core.operation) T -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
     (* 
        exec_preserves_refinement_op :
-      forall T (p: O_abs.(Operation.prog) T) o2 s2 ret,
+      forall T (p: O_abs.(Core.prog) T) o2 s2 ret,
         (exists s1, refines_to_op s1 s2) ->
-        O_abs.(Operation.exec) o2 s2 p ret ->
+        O_abs.(Core.exec) o2 s2 p ret ->
         (exists s1', refines_to_op s1' (extract_state ret));
     *)
     exec_compiled_preserves_refinement_op :
-      forall T (p2: O_abs.(Operation.prog) T) o1 s1 ret,
+      forall T (p2: O_abs.(Core.operation) T) o1 s1 ret,
         (exists s2, refines_to_op s1 s2) ->
         L_imp.(exec) o1 s1 (compile_op T p2) ret ->
         (exists s2', refines_to_op (extract_state ret) s2');
@@ -40,10 +40,10 @@ Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) 
         (exists s2', refines_to (extract_state ret) s2');
   }.
 
-Arguments Build_OperationRefinement {_ _ _}.
+Arguments Build_CoreRefinement {_ _ _}.
 Arguments compile_op {_ _ _} _ {_}.
 Arguments refines_to_op {_ _ _}.
-Arguments oracle_refines_to_op {_ _ _} _ {_} .
+Arguments token_refines_to {_ _ _} _ {_} .
 (* Arguments exec_preserves_refinement_op {_ _ _}. *)
 Arguments exec_compiled_preserves_refinement_op {_ _ _}.
 
@@ -57,7 +57,7 @@ Arguments exec_compiled_preserves_refinement {_ _ _ _}.
 
 
 Section Relations.
-  Variable O_imp O_abs: Operation.
+  Variable O_imp O_abs: Core.
   Variable L_imp: Language O_imp.
   Variable L_abs: Language O_abs.
   Variable R : Refinement L_imp L_abs.
@@ -581,7 +581,7 @@ Qed.
 (** Theorems for breaking down SelfSimulation proofs **)
 
 Section Relations.
-  Variable O_abs: Operation.
+  Variable O_abs: Core.
   Variable L_abs: Language O_abs.
   
   Definition SelfSimulation_Exec {T}
@@ -649,7 +649,7 @@ Section Relations.
 
 (** WP reasoning for proving Simulations *)
 Section LanguageWP.
-  Variable O_imp O_abs: Operation.
+  Variable O_imp O_abs: Core.
   Variable L_imp: Language O_imp.
   Variable L_abs: Language O_abs.
   Variable R: Refinement L_imp L_abs.

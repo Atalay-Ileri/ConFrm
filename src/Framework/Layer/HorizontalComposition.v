@@ -1,66 +1,51 @@
-Require Import Primitives Layer.Operation.
+Require Import Primitives Layer.Core.
 Require Language.
 Import ListNotations.
 
 Set Implicit Arguments.
 
 Section HorizontalComposition.
-  Variable O1 O2 : Operation.
+  Variable O1 O2 : Core.
   
   Inductive token' :=
-  | Oracle1 : O1.(oracle) -> token'
-  | Oracle2 : O2.(oracle) -> token'.
-
-  Definition oracle' := list token'.
-
-  Definition token_dec: forall (t t': token'), {t = t'}+{t <> t'}.
-   decide equality.
-   apply O1.(oracle_dec).
-   apply O2.(oracle_dec).
-  Defined.
-
-  Definition oracle_dec' := list_eq_dec token_dec.
+  | Token1 : O1.(token) -> token'
+  | Token2 : O2.(token) -> token'.
+  
   Definition state' := (O1.(state) * O2.(state))%type.
-
-  (* 
-     Definition after_reboot' (s1 s2: state') :=
-    O1.(after_reboot) (fst s1) (fst s2) /\
-    O2.(after_reboot) (snd s1) (snd s2).
-   *)
   
   Inductive horizontal_composition_prog : Type -> Type :=
-  | P1 : forall T, O1.(prog) T -> horizontal_composition_prog T
-  | P2 : forall T, O2.(prog) T -> horizontal_composition_prog T.
+  | P1 : forall T, O1.(operation) T -> horizontal_composition_prog T
+  | P2 : forall T, O2.(operation) T -> horizontal_composition_prog T.
 
 
-  Inductive exec': forall T, oracle' -> state' -> horizontal_composition_prog T -> @Result state' T -> Prop :=
+  Inductive exec': forall T, token' -> state' -> horizontal_composition_prog T -> @Result state' T -> Prop :=
   | ExecP1:
-      forall T (p1: O1.(prog) T) o1 s s1 r,
+      forall T (p1: O1.(operation) T) o1 s s1 r,
         O1.(exec) o1 (fst s) p1 (Finished s1 r) ->
-        exec' [Oracle1 o1] s (P1 _ p1) (Finished (s1, snd s) r)
+        exec' (Token1 o1) s (P1 _ p1) (Finished (s1, snd s) r)
   | ExecP2:
-      forall T (p2: O2.(prog) T) o2 s s2 r,
+      forall T (p2: O2.(operation) T) o2 s s2 r,
         O2.(exec) o2 (snd s) p2 (Finished s2 r) ->
-        exec' [Oracle2 o2] s (P2 _ p2) (Finished (fst s, s2) r)
+        exec' (Token2 o2) s (P2 _ p2) (Finished (fst s, s2) r)
   | ExecP1Crash:
-      forall T (p1: O1.(prog) T) o1 s s1,
+      forall T (p1: O1.(operation) T) o1 s s1,
         O1.(exec) o1 (fst s) p1 (Crashed s1) ->
-        exec' [Oracle1 o1] s (P1 _ p1) (Crashed (s1, snd s))
+        exec' (Token1 o1) s (P1 _ p1) (Crashed (s1, snd s))
   | ExecP2Crash:
-      forall T (p2: O2.(prog) T) o2 s s2,
+      forall T (p2: O2.(operation) T) o2 s s2,
         O2.(exec) o2 (snd s) p2 (Crashed s2) ->
-        exec' [Oracle2 o2] s (P2 _ p2) (Crashed (fst s, s2)).
+        exec' (Token2 o2) s (P2 _ p2) (Crashed (fst s, s2)).
   
   Definition weakest_precondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun Q o s =>
       exists o1,
-      o = [Oracle1 o1] /\ O1.(weakest_precondition) p1 (fun r s' => Q r (s', snd s)) o1 (fst s)
+      o = Token1 o1 /\ O1.(weakest_precondition) p1 (fun r s' => Q r (s', snd s)) o1 (fst s)
     | P2 _ p2 =>
       fun Q o s =>
       exists o2,
-      o = [Oracle2 o2] /\ O2.(weakest_precondition) p2 (fun r s' => Q r (fst s, s')) o2 (snd s)
+      o = Token2 o2 /\ O2.(weakest_precondition) p2 (fun r s' => Q r (fst s, s')) o2 (snd s)
     end.
 
   Definition weakest_crash_precondition' T (p: horizontal_composition_prog T) :=
@@ -68,31 +53,31 @@ Section HorizontalComposition.
     | P1 _ p1 =>
       fun Q o s =>
       exists o1,
-      o = [Oracle1 o1] /\ O1.(weakest_crash_precondition) p1 (fun s' => Q (s', snd s)) o1 (fst s)
+      o = Token1 o1 /\ O1.(weakest_crash_precondition) p1 (fun s' => Q (s', snd s)) o1 (fst s)
     | P2 _ p2 =>
       fun Q o s =>
       exists o2,
-      o = [Oracle2 o2] /\ O2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
+      o = Token2 o2 /\ O2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
     end.
 
   Definition strongest_postcondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun P t s' =>
-      O1.(strongest_postcondition) p1 (fun o s => P [Oracle1 o] (s, snd s')) t (fst s')
+      O1.(strongest_postcondition) p1 (fun o s => P (Token1 o) (s, snd s')) t (fst s')
     | P2 _ p2 =>
       fun P t s' =>
-        O2.(strongest_postcondition) p2 (fun o s => P [Oracle2 o] (fst s', s)) t (snd s')
+        O2.(strongest_postcondition) p2 (fun o s => P (Token2 o) (fst s', s)) t (snd s')
     end.
 
   Definition strongest_crash_postcondition' T (p: horizontal_composition_prog T) :=
     match p with
     | P1 _ p1 =>
       fun P s' =>
-      O1.(strongest_crash_postcondition) p1 (fun o s => P [Oracle1 o] (s, snd s')) (fst s')
+      O1.(strongest_crash_postcondition) p1 (fun o s => P (Token1 o) (s, snd s')) (fst s')
     | P2 _ p2 =>
       fun P s' =>
-        O2.(strongest_crash_postcondition) p2 (fun o s => P [Oracle2 o] (fst s', s)) (snd s')
+        O2.(strongest_crash_postcondition) p2 (fun o s => P (Token2 o) (fst s', s)) (snd s')
     end.
 
    Theorem wp_complete':
@@ -171,7 +156,7 @@ Proof.
            destruct s'; simpl in *; econstructor; eauto ].
 Qed.
   
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: horizontal_composition_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -180,16 +165,15 @@ Qed.
     intros; destruct p; simpl in *;
     inversion H; inversion H0;
     sigT_eq; clear H H0; cleanup;
-    try solve [eapply exec_deterministic_wrt_oracle in H6;
+    try solve [inversion H9; subst;
+               eapply exec_deterministic_wrt_token in H6;
                eauto; cleanup; eauto].
   Qed.
 
   Hint Constructors exec': core.
   
-
   Definition HorizontalComposition :=
-    Build_Operation
-      oracle_dec' (* after_reboot' *)
+    Build_Core
       horizontal_composition_prog exec'
       weakest_precondition'
       weakest_crash_precondition'
@@ -197,7 +181,7 @@ Qed.
       strongest_crash_postcondition'
       wp_complete' wcp_complete'
       sp_complete' scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
 
 Import Language.
 
@@ -231,15 +215,15 @@ Notation "'<2|'  p >" := (P2 p)(right associativity, at level 60).
 
 (** SP Theorems **)
 Import Language.
-
+(*
 Theorem sp_lift1:
   forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
     T (p: prog L1 T) s t P,
     strongest_postcondition HL (lift_L1 O2 p) P t s ->
     strongest_postcondition L1 p (fun o sx => P (map (fun o' =>
                                                      match o' with
-                                                     |OpOracle _ o1 =>
-                                                      OpOracle (HorizontalComposition O1 O2) [Oracle1 O1 O2 o1]%list
+                                                     |OpToken _ o1 =>
+                                                      OpToken (HorizontalComposition O1 O2) [Token1 O1 O2 o1]%list
                                                      |Language.Cont _ =>
                                                       Language.Cont _
                                                      |Language.Crash _ =>
@@ -261,8 +245,8 @@ Theorem sp_lift2:
     strongest_postcondition HL (lift_L2 O1 p) P t s ->
     strongest_postcondition L2 p (fun o sx => P (map (fun o' =>
                                                      match o' with
-                                                     |OpOracle _ o2 =>
-                                                      OpOracle (HorizontalComposition O1 O2) [Oracle2 O1 O2 o2]%list
+                                                     |OpToken _ o2 =>
+                                                      OpToken (HorizontalComposition O1 O2) [Token2 O1 O2 o2]%list
                                                      |Language.Cont _ =>
                                                       Language.Cont _
                                                      |Language.Crash _ =>
@@ -277,3 +261,4 @@ Proof.
   exists x; intuition eauto.
   eapply exec_to_sp; eauto.
 Qed.
+*)

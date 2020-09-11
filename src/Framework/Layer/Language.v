@@ -1,42 +1,32 @@
-Require Import Primitives Layer.Operation.
+Require Import Primitives Layer.Core.
 Import ListNotations.
 
 Set Implicit Arguments.
 
 Section Language.
   
-  Variable O: Operation.
+  Variable O: Core.
 
   Inductive token' :=
-  | OpOracle : O.(oracle) -> token'
+  | OpToken : O.(token) -> token'
   | Crash : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-    apply O.(oracle_dec).
-  Defined.
-
   Definition oracle' := list token'.
-  Definition oracle_dec' : forall (o o': oracle'), {o=o'}+{o<>o'}.
-    repeat decide equality.
-    apply O.(oracle_dec).
-  Defined.
-
 
   Definition state' := O.(state).
   
   Inductive prog' : Type -> Type :=
-  | Op : forall T, O.(prog) T -> prog' T
+  | Op : forall T, O.(operation) T -> prog' T
   | Ret : forall T, T -> prog' T
   | Bind : forall T T', prog' T -> (T -> prog' T') -> prog' T'.
   
   Inductive exec' :
     forall T, oracle' ->  state' -> prog' T -> @Result state' T -> Prop :=
   | ExecOp : 
-      forall T (p : O.(prog) T) o s s' r,
+      forall T (p : O.(operation) T) o s s' r,
         O.(exec) o s p (Finished s' r) ->
-        exec' [OpOracle o] s (Op T p) (Finished s' r)
+        exec' [OpToken o] s (Op T p) (Finished s' r)
              
   | ExecRet :
       forall d T (v: T),
@@ -50,9 +40,9 @@ Section Language.
         exec' (o1++o2) d1 (Bind p1 p2) ret
 
   | ExecOpCrash : 
-      forall T (p : O.(prog) T) o s s',
+      forall T (p : O.(operation) T) o s s',
         O.(exec) o s p (Crashed s') ->
-        exec' [OpOracle o] s (Op T p) (Crashed s')
+        exec' [OpToken o] s (Op T p) (Crashed s')
              
   | ExecRetCrash :
       forall T d (v: T),
@@ -89,7 +79,7 @@ Section Language.
     | Op T' p' =>
       fun Q o s =>
         exists o',
-      o = [OpOracle o'] /\
+      o = [OpToken o'] /\
       O.(weakest_precondition) p' Q o' s
     | Ret v =>
       fun Q o s =>
@@ -109,7 +99,7 @@ Section Language.
     | Op T' p' =>
       fun Q o s =>
         exists o',
-      o = [OpOracle o'] /\
+      o = [OpToken o'] /\
       O.(weakest_crash_precondition) p' Q o' s
     | Ret v =>
       fun Q o s =>
@@ -122,10 +112,10 @@ Section Language.
       fun P t s' => 
       exists t1,
         strongest_postcondition' (p2 t1)
-           (fun o2 sx => strongest_postcondition' p1 (fun o1 s => P(o1++o2) s) t1 sx) t s'
+           (fun o2 sx => strongest_postcondition' p1 (fun o1 s => P (o1++o2) s) t1 sx) t s'
     | Op T' p' =>
       fun P t s => 
-      O.(strongest_postcondition) p' (fun o s' => P [OpOracle o] s') t s
+      O.(strongest_postcondition) p' (fun o s' => P [OpToken o] s') t s
     | Ret v =>
       fun P t s =>
         P [Cont] s /\ t = v
@@ -138,10 +128,10 @@ Section Language.
         strongest_crash_postcondition' p1 (fun o1 s => exists o2, P (o1++o2) s) s' \/
         (exists t1,
            strongest_crash_postcondition' (p2 t1)
-           (fun o2 sx => strongest_postcondition' p1 (fun o1 s => P(o1++o2) s) t1 sx) s')
+           (fun o2 sx => strongest_postcondition' p1 (fun o1 s => P (o1++o2) s) t1 sx) s')
     | Op T' p' =>
       fun P s => 
-      O.(strongest_crash_postcondition) p' (fun o s' => P [OpOracle o] s') s
+      O.(strongest_crash_postcondition) p' (fun o s' => P [OpToken o] s') s
     | Ret v =>
       fun P s =>
         P [Crash] s
@@ -152,11 +142,8 @@ Section Language.
   Record Language :=
     {
       token := token';
-      token_dec := token_dec';
       oracle := oracle';
-      oracle_dec := oracle_dec';
       state := state';
-      (* after_reboot := O.(after_reboot); *)
       prog := prog';
       exec := exec';
       recovery_exec := recovery_exec';
@@ -494,7 +481,7 @@ Proof.
     simpl in *; cleanup;
     simpl; eauto; try solve [intuition].
   
-  eapply O.(exec_deterministic_wrt_oracle) in H7; eauto; cleanup; eauto.
+  eapply O.(exec_deterministic_wrt_token) in H7; eauto; cleanup; eauto.
   
   repeat rewrite <- app_assoc in H2.
   specialize IHp with (1:= H8)(2:= H17)(3:=H2); cleanup.
@@ -511,7 +498,7 @@ Proof.
   (try inversion H; try inversion H0; try inversion H1;
     try inversion H2; simpl in *; cleanup);
   simpl in *; cleanup; simpl; eauto.
-  eapply exec_deterministic_wrt_oracle in H7; eauto; cleanup.
+  eapply exec_deterministic_wrt_token in H7; eauto; cleanup.
   -
     repeat rewrite <- app_assoc in H1; eauto.
     eapply exec_finished_deterministic_prefix in H8; eauto; cleanup; eauto.
@@ -530,7 +517,7 @@ Proof.
   (try inversion H; try inversion H0; try inversion H1;
     try inversion H2; simpl in *; cleanup);
   simpl in *; cleanup; simpl; eauto.
-  eapply exec_deterministic_wrt_oracle in H6; eauto; cleanup.
+  eapply exec_deterministic_wrt_token in H6; eauto; cleanup.
 
   - rewrite <- app_assoc in H11; eauto.
     eapply exec_finished_deterministic_prefix in H7; eauto; cleanup; eauto.
@@ -554,13 +541,13 @@ Lemma exec_deterministic_wrt_oracle_prefix:
   simpl in *; cleanup;
     simpl; eauto; try solve [intuition].
   -
-    eapply O.(exec_deterministic_wrt_oracle); eauto.
+    eapply O.(exec_deterministic_wrt_token); eauto.
   -
-    eapply O.(exec_deterministic_wrt_oracle) in H7; eauto; cleanup.
+    eapply O.(exec_deterministic_wrt_token) in H7; eauto; cleanup.
   -
-    eapply O.(exec_deterministic_wrt_oracle) in H7; eauto; cleanup.
+    eapply O.(exec_deterministic_wrt_token) in H7; eauto; cleanup.
   -
-    eapply O.(exec_deterministic_wrt_oracle); eauto; cleanup.
+    eapply O.(exec_deterministic_wrt_token); eauto; cleanup.
   -
     eapply exec_finished_deterministic_prefix in H8; eauto; cleanup; eauto.
     repeat rewrite <- app_assoc in H2; cleanup; eauto.
@@ -614,7 +601,7 @@ Qed.
 (** SP Theorems **)
 (*
 Lemma sp_impl:
-    forall O (L: Language O) T (p: prog L T) (P P': list (Language.token' O) -> Operation.state O -> Prop) s' t,
+    forall O (L: Language O) T (p: prog L T) (P P': list (Language.token' O) -> Core.state O -> Prop) s' t,
       (forall o s, P' o s -> P o s) ->
       strongest_postcondition L p P' t s' ->
       strongest_postcondition L p P t s'.
@@ -643,7 +630,7 @@ Lemma sp_impl:
 
 
 Lemma sp_exists_extract:
-    forall X O (L: Language O) T (p: prog L T) (P: X -> list (Language.token' O) -> Operation.state O -> Prop) s' t,
+    forall X O (L: Language O) T (p: prog L T) (P: X -> list (Language.token' O) -> Core.state O -> Prop) s' t,
       strongest_postcondition L p (fun o s => exists x, P x o s) t s' ->
       (exists x, strongest_postcondition L p (P x) t s').
   Proof.

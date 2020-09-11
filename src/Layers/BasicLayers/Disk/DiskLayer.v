@@ -13,21 +13,7 @@ Section DiskLayer.
   | Crash : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-  Defined.
-
-  Definition oracle' := list token'.
-
   Definition state' :=  @mem A AEQ (V * list V).
-
-  Definition after_crash' (s1 s2: state') :=
-    addrs_match_exactly s1 s2 /\
-    forall a vs,
-      s1 a = Some vs ->
-      exists v,
-        s2 a = Some (v, []) /\
-        In v (fst vs::snd vs).
   
   Inductive disk_prog : Type -> Type :=
   | Read : A -> disk_prog V
@@ -35,76 +21,76 @@ Section DiskLayer.
   | Sync : disk_prog unit.
    
   Inductive exec' :
-    forall T, oracle' ->  state' -> disk_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> disk_prog T -> @Result state' T -> Prop :=
   | ExecRead : 
       forall d a vs,
         d a = Some vs ->
-        exec' [Cont] d (Read a) (Finished d (fst vs))
+        exec' Cont d (Read a) (Finished d (fst vs))
              
   | ExecWrite :
       forall d a v vs,
         d a = Some vs ->
-        exec' [Cont] d (Write a v) (Finished (upd d a (v, (fst vs::snd vs))) tt)
+        exec' Cont d (Write a v) (Finished (upd d a (v, (fst vs::snd vs))) tt)
 
   | ExecSync :
       forall d,
-        exec' [Cont] d Sync (Finished (sync d) tt)
+        exec' Cont d Sync (Finished (sync d) tt)
  
   | ExecCrash :
       forall T d (p: disk_prog T),
-        exec' [Crash] d p (Crashed d).
+        exec' Crash d p (Crashed d).
 
   Hint Constructors exec' : core.
 
   Definition weakest_precondition' T (p: disk_prog T) :=
-   match p in disk_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+   match p in disk_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
    | Read a =>
      (fun Q o s =>
        exists vs,
-         o = [Cont] /\
+         o = Cont /\
          s a = Some vs /\
          Q (fst vs) s)
    | Write a v =>
      (fun Q o s =>
        exists vs,
-       o = [Cont] /\
+       o = Cont /\
        s a = Some vs /\
        Q tt (upd s a (v, (fst vs::snd vs))))
    | Sync =>
      fun Q o s =>
-       o = [Cont] /\
+       o = Cont /\
        Q tt (sync s)
    end.
 
   Definition weakest_crash_precondition' T (p: disk_prog T) :=
-    fun (Q: state' -> Prop) o (s: state') => o = [Crash] /\ Q s.
+    fun (Q: state' -> Prop) o (s: state') => o = Crash /\ Q s.
 
   Definition strongest_postcondition' T (p: disk_prog T) :=
-   match p in disk_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+   match p in disk_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
    | Read a =>
      fun P t s' =>
        exists s vs,
-         P [Cont] s /\
+         P Cont s /\
          s' = s /\
          s a = Some vs /\
          t = fst vs
    | Write a v =>
      fun P t s' =>
        exists s vs,
-         P [Cont] s /\
+         P Cont s /\
          s' = upd s a (v, (fst vs::snd vs)) /\
          s a = Some vs /\
          t = tt
    | Sync =>
      fun P t s' =>
         exists s, 
-       P [Cont] s /\
+       P Cont s /\
        s' =(sync s) /\
        t = tt
    end.
 
   Definition strongest_crash_postcondition' T (p: disk_prog T) :=
-    fun (P: oracle' -> state' -> Prop) s' => P [Crash] s'.
+    fun (P: token' -> state' -> Prop) s' => P Crash s'.
 
 
   Theorem sp_complete':
@@ -158,7 +144,7 @@ Section DiskLayer.
     inversion H0; cleanup; eauto.
   Qed.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: disk_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -173,9 +159,7 @@ Section DiskLayer.
   Qed. 
   
   Definition DiskOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       disk_prog
       exec'
       weakest_precondition'
@@ -186,7 +170,7 @@ Section DiskLayer.
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
   
   Definition DiskLang := Build_Language DiskOperation.
 

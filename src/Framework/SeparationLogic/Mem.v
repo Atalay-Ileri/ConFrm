@@ -88,7 +88,14 @@ Section GenMem.
     match al, vl with
     | a::al', v::vl' => upd_batch_set (upd_set m a v) al' vl'
     | _, _ => m
-    end.  
+    end.
+
+  Fixpoint list_upd_batch_set (m: @mem A AEQ (V * list V)) l_l_a l_l_v :=
+  match l_l_a, l_l_v with
+  | l_a :: lla, l_v :: llv =>
+    list_upd_batch_set (upd_batch_set m l_a l_v) lla llv
+  | _, _ => m
+  end.
 
   Fixpoint get_all_existing (m: @mem A AEQ V) al :=
     match al with

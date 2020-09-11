@@ -1,14 +1,14 @@
 Require Import Primitives Layer Simulation.Definitions.
 
 Section RefinementLift.
-  Variable O_imp O_abs: Operation.
+  Variable O_imp O_abs: Core.
   Variable L_imp: Language O_imp.
   Variable L_abs: Language O_abs.
-  Variable OpRefinement : OperationRefinement L_imp O_abs.
+  Variable OpRefinement : CoreRefinement L_imp O_abs.
 
   Fixpoint compile T (p2: prog L_abs T) : prog L_imp T.
     destruct p2.
-    exact (OpRefinement.(compile_op) p).
+    exact (OpRefinement.(compile_op) o).
     exact (Ret t).
     exact (Bind (compile T p2) (fun x => compile T' (p x))).
   Defined.
@@ -17,8 +17,8 @@ Section RefinementLift.
     match p with    
     |Op _ op =>
      exists o2',
-     o2 =  [OpOracle O_abs o2' ] /\
-     OpRefinement.(oracle_refines_to_op) d1 op o1 o2'
+     o2 =  [OpToken O_abs o2'] /\
+     OpRefinement.(token_refines_to) d1 op o1 o2'
 
     | Ret v =>
       (exists d1',

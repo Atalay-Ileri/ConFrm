@@ -14,17 +14,8 @@ Definition encryptionmap := @mem value value_dec (key * value).
   | Crash : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-    apply key_dec.
-  Defined.
-
-  Definition oracle' := list token'.
-
   Definition state' := ((list key * encryptionmap)* hashmap)%type.
 
-  (* Definition after_crash' (s1 s2: state') := s1 = s2. *)
-  
   Inductive crypto_prog : Type -> Type :=
   | GetKey : list value -> crypto_prog key
   | Hash : hash -> value -> crypto_prog hash
@@ -32,7 +23,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
   | Decrypt : key -> value -> crypto_prog value.
    
   Inductive exec' :
-    forall T, oracle' ->  state' -> crypto_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> crypto_prog T -> @Result state' T -> Prop :=
 
   | ExecHash : 
       forall s h v,
@@ -41,7 +32,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let hm := snd s in
         let hv := hash_function h v in
         consistent hm hv (h, v) ->
-        exec' [Cont] s (Hash h v) (Finished (kl, em, (upd hm hv (h, v))) hv)
+        exec' Cont s (Hash h v) (Finished (kl, em, (upd hm hv (h, v))) hv)
              
   | ExecEncrypt : 
       forall s k v,
@@ -50,7 +41,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let hm := snd s in
         let ev := encrypt k v in
         consistent em ev (k, v) ->
-        exec' [Cont] s (Encrypt k v) (Finished (kl, (upd em ev (k, v)), hm) ev)
+        exec' Cont s (Encrypt k v) (Finished (kl, (upd em ev (k, v)), hm) ev)
 
   | ExecDecrypt : 
       forall s ev k v,
@@ -59,7 +50,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let hm := snd s in
         ev = encrypt k v ->
         em ev = Some (k, v) ->
-        exec' [Cont] s (Decrypt k ev) (Finished s v)
+        exec' Cont s (Decrypt k ev) (Finished s v)
 
   | ExecGetKey : 
       forall vl s k,
@@ -69,23 +60,23 @@ Definition encryptionmap := @mem value value_dec (key * value).
         ~In k kl ->
         consistent_with_upds em
              (map (encrypt k) vl) (map (fun v => (k, v)) vl) ->
-        exec' [Key k] s (GetKey vl) (Finished ((k::kl), em, hm) k)
+        exec' (Key k) s (GetKey vl) (Finished ((k::kl), em, hm) k)
  
   | ExecCrash :
       forall T d (p: crypto_prog T),
-        exec' [Crash] d p (Crashed d).
+        exec' Crash d p (Crashed d).
 
   Hint Constructors exec' : core.
 
   Definition weakest_precondition' T (p: crypto_prog T) :=
-    match p in crypto_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+    match p in crypto_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
     | Hash h v =>
       fun Q o s =>
         let kl := fst (fst s) in
         let em := snd (fst s) in
         let hm := snd s in
         let hv := hash_function h v in
-        o = [Cont] /\
+        o = Cont /\
         consistent hm hv (h, v) /\
         Q hv (kl, em, (upd hm hv (h, v)))
 
@@ -95,7 +86,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let em := snd (fst s) in
         let hm := snd s in
         let ev := encrypt k v in
-        o = [Cont] /\
+        o = Cont /\
         consistent em ev (k, v) /\
         Q ev (kl, (upd em ev (k, v)), hm)
 
@@ -105,7 +96,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let em := snd (fst s) in
         let hm := snd s in
         exists v,
-          o = [Cont] /\
+          o = Cont /\
           ev = encrypt k v /\
           em ev = Some (k, v) /\
           Q v s
@@ -116,7 +107,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let em := snd (fst s) in
         let hm := snd s in
         exists k,
-          o = [Key k] /\
+          o = Key k /\
           ~In k kl /\
           consistent_with_upds em (map (encrypt k) vl) (map (fun v => (k,v)) vl) /\
           Q k ((k::kl), em, hm)
@@ -124,10 +115,10 @@ Definition encryptionmap := @mem value value_dec (key * value).
 
 
   Definition weakest_crash_precondition' T (p: crypto_prog T) :=
-    fun Q o (s: state') => o = [Crash] /\ Q s.
+    fun Q o (s: state') => o = Crash /\ Q s.
 
   Definition strongest_postcondition' T (p: crypto_prog T) :=
-    match p in crypto_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+    match p in crypto_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
     | Hash h v =>
       fun P t s' =>
         exists s,
@@ -135,7 +126,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let em := snd (fst s) in
         let hm := snd s in
         let hv := hash_function h v in
-        P [Cont] s /\
+        P Cont s /\
         consistent hm hv (h, v) /\
         t = hv /\
         s' = (kl, em, (upd hm hv (h, v)))
@@ -147,7 +138,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let em := snd (fst s) in
         let hm := snd s in
         let ev := encrypt k v in
-        P [Cont] s /\
+        P Cont s /\
         consistent em ev (k, v) /\
         t = ev /\
         s' = (kl, (upd em ev (k, v)), hm)
@@ -158,7 +149,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let kl := fst (fst s) in
         let em := snd (fst s) in
         let hm := snd s in
-        P [Cont] s /\
+        P Cont s /\
         ev = encrypt k v /\
         em ev = Some (k, v) /\
         t = v /\ s' = s
@@ -169,7 +160,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let kl := fst (fst s) in
         let em := snd (fst s) in
         let hm := snd s in
-        P [Key k] s /\
+        P (Key k) s /\
         ~In k kl /\
         consistent_with_upds em (map (encrypt k) vl) (map (fun v => (k,v)) vl) /\
         t = k /\
@@ -177,9 +168,9 @@ Definition encryptionmap := @mem value value_dec (key * value).
     end.
 
   Definition strongest_crash_postcondition' T (p: crypto_prog T) :=
-    fun (P: oracle' -> state' -> Prop) s' => P [Crash] s'.
+    fun (P: token' -> state' -> Prop) s' => P Crash s'.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: crypto_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -242,9 +233,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
   Qed.
   
   Definition CryptoOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       crypto_prog
       exec'
       weakest_precondition'
@@ -255,7 +244,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
   
   Definition CryptoLang := Build_Language CryptoOperation.
 

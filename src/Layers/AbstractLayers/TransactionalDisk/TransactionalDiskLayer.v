@@ -1,4 +1,4 @@
-Require Import Omega Framework.
+Require Import Lia Framework.
 Import ListNotations.
 
 Set Implicit Arguments.
@@ -14,17 +14,7 @@ Section TransactionalDisk.
   | Cont : token'
   | TxnFull : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-  Defined.
-
-  Definition oracle' := list token'.  
-
   Definition state' := ((disk value) * (disk value))%type.
-
-  Definition after_crash' (s1 s2: state') :=
-    fst s2 = empty_mem /\
-    snd s1 = snd s2.
   
   Inductive transactional_disk_prog : Type -> Type :=
   | Start : transactional_disk_prog unit
@@ -35,12 +25,12 @@ Section TransactionalDisk.
   | Recover : transactional_disk_prog unit.
    
   Inductive exec' :
-    forall T, oracle' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=
   | ExecStart : 
       forall s,
         let c := fst s in
         let d := snd s in
-        exec' [Cont] s Start (Finished (empty_mem, d) tt)
+        exec' Cont s Start (Finished (empty_mem, d) tt)
               
   | ExecReadInbound : 
       forall s a v,
@@ -49,12 +39,12 @@ Section TransactionalDisk.
         a < disk_size ->
         (c a = Some v \/
         (c a = None /\ d a = Some v)) ->
-        exec' [Cont] s (Read a) (Finished s v)
+        exec' Cont s (Read a) (Finished s v)
 
   | ExecReadOutbound : 
       forall s a,
         a >= disk_size ->
-        exec' [Cont] s (Read a) (Finished s value0)
+        exec' Cont s (Read a) (Finished s value0)
              
   | ExecWriteInbound :
       forall s a v,
@@ -62,7 +52,7 @@ Section TransactionalDisk.
         let d := snd s in
         a < disk_size ->
         d a <> None ->
-        exec' [Cont] s (Write a v) (Finished ((upd c a v), d) tt)
+        exec' Cont s (Write a v) (Finished ((upd c a v), d) tt)
 
   | ExecWriteInboundFull :
       forall s a v,
@@ -70,66 +60,66 @@ Section TransactionalDisk.
         let d := snd s in
         a < disk_size ->
         d a <> None ->
-        exec' [TxnFull] s (Write a v) (Finished s tt)
+        exec' TxnFull s (Write a v) (Finished s tt)
               
   | ExecWriteOutbound :
       forall s a v,
         a >= disk_size ->
-        exec' [Cont] s (Write a v) (Finished s tt)
+        exec' Cont s (Write a v) (Finished s tt)
 
   | ExecCommit : 
       forall s,
         let c := fst s in
         let d := snd s in
-        exec' [Cont] s Commit (Finished (empty_mem, mem_union c d) tt)
+        exec' Cont s Commit (Finished (empty_mem, mem_union c d) tt)
 
   | ExecAbort : 
       forall s,
         let c := fst s in
         let d := snd s in
-        exec' [Cont] s Abort (Finished (empty_mem, d) tt)
+        exec' Cont s Abort (Finished (empty_mem, d) tt)
 
   | ExecRecover : 
       forall s,
-        exec' [Cont] s Recover (Finished s tt)
+        exec' Cont s Recover (Finished s tt)
 
   | ExecCrashBefore :
       forall d T (p: transactional_disk_prog T),
-        exec' [CrashBefore] d p (Crashed d)
+        exec' CrashBefore d p (Crashed d)
 
   | ExecCrashAfter :
       forall s s' T (p: transactional_disk_prog T),
-        (exists v, exec' [Cont] s p (Finished s' v)) ->
-        exec' [CrashAfter] s p (Crashed s')
+        (exists v, exec' Cont s p (Finished s' v)) ->
+        exec' CrashAfter s p (Crashed s')
 
   | ExecCrashDuringCommit :
       forall s c d,
-        (exists v, exec' [Cont] s Commit (Finished (c, d) v)) ->
-        exec' [CrashDuringCommit] s Commit (Crashed (fst s, d)).
+        (exists v, exec' Cont s Commit (Finished (c, d) v)) ->
+        exec' CrashDuringCommit s Commit (Crashed (fst s, d)).
 
   Hint Constructors exec' : core.
 
    Definition weakest_precondition' T (p: transactional_disk_prog T) :=
-   match p in transactional_disk_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+   match p in transactional_disk_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
    | Start =>
      (fun Q o s =>
        let c := fst s in
        let d := snd s in
-       o = [Cont] /\
+       o = Cont /\
        Q tt (empty_mem, d))
    | Read a =>
      (fun Q o s =>
         let c := fst s in
         let d := snd s in
         (
-          o = [Cont] /\
+          o = Cont /\
           a < disk_size /\ 
           exists v,
             (c a = Some v \/ (c a = None /\ d a = Some v)) /\
             Q v s
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           a >= disk_size /\
           Q value0 s
         )
@@ -140,19 +130,19 @@ Section TransactionalDisk.
        let d := snd s in
        
        (
-         o = [Cont] /\
+         o = Cont /\
          a < disk_size /\
          d a <> None /\
          Q tt ((upd c a v), d)
        ) \/
        (
-         o = [TxnFull] /\
+         o = TxnFull /\
          a < disk_size /\
          d a <> None /\
          Q tt s
        ) \/
        (
-         o = [Cont] /\
+         o = Cont /\
          a >= disk_size /\
          Q tt s
        )
@@ -161,40 +151,40 @@ Section TransactionalDisk.
      (fun Q o s =>
        let c := fst s in
        let d := snd s in
-       o = [Cont] /\
+       o = Cont /\
        Q tt (empty_mem, mem_union c d))
    | Abort =>
      (fun Q o s =>
        let c := fst s in
        let d := snd s in
-       o = [Cont] /\
+       o = Cont /\
        Q tt (empty_mem, d))
    | Recover =>
      (fun Q o s =>
-       o = [Cont] /\
+       o = Cont /\
        Q tt s)
    end.
 
   Definition weakest_crash_precondition' T (p: transactional_disk_prog T) :=
-    match p in transactional_disk_prog T' return (state' -> Prop) -> oracle' -> state' -> Prop with
+    match p in transactional_disk_prog T' return (state' -> Prop) -> token' -> state' -> Prop with
     | Start =>
       (fun Q o s =>
          let c := fst s in
          let d := snd s in
-         (o = [CrashBefore] /\
+         (o = CrashBefore /\
           Q s) \/
-         (o = [CrashAfter] /\
+         (o = CrashAfter /\
           Q (empty_mem, d)))
    | Read a =>
      (fun Q o s =>
         let c := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           a < disk_size /\
           Q s /\
           exists v,
@@ -202,7 +192,7 @@ Section TransactionalDisk.
             (c a = None /\ d a = Some v)
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           a >= disk_size /\
           Q s
         )
@@ -212,17 +202,17 @@ Section TransactionalDisk.
         let c := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           a < disk_size /\
           d a <> None /\
           Q (upd c a v, d)
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           a >= disk_size /\
           Q s
         )
@@ -231,36 +221,36 @@ Section TransactionalDisk.
      (fun Q o s =>
        let c := fst s in
        let d := snd s in
-       (o = [CrashBefore] /\
+       (o = CrashBefore /\
         Q s) \/
-       (o = [CrashDuringCommit] /\
+       (o = CrashDuringCommit /\
         Q (c, mem_union c d)) \/
-       (o = [CrashAfter] /\
+       (o = CrashAfter /\
         Q (empty_mem, mem_union c d)))
    | Abort =>
       (fun Q o s =>
          let c := fst s in
          let d := snd s in
-         (o = [CrashBefore] /\
+         (o = CrashBefore /\
           Q s) \/
-         (o = [CrashAfter] /\
+         (o = CrashAfter /\
           Q (empty_mem, d)))
    | Recover =>
       (fun Q o s =>
-         (o = [CrashBefore] /\
+         (o = CrashBefore /\
           Q s) \/
-         (o = [CrashAfter] /\
+         (o = CrashAfter /\
           Q s))
     end.
 
   Definition strongest_postcondition' T (p: transactional_disk_prog T) :=
-    match p in transactional_disk_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+    match p in transactional_disk_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
     | Start =>
       fun P t s' =>
         exists s,
          let c := fst s in
          let d := snd s in
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = (empty_mem, d)
    | Read a =>
@@ -269,7 +259,7 @@ Section TransactionalDisk.
          let c := fst s in
          let d := snd s in
          (
-           P [Cont] s /\
+           P Cont s /\
            a < disk_size /\
            s' = s /\
            exists v,
@@ -277,7 +267,7 @@ Section TransactionalDisk.
              t = v 
          ) \/
          (
-           P [Cont] s /\
+           P Cont s /\
            s' = s /\
            a >= disk_size /\
            t = value0
@@ -288,21 +278,21 @@ Section TransactionalDisk.
        let c := fst s in
        let d := snd s in
        (
-         P [Cont] s /\
+         P Cont s /\
          a < disk_size /\
          t = tt /\
          d a <> None /\
          s' = ((upd c a v), d)
        ) \/
        (
-         P [TxnFull] s /\
+         P TxnFull s /\
          a < disk_size /\
          d a <> None /\
          t = tt /\
          s' = s
        ) \/
        (
-         P [Cont] s /\
+         P Cont s /\
          a >= disk_size /\
          t = tt /\
          s' = s
@@ -313,7 +303,7 @@ Section TransactionalDisk.
         exists s,
          let c := fst s in
          let d := snd s in
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = (empty_mem, mem_union c d)
    | Abort =>
@@ -321,27 +311,27 @@ Section TransactionalDisk.
         exists s,
          let c := fst s in
          let d := snd s in
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = (empty_mem, d)
    | Recover =>
       fun P t s' =>
         exists s,
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = s
    end.
 
   Definition strongest_crash_postcondition' T (p: transactional_disk_prog T) :=
-    match p in transactional_disk_prog T' return (oracle' -> state' -> Prop) -> state' -> Prop with
+    match p in transactional_disk_prog T' return (token' -> state' -> Prop) -> state' -> Prop with
     | Start =>
       fun P s' =>
         exists s,
           let c := fst s in
           let d := snd s in
-          (P [CrashBefore] s /\
+          (P CrashBefore s /\
            s' = s) \/
-          (P [CrashAfter] s /\
+          (P CrashAfter s /\
            s' = (empty_mem, d))
     | Read a =>
      fun P s' =>
@@ -349,17 +339,17 @@ Section TransactionalDisk.
          let c := fst s in
          let d := snd s in
          (
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
          ) \/
          (
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            a < disk_size /\
            s' = s /\
            (exists v, c a = Some v \/ (c a = None /\ d a = Some v))
          ) \/
          (
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            a >= disk_size /\
            s' = s
          )
@@ -370,17 +360,17 @@ Section TransactionalDisk.
          let c := fst s in
          let d := snd s in
          (
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
          ) \/
          (
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            a < disk_size /\
            d a <> None /\
            s' = (upd c a v, d)
          ) \/
          (
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            a >= disk_size /\
            s' = s
          )
@@ -390,27 +380,27 @@ Section TransactionalDisk.
        exists s,
          let c := fst s in
          let d := snd s in
-         (P [CrashBefore] s /\
+         (P CrashBefore s /\
           s' = s) \/
-         (P [CrashAfter] s /\
+         (P CrashAfter s /\
           s' = (empty_mem, mem_union c d)) \/
-         (P [CrashDuringCommit] s /\
+         (P CrashDuringCommit s /\
           s' = (fst s, mem_union c d))
    | Abort =>
       fun P s' =>
         exists s,
           let c := fst s in
           let d := snd s in
-          (P [CrashBefore] s /\
+          (P CrashBefore s /\
            s' = s) \/
-          (P [CrashAfter] s /\
+          (P CrashAfter s /\
            s' = (empty_mem, d))
     | Recover =>
       fun P s' =>
         exists s,
-          (P [CrashBefore] s /\
+          (P CrashBefore s /\
            s' = s) \/
-          (P [CrashAfter] s /\
+          (P CrashAfter s /\
            s' = s)
     end.
   
@@ -478,7 +468,7 @@ Section TransactionalDisk.
     eexists; split; eauto; econstructor; eauto.
   Qed.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: transactional_disk_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -490,13 +480,11 @@ Section TransactionalDisk.
       | [H: exec' _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
       end; eauto;
-    repeat split_ors; cleanup; eauto; omega.
+    repeat split_ors; cleanup; eauto; lia.
   Qed.
   
   Definition TransactionalDiskOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       transactional_disk_prog
       exec'
       weakest_precondition'
@@ -507,7 +495,7 @@ Section TransactionalDisk.
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
 
   Definition TransactionalDiskLang := Build_Language TransactionalDiskOperation.
 

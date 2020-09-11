@@ -5,6 +5,12 @@ Import Permutation.
 
 Set Implicit Arguments.
 
+Fixpoint bimap {A B C} (f: A -> B -> C) (la: list A) (lb: list B): list C :=
+  match la, lb with
+  | a::la, b::lb => (f a b)::(bimap f la lb)
+  | _, _ => nil
+  end.
+
 Fixpoint selN (V : Type) (vs : list V) (n : nat) (default : V) : V :=
   match vs with
     | nil => default

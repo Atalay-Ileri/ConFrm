@@ -1,4 +1,4 @@
-Require Import Primitives Layer.Operation
+Require Import Primitives Layer.Core
         Layer.Language Layer.HorizontalComposition.
 
 Local Ltac invert_exec'' H :=
@@ -37,9 +37,9 @@ Proof.
       exists o1,
         o = map (fun o =>
                    match o with
-                   |OpOracle _ o1 =>
-                    OpOracle (HorizontalComposition O1 O2)
-                             [Oracle1 O1 O2 o1]%list
+                   |OpToken _ o1 =>
+                    OpToken (HorizontalComposition O1 O2)
+                             (Token1 O1 O2 o1)
                    |Language.Cont _ =>
                     Language.Cont _
                    |Language.Crash _ =>
@@ -80,9 +80,9 @@ Local Lemma lift2_invert_exec :
       exists o2,
         o = map (fun o =>
                    match o with
-                   |OpOracle _ o1 =>
-                    OpOracle (HorizontalComposition O1 O2)
-                             [Oracle2 O1 O2 o1]%list
+                   |OpToken _ o1 =>
+                    OpToken (HorizontalComposition O1 O2)
+                             (Token2 O1 O2 o1)
                    |Language.Cont _ =>
                     Language.Cont _
                    |Language.Crash _ =>
@@ -138,7 +138,7 @@ Local Lemma lift2_invert_exec :
       eapply lift2_invert_exec in H; logic_clean
     | [ H: HorizontalComposition.exec' _ _ _ _ |- _ ] =>
       invert_exec'' H
-    | [ H: Operation.exec _ _ _ _ _ |- _ ] =>
+    | [ H: Core.exec _ _ _ _ _ |- _ ] =>
       invert_exec'' H
     end.
 

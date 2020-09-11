@@ -1,4 +1,4 @@
-Require Import Omega Framework File.
+Require Import Lia Framework File.
 Import ListNotations.
 Close Scope predicate_scope.
 
@@ -18,16 +18,7 @@ Section FileDisk.
   | DiskFull : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-    all: apply  addr_dec.
-  Defined.
-
-  Definition oracle' := list token'.  
-
   Definition state' := (user * disk File)%type.
-
-  Definition after_crash' (s1 s2: state') := s1 = s2.
   
   Inductive file_disk_prog : Type -> Type :=
   | Read : Inum -> addr -> file_disk_prog (option value)
@@ -39,7 +30,7 @@ Section FileDisk.
   | Recover : file_disk_prog unit.
   
   Inductive exec' :
-    forall T, oracle' ->  state' -> file_disk_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> file_disk_prog T -> @Result state' T -> Prop :=
   | ExecReadSuccess : 
       forall s inum off file v,
         let u := fst s in
@@ -48,7 +39,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         nth_error file.(blocks) off = Some v ->
-        exec' [Cont] s (Read inum off) (Finished s (Some v))
+        exec' Cont s (Read inum off) (Finished s (Some v))
               
   | ExecReadFail : 
       forall s inum off file,
@@ -58,7 +49,7 @@ Section FileDisk.
          d inum = None \/
          d inum = Some file /\
          (file.(owner) <> u \/ nth_error file.(blocks) off = None)) ->
-        exec' [Cont] s (Read inum off) (Finished s None)
+        exec' Cont s (Read inum off) (Finished s None)
               
   | ExecWriteSuccess :
       forall s inum file off v,
@@ -69,7 +60,7 @@ Section FileDisk.
         file.(owner) = u ->
         off < length (file.(blocks)) ->
         let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
-        exec' [Cont] s (Write inum off v) (Finished (u, (upd d inum new_file)) (Some tt))
+        exec' Cont s (Write inum off v) (Finished (u, (upd d inum new_file)) (Some tt))
 
   | ExecWriteFail :
       forall s inum file off v,
@@ -79,7 +70,7 @@ Section FileDisk.
          d inum = None \/
          d inum = Some file /\
          (file.(owner) <> u \/ off >= length (file.(blocks)))) ->
-        exec' [Cont] s (Write inum off v) (Finished s None)
+        exec' Cont s (Write inum off v) (Finished s None)
 
   | ExecExtendSuccess :
       forall s inum file v,
@@ -89,7 +80,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
-        exec' [Cont] s (Extend inum v) (Finished (u, (upd d inum new_file)) (Some tt))
+        exec' Cont s (Extend inum v) (Finished (u, (upd d inum new_file)) (Some tt))
 
   | ExecExtendFail :
       forall s inum file v,
@@ -98,7 +89,7 @@ Section FileDisk.
         (inum >= disk_size \/
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
-        exec' [Cont] s (Extend inum v) (Finished s None)
+        exec' Cont s (Extend inum v) (Finished s None)
               
   | ExecExtendFailDiskFull :
       forall s inum file v,
@@ -107,7 +98,7 @@ Section FileDisk.
         inum < disk_size ->
         d inum = Some file ->
         file.(owner) = u ->
-        exec' [DiskFull] s (Extend inum v) (Finished s None)
+        exec' DiskFull s (Extend inum v) (Finished s None)
 
   | ExecSetOwnerSuccess :
       forall s inum file o,
@@ -117,7 +108,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         let new_file := Build_File o file.(blocks) in
-        exec' [Cont] s (SetOwner inum o) (Finished (u, (upd d inum new_file)) (Some tt))
+        exec' Cont s (SetOwner inum o) (Finished (u, (upd d inum new_file)) (Some tt))
 
   | ExecSetOwnerFail :
       forall s inum file o,
@@ -126,7 +117,7 @@ Section FileDisk.
         (inum >= disk_size \/
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
-        exec' [Cont] s (SetOwner inum o) (Finished s None)
+        exec' Cont s (SetOwner inum o) (Finished s None)
 
   | ExecCreateSuccess :
       forall s inum owner,
@@ -135,14 +126,14 @@ Section FileDisk.
         inum < disk_size ->
         d inum = None ->
         let new_file := Build_File owner [] in
-        exec' [NewInum inum] s (Create owner) (Finished (u, (upd d inum new_file)) (Some inum))
+        exec' (NewInum inum) s (Create owner) (Finished (u, (upd d inum new_file)) (Some inum))
 
   | ExecCreateFail :
       forall s owner,
         let u := fst s in
         let d := snd s in
         (forall inum, inum < disk_size -> d inum <> None) ->
-        exec' [InodesFull] s (Create owner) (Finished s None)
+        exec' InodesFull s (Create owner) (Finished s None)
               
   | ExecDeleteSuccess :
       forall s inum file,
@@ -151,7 +142,7 @@ Section FileDisk.
         inum < disk_size ->
         d inum = Some file ->
         file.(owner) = u ->
-        exec' [Cont] s (Delete inum) (Finished (u, (Mem.delete d inum)) (Some tt))
+        exec' Cont s (Delete inum) (Finished (u, (Mem.delete d inum)) (Some tt))
 
   | ExecDeleteFail :
       forall s file inum,
@@ -160,15 +151,15 @@ Section FileDisk.
         (inum >= disk_size \/
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
-        exec' [Cont] s (Delete inum) (Finished s None)
+        exec' Cont s (Delete inum) (Finished s None)
 
   | ExecRecover : 
       forall s,
-        exec' [Cont] s Recover (Finished s tt)
+        exec' Cont s Recover (Finished s tt)
 
   | ExecCrashBefore :
       forall d T (p: file_disk_prog T),
-        exec' [CrashBefore] d p (Crashed d)
+        exec' CrashBefore d p (Crashed d)
 
   | ExecSetOwnerCrashAfter :
       forall s inum file o,
@@ -178,7 +169,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         let new_file := Build_File o file.(blocks) in
-        exec' [CrashAfter] s (SetOwner inum o) (Crashed (u, (upd d inum new_file)))
+        exec' CrashAfter s (SetOwner inum o) (Crashed (u, (upd d inum new_file)))
 
   | ExecWriteCrashAfter :
       forall s inum file off v,
@@ -189,7 +180,7 @@ Section FileDisk.
         file.(owner) = u ->
         off < length (file.(blocks)) ->
         let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
-        exec' [CrashAfter] s (Write inum off v) (Crashed (u, (upd d inum new_file)))
+        exec' CrashAfter s (Write inum off v) (Crashed (u, (upd d inum new_file)))
 
   | ExecExtendCrashAfter :
       forall s inum file v,
@@ -199,7 +190,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         let new_file := Build_File file.(owner) (file.(blocks) ++ [v]) in
-        exec' [CrashAfter] s (Extend inum v) (Crashed (u, (upd d inum new_file)))
+        exec' CrashAfter s (Extend inum v) (Crashed (u, (upd d inum new_file)))
 
   | ExecDeleteCrashAfter :
       forall s inum file,
@@ -208,7 +199,7 @@ Section FileDisk.
         inum < disk_size ->
         d inum = Some file ->
         file.(owner) = u ->
-        exec' [CrashAfter] s (Delete inum) (Crashed (u, (Mem.delete d inum)))
+        exec' CrashAfter s (Delete inum) (Crashed (u, (Mem.delete d inum)))
 
   | ExecCreateCrashAfter :
       forall s inum owner,
@@ -217,18 +208,18 @@ Section FileDisk.
         inum < disk_size ->
         d inum = None ->
         let new_file := Build_File owner [] in
-        exec' [CrashAfterCreate inum] s (Create owner) (Crashed (u, (upd d inum new_file))).
+        exec' (CrashAfterCreate inum) s (Create owner) (Crashed (u, (upd d inum new_file))).
 
   Hint Constructors exec' : core.
 
   Definition weakest_precondition' T (p: file_disk_prog T) :=
-    match p in file_disk_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+    match p in file_disk_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
     | Read inum a =>
       fun Q o s =>
         let u := fst s in
         let d := snd s in
         (
-          o = [Cont] /\
+          o = Cont /\
           inum < disk_size /\
           exists file v,
             d inum = Some file /\
@@ -237,7 +228,7 @@ Section FileDisk.
             Q (Some v) s
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           (inum >= disk_size \/
            d inum = None \/
            (exists file,
@@ -256,7 +247,7 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [Cont] /\
+          o = Cont /\
           inum < disk_size /\  
           exists file,
             d inum = Some file /\
@@ -267,7 +258,7 @@ Section FileDisk.
             Q (Some tt) (u, upd d inum new_file)
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           (inum >= disk_size \/
            d inum = None \/
            (exists file,
@@ -286,7 +277,7 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [Cont] /\
+          o = Cont /\
           inum < disk_size /\
           exists file,
             let new_file := Build_File u' file.(blocks) in
@@ -295,7 +286,7 @@ Section FileDisk.
             Q (Some tt) (u, upd d inum new_file)
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           (inum >= disk_size \/ d inum = None \/
            exists file,
              d inum = Some file /\
@@ -308,13 +299,13 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [InodesFull] /\
+          o = InodesFull /\
           (forall inum, inum < disk_size -> d inum <> None) /\
           Q None s
         ) \/
 
         (exists inum,
-           o = [NewInum inum] /\
+           o = NewInum inum /\
            inum < disk_size /\ 
            d inum = None /\
            let new_file := Build_File u' [] in
@@ -326,7 +317,7 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [Cont] /\
+          o = Cont /\
           inum < disk_size /\
           (exists file,
              d inum = Some file /\ 
@@ -334,7 +325,7 @@ Section FileDisk.
           Q (Some tt) (u, Mem.delete d inum)
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           (inum >= disk_size \/
            d inum = None \/
            exists file,
@@ -347,7 +338,7 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [DiskFull] /\
+          o = DiskFull /\
           inum < disk_size /\
           (exists file,
              d inum = Some file /\ 
@@ -355,7 +346,7 @@ Section FileDisk.
           Q None s
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           inum < disk_size /\
           exists file,
             d inum = Some file /\
@@ -364,7 +355,7 @@ Section FileDisk.
             Q (Some tt) (u, upd d inum new_file)
         ) \/
         (
-          o = [Cont] /\
+          o = Cont /\
           (inum >= disk_size \/ d inum = None \/
            exists file,
              d inum = Some file /\
@@ -373,19 +364,19 @@ Section FileDisk.
         )
     | Recover =>
       fun Q o s =>
-        o = [Cont] /\
+        o = Cont /\
         Q tt s
     end.
 
   
   Definition weakest_crash_precondition' T (p: file_disk_prog T) :=
-    match p in file_disk_prog T' return (state' -> Prop) -> oracle' -> state' -> Prop with
+    match p in file_disk_prog T' return (state' -> Prop) -> token' -> state' -> Prop with
     | Read inum a =>
       fun Q o s =>
         let u := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         )
           
@@ -394,11 +385,11 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           inum < disk_size /\  
           exists file,
             d inum = Some file /\
@@ -414,11 +405,11 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           inum < disk_size /\
           exists file,
             let new_file := Build_File u' file.(blocks) in
@@ -432,11 +423,11 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (exists inum,
-           o = [CrashAfterCreate inum] /\
+           o = CrashAfterCreate inum /\
            inum < disk_size /\ 
            d inum = None /\
            let new_file := Build_File u' [] in
@@ -448,11 +439,11 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           inum < disk_size /\
           (exists file,
              d inum = Some file /\
@@ -465,11 +456,11 @@ Section FileDisk.
         let u := fst s in
         let d := snd s in
         (
-          o = [CrashBefore] /\
+          o = CrashBefore /\
           Q s
         ) \/
         (
-          o = [CrashAfter] /\
+          o = CrashAfter /\
           inum < disk_size /\
           exists file,
             d inum = Some file /\
@@ -479,19 +470,19 @@ Section FileDisk.
         )
     | Recover =>
       fun Q o s =>
-        o = [CrashBefore] /\
+        o = CrashBefore /\
         Q s
     end.
 
   Definition strongest_postcondition' T (p: file_disk_prog T) :=
-    match p in file_disk_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+    match p in file_disk_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
     | Read inum a =>
       fun P t s' =>
         (
           exists s,
             let u := fst s in
             let d := snd s in
-            P [Cont] s /\
+            P Cont s /\
             inum < disk_size /\
             exists file v,
               d inum = Some file /\
@@ -504,7 +495,7 @@ Section FileDisk.
           exists s,
             let u := fst s in
             let d := snd s in
-            P [Cont] s /\
+            P Cont s /\
             (inum >= disk_size \/
              d inum = None \/
              (exists file,
@@ -525,7 +516,7 @@ Section FileDisk.
           exists s,
             let u := fst s in
             let d := snd s in
-            P [Cont] s /\
+            P Cont s /\
             inum < disk_size /\  
             exists file,
               d inum = Some file /\
@@ -540,7 +531,7 @@ Section FileDisk.
           exists s,
             let u := fst s in
             let d := snd s in
-            P [Cont] s /\
+            P Cont s /\
             (inum >= disk_size \/
              d inum = None \/
              (exists file,
@@ -560,7 +551,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [Cont] s /\
+           P Cont s /\
            inum < disk_size /\
            exists file,
              let new_file := Build_File u' file.(blocks) in
@@ -572,7 +563,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [Cont] s /\
+           P Cont s /\
            (inum >= disk_size \/
             d inum = None \/
             exists file,
@@ -587,7 +578,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [InodesFull] s /\
+           P InodesFull s /\
            (forall inum, inum < disk_size -> d inum <> None) /\
            t = None /\
            s' = s
@@ -595,7 +586,7 @@ Section FileDisk.
         (exists s inum,
            let u := fst s in
            let d := snd s in
-           P [NewInum inum] s /\
+           P (NewInum inum) s /\
            inum < disk_size /\ 
            d inum = None /\
            let new_file := Build_File u' [] in
@@ -609,7 +600,7 @@ Section FileDisk.
           exists s,
             let u := fst s in
             let d := snd s in
-            P [Cont] s /\
+            P Cont s /\
             inum < disk_size /\
             (exists file,
                d inum = Some file /\
@@ -621,7 +612,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [Cont] s /\
+           P Cont s /\
            (inum >= disk_size \/
             d inum = None \/
             exists file,
@@ -636,7 +627,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [DiskFull] s /\
+           P DiskFull s /\
            inum < disk_size /\
            (exists file,
               d inum = Some file /\
@@ -647,7 +638,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [Cont] s /\
+           P Cont s /\
            inum < disk_size /\
            exists file,
              d inum = Some file /\
@@ -659,7 +650,7 @@ Section FileDisk.
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [Cont] s /\
+           P Cont s /\
            (inum >= disk_size \/
             d inum = None \/
             exists file,
@@ -671,30 +662,30 @@ Section FileDisk.
     | Recover =>
       fun P t s' =>
           exists s,
-            P [Cont] s /\
+            P Cont s /\
             t = tt /\
             s' = s
     end.
   
   Definition strongest_crash_postcondition' T (p: file_disk_prog T) :=
-    match p in file_disk_prog T' return (oracle' -> state' -> Prop) -> state' -> Prop with
+    match p in file_disk_prog T' return (token' -> state' -> Prop) -> state' -> Prop with
     | Read inum a =>
       fun P s' =>
         (exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
         )
           
     | Write inum a v =>
       fun P s' =>
         (exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
         ) \/
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            inum < disk_size /\  
            exists file,
              d inum = Some file /\
@@ -708,13 +699,13 @@ Section FileDisk.
     | SetOwner inum u' =>
       fun P s' =>
         (exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
         ) \/
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            inum < disk_size /\
            exists file,
              let new_file := Build_File u' file.(blocks) in
@@ -726,13 +717,13 @@ Section FileDisk.
     | Create u' =>
       fun P s' =>
         (exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
         ) \/
         (exists s inum,
            let u := fst s in
            let d := snd s in
-           P [CrashAfterCreate inum] s /\
+           P (CrashAfterCreate inum) s /\
            inum < disk_size /\ 
            d inum = None /\
            let new_file := Build_File u' [] in
@@ -742,13 +733,13 @@ Section FileDisk.
     | Delete inum =>
       fun P s' =>
         (exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
         ) \/
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            inum < disk_size /\
            (exists file,
               d inum = Some file /\
@@ -758,13 +749,13 @@ Section FileDisk.
     | Extend inum v =>
       fun P s' =>
         (exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
         ) \/
         (exists s,
            let u := fst s in
            let d := snd s in
-           P [CrashAfter] s /\
+           P CrashAfter s /\
            inum < disk_size /\
            exists file,
              d inum = Some file /\
@@ -776,7 +767,7 @@ Section FileDisk.
     | Recover =>
       fun P s' =>
         exists s,
-           P [CrashBefore] s /\
+           P CrashBefore s /\
            s' = s
     end.
 
@@ -919,7 +910,7 @@ Section FileDisk.
     all: exact user0.
   Qed.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: file_disk_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -931,13 +922,11 @@ Section FileDisk.
       | [H: exec' _ _ _ _ |- _] =>
         inversion H; clear H; try split_ors; cleanup
       end;
-    try solve [ repeat (cleanup; intuition eauto; try congruence; try omega) ].
+    try solve [ repeat (cleanup; intuition eauto; try congruence; try lia) ].
   Qed.
   
   Definition FileDiskOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       file_disk_prog
       exec'
       weakest_precondition'
@@ -948,7 +937,7 @@ Section FileDisk.
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
 
   Definition FileDiskLang := Build_Language FileDiskOperation.
 

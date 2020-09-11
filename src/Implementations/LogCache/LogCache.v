@@ -76,12 +76,12 @@ Definition txn_well_formed txn :=
   let data_blocks := data_blocks txn in
   NoDup addr_list /\ length addr_list = length data_blocks.
 
-Definition cached_log_rep disk_frame merged_disk (s: Language.state CachedDiskLang) (log_state: Log_State):=
+Definition cached_log_rep merged_disk (log_state: Log_State) (s: Language.state CachedDiskLang) :=
   exists hdr txns,
     fst s = txns_cache txns empty_mem /\
     addrs_match (fst s) (snd (snd s)) /\
     Forall txn_well_formed txns /\
-    (log_rep log_state hdr txns (fst (snd s)) * disk_frame)%predicate (snd (snd s)) /\
+    log_rep log_state hdr txns (snd s) /\
     merged_disk = shift (plus data_start) (merge_set (fst s) (snd (snd s))).
 
 

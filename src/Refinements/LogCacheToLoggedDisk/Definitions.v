@@ -32,8 +32,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
           exec low o1 d1 (write la lv) (Finished d1' r) /\          
           o2 = [Cont] /\
           (forall s,
-             (exists F log_state, cached_log_rep F s d1 log_state) ->
-             (exists F log_state, cached_log_rep F (write_all s la lv) d1' log_state))
+             (exists log_state, cached_log_rep s log_state d1) ->
+             (exists log_state, cached_log_rep (write_all s la lv) log_state d1'))
        ) \/
      (exists d1',
         (exec low o1 d1 (write la lv) (Crashed d1') /\
@@ -55,8 +55,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
    end.
 
   Definition refines_to (d1: state low) (d2: state high) :=
-    exists F d2' log_state,
-      cached_log_rep F d2' d1 log_state /\
+    exists d2' log_state,
+      cached_log_rep d2' log_state d1 /\
       d2 = mem_map fst d2'.
 
 
@@ -200,8 +200,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
 
   
   Lemma cached_log_rep_cache_read :
-    forall F s2 s1 a v log_state,
-      cached_log_rep F s2 s1 log_state ->
+    forall s2 s1 a v log_state,
+      cached_log_rep s2 log_state s1 ->
       fst s1 (data_start + a) = Some v ->
       Disk.read s2 a = Some v.
   Proof.
@@ -214,8 +214,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
   Qed.
   
   Lemma cached_log_rep_disk_read :
-    forall F s2 s1 a log_state,
-      cached_log_rep F s2 s1 log_state ->
+    forall s2 s1 a log_state,
+      cached_log_rep s2 log_state s1 ->
       fst s1 (data_start + a) = None ->
       Disk.read s2 a = Disk.read (snd (snd s1)) (data_start + a).
   Proof.
@@ -317,8 +317,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
   Proof.
     intros.
     unfold refines_to in *; cleanup.
-    eexists; exists x, (write_all x0 l l0).
-    exists x1.
+    eexists; exists (write_all x l l0).
+    exists x0.
     rewrite upd_batch_write_all_mem_map.
     split; eauto.
   Abort.
@@ -446,7 +446,55 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
 
   Set Nested Proofs Allowed.
    
-  
+
+  Lemma refines_to_subset_crypto:
+    forall cached_crypto_disk cached_crypto_disk' logged_disk,
+      let cache := fst cached_crypto_disk in
+      let crypto_disk := snd cached_crypto_disk in
+      let keylist := fst (fst (fst crypto_disk)) in
+      let encmap := snd (fst (fst crypto_disk)) in
+      let hashmap := snd (fst crypto_disk) in
+      let disk := snd crypto_disk in
+      
+      let cache' := fst cached_crypto_disk' in
+      let crypto_disk' := snd cached_crypto_disk' in
+      let keylist' := fst (fst (fst crypto_disk')) in
+      let encmap' := snd (fst (fst crypto_disk')) in
+      let hashmap' := snd (fst crypto_disk') in
+      let disk' := snd crypto_disk' in
+      
+      refines_to cached_crypto_disk logged_disk ->
+      cache = cache' ->
+      disk = disk' ->
+      incl keylist keylist' ->
+      subset encmap encmap' ->
+      subset hashmap hashmap' ->
+      refines_to cached_crypto_disk' logged_disk.
+  Proof.
+    unfold refines_to, cached_log_rep; intros;
+    simpl in *; cleanup.
+    do 3 eexists; intuition eauto.
+    setoid_rewrite <- H0;
+    setoid_rewrite <- H1;
+    setoid_rewrite H; eauto.
+    unfold log_rep, log_rep_inner in *; cleanup_no_match.
+    
+    do 2 eexists; intuition eauto.
+    setoid_rewrite <- H1; eauto.
+
+    do 2 eexists; intuition eauto.
+    setoid_rewrite <- e; eauto.
+
+    (** Weird rewrite errors here **)
+    admit.
+    admit.
+
+    (** TODO: prove a lemma for this **)
+    admit.
+    admit.
+    
+    setoid_rewrite <- H1; eauto.
+  Admitted.
   
   Lemma exec_compiled_preserves_refinement:
     forall T (p2: high_op.(Operation.prog) T) o1 s1 ret,
@@ -490,6 +538,27 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
 
           repeat
             match goal with
+            | [H: context [ fst ?x ] |- _ ] =>
+              destruct x; simpl in *
+            | [H: context [ snd ?x ] |- _ ] =>
+              destruct x; simpl in *
+            end; cleanup_no_match.
+
+          repeat
+            match goal with
+            | [H: exec _ _ _ (BatchOperations.hash_all _ _) _ |- _ ] =>
+              eapply BatchOperations.hash_all_finished in H
+            | [H: exec _ _ _ (BatchOperations.read_consecutive _ _) _ |- _ ] =>
+              eapply BatchOperations.read_consecutive_finished in H
+            | [H: exec _ _ _ (BatchOperations.write_consecutive _ _) _ |- _ ] =>
+              unfold BatchOperations.write_consecutive in H;
+              eapply BatchOperations.write_batch_finished in H
+            | [H: exec _ _ _ (BatchOperations.encrypt_all _ _) _ |- _ ] =>
+              eapply BatchOperations.encrypt_all_finished in H
+            end.
+          
+          repeat
+            match goal with
             | [H: exec _ _ _ (BatchOperations.hash_all _ _) _ |- _ ] =>
               eapply BatchOperations.hash_all_finished in H
             | [H: exec _ _ _ (BatchOperations.read_consecutive _ _) _ |- _ ] =>
@@ -508,7 +577,7 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
 
           match goal with
           | [H: exec _ _ _ (Log.apply_txns _ _) _ |- _ ] =>
-            eapply Log.sp_apply_txns in H
+            eapply Log.apply_txns_finished in H
           end; try logic_clean.
 
           inversion H19; clear H19; subst; sigT_eq.
@@ -520,7 +589,24 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
             | [H: context [ snd ?x ] |- _ ] =>
               destruct x; simpl in *
             end; cleanup_no_match.
-          
+
+          eapply refines_to_subset_crypto with (cached_crypto_disk' := (s1, (x17 :: fst (fst s),
+      upd_batch (snd (fst s)) (map (encrypt x17) (addr_list_to_blocks (map (Nat.add data_start) l) ++ l0))
+        (map (fun v2 : value => (x17, v2)) (addr_list_to_blocks (map (Nat.add data_start) l) ++ l0)),
+      upd_batch (snd s)
+        (rolling_hash_list (cur_hash (decode_header v0))
+           (map (encrypt x17) (addr_list_to_blocks (map (Nat.add data_start) l) ++ l0)))
+        match map (encrypt x17) (addr_list_to_blocks (map (Nat.add data_start) l) ++ l0) with
+        | [] => []
+        | y :: tl' =>
+            (cur_hash (decode_header v0), y)
+            :: combine
+                 (rolling_hash_list (cur_hash (decode_header v0))
+                    (map (encrypt x17) (addr_list_to_blocks (map (Nat.add data_start) l) ++ l0))) tl'
+        end, s17))) in H; simpl; try reflexivity.
+
+          XXX HERE
+              
           all: admit.
         }
       }
@@ -557,6 +643,8 @@ Definition oracle_refines_to T (d1: state low) (p: Operation.prog high_op T) o1 
           | [H: context [ snd ?x ] |- _ ] =>
             destruct x; simpl in *
           end; cleanup_no_match.
+
+        
 
         XXX
 

@@ -260,48 +260,48 @@ Definition log_rep_inner
            (log_state: Log_State)
            (hdr: header) (txns: list txn)
            (hdr_blockset: set value) (log_blocksets: list (set value))
-           (ax: list key * encryptionmap * hashmap) :=
-  let kl := fst (fst ax) in
-  let em := snd (fst ax) in
-  let hm := snd ax in
+           (state: state CryptoDiskLang) :=
+  let crypto_maps := fst state in
+  let disk := snd state in
+  let key_list := fst (fst crypto_maps) in
+  let encryption_map := snd (fst crypto_maps) in
+  let hash_map := snd crypto_maps in
   let log_blocks := map fst log_blocksets in
   let valid_hdr := get_valid_part hdr log_blocks in
   let valid_log_blocks := firstn (count valid_hdr) log_blocks in  
     (* Header *)
-    hdr_block_num |-> hdr_blockset *
+    disk hdr_block_num = Some hdr_blockset /\
     (* Log Blocks *)
-    log_start |=> log_blocksets *
-    [[ hdr = decode_header (fst hdr_blockset)]] *
+    (forall i, i < length log_blocksets -> disk (log_start + i) = selNopt log_blocksets i) /\
+    hdr = decode_header (fst hdr_blockset) /\
     (** Sync status **)
-    [[ match log_state with
-       | Synced =>
-         snd hdr_blockset = [] /\
-         (forall ls, In ls log_blocksets -> snd ls = [])
-       | Not_Synced =>
-         (exists v, snd hdr_blockset = v :: nil) /\
-         (forall ls, In ls log_blocksets -> exists v, snd ls = v :: nil)
-       end
-    ]] *
+    match log_state with
+    | Synced =>
+      snd hdr_blockset = [] /\
+      (forall ls, In ls log_blocksets -> snd ls = [])
+    | Not_Synced =>
+      (exists v, snd hdr_blockset = v :: nil) /\
+      (forall ls, In ls log_blocksets -> exists v, snd ls = v :: nil)
+    end
+    /\
     (* log length is valid *)
-    [[ length log_blocksets = log_length ]] *
+    length log_blocksets = log_length /\
     (* txns represents the right thing *)
-    [[ map record txns = records valid_hdr ]] *
+    map record txns = records valid_hdr /\
     (* Header hashes is correct *)
-    [[ hash_valid valid_log_blocks (hash valid_hdr) ]] *
-    [[ hashes_in_hashmap hm hash0 valid_log_blocks ]] *
+    hash_valid valid_log_blocks (hash valid_hdr) /\
+    hashes_in_hashmap hash_map hash0 valid_log_blocks /\
     (* Header current txn_records are valid *)
-    [[ txns_valid txns valid_log_blocks kl em ]].
+    txns_valid txns valid_log_blocks key_list encryption_map.
 
-Definition log_rep (log_state: Log_State) (hdr: header) (txns: list txn) (ax: list key * encryptionmap * hashmap) :=
-  exists* (hdr_blockset: set value) (log_blocksets: list (set value)),
-    log_rep_inner log_state hdr txns hdr_blockset log_blocksets ax.
+Definition log_rep (log_state: Log_State) (hdr: header) (txns: list txn) (state: state CryptoDiskLang) :=
+  exists (hdr_blockset: set value) (log_blocksets: list (set value)),
+    log_rep_inner log_state hdr txns hdr_blockset log_blocksets state.
 
 Hint Extern 0 (okToUnify (log_rep_inner _ _ ?b _) (log_rep_inner _ _ ?b  _)) => constructor : okToUnify.
 Hint Extern 0 (okToUnify (log_rep ?txns _) (log_rep ?txns _)) => constructor : okToUnify.
 
-
-
-
+(*
 Theorem sp_read_header:
   forall  log_state hdr txns hdr_blockset log_blocksets F t s',
   strongest_postcondition CryptoDiskLang read_header
@@ -318,6 +318,7 @@ Proof.
   repeat split; eauto.
   pred_apply; cancel.
 Qed.
+ *)
 
 Set Nested Proofs Allowed.
   Lemma map_ext_eq:
@@ -394,20 +395,8 @@ Definition plain_data_blocks_valid log_blocks plain_data_blocks txn :=
   
   get_data_blocks log_blocks txn = map (encrypt key) plain_data_blocks.
 
-Fixpoint bimap {A B C} (f: A -> B -> C) (la: list A) (lb: list B): list C :=
-  match la, lb with
-  | a::la, b::lb => (f a b)::(bimap f la lb)
-  | _, _ => nil
-  end.
 
-Fixpoint list_upd_batch_set {A AEQ V} (m: @mem A AEQ (V * list V)) l_l_a l_l_v :=
-  match l_l_a, l_l_v with
-  | l_a :: lla, l_v :: llv =>
-    list_upd_batch_set (upd_batch_set m l_a l_v) lla llv
-  | _, _ => m
-  end.
-
-Theorem sp_apply_txns:
+Theorem apply_txns_finished:
   forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
     let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
     
@@ -460,11 +449,87 @@ Proof.
   admit.
 Admitted.
     
-
 Global Opaque apply_txns.
 
-(*
+Theorem decrypt_txn_finished:
+  forall txn log_blocks plain_blocks t s' s o,
+  let key := txn_key txn in
+  let start := txn_start txn in
+  let addr_count := addr_count txn in
+  let data_count := data_count txn in
+  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
+  let addr_blocks := firstn addr_count plain_blocks in
+  let data_blocks := skipn addr_count plain_blocks in
+  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
+  txn_blocks = map (encrypt key) plain_blocks ->
+  length addr_list = length data_blocks ->
+  exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Finished s' t) ->
+  t = (addr_list, data_blocks) /\ s' = s.
+Proof.
+  unfold decrypt_txn; simpl; intros;
+  repeat invert_exec; simpl in *;
+  cleanup.
 
+  eapply decrypt_all_finished in H1; cleanup.
+  eapply map_ext_eq in H2; cleanup; eauto.
+  eapply encrypt_ext; eauto.
+Qed.
+
+
+
+Theorem decrypt_txns_finished:
+  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
+    let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
+    
+    Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
+    Forall2 (plain_data_blocks_valid log_blocks) l_plain_data_blocks txns ->
+    Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
+    
+    exec CryptoDiskLang o s (decrypt_txns txns log_blocks) (Finished s' t) ->
+    t = combine l_addr_list l_plain_data_blocks /\
+    s' = s.
+Proof.
+  induction txns; simpl; intros;
+  repeat invert_exec; cleanup; eauto;
+  inversion H; inversion H0; inversion H1; cleanup.
+  
+  assume (Al: (length l = addr_count a)).
+
+  eapply decrypt_txn_finished in H2; cleanup; eauto.
+  edestruct IHtxns in H3; eauto; cleanup.
+  simpl in *; intuition eauto.
+  unfold get_addr_list at 1; simpl.
+
+  2:{
+    unfold plain_addr_blocks_valid, plain_data_blocks_valid,
+    get_addr_blocks, get_data_blocks in *; simpl in *.
+    rewrite firstn_sum_split.
+    rewrite firstn_firstn in H7;
+    rewrite min_l in H7 by lia.
+    rewrite H7.
+    rewrite skipn_firstn_comm in H13.
+    rewrite H13, <- map_app; eauto.
+  }
+  
+  rewrite <- Al. 
+  rewrite skipn_app.
+  rewrite firstn_app2; eauto.
+
+  rewrite <- Al. 
+  rewrite skipn_app.
+  rewrite firstn_app2; eauto.
+
+  Unshelve.
+  unfold plain_addr_blocks_valid, get_addr_blocks in *; simpl in *.
+  erewrite <- map_length, <- H7.
+  rewrite firstn_length_l; eauto.
+  rewrite firstn_length_l; try lia.
+  rewrite skipn_length; try lia.
+  (** TODO: Make a premise **)
+  admit.
+Admitted.
+
+(*
 Definition get_addr_list_direct txn :=
   let rec := record txn in
   let addr_list_length := data_count rec in

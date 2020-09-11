@@ -7,12 +7,6 @@ Set Implicit Arguments.
   | Crash : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-  Defined.
-
-  Definition oracle' := list token'.  
-
   Definition state' := user.
 
   (** TODO: This may need to change
@@ -23,48 +17,48 @@ Set Implicit Arguments.
   | Auth : user -> authentication_prog (option unit).
   
   Inductive exec' :
-    forall T, oracle' ->  state' -> authentication_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> authentication_prog T -> @Result state' T -> Prop :=
   | ExecAuthSuccess : 
       forall s u,
         u = s ->
-        exec' [Cont] s (Auth u) (Finished s (Some tt))
+        exec' Cont s (Auth u) (Finished s (Some tt))
              
   | ExecAuthFail : 
       forall s u,
         u <> s ->
-        exec' [Cont] s (Auth u) (Finished s None)
+        exec' Cont s (Auth u) (Finished s None)
               
   | ExecCrash :
       forall T d (p: authentication_prog T),
-        exec' [Crash] d p (Crashed d).
+        exec' Crash d p (Crashed d).
 
   Hint Constructors exec' : core.
   
   Definition weakest_precondition' T (p: authentication_prog T) :=
-   match p in authentication_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+   match p in authentication_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
    |  Auth u =>
      fun Q o s =>
-        o = [Cont] /\
+        o = Cont /\
         ((s = u /\ Q (Some tt) s) \/
         (s <> u /\ Q None s))
    end.
 
   Definition weakest_crash_precondition' T (p: authentication_prog T) :=
-    fun (Q: state' -> Prop) o (s: state') => o = [Crash] /\ Q s.
+    fun (Q: state' -> Prop) o (s: state') => o = Crash /\ Q s.
 
   Definition strongest_postcondition' T (p: authentication_prog T) :=
-   match p in authentication_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+   match p in authentication_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
    | Auth u =>
      fun P t s' =>
        exists s,
-        P [Cont] s /\
+        P Cont s /\
         s' = s /\
         ((s = u /\ t = Some tt) \/
          (s <> u /\ t = None))
    end.
 
   Definition strongest_crash_postcondition' T (p: authentication_prog T) :=
-    fun (P: oracle' -> state' -> Prop) (s: state') => P [Crash] s.
+    fun (P: token' -> state' -> Prop) (s: state') => P Crash s.
 
   Theorem sp_complete':
     forall T (p: authentication_prog T) P (Q: _ -> _ -> Prop),
@@ -116,7 +110,7 @@ Set Implicit Arguments.
     inversion H0; cleanup; eauto.
   Qed.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: authentication_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -131,9 +125,7 @@ Set Implicit Arguments.
   Qed.
   
   Definition AuthenticationOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       authentication_prog
       exec'
       weakest_precondition'
@@ -144,7 +136,7 @@ Set Implicit Arguments.
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
 
   Definition AuthenticationLang := Build_Language AuthenticationOperation.
 

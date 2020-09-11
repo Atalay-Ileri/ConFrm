@@ -8,15 +8,7 @@ Set Implicit Arguments.
   | CrashAfter : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-  Defined.
-
-  Definition oracle' := list token'.  
-
   Definition state' := disk value.
-
-  Definition after_crash' (s1 s2: state') := s1 = s2.
   
   Inductive logged_disk_prog : Type -> Type :=
   | Read : addr -> logged_disk_prog value
@@ -24,102 +16,102 @@ Set Implicit Arguments.
   | Recover : logged_disk_prog unit.
    
   Inductive exec' :
-    forall T, oracle' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
   | ExecRead : 
       forall d a v,
         d a = Some v ->
-        exec' [Cont] d (Read a) (Finished d v)
+        exec' Cont d (Read a) (Finished d v)
              
   | ExecWriteSuccess :
       forall d la lv,
         NoDup la ->
         length la = length lv ->
         (forall a, In a la -> d a <> None) ->
-        exec' [Cont] d (Write la lv) (Finished (upd_batch d la lv) tt)
+        exec' Cont d (Write la lv) (Finished (upd_batch d la lv) tt)
 
   | ExecWriteFail :
       forall d la lv,
         ~NoDup la \/ length la <> length lv \/
         (exists a, In a la /\ d a = None) ->
-        exec' [Cont] d (Write la lv) (Finished d tt)
+        exec' Cont d (Write la lv) (Finished d tt)
 
   | ExecRecover : 
       forall d,
-        exec' [Cont] d Recover (Finished d tt)
+        exec' Cont d Recover (Finished d tt)
 
   | ExecCrashBefore :
       forall d T (p: logged_disk_prog T),
-        exec' [CrashBefore] d p (Crashed d)
+        exec' CrashBefore d p (Crashed d)
 
   | ExecCrashWriteAfter :
       forall d la lv,
         NoDup la ->
         length la = length lv ->
         (forall a, In a la -> d a <> None) ->
-        exec' [CrashAfter] d (Write la lv) (Crashed (upd_batch d la lv)).
+        exec' CrashAfter d (Write la lv) (Crashed (upd_batch d la lv)).
 
   Hint Constructors exec' : core.
 
    Definition weakest_precondition' T (p: logged_disk_prog T) :=
-   match p in logged_disk_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+   match p in logged_disk_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
    | Read a =>
      (fun Q o s =>
        exists v,
-         o = [Cont] /\
+         o = Cont /\
          s a = Some v /\
          Q v s)
    | Write la lv =>
      (fun Q o s =>
-        (o = [Cont] /\
+        (o = Cont /\
          NoDup la /\
          length la = length lv /\
          (forall a, In a la -> s a <> None) /\
          Q tt (upd_batch s la lv)) \/
-        (o = [Cont] /\
+        (o = Cont /\
         (~ NoDup la \/
          length la <> length lv \/
         (exists a, In a la /\ s a = None)) /\
         Q tt s))
    | Recover =>
      fun Q o s =>
-       o = [Cont] /\
+       o = Cont /\
        Q tt s 
    end.
 
   Definition weakest_crash_precondition' T (p: logged_disk_prog T) :=
-    match p in logged_disk_prog T' return (state' -> Prop) -> oracle' -> state' -> Prop with
+    match p in logged_disk_prog T' return (state' -> Prop) -> token' -> state' -> Prop with
    | Read a =>
      (fun Q o s =>
-         o = [CrashBefore] /\
+         o = CrashBefore /\
          Q s)
    | Write la lv =>
      (fun Q o s =>
-       (o = [CrashBefore] /\
+       (o = CrashBefore /\
         Q s) \/
-       (o = [CrashAfter] /\
+       (o = CrashAfter /\
         NoDup la /\
         length la = length lv /\
         (forall a, In a la -> s a <> None) /\
         Q (upd_batch s la lv)))
    | Recover =>
      fun Q o s =>
-       o = [CrashBefore] /\
+       o = CrashBefore /\
        Q s
     end.
 
   Definition strongest_postcondition' T (p: logged_disk_prog T) :=
-   match p in logged_disk_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+   match p in logged_disk_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
    | Read a =>
      fun P t s' =>
        exists s v,
-         P [Cont] s /\
+         P Cont s /\
          s a = Some v /\
          t = v /\
          s' = s
    | Write la lv =>
      fun P t s' =>
        exists s,
-       P [Cont] s /\
+       P Cont s /\
        t = tt /\
        ((
          NoDup la /\
@@ -136,28 +128,28 @@ Set Implicit Arguments.
    | Recover =>
      fun P t s' =>
        exists s,
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = s
    end.
 
   Definition strongest_crash_postcondition' T (p: logged_disk_prog T) :=
-    match p in logged_disk_prog T' return (oracle' -> state' -> Prop) -> state' -> Prop with
+    match p in logged_disk_prog T' return (token' -> state' -> Prop) -> state' -> Prop with
    | Read a =>
      fun P s' =>
-       P [CrashBefore] s'
+       P CrashBefore s'
    | Write la lv =>
      fun P s' =>
-       (P [CrashBefore] s') \/
+       (P CrashBefore s') \/
        (exists s,
-          P [CrashAfter] s /\
+          P CrashAfter s /\
           NoDup la /\
           length la = length lv /\
           (forall a, In a la -> s a <> None) /\
           s' = upd_batch s la lv)
    | Recover =>
      fun P s' =>
-       P [CrashBefore] s'
+       P CrashBefore s'
     end.
   
   Theorem sp_complete':
@@ -214,7 +206,7 @@ Set Implicit Arguments.
     right; eauto.
   Qed.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: logged_disk_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -231,9 +223,7 @@ Set Implicit Arguments.
   Qed.
   
   Definition LoggedDiskOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       logged_disk_prog
       exec'
       weakest_precondition'
@@ -244,7 +234,7 @@ Set Implicit Arguments.
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
 
   Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
 

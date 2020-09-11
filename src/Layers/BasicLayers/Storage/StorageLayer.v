@@ -11,12 +11,6 @@ Section StorageLayer.
   | Crash : token'
   | Cont : token'.
 
-  Definition token_dec' : forall (t t': token'), {t=t'}+{t<>t'}.
-    decide equality.
-  Defined.
-
-  Definition oracle' := list token'.  
-
   Definition state' := option V.
 
   Definition after_crash' (s1 s2: state') := s2 = None.
@@ -28,72 +22,72 @@ Section StorageLayer.
 
   
   Inductive exec' :
-    forall T, oracle' ->  state' -> storage_prog T -> @Result state' T -> Prop :=
+    forall T, token' ->  state' -> storage_prog T -> @Result state' T -> Prop :=
   | ExecGet : 
       forall d v,
         d = Some v ->
-        exec' [Cont] d Get (Finished d v)
+        exec' Cont d Get (Finished d v)
              
   | ExecPut :
       forall d v,
-        exec' [Cont] d (Put v) (Finished (Some v) tt)
+        exec' Cont d (Put v) (Finished (Some v) tt)
 
   | ExecDelete :
       forall d,
-        exec' [Cont] d Delete (Finished None tt)
+        exec' Cont d Delete (Finished None tt)
               
   | ExecCrash :
       forall T d (p: storage_prog T),
-        exec' [Crash] d p (Crashed d).
+        exec' Crash d p (Crashed d).
 
   Hint Constructors exec' : core.
   
   Definition weakest_precondition' T (p: storage_prog T) :=
-   match p in storage_prog T' return (T' -> state' -> Prop) -> oracle' -> state' -> Prop with
+   match p in storage_prog T' return (T' -> state' -> Prop) -> token' -> state' -> Prop with
    | Get =>
      fun Q o s =>
        exists v, 
-        o = [Cont] /\
+        o = Cont /\
         s = Some v /\
         Q v s
    | Put v =>
      fun Q o s =>
-        o = [Cont] /\
+        o = Cont /\
         Q tt (Some v)
    | Delete =>
      fun Q o s =>
-        o = [Cont] /\
+        o = Cont /\
         Q tt None
    end.
 
   Definition weakest_crash_precondition' T (p: storage_prog T) :=
-    fun (Q: state' -> Prop) o (s: state') => o = [Crash] /\ Q s.
+    fun (Q: state' -> Prop) o (s: state') => o = Crash /\ Q s.
 
   Definition strongest_postcondition' T (p: storage_prog T) :=
-   match p in storage_prog T' return (oracle' -> state' -> Prop) -> T' -> state' -> Prop with
+   match p in storage_prog T' return (token' -> state' -> Prop) -> T' -> state' -> Prop with
    | Get =>
      fun P t s' =>
        exists s v,
-        P [Cont] s /\
+        P Cont s /\
         s = Some v /\
         t = v /\
         s' = s
    | Put v =>
      fun P t s' =>
        exists s,
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = Some v
    | Delete  =>
      fun P t s' =>
        exists s,
-         P [Cont] s /\
+         P Cont s /\
          t = tt /\
          s' = None
    end.
 
   Definition strongest_crash_postcondition' T (p: storage_prog T) :=
-    fun (P: oracle' -> state' -> Prop) (s: state') => P [Crash] s.
+    fun (P: token' -> state' -> Prop) (s: state') => P Crash s.
 
   Theorem sp_complete':
     forall T (p: storage_prog T) P (Q: _ -> _ -> Prop),
@@ -143,7 +137,7 @@ Section StorageLayer.
     inversion H0; cleanup; eauto.
   Qed.
 
-  Theorem exec_deterministic_wrt_oracle' :
+  Theorem exec_deterministic_wrt_token' :
     forall o s T (p: storage_prog T) ret1 ret2,
       exec' o s p ret1 ->
       exec' o s p ret2 ->
@@ -158,9 +152,7 @@ Section StorageLayer.
   Qed.
   
   Definition StorageOperation :=
-    Build_Operation
-      (list_eq_dec token_dec')
-      (* after_crash' *)
+    Build_Core
       storage_prog
       exec'
       weakest_precondition'
@@ -171,7 +163,7 @@ Section StorageLayer.
       wcp_complete'
       sp_complete'
       scp_complete'
-      exec_deterministic_wrt_oracle'.
+      exec_deterministic_wrt_token'.
 
   Definition StorageLang := Build_Language StorageOperation.
 
