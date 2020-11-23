@@ -46,7 +46,7 @@ Ltac logic_clean:=
   | [H: _ /\ _ |- _] => destruct H
   end; repeat logic_clean.
 
-Local Ltac invert_const :=
+Ltac invert_const :=
   match goal with
   | [H: Some _ = Some _ |- _ ] =>
     inversion H; subst; clear H
@@ -62,18 +62,18 @@ Local Ltac invert_const :=
     inversion H; subst; clear H
   end; repeat invert_const.
 
-Local Ltac clear_dup:=
+Ltac clear_dup:=
   match goal with
   | [H: ?x = ?x |- _] => clear H
   | [H: ?x, H0: ?x |- _] => clear H0
   end; repeat clear_dup.
 
-Local Ltac rewrite_upd_eq:=
+Ltac rewrite_upd_eq:=
   match goal with
   |[H: upd _ ?x _ ?x = _ |- _] => rewrite upd_eq in H; try invert_const
   end; repeat rewrite_upd_eq.
 
-Local Ltac rewriteall :=
+Ltac rewriteall :=
   match goal with
   | [H := _ |- _] =>
     subst H
@@ -83,7 +83,7 @@ Local Ltac rewriteall :=
     rewrite H
   end; repeat rewriteall.
 
-Local Ltac list_append_clear:=
+Ltac list_append_clear:=
   match goal with
   | [H: _++?tr = _++?tr |- _] =>
     apply app_inv_tail in H
@@ -101,7 +101,7 @@ Local Ltac list_append_clear:=
     rewrite app_assoc in H
   end.
 
-Local Ltac clear_lists:=
+Ltac clear_lists:=
   match goal with
   | [H: _::_ = _::_ |- _] =>
     inversion H; clear H
@@ -149,4 +149,11 @@ Ltac split_ors:=
   | [H: _ \/ _ |- _ ] => destruct H
   end.
 
+Ltac cleanup_pairs :=
+  match goal with
+  | [H: context [fst ?x] |- _] =>
+    destruct_fresh x
+  | [H: context [snd ?x] |- _] =>
+    destruct_fresh x
+  end; simpl in *; cleanup_no_match.
 

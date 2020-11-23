@@ -65,7 +65,6 @@ Section Language.
       forall T (p: prog' T) p_rec
         o lo d d' get_reboot_state l_grs ret,
         exec' o d p (Crashed d') ->
-        (* O.(after_reboot) d' (get_reboot_state d') -> *)
         recovery_exec' lo (get_reboot_state d') l_grs p_rec p_rec ret ->
         recovery_exec' (o::lo) d (get_reboot_state::l_grs) p p_rec (Recovered (extract_state_r ret)).
   

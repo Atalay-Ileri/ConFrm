@@ -1,7 +1,7 @@
 Require Import Primitives Layer.Core
         Layer.Language Layer.HorizontalComposition.
 
-Local Ltac invert_exec'' H :=
+Ltac invert_exec'' H :=
   inversion H; subst; clear H; repeat sigT_eq.
 
   
@@ -122,13 +122,13 @@ Local Lemma lift2_invert_exec :
      invert_exec'' H
     | [ H: exec _ _ _ ?p _ |- _ ] =>
       match p with
-      | Bind _ _ => idtac
+      | Bind _ _ => fail
       | Op _ _ => invert_exec'' H
       | Ret _ => invert_exec'' H
       end
     | [ H: exec' _ _ ?p _ |- _ ] =>
       match p with
-      | Bind _ _ => idtac
+      | Bind _ _ => fail
       | Op _ _ => invert_exec'' H
       | Ret _ => invert_exec'' H
       end
@@ -143,10 +143,19 @@ Local Lemma lift2_invert_exec :
     end.
 
   Ltac invert_exec :=
-  invert_exec' ||
+  invert_exec' +
   match goal with
   |[H : exec _ _ _ (Bind _ _) _ |- _ ] =>
    apply bind_sep in H; repeat cleanup
   |[H : exec' _ _ (Bind _ _) _ |- _ ] =>
    apply bind_sep in H; repeat cleanup
+  end.
+
+  Ltac invert_exec_no_match :=
+  invert_exec' +
+  match goal with
+  |[H : exec _ _ _ (Bind _ _) _ |- _ ] =>
+   apply bind_sep in H; repeat cleanup_no_match
+  |[H : exec' _ _ (Bind _ _) _ |- _ ] =>
+   apply bind_sep in H; repeat cleanup_no_match
   end.

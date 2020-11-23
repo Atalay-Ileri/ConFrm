@@ -4,6 +4,10 @@ Require EquivDec.
 
 Class EqDec (T : Type) := eqdec : forall (a b : T), {a = b} + {a <> b}.
 
+Definition option_dec {T} (TEQ: forall (t t': T), {t=t'}+{t<>t'}) : forall (o1 o2: option T), {o1=o2}+{o1<>o2}.
+  decide equality.
+Defined.
+
 Definition addr := nat.
 Axiom addr_eq_dec : EqDec addr.
 
@@ -46,7 +50,16 @@ Fixpoint hash_and_pair h vl :=
   end.
 Axiom hash0 : hash.
 
+Lemma rolling_hash_app:
+  forall l1 l2 h,
+    rolling_hash h (l1++l2) = rolling_hash (rolling_hash h l1) l2.
+Proof.
+  induction l1; simpl; eauto.
+Qed.
+
+
 Axiom key: Type.
+Axiom key0: key.
 Axiom key_eq_dec: EqDec key.
 Axiom encrypt: key -> value -> value.
 Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.

@@ -1,14 +1,14 @@
 Require Import Primitives Layer Simulation.Definitions.
 
 Section RefinementLift.
-  Variable O_imp O_abs: Core.
-  Variable L_imp: Language O_imp.
-  Variable L_abs: Language O_abs.
-  Variable OpRefinement : CoreRefinement L_imp O_abs.
+  Variable C_imp C_abs: Core.
+  Variable L_imp: Language C_imp.
+  Variable L_abs: Language C_abs.
+  Variable CoreRefinement : CoreRefinement L_imp C_abs.
 
   Fixpoint compile T (p2: prog L_abs T) : prog L_imp T.
     destruct p2.
-    exact (OpRefinement.(compile_op) o).
+    exact (CoreRefinement.(compile_core) o).
     exact (Ret t).
     exact (Bind (compile T p2) (fun x => compile T' (p x))).
   Defined.
@@ -17,8 +17,8 @@ Section RefinementLift.
     match p with    
     |Op _ op =>
      exists o2',
-     o2 =  [OpToken O_abs o2'] /\
-     OpRefinement.(token_refines_to) d1 op o1 o2'
+     o2 =  [OpToken C_abs o2'] /\
+     CoreRefinement.(token_refines_to) d1 op o1 o2'
 
     | Ret v =>
       (exists d1',
@@ -41,38 +41,38 @@ Section RefinementLift.
          oracle_refines_to T2 d1' (p2 r) o1'' o2''
          ))
     end.
-  (*
-  Theorem exec_preserves_refinement:
-    forall T (p: L_abs.(prog) T) o s_abs ret,
-      (exists s_imp, OpRefinement.(refines_to_op) s_imp s_abs) ->
-      L_abs.(exec) o s_abs p ret ->
-      (exists s_imp', OpRefinement.(refines_to_op) s_imp' (extract_state ret)).
-  Proof.
-    induction p; simpl; intros;
-    invert_exec; eauto;
-    try solve [eapply OpRefinement.(exec_preserves_refinement_op); eauto].
 
-    split_ors; cleanup; eauto.
-    edestruct IHp; eauto.
-  Qed.
-   *)
-  
-  Theorem exec_compiled_preserves_refinement:
-    forall T (p: L_abs.(prog) T) o s_imp ret,
-      (exists s_abs, OpRefinement.(refines_to_op) s_imp s_abs) ->
-      L_imp.(exec) o s_imp (compile T p) ret ->
-      (exists s_abs', OpRefinement.(refines_to_op) (extract_state ret) s_abs').
+  (*
+  Theorem exec_compiled_preserves_refinement_finished:
+    forall T (p: L_abs.(prog) T) o s_imp s_imp' r,
+      (exists s_abs, CoreRefinement.(refines_to_core) s_imp s_abs) ->
+      L_imp.(exec) o s_imp (compile T p) (Finished s_imp' r) ->
+      (exists s_abs', CoreRefinement.(refines_to_core) s_imp' s_abs').
   Proof.
     induction p; simpl; intros;
     try invert_exec; eauto;
-    try solve [eapply OpRefinement.(exec_compiled_preserves_refinement_op); eauto].
-
-    split_ors; cleanup; eauto.
-    edestruct IHp; eauto.
+    try solve [eapply CoreRefinement.(exec_compiled_preserves_refinement_finished_core); eauto].
   Qed.
-  
-  Definition LiftRefinement : Refinement L_imp L_abs := Build_Refinement compile OpRefinement.(refines_to_op) oracle_refines_to (* exec_preserves_refinement *)
-exec_compiled_preserves_refinement.
+
+  Theorem exec_compiled_preserves_refinement_crashed:
+    forall T (p: L_abs.(prog) T) o s_imp s_imp',
+      (exists s_abs, CoreRefinement.(refines_to_core) s_imp s_abs) ->
+      L_imp.(exec) o s_imp (compile T p) (Crashed s_imp') ->
+      (exists s_abs', CoreRefinement.(refines_to_crash_core) s_imp' s_abs').
+  Proof.
+    induction p; simpl; intros;
+    try invert_exec; eauto;
+    try solve [eapply CoreRefinement.(exec_compiled_preserves_refinement_crashed_core); eauto].
+    apply refines_to_then_refines_to_crash_core; eauto.
+    split_ors; cleanup; eauto.
+    eapply exec_compiled_preserves_refinement_finished in H1; eauto.
+  Qed.
+  *)
+  Definition LiftRefinement : Refinement L_imp L_abs :=
+    Build_Refinement
+      compile
+      CoreRefinement.(refines_to_core)
+      oracle_refines_to.
 
 End RefinementLift.
 

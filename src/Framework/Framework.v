@@ -1,1 +1,1 @@
-Require Export SeparationLogic Primitives Simulation Layer.
+Require Export Primitives Simulation Layer.

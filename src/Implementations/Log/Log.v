@@ -3,13 +3,13 @@ Require Import Datatypes PeanoNat.
 Require Import Lia Sumbool.
 Require Import FSParameters.
 Require Import FunctionalExtensionality.
-  
-Axiom blocks_to_addr_list : list value -> list addr.
 
+
+(** A txn is laid out as addr blocks followed by data blocks *)
 Record txn_record :=
   {
-    txn_key : key;   (* Encryption key of the txn *)
-    txn_start : nat;  (* Index of txn blocks in the log *)
+    key : key;   (* Encryption key of the txn *)
+    start : nat;  (* Index of txn blocks in the log *)
     addr_count : nat; (* # of addr blocks in txn *)
     data_count : nat; (* # of data blocks in txn *)
   }.
@@ -17,23 +17,11 @@ Record txn_record :=
 Record txn :=
   {
     record : txn_record;
+    addr_list: list addr; (* List of addresses *)
     addr_blocks : list value; (* UNENCRYPTED blocks. 
                                  Contains disk addresses *)
     data_blocks : list value; (* UNENCRYPTED blocks *)
   }.
-
-
-Record header :=
-  {
-    old_hash : hash;
-    old_count : nat;
-    old_txn_count: nat;
-    cur_hash : hash;
-    cur_count : nat;
-    txn_records : list txn_record;
-  }.
-
-Definition header0 := Build_header hash0 0 0 hash0 0 nil.
 
 Record header_part :=
   {
@@ -42,11 +30,22 @@ Record header_part :=
     records : list txn_record;
   }.
 
+Definition header_part0 := Build_header_part hash0 0 [].
+
+Record header :=
+  {
+    old_part : header_part;
+    current_part : header_part;
+  }.
+
+Definition header0 := Build_header header_part0 header_part0.
+
+Definition update_hdr hdr hdr_part := Build_header (current_part hdr) hdr_part.
+
 Axiom encode_header : header -> value.
 Axiom decode_header : value -> header.
 Axiom encode_decode_header : forall hdr, decode_header (encode_header hdr) = hdr.
 Axiom decode_encode_header : forall v, encode_header (decode_header v) = v.
-
 
 
 (* Programs *)
@@ -55,47 +54,11 @@ Definition read_header :=
   Ret (decode_header hd).
 
 Definition write_header hdr :=
-  _ <- |DO| Write hdr_block_num (encode_header hdr);
-  Ret tt.
+  |DO| Write hdr_block_num (encode_header hdr).
 
-
-Definition decrypt_txn txn log_blocks :=
-  let key := txn_key txn in
-  let start := txn_start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  
-  plain_blocks <- decrypt_all key txn_blocks;
-
-  let addr_blocks := firstn addr_count plain_blocks in
-  let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks)in
-
-  Ret (addr_list, data_blocks).
-
-Definition apply_txn txn log_blocks :=
-  al_db <- decrypt_txn txn log_blocks;
-  let addr_list := fst al_db in
-  let data_blocks := snd al_db in
-  _ <- write_batch addr_list data_blocks;
-  Ret tt.
-
-Fixpoint apply_txns txns log_blocks :=
-  match txns with
-  | nil =>
-    Ret tt
-  | txn::txns' =>
-    _ <- apply_txn txn log_blocks;
-    _ <- apply_txns txns' log_blocks;
-    Ret tt  
-  end.
-
-Definition flush_txns txns log_blocks :=
-  _ <- apply_txns txns log_blocks;
-  _ <- write_header header0;
-  _ <- |DO| Sync;
-  Ret tt.
+Definition update_header hdr_part :=
+  hdr <- read_header;
+  write_header (update_hdr hdr hdr_part).
 
 Definition check_hash log hash :=
   log_hash <- hash_all hash0 log;
@@ -104,143 +67,162 @@ Definition check_hash log hash :=
   else
     Ret false.
 
+(** Specs Done **)      
+Definition decrypt_txn txn_record log_blocks :=
+  let key := key txn_record in
+  let start := start txn_record in
+  let addr_count := addr_count txn_record in
+  let data_count := data_count txn_record in
+  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
+  
+  plain_blocks <- decrypt_all key txn_blocks;
+
+  let addr_blocks := firstn addr_count plain_blocks in
+  let data_blocks := skipn addr_count plain_blocks in
+  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
+
+  Ret (addr_list, data_blocks).
+
+(** Specs Done **)  
+Definition apply_txn txn_record log_blocks :=
+  al_db <- decrypt_txn txn_record log_blocks;
+  let addr_list := fst al_db in
+  let data_blocks := snd al_db in
+  write_batch addr_list data_blocks.
+
+(** Specs Done **)  
+Fixpoint apply_txns txn_records log_blocks :=
+  match txn_records with
+  | nil =>
+    Ret tt
+  | txn_record::txn_records' =>
+    _ <- apply_txn txn_record log_blocks;
+    apply_txns txn_records' log_blocks
+  end.
+
+(** Specs Done **)
+Definition flush_txns txn_records log_blocks :=
+  _ <- apply_txns txn_records log_blocks;
+  (** Crash here: old header, old log blocks **)
+  _ <- |DO| Sync;
+  _ <- update_header header_part0;
+  (** Crash here: empty or old header, old log blocks **)
+       |DO| Sync.
+
+
+(** We don't know if old part or new part is valid.
+    Needs to check hashes and return the correct one. **)
+(** Specs Done **)
 Definition read_encrypted_log :=
   hdr <- read_header;
-  let cur_count := cur_count hdr in
-  log <- read_consecutive log_start cur_count;
-  Ret (hdr, log).
+  let current_part := current_part hdr in
+  let old_part := old_part hdr in
+  
+  log <- read_consecutive log_start (count current_part);
+  success <- check_hash log (hash current_part);
+  if success then
+    Ret (current_part, log)
+  else
+    log <- read_consecutive log_start (count old_part);
+    Ret (old_part, log).
 
+(** Specs Done **)
 Definition apply_log :=
   hdr_log <- read_encrypted_log;
 
-  let hdr := fst hdr_log in
+  let hdr_part := fst hdr_log in
   let log := snd hdr_log in
-  
-  let cur_hash := cur_hash hdr in
-  let txns := txn_records hdr in
-
-  success <- check_hash log cur_hash;
-
-  _ <- if success then
-    flush_txns txns log
-  else
-    let old_count := old_count hdr in
-    let old_txn_count := old_txn_count hdr in
-    let old_txns := firstn old_txn_count txns in
-    let old_log := firstn old_count log in
-    flush_txns old_txns old_log;
-  Ret tt.
-
+  let txn_records := records hdr_part in
+  (** Crash here: old header, old log blocks **)
+  flush_txns txn_records log
+  (** Crash here: empty or old header, old log blocks **).
 
 Definition commit_txn (addr_l data_l: list value) :=
   hdr <- read_header;
 
-  let cur_hash := cur_hash hdr in
-  let cur_count := cur_count hdr in
-  let txns := txn_records hdr in
-
-  new_key <- |CO| GetKey (addr_l++data_l);
+  let hash := hash (current_part hdr) in
+  let count := count (current_part hdr) in
+  let txn_records := records (current_part hdr) in
+  
+  new_key <- |CO| GetKey;
   enc_data <- encrypt_all new_key (addr_l ++ data_l);
-  new_hash <- hash_all cur_hash enc_data;
+  new_hash <- hash_all hash enc_data;
+  
+  _ <- write_consecutive (log_start + count) enc_data;
+  
+  (** Crash here: old header, partially new log blocks **)
+  let new_count := count + (length addr_l + length data_l) in
+  let new_txn := Build_txn_record new_key count (length addr_l) (length data_l) in
+  let new_hdr_part := Build_header_part new_hash new_count (txn_records ++ [new_txn]) in
 
-  _ <- write_consecutive (log_start + cur_count) enc_data;
-
-  let new_count := cur_count + (length addr_l + length data_l) in
-  let new_txn := Build_txn_record new_key cur_count (length addr_l) (length data_l) in
-  let new_hdr := Build_header cur_hash cur_count (length txns) new_hash new_count (txns++[new_txn]) in
-
-  _ <- write_header new_hdr;
-  _ <- |DO| Sync;
-  Ret tt.
+  _ <- update_header new_hdr_part;
+  (** Crash here: new or old header, new log blocks **)
+  |DO| Sync.
 
 Definition commit (addr_l data_l: list value) :=
   hdr <- read_header;
-  let cur_hash := cur_hash hdr in
-  let cur_count := cur_count hdr in
-  let txns := txn_records hdr in
+  let cur_hash := hash (current_part hdr) in
+  let cur_count := count (current_part hdr) in
+  let txns := records (current_part hdr) in
   let new_count := cur_count + (length addr_l + length data_l) in
-  _ <-
   if (log_length <? new_count) then
-    apply_log 
+    (** Crash here: empty or old header, old log blocks **)
+    Ret false
   else
-    Ret tt;
-  _ <- commit_txn addr_l data_l;
-  Ret tt.
+    _ <- commit_txn addr_l data_l;
+    Ret true.
 
-Fixpoint decrypt_txns txns log_blocks :=
-  match txns with
+(** Recovery **)
+(** Specs Done **)
+Fixpoint decrypt_txns txn_records log_blocks :=
+  match txn_records with
   | nil =>
     Ret nil
-  | txn::txns' =>
-    al_db <- decrypt_txn txn log_blocks;
-    l_al_db <- decrypt_txns txns' log_blocks;
+  | record::txn_records' =>
+    al_db <- decrypt_txn record log_blocks;
+    l_al_db <- decrypt_txns txn_records' log_blocks;
     Ret (al_db::l_al_db)  
   end.
 
-Definition read_log :=
+(** Specs Done **)
+Definition recover :=
   hdr_log <- read_encrypted_log;
-
-  let hdr := fst hdr_log in
+  
+  let valid_hdr_part := fst hdr_log in
   let log := snd hdr_log in
+  let txn_records := records valid_hdr_part in
 
-  let cur_hash := cur_hash hdr in
-  let txns := txn_records hdr in
+  _ <- write_header (Build_header valid_hdr_part valid_hdr_part);
+  _ <- |DO| Sync;
+  decrypt_txns txn_records log.
 
-  success <- check_hash log cur_hash;
 
-  l <- if success then
-    decrypt_txns txns log
-  else
-    let old_count := old_count hdr in
-    let old_txn_count := old_txn_count hdr in
-    let old_txns := firstn old_txn_count txns in
-    let old_log := firstn old_count log in
-    decrypt_txns old_txns old_log;
-  Ret l.
 
-Definition recover := read_log.
+
 
 (** Representation Invariants **)
+Inductive Header_State :=
+| Hdr_Synced : Header_State
+| Hdr_Not_Synced (old_header_block: value) : Header_State.
 
 Inductive Log_State :=
 | Synced : Log_State
 | Not_Synced : Log_State.
 
-Definition get_valid_part (hdr: header) blocks : header_part :=
-  if (hash_dec (cur_hash hdr) (rolling_hash hash0 (firstn (cur_count hdr) blocks))) then
-    Build_header_part (cur_hash hdr) (cur_count hdr) (txn_records hdr)
-  else
-    Build_header_part (old_hash hdr) (old_count hdr) (firstn (old_txn_count hdr) (txn_records hdr)).
+Inductive Valid_Part :=
+| Current_Part : Valid_Part
+| Old_Part : Valid_Part.
 
-Fixpoint encryption_present (blocks: list value)(k: key)(em: encryptionmap) :=
-  match blocks with
-  | b::blocks' =>
-    em (encrypt k b) = Some (k,b) /\
-    encryption_present blocks' k em
-  | [] => True
-  end.
+Inductive Log_Crash_State :=
+| During_Apply (old_txns: list txn): Log_Crash_State
+| During_Commit_Log_Write (txns: list txn): Log_Crash_State
+| During_Commit_Header_Write (old_txns new_txns: list txn): Log_Crash_State
+| During_Recovery (txns: list txn): Log_Crash_State
+.
 
-Definition txn_valid (tx: txn) (log_blocks: list value) (kl: list key) (em: encryptionmap) :=
-  let txa := addr_blocks tx in
-  let txd := data_blocks tx in
-  let txr := record tx in
-  let tk := txn_key txr in
-  let ts := txn_start txr in
-  let ta := addr_count txr in
-  let td := data_count txr in
-  In tk kl /\
-  ta = length txa /\
-  td = length txd /\
-  ts + ta + td <= length log_blocks /\
-  map (encrypt tk) (txa ++ txd) = firstn (ta+td) (skipn ts log_blocks) /\
-  encryption_present (txa++txd) tk em.
-
-Fixpoint txns_valid (txns: list txn) (log_blocks: list value) (kl: list key) (em: encryptionmap):=
-  match txns with
-    | tx::txns' =>
-      txn_valid tx log_blocks kl em /\ txns_valid txns' log_blocks kl em
-    |[] => True
-  end.
+Definition record_is_valid key_list count record :=
+  In (key record) key_list /\
+  (start record) + (addr_count record) + (data_count record) <= count.
 
 Fixpoint hashes_in_hashmap hm h vl :=
   match vl with
@@ -251,426 +233,194 @@ Fixpoint hashes_in_hashmap hm h vl :=
      hashes_in_hashmap hm (hash_function h v) vl')%type
   end.
 
-Definition hash_valid log_blocks hash :=
-  hash = rolling_hash hash0 log_blocks.
+Fixpoint records_are_consecutive_starting_from n records :=
+  match records with
+  | [] => True
+  | record :: records' =>
+    start record = n /\
+    records_are_consecutive_starting_from
+      (start record + addr_count record + data_count record)
+      records'
+  end.
 
-Open Scope predicate_scope.
+Definition header_part_is_valid log_blocks key_list hash_map header_part :=
+  let valid_log_blocks := firstn (count header_part) log_blocks in
+  (** Hash validity *)
+  hash header_part = rolling_hash hash0 valid_log_blocks /\
+  hashes_in_hashmap hash_map hash0 valid_log_blocks /\
+  (** Count validity *)
+  (count header_part) <= log_length /\
+  (count header_part) = fold_left Nat.add (map (fun rec => addr_count rec + data_count rec) (records header_part))0 /\
+  (** Record validity **)
+  Forall (record_is_valid key_list (count header_part)) (records header_part) /\
+  records_are_consecutive_starting_from 0 (records header_part).
+
+Definition txn_well_formed (log_blocks: list value) (em: encryptionmap) (disk: @mem addr _ (set value)) txn :=
+  let record := record txn in
+  let key := key record in
+  let start := start record in
+  let addr_count := addr_count record in
+  let data_count := data_count record in
+  
+  map (encrypt key) (addr_blocks txn) = firstn addr_count (skipn start log_blocks) /\
+  map (encrypt key) (data_blocks txn) = firstn data_count (skipn (addr_count + start) log_blocks) /\
+  addr_list txn = firstn (length (data_blocks txn)) (blocks_to_addr_list (addr_blocks txn)) /\
+  NoDup (addr_list txn) /\
+  Forall (fun v => em (encrypt key v) = Some (key, v)) (addr_blocks txn) /\
+  Forall (fun v => em (encrypt key v) = Some (key, v)) (data_blocks txn) /\
+  Forall (fun a => a >= data_start) (addr_list txn) /\
+  (forall a, In a (addr_list txn) -> disk a <> None) /\
+  addr_count = length (addr_blocks txn) /\
+  data_count = length (data_blocks txn) /\
+  data_count <= length (blocks_to_addr_list (addr_blocks txn)).
+
+
+Definition txns_valid header_part (log_blocks: list value) (em: encryptionmap) disk (txns: list txn) :=
+  (** Records match the header *)
+  map record txns = records header_part /\
+  Forall (txn_well_formed log_blocks em disk) txns.
+
+Definition log_header_block_rep
+           (header_state: Header_State)
+           (hdr_blockset: set value)
+           (state: state CryptoDiskLang) :=
+  let crypto_maps := fst state in
+  let disk := snd state in
+    (** Header *)
+    disk hdr_block_num = Some hdr_blockset /\
+    (** Sync status **)
+    match header_state with
+    | Hdr_Synced =>
+      snd hdr_blockset = []
+    | Hdr_Not_Synced v =>
+      snd hdr_blockset = [v]
+    end.
+
+Definition log_data_blocks_rep 
+    (log_state: Log_State) (log_blocksets: list (set value))
+    (state: state CryptoDiskLang) :=
+  let crypto_maps := fst state in
+  let disk := snd state in
+    (** Log Blocks *)
+    (forall i, i < length log_blocksets -> disk (log_start + i) = selNopt log_blocksets i) /\
+    (** Sync status **)
+    match log_state with
+    | Synced =>
+      (forall ls, In ls log_blocksets -> snd ls = [])
+    | Not_Synced =>
+      (forall ls, In ls log_blocksets -> length (snd ls) <= 1)
+    end /\
+    (** log length is valid *)
+    length log_blocksets <= log_length.
 
 Definition log_rep_inner
-           (log_state: Log_State)
+           (valid_part : Valid_Part)
            (hdr: header) (txns: list txn)
-           (hdr_blockset: set value) (log_blocksets: list (set value))
+           (log_blocks: list value)
            (state: state CryptoDiskLang) :=
   let crypto_maps := fst state in
   let disk := snd state in
   let key_list := fst (fst crypto_maps) in
   let encryption_map := snd (fst crypto_maps) in
   let hash_map := snd crypto_maps in
-  let log_blocks := map fst log_blocksets in
-  let valid_hdr := get_valid_part hdr log_blocks in
-  let valid_log_blocks := firstn (count valid_hdr) log_blocks in  
-    (* Header *)
-    disk hdr_block_num = Some hdr_blockset /\
-    (* Log Blocks *)
-    (forall i, i < length log_blocksets -> disk (log_start + i) = selNopt log_blocksets i) /\
+  let header_part :=
+      match valid_part with
+      | Old_Part => old_part hdr
+      | Current_Part => current_part hdr
+      end in
+  header_part_is_valid log_blocks key_list hash_map header_part /\
+  txns_valid header_part log_blocks encryption_map disk txns.
+
+
+Definition log_rep_explicit (header_state: Header_State) (log_state: Log_State) (valid_part: Valid_Part) (hdr: header) (txns: list txn) 
+  (hdr_blockset: set value) (log_blocksets: list (set value)) (state: state CryptoDiskLang) :=
     hdr = decode_header (fst hdr_blockset) /\
-    (** Sync status **)
-    match log_state with
-    | Synced =>
-      snd hdr_blockset = [] /\
-      (forall ls, In ls log_blocksets -> snd ls = [])
-    | Not_Synced =>
-      (exists v, snd hdr_blockset = v :: nil) /\
-      (forall ls, In ls log_blocksets -> exists v, snd ls = v :: nil)
-    end
-    /\
-    (* log length is valid *)
+    log_header_block_rep header_state hdr_blockset state /\
+    log_data_blocks_rep log_state log_blocksets state /\
     length log_blocksets = log_length /\
-    (* txns represents the right thing *)
-    map record txns = records valid_hdr /\
-    (* Header hashes is correct *)
-    hash_valid valid_log_blocks (hash valid_hdr) /\
-    hashes_in_hashmap hash_map hash0 valid_log_blocks /\
-    (* Header current txn_records are valid *)
-    txns_valid txns valid_log_blocks key_list encryption_map.
+    count (current_part hdr) <= log_length /\
+    count (old_part hdr) <= log_length /\
+    log_rep_inner valid_part hdr txns (map fst log_blocksets) state.
 
-Definition log_rep (log_state: Log_State) (hdr: header) (txns: list txn) (state: state CryptoDiskLang) :=
+Definition log_rep_general (header_state: Header_State) (log_state: Log_State) (valid_part: Valid_Part) (hdr: header) (txns: list txn) (state: state CryptoDiskLang) :=
   exists (hdr_blockset: set value) (log_blocksets: list (set value)),
-    log_rep_inner log_state hdr txns hdr_blockset log_blocksets state.
+    log_rep_explicit header_state log_state valid_part hdr txns hdr_blockset log_blocksets state.
 
-Hint Extern 0 (okToUnify (log_rep_inner _ _ ?b _) (log_rep_inner _ _ ?b  _)) => constructor : okToUnify.
-Hint Extern 0 (okToUnify (log_rep ?txns _) (log_rep ?txns _)) => constructor : okToUnify.
+Definition log_rep (txns: list txn) (state: state CryptoDiskLang) :=
+  exists hdr, log_rep_general Hdr_Synced Synced Current_Part hdr txns state.
 
-(*
-Theorem sp_read_header:
-  forall  log_state hdr txns hdr_blockset log_blocksets F t s',
-  strongest_postcondition CryptoDiskLang read_header
-      (fun o s => (F * log_rep_inner log_state hdr txns hdr_blockset log_blocksets (fst s)) (snd s)) t s' ->
-  t = hdr /\ (F * log_rep_inner log_state hdr txns hdr_blockset log_blocksets (fst s'))%predicate (snd s').
-Proof.
-  unfold log_rep_inner; simpl; intros.
-  cleanup_no_match.
-  destruct_lifts; cleanup_no_match.
-  apply sep_star_assoc in H.
-  apply sep_star_comm in H.
-  apply sep_star_assoc in H.
-  eapply_fresh ptsto_valid in H; cleanup_no_match.
-  repeat split; eauto.
-  pred_apply; cancel.
-Qed.
- *)
-
-Set Nested Proofs Allowed.
-  Lemma map_ext_eq:
-    forall A B (l1 l2: list A) (f: A -> B),
-      map f l1 = map f l2 ->
-      (forall a a', f a = f a' -> a = a') ->
-      l1 = l2.
-  Proof.
-    induction l1; simpl; intros;
-    destruct l2; simpl in *; cleanup; try congruence; eauto.
-    erewrite (H0 a a0), IHl1; eauto.
-  Qed.
-
-Theorem apply_txn_finished:
-  forall txn log_blocks plain_blocks t s' s o,
-  let key := txn_key txn in
-  let start := txn_start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  let addr_blocks := firstn addr_count plain_blocks in
-  let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
-  txn_blocks = map (encrypt key) plain_blocks ->
-  length addr_list = length data_blocks ->
-  exec CryptoDiskLang o s (apply_txn txn log_blocks) (Finished s' t) ->
-  fst s' = fst s /\ snd s' = upd_batch_set (snd s) addr_list data_blocks.
-Proof.
-  unfold apply_txn, decrypt_txn; simpl; intros;
-  repeat invert_exec; simpl in *;
-  cleanup.
-
-  eapply decrypt_all_finished in H1; cleanup.
-  eapply map_ext_eq in H3; cleanup; eauto.
-  eapply write_batch_finished in H2; eauto; cleanup.
-  intuition eauto; cleanup.
-  intros.
-  eapply encrypt_ext; eauto.
-Qed.
-
-Definition to_plain_addr_list txn plain_addr_blocks :=
-  let data_count := data_count txn in          
-
-  firstn data_count (blocks_to_addr_list plain_addr_blocks).
-
-Definition get_addr_blocks (log_blocks: list value) (txn: txn_record) :=
-  let key := txn_key txn in
-  let start := txn_start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-
-  firstn addr_count txn_blocks.
-
-Definition get_addr_list txn plain_addr_blocks :=
-  firstn (data_count txn) (blocks_to_addr_list plain_addr_blocks).
-
-Definition get_data_blocks (log_blocks: list value) (txn: txn_record) :=
-  let key := txn_key txn in
-  let start := txn_start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-
-  skipn addr_count txn_blocks.
-
-Definition plain_addr_blocks_valid log_blocks plain_addr_blocks txn :=
-  let key := txn_key txn in
-  
-  get_addr_blocks log_blocks txn = map (encrypt key) plain_addr_blocks.
-
-Definition plain_data_blocks_valid log_blocks plain_data_blocks txn :=
-  let key := txn_key txn in
-  
-  get_data_blocks log_blocks txn = map (encrypt key) plain_data_blocks.
+Definition log_header_rep (hdr: header) (txns: list txn) (state: state CryptoDiskLang) :=
+  log_rep_general Hdr_Synced Synced Current_Part hdr txns state.
 
 
-Theorem apply_txns_finished:
-  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
-    let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
+Definition log_crash_rep (log_crash_state: Log_Crash_State) (state: state CryptoDiskLang) :=
+  match log_crash_state with
+  | During_Apply txns =>
+
+    exists new_hdr_block old_hdr_block (log_blocksets: list (set value)),
+       current_part (decode_header old_hdr_block) = old_part (decode_header new_hdr_block) /\
+       log_rep_explicit (Hdr_Not_Synced old_hdr_block) Synced Current_Part (decode_header new_hdr_block) []
+                       (new_hdr_block, [old_hdr_block]) log_blocksets state /\
+       log_rep_inner Current_Part (decode_header old_hdr_block) txns (map fst log_blocksets) state
+
+  | During_Commit_Log_Write txns =>
     
-    Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
-    Forall2 (plain_data_blocks_valid log_blocks) l_plain_data_blocks txns ->
-    Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
+    exists hdr_blockset (synced_log_blocksets: list (set value)) (unsynced_log_blocksets: list (set value)),
+      let hdr := decode_header (fst hdr_blockset) in
+      let log_blocksets := synced_log_blocksets ++ unsynced_log_blocksets in
+
+      log_header_block_rep Hdr_Synced hdr_blockset state /\
+      log_data_blocks_rep Synced synced_log_blocksets state /\
+      log_data_blocks_rep Not_Synced log_blocksets state /\
+      length log_blocksets = log_length /\
+      count (current_part hdr) <= log_length /\
+      count (old_part hdr) <= log_length /\
+      length synced_log_blocksets >= count (current_part hdr) /\
+      log_rep_inner Current_Part hdr txns (map fst log_blocksets) state
+
+  | During_Commit_Header_Write old_txns new_txns =>
+
+    exists old_hdr_block new_hdr_block
+      (synced_log_blocksets: list (set value)) (unsynced_log_blocksets: list (set value)),
+      let hdr_blockset := (new_hdr_block, [old_hdr_block]) in
+      let hdr := decode_header (fst hdr_blockset) in
+      let log_blocksets := synced_log_blocksets ++ unsynced_log_blocksets in
+
+      current_part (decode_header old_hdr_block) = old_part (decode_header new_hdr_block) /\
+      log_header_block_rep (Hdr_Not_Synced old_hdr_block) hdr_blockset state /\
+      log_data_blocks_rep Synced synced_log_blocksets state /\
+      log_data_blocks_rep Not_Synced log_blocksets state /\
+      length log_blocksets = log_length /\
+      count (current_part hdr) <= log_length /\
+      count (old_part hdr) <= log_length /\
+      count (old_part (decode_header old_hdr_block)) <= log_length /\
+      length synced_log_blocksets >= count (old_part hdr) /\
+      
+      log_rep_inner Current_Part hdr new_txns (map fst log_blocksets) state /\
+      log_rep_inner Old_Part hdr old_txns (map fst log_blocksets) state
+
+  | During_Recovery txns =>
     
-    exec CryptoDiskLang o s (apply_txns txns log_blocks) (Finished s' t) ->
-    fst s' = fst s /\
-    snd s' = list_upd_batch_set (snd s) l_addr_list l_plain_data_blocks.
-Proof.
-  induction txns; simpl; intros;
-  repeat invert_exec; cleanup; eauto;
-  inversion H; inversion H0; inversion H1; cleanup.
-  
-  assume (Al: (length l = addr_count a)).
+    exists old_hdr_block new_hdr_block
+      (log_blocksets: list (set value)),
+      let hdr_blockset := (new_hdr_block, [old_hdr_block]) in
+      let hdr := decode_header (fst hdr_blockset) in
 
-  eapply apply_txn_finished in H2; cleanup; eauto.
-  edestruct IHtxns in H3; eauto; cleanup.
-  simpl in *; intuition eauto.
-  unfold get_addr_list at 1; simpl.
+      log_header_block_rep (Hdr_Not_Synced old_hdr_block) hdr_blockset state /\
+      log_data_blocks_rep Synced log_blocksets state /\
+      length log_blocksets = log_length /\
+      count (current_part hdr) <= log_length /\
+      count (old_part hdr) <= log_length /\
+      count (old_part (decode_header old_hdr_block)) <= log_length /\
+      
+      log_rep_inner Current_Part hdr txns (map fst log_blocksets) state /\
+      (exists valid_part, log_rep_inner valid_part (decode_header old_hdr_block) txns (map fst log_blocksets) state)
+  end.
 
-  2:{
-    unfold plain_addr_blocks_valid, plain_data_blocks_valid,
-    get_addr_blocks, get_data_blocks in *; simpl in *.
-    rewrite firstn_sum_split.
-    rewrite firstn_firstn in H7;
-    rewrite min_l in H7 by lia.
-    rewrite H7.
-    rewrite skipn_firstn_comm in H13.
-    rewrite H13, <- map_app; eauto.
-  }
-  
-  rewrite <- Al in H6.
-  setoid_rewrite H6.  
-  rewrite skipn_app.
-  rewrite firstn_app2; eauto.
+Definition log_reboot_rep  (txns: list txn) (state: state CryptoDiskLang) :=
+  exists hdr valid_part
+    (hdr_blockset: set value) (log_blocksets: list (set value)),
+    log_rep_explicit Hdr_Synced Synced valid_part hdr txns hdr_blockset log_blocksets state /\
+    (valid_part = Old_Part ->
+     hash (current_part hdr) <> rolling_hash hash0 (firstn (count (current_part hdr)) (map fst log_blocksets))).
 
-  rewrite <- Al. 
-  rewrite skipn_app.
-  rewrite firstn_app2; eauto.
-
-  Unshelve.
-  unfold plain_addr_blocks_valid, get_addr_blocks in *; simpl in *.
-  erewrite <- map_length, <- H7.
-  rewrite firstn_length_l; eauto.
-  rewrite firstn_length_l; try lia.
-  rewrite skipn_length; try lia.
-  (** TODO: Make a premise **)
-  admit.
-Admitted.
-    
-Global Opaque apply_txns.
-
-Theorem decrypt_txn_finished:
-  forall txn log_blocks plain_blocks t s' s o,
-  let key := txn_key txn in
-  let start := txn_start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  let addr_blocks := firstn addr_count plain_blocks in
-  let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
-  txn_blocks = map (encrypt key) plain_blocks ->
-  length addr_list = length data_blocks ->
-  exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Finished s' t) ->
-  t = (addr_list, data_blocks) /\ s' = s.
-Proof.
-  unfold decrypt_txn; simpl; intros;
-  repeat invert_exec; simpl in *;
-  cleanup.
-
-  eapply decrypt_all_finished in H1; cleanup.
-  eapply map_ext_eq in H2; cleanup; eauto.
-  eapply encrypt_ext; eauto.
-Qed.
-
-
-
-Theorem decrypt_txns_finished:
-  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
-    let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
-    
-    Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
-    Forall2 (plain_data_blocks_valid log_blocks) l_plain_data_blocks txns ->
-    Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
-    
-    exec CryptoDiskLang o s (decrypt_txns txns log_blocks) (Finished s' t) ->
-    t = combine l_addr_list l_plain_data_blocks /\
-    s' = s.
-Proof.
-  induction txns; simpl; intros;
-  repeat invert_exec; cleanup; eauto;
-  inversion H; inversion H0; inversion H1; cleanup.
-  
-  assume (Al: (length l = addr_count a)).
-
-  eapply decrypt_txn_finished in H2; cleanup; eauto.
-  edestruct IHtxns in H3; eauto; cleanup.
-  simpl in *; intuition eauto.
-  unfold get_addr_list at 1; simpl.
-
-  2:{
-    unfold plain_addr_blocks_valid, plain_data_blocks_valid,
-    get_addr_blocks, get_data_blocks in *; simpl in *.
-    rewrite firstn_sum_split.
-    rewrite firstn_firstn in H7;
-    rewrite min_l in H7 by lia.
-    rewrite H7.
-    rewrite skipn_firstn_comm in H13.
-    rewrite H13, <- map_app; eauto.
-  }
-  
-  rewrite <- Al. 
-  rewrite skipn_app.
-  rewrite firstn_app2; eauto.
-
-  rewrite <- Al. 
-  rewrite skipn_app.
-  rewrite firstn_app2; eauto.
-
-  Unshelve.
-  unfold plain_addr_blocks_valid, get_addr_blocks in *; simpl in *.
-  erewrite <- map_length, <- H7.
-  rewrite firstn_length_l; eauto.
-  rewrite firstn_length_l; try lia.
-  rewrite skipn_length; try lia.
-  (** TODO: Make a premise **)
-  admit.
-Admitted.
-
-(*
-Definition get_addr_list_direct txn :=
-  let rec := record txn in
-  let addr_list_length := data_count rec in
-  firstn addr_list_length (blocks_to_addr_list (addr_blocks txn)).
-  
-  Lemma sync_upd_comm:
-    forall A AEQ V (m: @mem A AEQ (V * list V)) a vs,
-      sync (upd m a vs) = upd (sync m) a (fst vs, nil).
-  Proof.
-    intros.
-    extensionality x.
-    unfold sync.
-    destruct (AEQ a x); subst;
-    [repeat rewrite upd_eq
-    |repeat rewrite upd_ne]; eauto.
-  Qed.
-
-Theorem sp_flush_txns:
-  forall txns full_txns log_blocks log_blocksets hdr_blockset F t s' log_state hdr vsl,
-    let full_addr_list := flat_map get_addr_list_direct full_txns in
-    let dedup_addr_list := dedup_last addr_dec full_addr_list in
-    let dedup_plain_data := dedup_by_list addr_dec full_addr_list (flat_map data_blocks full_txns) in
-    length vsl = length dedup_addr_list ->
-    txns = map record full_txns ->
-    log_blocks = map fst log_blocksets ->
-  strongest_postcondition CryptoDiskLang (flush_txns txns log_blocks)
-    (fun o s =>  (F * log_rep_inner log_state hdr full_txns hdr_blockset log_blocksets (fst s) *
-               dedup_addr_list |L> vsl)%predicate (snd s)) t s' ->
-  exists header_blockset' log_blocksets',
-    (F * log_rep_inner Synced header0 [] header_blockset' log_blocksets' (fst s') *
-     dedup_addr_list |L> map (fun v => (v, nil)) dedup_plain_data)%predicate (snd s').
-
-Proof.
-  simpl; intros; cleanup.
-  eapply sp_impl in H2.
-  
-  eapply sp_apply_txns
-   in H2; simpl in *;
-  cleanup.
-
-  do 2 eexists.
-
-  
-
-  rewrite sync_upd_comm; simpl.
-  unfold log_rep_inner.
-  eapply pimpl_trans.
-  3: eapply ptsto_upd.
-  eauto.
-
-  (** TODO: Solve this **)
-  admit.
-  admit.
-Admitted.
-
-Global Opaque flush_txns.
-
-Theorem sp_check_and_flush:
-  forall txns full_txns log_blocks log_blocksets hdr_blockset F t s' log_state hdr vsl hash,
-    let full_addr_list := flat_map get_addr_list_direct full_txns in
-    let dedup_addr_list := dedup_last addr_dec full_addr_list in
-    let dedup_plain_data := dedup_by_list addr_dec full_addr_list (flat_map data_blocks full_txns) in
-    length vsl = length dedup_addr_list ->
-    txns = map record full_txns ->
-    log_blocks = map fst log_blocksets ->
-  strongest_postcondition CryptoDiskLang (check_and_flush txns log_blocks hash)
-     (fun o s =>  (F *
-      log_rep_inner log_state hdr full_txns hdr_blockset log_blocksets (fst s) *
-      dedup_addr_list |L> vsl)%predicate (snd s)) t s' ->
-  (t = true /\
-   hash = rolling_hash hash0 log_blocks /\
-  exists header_blockset' log_blocksets',
-    (F * log_rep_inner Synced header0 [] header_blockset' log_blocksets' (fst s') *
-     dedup_addr_list |L> map (fun v => (v, nil)) dedup_plain_data)%predicate (snd s')) \/
-  (t = false /\
-  hash <> rolling_hash hash0 log_blocks /\
-   (F * log_rep_inner log_state hdr full_txns hdr_blockset log_blocksets (fst s') *
-     dedup_addr_list |L> vsl)%predicate (snd s')
-  ).
-
-Proof.
-
- simpl; intros; cleanup.
- destruct (hash_dec x hash0); simpl in *; cleanup.
- {
-   left.
-   apply sp_extract_precondition in H0; cleanup.
-
-   eapply sp_impl in H1.
-   apply sp_hash_all in H1; eauto.
-   cleanup.
-   
-   eapply sp_impl in H0.
-   apply sp_flush_txns in H0; eauto.
-
-   simpl; intros.
-   eapply sp_impl in H1.
-   apply sp_hash_all in H1; eauto.
-   cleanup.
-   apply H4.
-   simpl; intros.
-   split; eauto.
-
-   (** TODO: Need to fix sp_hash_all **)
-   admit.
-   admit.
-
-   simpl; intros.
-   split; eauto.
-   
-   (** TODO: Need to fix sp_hash_all **)
-   admit.
-   admit.
- }
- {
-   right; repeat split; eauto.
-   eapply sp_impl in H0.
-   apply sp_hash_all in H0; eauto.
-   cleanup; eauto.
-   simpl; intros; eauto.
-
-   
-   split; eauto.
-    (** TODO: Need to fix sp_hash_all **)
-   admit.
-   admit.
-
-   eapply sp_impl in H0.
-   apply sp_hash_all in H0; eauto.
-   cleanup; eauto.
-   simpl; intros; eauto.
-
-   split; eauto.
-
-   (** TODO: Need to fix sp_hash_all **)
-   admit.
-   admit.
- }
- Unshelve.
- all: eauto.
- all: exact (fst s').
-Admitted.
-
-*)

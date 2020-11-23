@@ -61,7 +61,7 @@ Proof.
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
 
-  eapply IHal in H1; try lia; cleanup.
+  eapply IHal in H0; try lia; cleanup.
   simpl in *; cleanup.
   intuition eauto.
   subst; congruence.
@@ -69,6 +69,56 @@ Proof.
   eapply H0; eauto.
   rewrite upd_ne; eauto.
   unfold upd_set; cleanup; eauto.
+Qed.
+
+Theorem write_batch_crashed:
+  forall al vl o s s',
+    length al = length vl ->
+    exec CryptoDiskLang o s (write_batch al vl) (Crashed s') ->
+    exists n,
+      n <= length al /\
+      (forall a, In a (firstn n al) -> (snd s) a <> None) /\
+      fst s' = fst s /\ snd s' = upd_batch_set (snd s) (firstn n al) (firstn n vl).
+Proof.
+  induction al; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
+
+  {
+    exists 0; split; intuition eauto.
+  }
+  
+  split_ors; cleanup; repeat invert_exec; simpl.
+  {
+    exists 0; split; intuition eauto; simpl in *.
+    lia.
+  }
+
+  split_ors; cleanup; repeat invert_exec; simpl in *.
+  {
+    eapply IHal in H0; try lia.
+    cleanup; simpl in *; cleanup.
+    exists (S x0); split; intuition eauto; simpl in *.
+    lia.
+    split_ors; cleanup; eauto.
+    eapply H1; eauto.
+    destruct (addr_dec a a0); cleanup.
+    rewrite upd_ne; eauto.
+    erewrite upd_set_upd_some; eauto.
+  }
+  {
+    eapply write_batch_finished in H0; eauto; cleanup.
+    simpl in *; cleanup.
+    exists (S (length al)).
+    simpl.
+    repeat rewrite firstn_oob by lia.
+    cleanup; split; intuition eauto; simpl in *.
+    cleanup.
+    eapply H0; eauto.
+    destruct (addr_dec a a0); cleanup.
+    rewrite upd_ne; eauto.
+    erewrite upd_set_upd_some; eauto.
+  }
 Qed.
   
 Theorem decrypt_all_finished:
@@ -81,6 +131,23 @@ Proof.
   cleanup; try lia; eauto.
   edestruct IHevl; eauto; cleanup.
   eexists; intuition eauto.
+  destruct s; eauto.
+Qed.
+
+Theorem decrypt_all_crashed:
+  forall key evl o s s',
+    exec CryptoDiskLang o s (decrypt_all key evl) (Crashed s') ->
+    s' = s.
+Proof.
+  induction evl; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
+  split_ors; cleanup; repeat invert_exec.
+  destruct s; eauto.
+  split_ors; cleanup; repeat invert_exec.
+  destruct s; eauto.
+
+  eapply decrypt_all_finished in H; cleanup; eauto.
   destruct s; eauto.
 Qed.
 
@@ -99,6 +166,43 @@ Proof.
   edestruct IHvl; eauto; cleanup.
   simpl in *; intuition eauto.
   repeat destruct s; destruct p; simpl in *; eauto.
+Qed.
+
+Theorem hash_all_crashed:
+  forall vl h o s s',
+    exec CryptoDiskLang o s (hash_all h vl) (Crashed s') ->
+    exists n,
+      n <= length (rolling_hash_list h vl) /\
+    consistent_with_upds (snd (fst s)) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
+    (snd (fst s')) = upd_batch (snd (fst s)) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
+    fst (fst s') = fst (fst s) /\
+    snd s' = snd s.
+Proof.
+  induction vl; simpl; intros.
+  repeat invert_exec; cleanup; simpl; eauto.
+  exists 0; simpl; intuition eauto.
+  
+  repeat invert_exec; cleanup.
+  repeat (split_ors; cleanup; repeat invert_exec; simpl; eauto).
+  exists 0; simpl; intuition eauto.
+  lia.
+  
+  edestruct IHvl; eauto; cleanup.
+  simpl in *; repeat cleanup_pairs; eauto.
+  exists (S x0); simpl; intuition eauto.
+  lia.
+    
+  eapply hash_all_finished in H; cleanup; eauto;
+  simpl in *; intuition eauto.
+  repeat cleanup_pairs; eauto.
+  exists (length (hash_function h a :: rolling_hash_list (hash_function h a) vl)).
+  repeat rewrite firstn_oob;
+  simpl; intuition eauto.
+
+  generalize vl (hash_function h a).
+  induction vl0; simpl; intros; eauto.
+  destruct vl0; simpl in *; eauto.
+  specialize (IHvl0 (hash_function h1 a1)); lia.
 Qed.
 
 Theorem encrypt_all_finished:
@@ -120,9 +224,48 @@ Proof.
     eexists; intuition eauto.
 Qed.
 
+Theorem encrypt_all_crashed:
+  forall key vl o s s',
+    exec CryptoDiskLang o s (encrypt_all key vl) (Crashed s') ->
+    exists n,
+      let vl' := firstn n vl in
+      n <= length vl /\
+    consistent_with_upds (snd (fst (fst s))) (map (encrypt key) vl') (map (fun v => (key, v)) vl') /\
+    snd s' = snd s /\
+    fst s' = ((fst (fst (fst s)), upd_batch (snd (fst (fst s))) (map (encrypt key) vl') (map (fun v => (key, v)) vl')), snd (fst s)).
+Proof.
+  induction vl; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
+  
+  - exists 0; simpl; intuition eauto.
+    destruct s', s; simpl; intuition eauto.
+
+  - split_ors; cleanup; repeat invert_exec.
+    {
+      exists 0; simpl in *; cleanup; intuition eauto.
+      lia.
+      repeat destruct s; simpl; intuition eauto.      
+    }
+    split_ors; cleanup; repeat invert_exec.
+    {
+      edestruct IHvl; eauto; cleanup.
+      repeat cleanup_pairs.
+      exists (S x0); simpl; eauto.
+      intuition eauto.
+      lia.
+    }
+    {
+      eapply encrypt_all_finished in H; cleanup.
+      repeat cleanup_pairs.
+      exists (S (length vl)); simpl; repeat rewrite firstn_exact; intuition eauto.
+    }      
+Qed.
+
 Theorem read_consecutive_finished:
   forall count a o s s' t,
     exec CryptoDiskLang o s (read_consecutive a count) (Finished s' t) ->
+    length t = count /\
     (forall i,
        i < count ->
        exists vs,
@@ -136,12 +279,32 @@ Proof.
 
   edestruct IHcount; eauto; cleanup.
   split; intros; eauto.
+  split; intros; eauto.
   destruct i; eauto.
   rewrite PeanoNat.Nat.add_0_r.
   simpl; eexists; eauto.
   simpl.
   rewrite <- PeanoNat.Nat.add_succ_comm.
-  eapply H; lia.
+  eapply H1; lia.
   destruct s; eauto.
 Qed.
 
+Theorem read_consecutive_crashed:
+  forall count a o s s',
+    exec CryptoDiskLang o s (read_consecutive a count) (Crashed s') ->
+    s' = s.
+Proof.
+  induction count; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try solve [intuition eauto; lia].
+  repeat (split_ors; cleanup; repeat invert_exec; simpl; eauto).
+  destruct s; simpl; eauto.
+ 
+  eapply IHcount; eauto; cleanup.
+  destruct s; simpl in *; eauto.
+  apply read_consecutive_finished in H; cleanup; eauto.
+  destruct s; eauto.
+Qed.
+
+Definition write_consecutive_finished := write_batch_finished.
+Definition write_consecutive_crashed := write_batch_crashed.

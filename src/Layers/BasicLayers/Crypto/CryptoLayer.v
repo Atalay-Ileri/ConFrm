@@ -17,7 +17,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
   Definition state' := ((list key * encryptionmap)* hashmap)%type.
 
   Inductive crypto_prog : Type -> Type :=
-  | GetKey : list value -> crypto_prog key
+  | GetKey : crypto_prog key
   | Hash : hash -> value -> crypto_prog hash
   | Encrypt : key -> value -> crypto_prog value
   | Decrypt : key -> value -> crypto_prog value.
@@ -53,14 +53,12 @@ Definition encryptionmap := @mem value value_dec (key * value).
         exec' Cont s (Decrypt k ev) (Finished s v)
 
   | ExecGetKey : 
-      forall vl s k,
+      forall s k,
         let kl := fst (fst s) in
         let em := snd (fst s) in
         let hm := snd s in
         ~In k kl ->
-        consistent_with_upds em
-             (map (encrypt k) vl) (map (fun v => (k, v)) vl) ->
-        exec' (Key k) s (GetKey vl) (Finished ((k::kl), em, hm) k)
+        exec' (Key k) s GetKey (Finished ((k::kl), em, hm) k)
  
   | ExecCrash :
       forall T d (p: crypto_prog T),
@@ -101,7 +99,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
           em ev = Some (k, v) /\
           Q v s
           
-    | GetKey vl =>
+    | GetKey =>
       fun Q o s =>
         let kl := fst (fst s) in
         let em := snd (fst s) in
@@ -109,7 +107,6 @@ Definition encryptionmap := @mem value value_dec (key * value).
         exists k,
           o = Key k /\
           ~In k kl /\
-          consistent_with_upds em (map (encrypt k) vl) (map (fun v => (k,v)) vl) /\
           Q k ((k::kl), em, hm)
     end.
 
@@ -154,7 +151,7 @@ Definition encryptionmap := @mem value value_dec (key * value).
         em ev = Some (k, v) /\
         t = v /\ s' = s
           
-    | GetKey vl =>
+    | GetKey =>
       fun P t s' =>
         exists s k,
         let kl := fst (fst s) in
@@ -162,7 +159,6 @@ Definition encryptionmap := @mem value value_dec (key * value).
         let hm := snd s in
         P (Key k) s /\
         ~In k kl /\
-        consistent_with_upds em (map (encrypt k) vl) (map (fun v => (k,v)) vl) /\
         t = k /\
         s' = ((k::kl), em, hm)
     end.
