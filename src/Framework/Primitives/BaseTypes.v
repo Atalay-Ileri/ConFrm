@@ -63,6 +63,10 @@ Axiom key0: key.
 Axiom key_eq_dec: EqDec key.
 Axiom encrypt: key -> value -> value.
 Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
+Axiom decrypt: key -> value -> value.
+Axiom decrypt_ext: forall k v v', decrypt k v = decrypt k v' -> v = v'.
+Axiom encrypt_decrypt: forall k v, decrypt k (encrypt k v) = v.
+Axiom decrypt_encrypt: forall k ev, encrypt k (decrypt k ev) = ev.
 
 (* For access control *) 
 Axiom user : Type.

@@ -115,6 +115,112 @@ Local Lemma lift2_invert_exec :
     }
   Qed.
 
+  Local Lemma lift1_invert_exec_crashed :
+    forall O1 O2 (L1: Language O1) (Lc: Language (HorizontalComposition O1 O2))
+      T (p1: L1.(prog) T) (o: Lc.(oracle)) s s',
+      exec Lc o s (lift_L1 O2 p1) (Crashed s') ->
+      exists o1 o2,
+        o = map (fun o =>
+                   match o with
+                   |OpToken _ o1 =>
+                    OpToken (HorizontalComposition O1 O2)
+                             (Token1 O1 O2 o1)
+                   |Language.Cont _ =>
+                    Language.Cont _
+                   |Language.Crash _ =>
+                    Language.Crash _
+                   end) o1 ++ o2 /\
+        snd s = snd s' /\
+        exec L1 o1 (fst s) p1 (Crashed (fst s')).
+  Proof.
+    induction p1; simpl; intros.
+    {      
+      invert_exec'' H.
+      invert_exec'' H5.      
+      do 2 eexists; intuition eauto.
+      2: simpl; constructor; eauto.
+      simpl; eauto.
+    }
+    {
+      invert_exec'' H.
+      do 2 eexists; intuition eauto.
+      2: econstructor.
+      simpl; eauto.
+    }
+    {
+      invert_exec'' H0.
+      eapply lift1_invert_exec in H6; cleanup.
+      edestruct H; eauto; cleanup.
+      
+      do 2 eexists; split.
+      2: split; eauto; econstructor; eauto.
+      rewrite map_app, app_assoc; eauto.
+
+      edestruct IHp1; eauto; cleanup.
+      do 2 eexists; intuition eauto.
+      2: solve [econstructor; eauto].
+      rewrite map_app;
+      repeat rewrite <- app_assoc; eauto.
+      instantiate (1:= x0++o2).
+      instantiate (1:= []); simpl; eauto.
+    }
+    Unshelve.
+    eauto.
+  Qed.
+
+    
+Local Lemma lift2_invert_exec_crashed :
+    forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+      T (p2: L2.(prog) T) (o: Lc.(oracle)) s s',
+      exec Lc o s (lift_L2 O1 p2) (Crashed s') ->
+      exists o' o2,
+        o = map (fun o =>
+                   match o with
+                   |OpToken _ o1 =>
+                    OpToken (HorizontalComposition O1 O2)
+                             (Token2 O1 O2 o1)
+                   |Language.Cont _ =>
+                    Language.Cont _
+                   |Language.Crash _ =>
+                    Language.Crash _
+                   end) o2 ++ o' /\
+        fst s = fst s' /\
+        exec L2 o2 (snd s) p2 (Crashed (snd s')).
+  Proof.
+    induction p2; simpl; intros.
+    {      
+      invert_exec'' H.
+      invert_exec'' H5.      
+      do 2 eexists; intuition eauto.
+      2: simpl; constructor; eauto.
+      simpl; eauto.
+    }
+    {
+      invert_exec'' H.
+      do 2 eexists; intuition eauto.
+      2: econstructor.
+      simpl; eauto.
+    }
+    {
+      invert_exec'' H0.
+      eapply lift2_invert_exec in H6; cleanup.
+      edestruct H; eauto; cleanup.
+      
+      do 2 eexists; split.
+      2: split; eauto; econstructor; eauto.
+      rewrite map_app, app_assoc; eauto.
+
+      edestruct IHp2; eauto; cleanup.
+      do 2 eexists; intuition eauto.
+      2: solve [econstructor; eauto].
+      rewrite map_app;
+      repeat rewrite <- app_assoc; eauto.
+      instantiate (1:= x++o2).
+      instantiate (1:= []); simpl; eauto.
+    }
+    Unshelve.
+    eauto.
+  Qed.
 
   Local Ltac invert_exec' :=
     match goal with
@@ -136,6 +242,10 @@ Local Lemma lift2_invert_exec :
       eapply lift1_invert_exec in H; logic_clean
     | [ H: exec _ _ _ (lift_L2 _ _) (Finished _ _) |- _ ] =>
       eapply lift2_invert_exec in H; logic_clean
+    | [ H: exec _ _ _ (lift_L1 _ _) (Crashed _) |- _ ] =>
+      eapply lift1_invert_exec_crashed in H; logic_clean
+    | [ H: exec _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
+      eapply lift2_invert_exec_crashed in H; logic_clean
     | [ H: HorizontalComposition.exec' _ _ _ _ |- _ ] =>
       invert_exec'' H
     | [ H: Core.exec _ _ _ _ _ |- _ ] =>

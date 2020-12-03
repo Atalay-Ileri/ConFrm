@@ -21,7 +21,7 @@ Definition token_refines_to T (d1: state impl) (p: Core.operation abs_core T) o1
      (exists d1' r,
         exec impl o1 d1 (read a) (Finished d1' r) /\
         o2 = Cont /\
-        d1' = d1) \/
+        d1 = d1') \/
      (exists d1',
         exec impl o1 d1 (read a) (Crashed d1') /\
         o2 = CrashBefore /\
@@ -32,22 +32,22 @@ Definition token_refines_to T (d1: state impl) (p: Core.operation abs_core T) o1
           exec impl o1 d1 (write la lv) (Finished d1' r) /\          
           o2 = Cont /\
           (exists s,
-             cached_log_rep s d1 \/
-             cached_log_rep (upd_batch_set s la lv) d1')
+             cached_log_rep s d1' \/
+             cached_log_rep (upd_batch s la lv) d1')
        ) \/
      (exists d1',
         (exec impl o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashBefore /\
-         d1' = d1) \/
+         snd d1' = snd d1) \/
         (exec impl o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashAfter /\
-         d1' <> d1)
+        (exists s, cached_log_rep (upd_batch s la lv) d1'))
      )
    | Recover =>
      (exists d1',
         exec impl o1 d1 recover (Finished d1' tt) /\
         o2 = Cont /\
-        d1' = d1) \/
+        d1 = d1') \/
      (exists d1',
         exec impl o1 d1 recover (Crashed d1') /\
         o2 = CrashBefore /\
@@ -55,15 +55,11 @@ Definition token_refines_to T (d1: state impl) (p: Core.operation abs_core T) o1
    end.
 
   Definition refines_to (d1: state impl) (d2: state abs) :=
-    exists d2',
-      cached_log_rep d2' d1 /\
-      d2 = mem_map fst d2'.
+      cached_log_rep d2 d1.
 
   
   Definition refines_to_reboot (d1: state impl) (d2: state abs) :=
-    exists d2',
-      cached_log_reboot_rep d2' d1 /\
-      d2 = mem_map fst d2'.
+      cached_log_reboot_rep d2 d1.
 
   
   (** refinement preservation

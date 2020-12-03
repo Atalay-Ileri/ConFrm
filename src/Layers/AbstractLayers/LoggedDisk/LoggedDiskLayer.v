@@ -226,7 +226,8 @@ Set Implicit Arguments.
     Build_Core
       logged_disk_prog
       exec'
-      weakest_precondition'
+      (*
+        weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
       strongest_crash_postcondition'
@@ -234,6 +235,7 @@ Set Implicit Arguments.
       wcp_complete'
       sp_complete'
       scp_complete'
+       *)
       exec_deterministic_wrt_token'.
 
   Definition LoggedDiskLang := Build_Language LoggedDiskOperation.

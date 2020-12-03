@@ -8,40 +8,63 @@ Require Import Compare_dec.
 
 Set Nested Proofs Allowed.
 
-
-
-
 (** Specs **)
+
+Theorem update_header_finished:
+  forall header_part vs s' s o t,
+    (snd s) hdr_block_num = Some vs ->
+    exec CryptoDiskLang o s (update_header header_part) (Finished s' t) ->
+    fst s' = fst s /\
+    snd s' = upd (snd s) hdr_block_num (encode_header (update_hdr (decode_header (fst vs)) header_part), fst vs :: snd vs).
+Proof.
+  unfold update_header, write_header, read_header; simpl; intros.
+  repeat invert_exec; simpl in *; repeat cleanup.
+  setoid_rewrite H in H7; cleanup; eauto.
+Qed.
+
+Theorem update_header_crashed:
+  forall header_part vs s' s o,
+    (snd s) hdr_block_num = Some vs ->
+    exec CryptoDiskLang o s (update_header header_part) (Crashed s') ->
+    s' = s.
+Proof.
+  unfold update_header, write_header, read_header; simpl; intros.
+  repeat invert_exec; simpl in *; repeat cleanup.
+  repeat (split_ors; repeat invert_exec; simpl in *;
+          cleanup; simpl in *);
+  repeat invert_exec;
+  solve [ destruct s; simpl in *; eauto].
+Qed.
 
 Theorem decrypt_txn_finished:
   forall txn log_blocks plain_blocks t s' s o,
-  let key := key txn in
-  let start := start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  let addr_blocks := firstn addr_count plain_blocks in
-  let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
-  txn_blocks = map (encrypt key) plain_blocks ->
-  length addr_list = length data_blocks ->
-  exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Finished s' t) ->
-  t = (addr_list, data_blocks) /\ s' = s.
+    let key := key txn in
+    let start := start txn in
+    let addr_count := addr_count txn in
+    let data_count := data_count txn in
+    let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
+    let addr_blocks := firstn addr_count plain_blocks in
+    let data_blocks := skipn addr_count plain_blocks in
+    let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
+    txn_blocks = map (encrypt key) plain_blocks ->
+    length addr_list = length data_blocks ->
+    exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Finished s' t) ->
+    t = (addr_list, data_blocks) /\ s' = s.
 Proof.
   unfold decrypt_txn; simpl; intros;
   repeat invert_exec; simpl in *;
   cleanup.
 
   eapply decrypt_all_finished in H1; cleanup.
-  eapply map_ext_eq in H2; cleanup; eauto.
-  eapply encrypt_ext; eauto.
+  repeat rewrite map_map, map_noop; eauto.
+  intros; apply encrypt_decrypt.
 Qed.
 
 
 Theorem decrypt_txn_crashed:
   forall txn log_blocks s' s o,
-  exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Crashed s') ->
-  s' = s.
+    exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Crashed s') ->
+    s' = s.
 Proof.
   unfold decrypt_txn; simpl; intros;
   repeat invert_exec; simpl in *;
@@ -53,18 +76,18 @@ Qed.
 
 Theorem apply_txn_finished:
   forall txn log_blocks plain_blocks t s' s o,
-  let key := key txn in
-  let start := start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  let addr_blocks := firstn addr_count plain_blocks in
-  let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
-  txn_blocks = map (encrypt key) plain_blocks ->
-  length addr_list = length data_blocks ->
-  exec CryptoDiskLang o s (apply_txn txn log_blocks) (Finished s' t) ->
-  fst s' = fst s /\ snd s' = upd_batch_set (snd s) addr_list data_blocks.
+    let key := key txn in
+    let start := start txn in
+    let addr_count := addr_count txn in
+    let data_count := data_count txn in
+    let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
+    let addr_blocks := firstn addr_count plain_blocks in
+    let data_blocks := skipn addr_count plain_blocks in
+    let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
+    txn_blocks = map (encrypt key) plain_blocks ->
+    length addr_list = length data_blocks ->
+    exec CryptoDiskLang o s (apply_txn txn log_blocks) (Finished s' t) ->
+    fst s' = fst s /\ snd s' = upd_batch_set (snd s) addr_list data_blocks.
 Proof.
   unfold apply_txn; simpl; intros;
   repeat invert_exec; simpl in *;
@@ -77,18 +100,18 @@ Qed.
 
 Theorem apply_txn_crashed:
   forall txn log_blocks plain_blocks s' s o,
-  let key := key txn in
-  let start := start txn in
-  let addr_count := addr_count txn in
-  let data_count := data_count txn in
-  let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
-  let addr_blocks := firstn addr_count plain_blocks in
-  let data_blocks := skipn addr_count plain_blocks in
-  let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
-  txn_blocks = map (encrypt key) plain_blocks ->
-  length addr_list = length data_blocks ->
-  exec CryptoDiskLang o s (apply_txn txn log_blocks) (Crashed s') ->
-  fst s' = fst s /\ exists n, snd s' = upd_batch_set (snd s) (firstn n addr_list) (firstn n data_blocks).
+    let key := key txn in
+    let start := start txn in
+    let addr_count := addr_count txn in
+    let data_count := data_count txn in
+    let txn_blocks := firstn (addr_count+data_count) (skipn start log_blocks) in
+    let addr_blocks := firstn addr_count plain_blocks in
+    let data_blocks := skipn addr_count plain_blocks in
+    let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
+    txn_blocks = map (encrypt key) plain_blocks ->
+    length addr_list = length data_blocks ->
+    exec CryptoDiskLang o s (apply_txn txn log_blocks) (Crashed s') ->
+    fst s' = fst s /\ exists n, snd s' = upd_batch_set (snd s) (firstn n addr_list) (firstn n data_blocks).
 Proof.
   unfold apply_txn; simpl; intros;
   repeat invert_exec; simpl in *;
@@ -237,7 +260,7 @@ Proof.
     rewrite skipn_app.
     rewrite firstn_app2; eauto.
   }
-    
+  
 
   Unshelve.
   unfold plain_addr_blocks_valid, get_addr_blocks in *; simpl in *.
@@ -336,7 +359,7 @@ Proof.
       rewrite skipn_firstn_comm in H13.
       rewrite H13, <- map_app; eauto.
     }
-  
+    
     {
       rewrite <- Al. 
       rewrite skipn_app.
@@ -360,7 +383,7 @@ Proof.
       rewrite skipn_firstn_comm in H13.
       rewrite H13, <- map_app; eauto.
     }
-  
+    
     {
       rewrite <- Al. 
       rewrite skipn_app.
@@ -505,48 +528,48 @@ Proof.
     cleanup.
     repeat invert_exec.
     all: try congruence.
-     {
+    {
       apply hash_all_finished in H2; cleanup.
       unfold log_rep_explicit, log_header_block_rep,
       log_rep_inner, header_part_is_valid in *; cleanup_no_match.
       exfalso; apply H0; eauto.      
-     }
-     {       
-       apply hash_all_finished in H2; cleanup.
-       apply read_consecutive_finished in H4; cleanup.
-       assert (x5= firstn (count (old_part hdr)) (map fst log_blocksets)).
-       {
-         eapply list_selN_ext.
-         rewrite firstn_length_l; eauto.
-         unfold log_rep_explicit, log_header_block_rep in *;
-         cleanup_no_match; eauto.
-         rewrite map_length;
-         unfold log_rep_explicit, log_header_block_rep,
-         log_rep_inner, header_part_is_valid in *;
-         cleanup_no_match; eauto.      
-         setoid_rewrite H12; lia.
-         intros.
-         edestruct H4.
-         rewrite <- H2; eauto.
-         cleanup_no_match.
-         rewrite <- H12.
-         rewrite selN_firstn; eauto.
-         erewrite selN_map.
-         unfold log_rep_explicit, log_data_blocks_rep in *;
-         cleanup_no_match; eauto.
-         destruct s; simpl in *.
-         erewrite e1 in H11.
-         erewrite selN_selNopt in H11; eauto.
-         rewrite <- H12; inversion H11; eauto.
-         all: unfold log_rep_explicit, log_header_block_rep,
-              log_rep_inner,
-              header_part_is_valid in *; simpl in *; cleanup_no_match;
-         try setoid_rewrite H15; try lia.
-       }
-       unfold log_rep_explicit, log_header_block_rep,
-              log_rep_inner, header_part_is_valid in *; simpl in *; cleanup_no_match.
-       intuition eauto.
-       eapply upd_batch_consistent_subset; eauto.
+    }
+    {       
+      apply hash_all_finished in H2; cleanup.
+      apply read_consecutive_finished in H4; cleanup.
+      assert (x5= firstn (count (old_part hdr)) (map fst log_blocksets)).
+      {
+        eapply list_selN_ext.
+        rewrite firstn_length_l; eauto.
+        unfold log_rep_explicit, log_header_block_rep in *;
+        cleanup_no_match; eauto.
+        rewrite map_length;
+        unfold log_rep_explicit, log_header_block_rep,
+        log_rep_inner, header_part_is_valid in *;
+        cleanup_no_match; eauto.      
+        setoid_rewrite H12; lia.
+        intros.
+        edestruct H4.
+        rewrite <- H2; eauto.
+        cleanup_no_match.
+        rewrite <- H12.
+        rewrite selN_firstn; eauto.
+        erewrite selN_map.
+        unfold log_rep_explicit, log_data_blocks_rep in *;
+        cleanup_no_match; eauto.
+        destruct s; simpl in *.
+        erewrite e1 in H11.
+        erewrite selN_selNopt in H11; eauto.
+        rewrite <- H12; inversion H11; eauto.
+        all: unfold log_rep_explicit, log_header_block_rep,
+             log_rep_inner,
+             header_part_is_valid in *; simpl in *; cleanup_no_match;
+        try setoid_rewrite H15; try lia.
+      }
+      unfold log_rep_explicit, log_header_block_rep,
+      log_rep_inner, header_part_is_valid in *; simpl in *; cleanup_no_match.
+      intuition eauto.
+      eapply upd_batch_consistent_subset; eauto.
     }
   }
   Unshelve.
@@ -569,83 +592,83 @@ Theorem read_encrypted_log_crashed :
     fst (fst s') = fst (fst s) /\
     snd s' = snd s /\
     subset (snd (fst s)) (snd (fst s')).
-  Proof.
-    unfold read_encrypted_log, read_header, check_hash; simpl; intros.
-    repeat (try split_ors; cleanup_no_match; invert_exec; repeat cleanup);
-    try solve[ destruct s; simpl; eauto ].
+Proof.
+  unfold read_encrypted_log, read_header, check_hash; simpl; intros.
+  repeat (try split_ors; cleanup_no_match; invert_exec; repeat cleanup);
+  try solve[ destruct s; simpl; eauto ].
 
-    eapply read_consecutive_crashed in H2;
-    cleanup_no_match; eauto;
-    destruct s; simpl; eauto.
-    
-    all: try congruence;
-    try solve
+  eapply read_consecutive_crashed in H2;
+  cleanup_no_match; eauto;
+  destruct s; simpl; eauto.
+  
+  all: try congruence;
+  try solve
       [eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto;
-      eapply hash_all_finished in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto ].
+       cleanup; eauto;
+       destruct s; simpl; eauto;
+       eapply hash_all_finished in H3;
+       cleanup; eauto;
+       destruct s; simpl in *; eauto ].
 
-    - eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto.
-      eapply hash_all_crashed in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto.
-      eapply upd_batch_consistent_subset in H4.
-      cleanup; intuition eauto.
-      
+  - eapply read_consecutive_finished in H2;
+    cleanup; eauto;
+    destruct s; simpl; eauto.
+    eapply hash_all_crashed in H3;
+    cleanup; eauto;
+    destruct s; simpl in *; eauto.
+    eapply upd_batch_consistent_subset in H4.
+    cleanup; intuition eauto.
+    
 
-    - eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto;
-      eapply hash_all_finished in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto.
-      eapply upd_batch_consistent_subset in H4.
-      cleanup; intuition eauto.
+  - eapply read_consecutive_finished in H2;
+    cleanup; eauto;
+    destruct s; simpl; eauto;
+    eapply hash_all_finished in H3;
+    cleanup; eauto;
+    destruct s; simpl in *; eauto.
+    eapply upd_batch_consistent_subset in H4.
+    cleanup; intuition eauto.
 
-      - eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto;
-      eapply hash_all_finished in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto.
-      eapply upd_batch_consistent_subset in H4.
-      cleanup; intuition eauto.
+  - eapply read_consecutive_finished in H2;
+    cleanup; eauto;
+    destruct s; simpl; eauto;
+    eapply hash_all_finished in H3;
+    cleanup; eauto;
+    destruct s; simpl in *; eauto.
+    eapply upd_batch_consistent_subset in H4.
+    cleanup; intuition eauto.
 
-      - eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto;
-      eapply hash_all_finished in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto.
-      eapply upd_batch_consistent_subset in H4.
-      cleanup; intuition eauto.
+  - eapply read_consecutive_finished in H2;
+    cleanup; eauto;
+    destruct s; simpl; eauto;
+    eapply hash_all_finished in H3;
+    cleanup; eauto;
+    destruct s; simpl in *; eauto.
+    eapply upd_batch_consistent_subset in H4.
+    cleanup; intuition eauto.
 
-      - eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto;
-      eapply hash_all_finished in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto.
-      eapply read_consecutive_crashed in H4;
-      cleanup_no_match; eauto.      
-      eapply upd_batch_consistent_subset in H5.
-      cleanup; intuition eauto.
-      
-    - eapply read_consecutive_finished in H2;
-      cleanup; eauto;
-      destruct s; simpl; eauto;
-      eapply hash_all_finished in H3;
-      cleanup; eauto;
-      destruct s; simpl in *; eauto.
-      eapply read_consecutive_finished in H4;
-      cleanup_no_match; eauto.
-      eapply upd_batch_consistent_subset in H5.
-      cleanup; intuition eauto.
-  Qed.
+  - eapply read_consecutive_finished in H2;
+    cleanup; eauto;
+    destruct s; simpl; eauto;
+    eapply hash_all_finished in H3;
+    cleanup; eauto;
+    destruct s; simpl in *; eauto.
+    eapply read_consecutive_crashed in H4;
+    cleanup_no_match; eauto.      
+    eapply upd_batch_consistent_subset in H5.
+    cleanup; intuition eauto.
+    
+  - eapply read_consecutive_finished in H2;
+    cleanup; eauto;
+    destruct s; simpl; eauto;
+    eapply hash_all_finished in H3;
+    cleanup; eauto;
+    destruct s; simpl in *; eauto.
+    eapply read_consecutive_finished in H4;
+    cleanup_no_match; eauto.
+    eapply upd_batch_consistent_subset in H5.
+    cleanup; intuition eauto.
+Qed.
 
 
 
@@ -700,16 +723,13 @@ Proof.
         eapply Forall_forall in H14; eauto.
         unfold txn_well_formed in H14; cleanup.
         intuition.
-        eapply Forall_forall in H21; eauto.
+        eapply Forall_forall in H20; eauto.
         pose proof data_start_where_log_ends.
         setoid_rewrite H6 in H12.
         lia.
       }
       {
         rewrite map_length; eauto.
-      }
-      {
-        unfold header_part_is_valid in *; cleanup; eauto.
       }
       {
         pose proof data_start_where_log_ends.
@@ -747,13 +767,12 @@ Proof.
         eapply Forall_forall in H12; eauto.
         unfold txn_well_formed in H12; cleanup.
         intuition.
-        eapply Forall_forall in H18; eauto.
+        eapply Forall_forall in H17; eauto.
         pose proof data_start_where_log_ends.
         pose proof hdr_before_log.
         lia.
         
         rewrite map_length; eauto.
-        unfold header_part_is_valid in *; cleanup; eauto.
       }
       {
         intros.
@@ -764,10 +783,9 @@ Proof.
         eapply Forall_forall in H13; eauto.
         unfold txn_well_formed in H13; cleanup.
         simpl in *.
-        apply H20; eauto.
+        apply H19; eauto.
         
         rewrite map_length; eauto.
-        unfold header_part_is_valid in *; cleanup; eauto.
       }
     }
     {
@@ -796,36 +814,34 @@ Proof.
     rewrite map_length; eauto.
     unfold header_part_is_valid in *; cleanup; eauto.
     {
-        intros.
-        unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
-        rewrite <- H12 in *.
-        erewrite bimap_get_addr_list in H2; eauto.
-        apply in_map_iff in H2; cleanup.
-        eapply Forall_forall in H13; eauto.
-        unfold txn_well_formed in H13; cleanup.
-        intuition.
-        eapply Forall_forall in H18; eauto.
-        pose proof data_start_where_log_ends.
-        pose proof hdr_before_log.
-        lia.
-        
-        rewrite map_length; eauto.
-        unfold header_part_is_valid in *; cleanup; eauto.
-      }
-      {
-        intros.
-        unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
-        rewrite <- H13 in *.
-        erewrite bimap_get_addr_list in H2; eauto.
-        apply in_map_iff in H2; cleanup.
-        eapply Forall_forall in H14; eauto.
-        unfold txn_well_formed in H14; cleanup.
-        simpl in *.
-        apply H20; eauto.
-        
-        rewrite map_length; eauto.
-        unfold header_part_is_valid in *; cleanup; eauto.
-      }
+      intros.
+      unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
+      rewrite <- H12 in *.
+      erewrite bimap_get_addr_list in H2; eauto.
+      apply in_map_iff in H2; cleanup.
+      eapply Forall_forall in H13; eauto.
+      unfold txn_well_formed in H13; cleanup.
+      intuition.
+      eapply Forall_forall in H17; eauto.
+      pose proof data_start_where_log_ends.
+      pose proof hdr_before_log.
+      lia.
+      
+      rewrite map_length; eauto.
+    }
+    {
+      intros.
+      unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
+      rewrite <- H13 in *.
+      erewrite bimap_get_addr_list in H2; eauto.
+      apply in_map_iff in H2; cleanup.
+      eapply Forall_forall in H14; eauto.
+      unfold txn_well_formed in H14; cleanup.
+      simpl in *.
+      apply H19; eauto.
+      
+      rewrite map_length; eauto.
+    }
   }
   {
     intros.
@@ -834,7 +850,7 @@ Proof.
     eapply Forall_forall in H14; eauto.
     unfold txn_well_formed in H14; cleanup.
     simpl in *.
-    apply H20; eauto.
+    apply H19; eauto.
   }
   {
     intros.
@@ -845,10 +861,9 @@ Proof.
     eapply Forall_forall in H14; eauto.
     unfold txn_well_formed in H14; cleanup.
     simpl in *.
-    apply H20; eauto.
+    apply H19; eauto.
     
     rewrite map_length; eauto.
-    unfold header_part_is_valid in *; cleanup; eauto.
   }
   {
     unfold log_rep_explicit, log_rep_inner, log_header_block_rep, txns_valid in *; cleanup; simpl in *.
@@ -860,7 +875,7 @@ Proof.
     eapply Forall_forall in H12; eauto.
     unfold txn_well_formed in H12; cleanup.
     intuition.
-    eapply Forall_forall in H19; eauto.
+    eapply Forall_forall in H18; eauto.
     pose proof data_start_where_log_ends.
     pose proof hdr_before_log.
     lia.
@@ -876,24 +891,24 @@ Theorem flush_txns_crashed:
     exec CryptoDiskLang o s (flush_txns txn_records log_blocks) (Crashed s') ->
     fst s' = fst s /\
     ((log_rep txns s' /\ (exists n m : nat,
-          snd s' =
-          upd_batch_set
-            (list_upd_batch_set (snd s)
-               (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
-               (firstn n (map data_blocks txns)))
-            (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
-            (firstn m (selN (map data_blocks txns) n [])))) \/
+                           snd s' =
+                           upd_batch_set
+                             (list_upd_batch_set (snd s)
+                                                 (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
+                                                 (firstn n (map data_blocks txns)))
+                             (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+                             (firstn m (selN (map data_blocks txns) n [])))) \/
      (log_rep txns s' /\ 
-          snd s' =
-          sync (list_upd_batch_set (snd s)
-               (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
-               (map data_blocks txns))) \/
+      snd s' =
+      sync (list_upd_batch_set (snd s)
+                               (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
+                               (map data_blocks txns))) \/
      (log_crash_rep (During_Apply txns) s' /\
       snd s' = upd_set (sync
-            (list_upd_batch_set (snd s)
-               (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
-               (map data_blocks txns))) hdr_block_num
-         (encode_header (update_hdr hdr header_part0)))).
+                          (list_upd_batch_set (snd s)
+                                              (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
+                                              (map data_blocks txns))) hdr_block_num
+                       (encode_header (update_hdr hdr header_part0)))).
 Proof.
   unfold flush_txns; intros.
   repeat (invert_exec; split_ors; cleanup).
@@ -948,17 +963,16 @@ Proof.
       unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
       rewrite <- H9, map_length; eauto.
     }
-  
+    
     unfold update_header in *; repeat invert_exec.
     split_ors; cleanup; try invert_exec.
     { (** read_header crashed **)
       unfold read_header in *.
       repeat invert_exec.
-      split_ors; cleanup; try invert_exec;
-      invert_exec'' H1; repeat invert_exec; simpl in *;
+      split_ors; cleanup; repeat invert_exec; simpl in *;
+      repeat cleanup_pairs;
       intuition; right; left.
-      
-      all: split; [apply log_rep_sync_preserves|]; eauto;
+      all: split; [eapply log_rep_sync_preserves in Hx|]; eauto;
       cleanup; simpl; eauto.
     }
     { (** write_header crashed **)
@@ -978,84 +992,71 @@ Proof.
     invert_exec'' H1; repeat invert_exec.
     eapply_fresh (log_rep_update_disk_preserves txns hdr (length txns) 0) in H0; simpl; eauto.    
     apply log_rep_sync_preserves in Hx.
-    unfold update_header, read_header, write_header in *; repeat invert_exec.
-    invert_exec'' H3; repeat invert_exec.
+    unfold log_rep, log_rep_general in Hx; logic_clean; eauto.    
+    eapply update_header_finished in H2; simpl in *; eauto.
+    2: unfold log_rep_explicit, log_header_block_rep in *; cleanup; eauto.
+    2: unfold log_header_rep, log_rep_general; eauto.
     simpl in *; cleanup.
     intuition.
     right; right.
     split.
-    unfold log_rep, log_rep_general in *; cleanup.
-    exists (encode_header (update_hdr (decode_header (fst vs0)) header_part0)),
-    (fst vs0),
-    (map (fun vs => (fst vs, [])) x3). 
-    unfold update_hdr; rewrite encode_decode_header, map_map; simpl.
-    {
-      
-      rewrite sync_list_upd_batch_set in H5.
+    exists (encode_header (update_hdr (decode_header (fst x2)) header_part0)),
+    (fst x2),
+    (x3). 
+    unfold update_hdr; rewrite encode_decode_header; simpl.
+    {      
+      rewrite sync_list_upd_batch_set in *.
       repeat cleanup_pairs; simpl in *.
-      rewrite list_upd_batch_not_in in H10.
-      unfold sync in H10; simpl in *.
-      unfold log_rep_explicit, log_header_block_rep in *; simpl in *; cleanup_no_match.
-      rewrite list_upd_batch_not_in in H1.
-      unfold sync in H1; simpl in *; cleanup; simpl in *; cleanup.
-      repeat rewrite encode_decode_header;
-      repeat rewrite map_map; simpl.
-      eexists; intuition eauto.
+      unfold update_hdr; simpl.
+       unfold log_rep_explicit in *; logic_clean; simpl in *;
+      repeat rewrite encode_decode_header in *;
+      repeat rewrite map_map in *; simpl.
+       
+      intuition eauto.
       {
+        unfold log_header_block_rep in *; simpl in *; cleanup.
+        rewrite upd_eq; simpl in *; cleanup; eauto.
+      }
+      {
+        unfold log_data_blocks_rep in *; cleanup; simpl in *.
+        intuition.
+        
+        rewrite upd_ne; eauto.
+        pose proof hdr_before_log; lia.
+        
+      }
+      lia.
+      rewrite <- H0; lia.
+      {
+        unfold log_rep_inner in *; simpl in *; cleanup.
+        split.
+        apply header_part0_valid.
+        apply txns_valid_nil.
+      }
+      {
+        rewrite <- H0.
+        unfold log_rep_inner in *; simpl in *; logic_clean.
         intuition eauto.
         {
-          unfold log_header_block_rep in *; simpl in *; cleanup.
-          rewrite upd_eq; simpl in *; cleanup; eauto.
+          unfold txns_valid in *; simpl in *; cleanup; intuition eauto.
+          eapply Forall_impl; [| eauto].
+          unfold txn_well_formed; simpl; intuition cleanup.
+          apply upd_not_none in H26; eauto.
         }
       }
-        {
-          unfold log_data_blocks_rep in *; cleanup; simpl in *.
-          intuition.
-          {
-            rewrite map_length in H1.
-            rewrite upd_ne.
-            rewrite map_map in H; erewrite H.
-            rewrite map_noop; eauto.
-            intros a Hx; destruct a.
-            apply H0 in Hx; simpl in *; subst; eauto.
-            rewrite <- H3; eauto.
-            pose proof hdr_before_log; lia.
-          }
-          apply in_map_iff in H1; cleanup; eauto.
-          rewrite map_length, <- H3; eauto.
-        }
-        rewrite map_length; eauto.
-        lia.
-        {
-          unfold log_rep_inner in *; simpl in *; cleanup.
-          split.
-          apply header_part0_valid.
-          apply txns_valid_nil.
-        }
-        {
-          unfold log_rep_inner in *; simpl in *; logic_clean.
-          intuition eauto.
-          {
-            unfold txns_valid in *; simpl in *; cleanup; intuition eauto.
-            eapply Forall_impl; [| eauto].
-            unfold txn_well_formed; simpl; intuition cleanup.
-            apply upd_not_none in H23; eauto.
-            rewrite map_map in H18; eauto.
-          }
-        }
-        (** Find solutions to these above **)
-        admit.
-        admit.
-        admit.
+      (** Find solutions to these above **)
+      admit.
+      admit.
+      admit.
     }
     {
       repeat cleanup_pairs.
+      unfold log_rep_explicit, log_header_block_rep in *; simpl in *; cleanup.
       erewrite upd_set_upd_some; simpl; eauto.
       simpl; eauto.
-      rewrite sync_list_upd_batch_set in H10; simpl in *.
-      rewrite list_upd_batch_not_in in H10.
-      unfold log_rep_explicit, log_header_block_rep in *; simpl in *; cleanup.
-      unfold sync in H10; cleanup; eauto.
+      rewrite sync_list_upd_batch_set in H1; simpl in *.
+      rewrite list_upd_batch_not_in in H1.
+      unfold sync in H1; cleanup; eauto.
       (** Find solutions to these above **)
       admit.
       admit.
@@ -1065,16 +1066,16 @@ Proof.
     rewrite map_length; eauto.
     rewrite bimap_length, map_length, min_r; eauto.
     unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-    rewrite <- H10, map_length; eauto.
+    rewrite <- H11, map_length; eauto.
 Admitted.
 
 Lemma log_rep_explicit_subset:
-      forall hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s s',
-        log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s ->
-        subset (snd (fst s)) (snd (fst s')) ->
-        fst (fst s') = fst (fst s) ->
-        snd s' = snd s ->
-        log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s'.
+  forall hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s s',
+    log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s ->
+    subset (snd (fst s)) (snd (fst s')) ->
+    fst (fst s') = fst (fst s) ->
+    snd s' = snd s ->
+    log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s'.
 Proof.      
   intros; repeat cleanup_pairs; simpl in *.
   unfold log_rep_explicit in *; logic_clean; simpl in *.
@@ -1117,25 +1118,25 @@ Theorem apply_log_crashed:
     fst (fst s') = fst (fst s) /\
     subset (snd (fst s)) (snd (fst s')) /\
     ((log_rep txns s' /\ snd s' = snd s) \/
-      (log_rep txns s' /\ (exists n m : nat,
-          snd s' =
-          upd_batch_set
-            (list_upd_batch_set (snd s)
-               (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
-               (firstn n (map data_blocks txns)))
-            (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
-            (firstn m (selN (map data_blocks txns) n [])))) \/
+     (log_rep txns s' /\ (exists n m : nat,
+                           snd s' =
+                           upd_batch_set
+                             (list_upd_batch_set (snd s)
+                                                 (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
+                                                 (firstn n (map data_blocks txns)))
+                             (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+                             (firstn m (selN (map data_blocks txns) n [])))) \/
      (log_rep txns s' /\ 
-          snd s' =
-          sync (list_upd_batch_set (snd s)
-               (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
-               (map data_blocks txns))) \/
+      snd s' =
+      sync (list_upd_batch_set (snd s)
+                               (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
+                               (map data_blocks txns))) \/
      (log_crash_rep (During_Apply txns) s' /\
       snd s' = upd_set (sync
-            (list_upd_batch_set (snd s)
-               (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
-               (map data_blocks txns))) hdr_block_num
-         (encode_header (update_hdr hdr header_part0)))).
+                          (list_upd_batch_set (snd s)
+                                              (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns))
+                                              (map data_blocks txns))) hdr_block_num
+                       (encode_header (update_hdr hdr header_part0)))).
 Proof.
   unfold apply_log, log_header_rep, log_rep_general; intros; cleanup.
   invert_exec; split_ors; cleanup.
@@ -1231,9 +1232,9 @@ Proof.
   unfold log_header_rep in *; cleanup_no_match.
   
   exists (Build_txn (Build_txn_record x6 (count (current_part hdr)) (length l_addr) (length l_data))
-    (firstn (length l_data) (blocks_to_addr_list l_addr))
-    l_addr
-    l_data).
+               (firstn (length l_data) (blocks_to_addr_list l_addr))
+               l_addr
+               l_data).
   
   intuition eauto.
 
@@ -1253,9 +1254,9 @@ Proof.
       rewrite sync_upd_batch_set_comm; simpl.
       
       instantiate (1:= firstn (count (current_part (decode_header v0))) (map (fun vs => (fst vs, [])) x1) ++ 
-                        (map (fun v => (v, [])) (map (encrypt x6) (l_addr ++ l_data))) ++
-                        skipn (length (l_addr++l_data) + (count (current_part (decode_header v0))))
-                        (map (fun vs => (fst vs, [])) x1)).
+                              (map (fun v => (v, [])) (map (encrypt x6) (l_addr ++ l_data))) ++
+                              skipn (length (l_addr++l_data) + (count (current_part (decode_header v0))))
+                              (map (fun vs => (fst vs, [])) x1)).
       repeat rewrite app_length in H.
       rewrite firstn_length_l, skipn_length in H.
       repeat rewrite map_length in *.
@@ -1273,7 +1274,7 @@ Proof.
         rewrite selN_firstn; eauto.
         rewrite <- selN_selNopt; eauto.
         apply sync_selNopt; eauto.
-        apply e0.
+        apply e.
         lia.
         rewrite map_length; eauto.
         intros Hx; apply in_seq in Hx.
@@ -1282,7 +1283,7 @@ Proof.
         rewrite firstn_length_l; eauto.
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
       }
       destruct (lt_dec i (count (current_part (decode_header v0)) + length (l_addr++l_data))).
       {
@@ -1309,12 +1310,12 @@ Proof.
         repeat rewrite map_length; lia.
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
         rewrite firstn_length_l; eauto.
         lia.
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
       }
       {
         repeat rewrite selN_app2.
@@ -1326,7 +1327,7 @@ Proof.
         apply sync_selNopt; eauto.
         replace (length (l_addr ++ l_data) + count (current_part (decode_header v0)) +
                  (i - count (current_part (decode_header v0)) - length (l_addr ++ l_data))) with i by lia; eauto.
-        eapply e0; lia.
+        eapply e; lia.
         eauto.
         rewrite map_length.
         apply Nat.le_ngt in n.
@@ -1341,18 +1342,18 @@ Proof.
         repeat rewrite map_length, seq_length; eauto.
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
         rewrite firstn_length_l;
         repeat rewrite map_length; eauto.
         lia.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
 
         rewrite firstn_length_l;
         repeat rewrite map_length; eauto.
         lia.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
       }
       eauto.
       {
@@ -1360,16 +1361,16 @@ Proof.
         rewrite firstn_length_l, skipn_length.
         repeat rewrite map_length.
         repeat rewrite app_length in *.
-        setoid_rewrite e1.
+        setoid_rewrite e0.
         lia.
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
       }
       {
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
       }
       eauto.
       {
@@ -1393,25 +1394,25 @@ Proof.
         unfold log_header_block_rep in *; simpl in *;
         cleanup_no_match; simpl in *.
         repeat rewrite app_length in *.
-        setoid_rewrite e1.
+        setoid_rewrite e0.
         lia.
         rewrite map_length; eauto.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-        setoid_rewrite e1; eauto.
+        setoid_rewrite e0; eauto.
       }
     }
     {
-       repeat rewrite app_length.
-       rewrite firstn_length_l, skipn_length.
-       repeat rewrite map_length.
-       unfold log_header_block_rep in *; simpl in *;
-       cleanup_no_match; simpl in *.
-       repeat rewrite app_length in *.
-       setoid_rewrite e1.
-       lia.
-       rewrite map_length; eauto.
-       unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
-       setoid_rewrite e1; eauto.
+      repeat rewrite app_length.
+      rewrite firstn_length_l, skipn_length.
+      repeat rewrite map_length.
+      unfold log_header_block_rep in *; simpl in *;
+      cleanup_no_match; simpl in *.
+      repeat rewrite app_length in *.
+      setoid_rewrite e0.
+      lia.
+      rewrite map_length; eauto.
+      unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
+      setoid_rewrite e0; eauto.
     }
     {
       simpl.
@@ -1451,7 +1452,7 @@ Proof.
           rewrite app_length, firstn_length_l;
           repeat rewrite map_length.
           lia.
-          setoid_rewrite e1; eauto.
+          setoid_rewrite e0; eauto.
           lia.
         }
         {
@@ -1466,12 +1467,6 @@ Proof.
           lia.
         }
         {
-          apply Forall_app; eauto.
-          apply record_is_valid_new_key.
-          apply record_is_valid_new_count; eauto.
-          unfold record_is_valid; simpl; intuition.
-        }
-        {
           (** SOlve with lemma **)
           admit.
         }
@@ -1484,16 +1479,17 @@ Proof.
 
         apply Forall_app; eauto.
         {
-          apply Forall_forall; intros.
-          eapply Forall_forall in H9; eauto.
-          unfold header_part_is_valid in *; logic_clean.
-          rewrite <- H6 in *.
-          eapply Forall_forall in H15.
-          2: eapply in_map; eauto.
-          unfold record_is_valid, txn_well_formed in *; logic_clean.
+          eapply Forall_impl; [|eauto]. 
+          unfold txn_well_formed, record_is_valid; intros; logic_clean.
           intuition eauto.
           {
-            rewrite H9.
+            right; eauto.
+          }
+          {
+            simpl; lia.
+          }            
+          {
+            rewrite H10.
             repeat rewrite map_app.
             repeat rewrite skipn_app_l.
             rewrite firstn_app_l.
@@ -1504,12 +1500,12 @@ Proof.
             setoid_rewrite <- firstn_skipn_comm; eauto.
             lia.
             rewrite skipn_length, map_length, firstn_length_l; try lia.
-            rewrite map_length; setoid_rewrite e1; lia.
+            rewrite map_length; setoid_rewrite e0; lia.
             rewrite map_length, firstn_length_l; try lia.
-            rewrite map_length; setoid_rewrite e1; lia.
+            rewrite map_length; setoid_rewrite e0; lia.
           }
           {
-            rewrite H18.
+            rewrite H11.
             repeat rewrite map_app.
             repeat rewrite skipn_app_l.
             rewrite firstn_app_l.
@@ -1520,36 +1516,22 @@ Proof.
             setoid_rewrite <- firstn_skipn_comm; eauto.
             lia.
             rewrite skipn_length, map_length, firstn_length_l; try lia.
-            rewrite map_length; setoid_rewrite e1; lia.
+            rewrite map_length; setoid_rewrite e0; lia.
             rewrite map_length, firstn_length_l; try lia.
-            rewrite map_length; setoid_rewrite e1; lia.
+            rewrite map_length; setoid_rewrite e0; lia.
           }
           {
-            eapply Forall_impl; [|eauto].
-            simpl.
-            intros.
-            eapply subset_some; eauto.
-            apply upd_batch_consistent_subset; eauto.
-          }
-          {
-            eapply Forall_impl; [|eauto].
-            simpl.
-            intros.
-            eapply subset_some; eauto.
-            apply upd_batch_consistent_subset; eauto.
-          }
-           {
-            rewrite upd_ne in H31.
-            eapply sync_not_none in H31; eauto.
+            rewrite upd_ne in H24.
+            eapply sync_not_none in H24; eauto.
             rewrite upd_batch_set_ne; eauto.
             rewrite app_length in *; repeat rewrite map_length.
             rewrite app_length.
             intros Hx; apply in_seq in Hx.
-            eapply Forall_forall in H25; eauto.
+            eapply Forall_forall in H15; eauto.
             pose proof data_start_where_log_ends.            
             intuition.
-            rewrite log_start_eq in H32; simpl in *; lia.
-            eapply Forall_forall in H25; eauto.
+            rewrite log_start_eq in H25; simpl in *; lia.
+            eapply Forall_forall in H15; eauto.
             pose proof hdr_before_log.
             pose proof data_start_where_log_ends.
             lia.
@@ -1561,6 +1543,10 @@ Proof.
           repeat rewrite map_map; simpl.
           intuition.
           {
+            unfold record_is_valid; simpl; intuition eauto.
+            lia.
+          }
+          {
             rewrite skipn_app_eq.
             rewrite firstn_app_l.
             rewrite firstn_app_l.
@@ -1570,7 +1556,7 @@ Proof.
             rewrite app_length, map_length; lia.
             rewrite map_length, firstn_length_l; eauto.
             rewrite map_length;
-            setoid_rewrite e1; lia.
+            setoid_rewrite e0; lia.
           }
           {
             rewrite skipn_app_r_ge.
@@ -1579,7 +1565,7 @@ Proof.
             rewrite skipn_app_r_ge.
             rewrite map_length.
             replace (length l_addr + count (current_part (decode_header v0)) - count (current_part (decode_header v0)) -
-        length l_addr) with 0 by lia; simpl.
+                                     length l_addr) with 0 by lia; simpl.
             rewrite firstn_app_l.
             rewrite firstn_oob; eauto.
             rewrite map_length; eauto.
@@ -1587,69 +1573,15 @@ Proof.
             rewrite map_length; lia.
             rewrite app_length, map_length; lia.
             rewrite map_length;
-            setoid_rewrite e1; lia.
+            setoid_rewrite e0; lia.
             rewrite map_length, firstn_length_l; eauto.
             lia.
             rewrite map_length;
-            setoid_rewrite e1; lia.
+            setoid_rewrite e0; lia.
           }
           {
-            eapply Forall_forall; intros.
-            rewrite upd_batch_app; eauto.
-            destruct (in_dec value_dec x l_data).
-            { (** in l_data **)
-              eapply_fresh in_split_last in i; eauto.
-              logic_clean.
-              rewrite H11.
-              repeat rewrite map_app.
-              rewrite upd_batch_app; eauto.
-              simpl.
-              rewrite upd_batch_ne.
-              apply upd_eq; eauto.
-              intros Hx; apply in_map_iff in Hx; logic_clean; subst.
-              apply encrypt_ext in H14; subst; eauto.
-              repeat rewrite map_length; eauto.
-              apply value_dec.
-            }
-            { (** not in l_data **)
-              rewrite upd_batch_ne; eauto.
-              eapply_fresh in_split_last in H10; eauto.
-              logic_clean.
-              rewrite H11.
-              repeat rewrite map_app.
-              rewrite upd_batch_app; eauto.
-              simpl.
-              rewrite upd_batch_ne.
-              apply upd_eq; eauto.
-              intros Hx; apply in_map_iff in Hx; logic_clean; subst.
-              apply encrypt_ext in H14; subst; eauto.
-              repeat rewrite map_length; eauto.
-              apply value_dec.
-              intros Hx; apply in_map_iff in Hx; logic_clean; subst.
-              apply encrypt_ext in H11; subst; eauto.
-            }
-            repeat rewrite map_length; eauto.
-          }
-          {
-             eapply Forall_forall; intros.
-            rewrite upd_batch_app; eauto.
-            eapply_fresh in_split_last in H10; eauto.
-            logic_clean.
-            rewrite H11.
-            repeat rewrite map_app.
-            rewrite upd_batch_app; eauto.
-            simpl.
-            rewrite upd_batch_ne.
-            apply upd_eq; eauto.
-            intros Hx; apply in_map_iff in Hx; logic_clean; subst.
-            apply encrypt_ext in H14; subst; eauto.
-            repeat rewrite map_length; eauto.
-            apply value_dec.
-            repeat rewrite map_length; eauto.
-          }
-          {
-            rewrite upd_ne in H11.
-            eapply sync_not_none in H11; eauto.
+            rewrite upd_ne in H10.
+            eapply sync_not_none in H10; eauto.
             rewrite upd_batch_set_ne; eauto.
             rewrite app_length in *; repeat rewrite map_length.
             intros Hx; apply in_seq in Hx.
@@ -1658,7 +1590,7 @@ Proof.
             simpl in *.
             rewrite map_length in *.
             pose proof data_start_where_log_ends.
-            rewrite log_start_eq in H15.
+            rewrite log_start_eq in H14.
             lia.
             
             eapply Forall_forall in H2; eauto.
@@ -1709,6 +1641,42 @@ Proof.
   rewrite IHl1; eauto.
 Qed.
 
+Lemma upd_batch_set_seq_in:
+  forall V n start l i j (m: @mem addr addr_dec (V * list V)) vs def,
+    m j = Some vs ->
+    j = start + i ->
+    i < n ->
+    length l = n ->
+    upd_batch_set m (seq start n) l j = Some (selN l i def, fst vs :: snd vs).
+Proof.
+  induction n; simpl; intros; eauto; try lia.
+  destruct l; simpl in *; cleanup; try lia.
+  destruct i; simpl in *; eauto.
+  rewrite Nat.add_0_r in *.
+  rewrite upd_batch_set_ne; eauto.
+  unfold upd_set; cleanup; eauto.
+  destruct (addr_dec start start); subst;
+  intuition eauto; try lia.
+  intros Hx; apply in_seq in Hx; lia.
+  specialize IHn with (i:= i) (start:= S start); simpl in *.
+  erewrite <- IHn.
+  replace (S (start + i)) with (start + S i) by lia; eauto.
+  rewrite upd_set_ne; eauto.
+  all: lia.
+Qed.
+
+Lemma selN_bimap:
+  forall A B C (f: A -> B -> C) l1 l2 n def1 def2 def3,
+    length l1 = length l2 ->
+    n < length l1 ->
+    selN (bimap f l1 l2) n def3 = f (selN l1 n def1) (selN l2 n def2).
+Proof.
+  induction l1; simpl; intros; try lia.
+  destruct l2; simpl in *; try lia.
+  destruct n; simpl in *; eauto.
+  erewrite IHl1; eauto; lia.
+Qed.
+
 
 Arguments log_crash_rep : simpl never.
 
@@ -1728,24 +1696,19 @@ Theorem commit_txn_crashed:
     (log_crash_rep (During_Commit_Log_Write txns) s' /\
      (forall a, a >= data_start -> (snd s') a = (snd s) a)) \/
     (exists txn,
-      addr_blocks txn = l_addr /\
-      data_blocks txn = l_data /\
-      log_crash_rep (During_Commit_Header_Write txns (txns ++ [txn])) s' /\
-     (forall a, a >= data_start -> (snd s') a = (snd s) a)) \/
-    (exists txn,
-      addr_blocks txn = l_addr /\
-      data_blocks txn = l_data /\
-      log_rep (txns ++ [txn]) s' /\
-      (forall a, a >= data_start -> (snd s') a = (sync (snd s)) a)).
+       addr_blocks txn = l_addr /\
+       data_blocks txn = l_data /\
+       log_crash_rep (During_Commit_Header_Write txns (txns ++ [txn])) s' /\
+       (forall a, a >= data_start -> (snd s') a = (snd s) a)).
 Proof.
-  unfold commit_txn, update_header, read_header, write_header;
+  unfold commit_txn, read_header;
   intros; repeat invert_exec.
   split_ors; cleanup; repeat invert_exec.
   { (** read_header crashed **)
     split_ors; cleanup; repeat invert_exec.
     { (** Read crashed **)
-      invert_exec''  H5; repeat invert_exec.
       left; unfold log_rep, log_header_rep; simpl; intuition eauto.
+      repeat cleanup_pairs; eauto.
     }
     {(** Ret crashed **)
       repeat cleanup_pairs;
@@ -1764,22 +1727,31 @@ Proof.
     simpl in *; cleanup.
     repeat cleanup_pairs;
     left; unfold log_rep, log_header_rep in *; simpl; intuition eauto.
-    admit.
+    unfold log_rep_general, log_rep_explicit in *; simpl in *; cleanup.
+    do 3 eexists; intuition eauto.
+    unfold log_rep_inner in *; simpl in *; cleanup.
+    intuition eauto.
+    unfold txns_valid in *; simpl in *; cleanup; intuition eauto.
+    eapply Forall_impl; [|eauto].
+    unfold txn_well_formed, record_is_valid; intros; cleanup;
+    intuition eauto.
+    right; eauto.
   }
   apply encrypt_all_finished in H5.
   repeat cleanup_pairs; simpl in *;
   split_ors; cleanup; repeat invert_exec.
   {(** hash_all crashed **)
-    eapply hash_all_crashed in H6; cleanup.
+    eapply hash_all_crashed in H5; cleanup.
     repeat cleanup_pairs;
     left; unfold log_rep, log_header_rep in *; simpl; intuition eauto.
+    (** TODO: solve this. Big goal **)
     admit.
   }
-  apply hash_all_finished in H6.
+  apply hash_all_finished in H5.
   repeat cleanup_pairs; simpl in *;
   split_ors; cleanup_no_match; repeat invert_exec_no_match.
   {(** write_consecutive crashed **)
-    eapply write_consecutive_crashed in H6; cleanup_no_match.
+    eapply write_consecutive_crashed in H5; cleanup_no_match.
     repeat cleanup_pairs; simpl in *.
     right; left.
     intuition eauto.
@@ -1794,7 +1766,9 @@ Proof.
         unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
         intuition eauto.
         rewrite upd_batch_set_ne; eauto.
-        admit.
+        intros Hx; apply in_firstn_in in Hx.
+        apply in_seq in Hx.
+        rewrite hdr_block_num_eq in Hx; lia.
       }
       {
         unfold log_data_blocks_rep in *; simpl in *; cleanup_no_match.
@@ -1804,11 +1778,17 @@ Proof.
         erewrite selN_selNopt; eauto.
         rewrite selN_firstn; eauto.
         erewrite <- selN_selNopt; eauto.
-        apply H11; eauto.
+        apply H9; eauto.
         all: try lia.
         rewrite firstn_length_l; lia.
         
-        admit.
+        rewrite seq_length in H5.
+        rewrite firstn_seq, min_l.
+        intros Hx; apply in_seq in Hx.
+        rewrite log_start_eq in Hx; simpl in *.
+        unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
+        simpl in *; lia.
+        eauto.
         apply in_firstn_in in H; eauto.        
         rewrite firstn_length_l; lia.
       }
@@ -1820,10 +1800,10 @@ Proof.
         rewrite bimap_length, min_l in H.
         do 2 rewrite firstn_length_l in H.
         rewrite skipn_length in H.
-        rewrite seq_length, map_length, app_length in H6.
+        rewrite seq_length, map_length, app_length in H5.
         
         replace (count (current_part (decode_header v)) +
-      (x + (length x3 - (x + count (current_part (decode_header v)))))) with (length x3) in H by lia.
+                 (x + (length x3 - (x + count (current_part (decode_header v)))))) with (length x3) in H by lia.
 
         destruct (lt_dec i (count (current_part (decode_header v)))).
         {(** first_part of log **) 
@@ -1832,7 +1812,7 @@ Proof.
           rewrite selN_app; eauto.
           rewrite selN_firstn; eauto.
           erewrite <- selN_selNopt; eauto.
-          apply H11; eauto.
+          apply H9; eauto.
           all: try lia.
           repeat constructor; eauto.
           rewrite firstn_length_l; lia.
@@ -1846,29 +1826,7 @@ Proof.
         }
         destruct (lt_dec i (x + count (current_part (decode_header v)))).
         {(** overwritten part of the log **)
-          Lemma upd_batch_set_seq_in:
-            forall V n start l i j (m: @mem addr addr_dec (V * list V)) vs def,
-              m j = Some vs ->
-              j = start + i ->
-              i < n ->
-              length l = n ->
-              upd_batch_set m (seq start n) l j = Some (selN l i def, fst vs :: snd vs).
-          Proof.
-            induction n; simpl; intros; eauto; try lia.
-            destruct l; simpl in *; cleanup; try lia.
-            destruct i; simpl in *; eauto.
-            rewrite Nat.add_0_r in *.
-            rewrite upd_batch_set_ne; eauto.
-            unfold upd_set; cleanup; eauto.
-            destruct (addr_dec start start); subst;
-            intuition eauto; try lia.
-            intros Hx; apply in_seq in Hx; lia.
-            specialize IHn with (i:= i) (start:= S start); simpl in *.
-            erewrite <- IHn.
-            replace (S (start + i)) with (start + S i) by lia; eauto.
-            rewrite upd_set_ne; eauto.
-            all: lia.
-          Qed.
+          
 
           rewrite firstn_seq, min_l.
           erewrite upd_batch_set_seq_in.
@@ -1876,17 +1834,7 @@ Proof.
           rewrite selN_app2.
           rewrite selN_app.
 
-          Lemma selN_bimap:
-            forall A B C (f: A -> B -> C) l1 l2 n def1 def2 def3,
-              length l1 = length l2 ->
-              n < length l1 ->
-              selN (bimap f l1 l2) n def3 = f (selN l1 n def1) (selN l2 n def2).
-          Proof.
-            induction l1; simpl; intros; try lia.
-            destruct l2; simpl in *; try lia.
-            destruct n; simpl in *; eauto.
-            erewrite IHl1; eauto; lia.
-          Qed.
+          
 
           erewrite selN_bimap; simpl; auto.
           repeat rewrite firstn_length_l; eauto.
@@ -1915,7 +1863,7 @@ Proof.
           rewrite firstn_length_l.
           replace (count (current_part (decode_header v)) + (i - count (current_part (decode_header v)))) with i by lia.
           rewrite <- selN_selNopt; eauto.
-          apply H11; eauto.
+          apply H9; eauto.
           all: try lia.
           repeat constructor; eauto.
           rewrite firstn_length_l; lia.
@@ -1934,10 +1882,10 @@ Proof.
           rewrite skipn_selN; eauto.
           replace (x + count (current_part (decode_header v)) + (i - count (current_part (decode_header v)) - x)) with i by lia.          
           erewrite <- selN_selNopt; eauto.
-          apply H11; eauto.
+          apply H9; eauto.
           all: try lia.
           repeat constructor; eauto.
-           rewrite map_length, app_length; lia.
+          rewrite map_length, app_length; lia.
           repeat rewrite firstn_length_l; try lia.
           rewrite skipn_length; lia.
           rewrite map_length, app_length; lia.
@@ -1964,17 +1912,17 @@ Proof.
           rewrite log_start_eq in Hx; simpl in *; lia.
           rewrite map_length, app_length; lia.          
         }
-        all: rewrite seq_length in H6; eauto.
+        all: rewrite seq_length in H5; eauto.
         lia.
         lia.        
         repeat rewrite firstn_length_l; eauto.
         rewrite skipn_length.
-        rewrite map_length, app_length in H6; lia.
+        rewrite map_length, app_length in H5; lia.
         {
           apply in_app_iff in H; split_ors.
           {
             apply in_firstn_in in H.
-            rewrite H17; eauto.
+            rewrite H16; eauto.
           }
           apply in_app_iff in H; split_ors.
           {
@@ -1984,11 +1932,11 @@ Proof.
             destruct x1; simpl; eapply in_combine_r in H12.
             apply in_firstn_in in H12.
             apply in_skipn_in in H12.
-            rewrite H17; eauto.
+            rewrite H16; eauto.
           }
           {
             apply in_skipn_in in H.
-            rewrite H17; eauto.
+            rewrite H16; eauto.
           }
         }
         {
@@ -2006,7 +1954,7 @@ Proof.
       }
       
       {
-        rewrite seq_length in H6.
+        rewrite seq_length in H5.
         repeat rewrite map_length in *;
         repeat rewrite app_length in *.
         rewrite bimap_length, min_l.
@@ -2025,7 +1973,7 @@ Proof.
         unfold log_header_block_rep in *; logic_clean; subst; eauto.
       }
       {
-        rewrite seq_length in H6.
+        rewrite seq_length in H5.
         repeat rewrite map_length in *;
         repeat rewrite app_length in *.
         repeat rewrite firstn_length_l.
@@ -2049,20 +1997,15 @@ Proof.
           rewrite <- firstn_map_comm; eauto.
           rewrite map_length, firstn_length_l; lia.
           apply upd_batch_consistent_subset; eauto.
-
-          apply record_is_valid_new_key; eauto.
         }
         {
-          unfold header_part_is_valid, txns_valid in *;
+          unfold txns_valid in *;
           simpl in *; logic_clean; simpl in *.
-          rewrite <- H17 in *.
+          rewrite <- H in *.
           intuition eauto.
-          eapply Forall_forall; intros.
-          eapply Forall_forall in H22; eauto.
-          eapply Forall_forall in H20.
-          2: eapply in_map; eauto.
+          eapply Forall_impl; [| eauto].
           
-          unfold record_is_valid, txn_well_formed in *; intros; logic_clean.
+          unfold txn_well_formed, record_is_valid; intros; logic_clean.
           simpl in *; intuition eauto.
 
           rewrite <- skipn_firstn_comm.
@@ -2082,68 +2025,811 @@ Proof.
           rewrite skipn_firstn_comm; eauto.
           lia.
           rewrite map_length, firstn_length_l; lia.
-
-          eapply Forall_impl; [| eauto].
-          simpl; intros.
-          destruct (in_dec value_dec (encrypt (key (record x4)) a) (map (encrypt x0) (l_addr ++ l_data))).
-          {
-            apply in_map_iff in i; logic_clean.
-            eapply in_split_last in H37; eauto.
-            logic_clean.
-            rewrite H37 in *.
-            repeat rewrite map_app in *; simpl.
-            rewrite upd_batch_app; simpl.
-            rewrite upd_batch_ne; eauto.
-            rewrite upd_eq; eauto.
-            Search consistent_with_upds.
-            rewrite consistent_with_upds_app.
-          
-          Search upd_batch encrypt.
-          
-          eapply hashes_in_hashmap_subset.
-          
-          rewrite map_app.
-          rewrite firstn_app2.
-          rewrite <- firstn_map_comm; eauto.
-          rewrite map_length, firstn_length_l; lia.
-          apply upd_batch_consistent_subset; eauto.
-
-          apply record_is_valid_new_key; eauto.
-          
-          eapply hashes_in_hashmap_subset.
-          eauto.
-          
-      
+          eapply H23; eauto.
+          eapply upd_batch_set_none; eauto.
+        }
+      }
+    }
+    {
+      apply upd_batch_set_ne.
+      intros Hx; apply in_firstn_in, in_seq in Hx.
+      pose proof data_start_where_log_ends.
+      unfold log_header_rep, log_rep_general,
+      log_rep_explicit, log_header_block_rep in *;
+      simpl in *; cleanup_no_match; simpl in *.
+      rewrite map_length, log_start_eq in *.
       lia.
+    }
+    {
+      apply seq_length.
+    }
+  }
+  apply write_consecutive_finished in H5.
+  2: apply seq_length.
+  simpl in *; logic_clean; repeat cleanup_pairs; simpl in *.
+  split_ors; cleanup_no_match; repeat invert_exec_no_match.
+  {
+    eapply update_header_crashed in H7; eauto; subst.
+    {
+      right; left.
+      intuition eauto.
+      {
+        unfold log_header_rep, log_rep_general, log_rep_explicit in *; simpl; logic_clean.
+        unfold log_crash_rep; simpl.
+          exists x, (firstn (count (current_part hdr)) x2),
+          (bimap (fun v vs => (v, fst vs::snd vs)) (map (encrypt x0) (l_addr++l_data)) (firstn (length (l_addr++l_data)) (skipn (count (current_part hdr)) x2)) ++ skipn (length (l_addr++l_data) + (count (current_part hdr))) x2).
+          simpl in *.
+          intuition eauto.
+          {
+            unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
+            intuition eauto.
+            rewrite upd_batch_set_ne; eauto.
+            intros Hx;
+            apply in_seq in Hx.
+            rewrite hdr_block_num_eq in Hx; lia.
+          }
+          {
+            unfold log_data_blocks_rep in *; simpl in *; cleanup_no_match.
+            intuition eauto.
+            rewrite firstn_length_l in H.
+            rewrite upd_batch_set_ne; eauto.
+            erewrite selN_selNopt; eauto.
+            rewrite selN_firstn; eauto.
+            erewrite <- selN_selNopt; eauto.
+            apply H8; eauto.
+            all: try lia.
+            rewrite firstn_length_l; lia.
+            intros Hx; apply in_seq in Hx.
+            rewrite log_start_eq in Hx; simpl in *.
+            unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
+            simpl in *; lia.
+            eauto.
+            apply in_firstn_in in H; eauto.        
+            rewrite firstn_length_l; lia.
+          }
+          {
+            
+            unfold log_header_block_rep, log_data_blocks_rep in *; simpl in *; cleanup_no_match; simpl in *.
+            intuition eauto.
+            repeat rewrite app_length in *.
+            rewrite bimap_length, min_l in H.
+            rewrite firstn_length_l in H.
+            rewrite skipn_length in H.
+            repeat rewrite map_length, app_length in H.
+            
+            replace (count (current_part (decode_header v)) +
+      (length l_addr + length l_data +
+       (length x2 - (length l_addr + length l_data + count (current_part (decode_header v)))))) with (length x2) in H by lia.
 
-      
-        apply in_combine_iff in H12.
-            
-        
-          lia.
+            destruct (lt_dec i (count (current_part (decode_header v)))).
+            {(** first_part of log **) 
+              rewrite upd_batch_set_ne; eauto.
+              erewrite selN_selNopt; eauto.
+              rewrite selN_app; eauto.
+              rewrite selN_firstn; eauto.
+              erewrite <- selN_selNopt; eauto.
+              apply H8; eauto.
+              all: try lia.
+              repeat constructor; eauto.
+              rewrite firstn_length_l; lia.
+              repeat constructor; eauto.
+              repeat rewrite app_length.
+              rewrite firstn_length_l by lia.
+              lia.
 
-          
-s            lia.
-            replace (S (start + i)) with (start + S i) by lia; eauto.
-            lia.
-            lia.
-            
-            
-            
-            
-            
+              intros Hx; apply in_seq in Hx.
+              rewrite log_start_eq in Hx; simpl in *; lia.
+            }
+            destruct (lt_dec i (length (l_addr++l_data) + count (current_part (decode_header v)))).
+            {(** overwritten part of the log **)
+              erewrite upd_batch_set_seq_in.
+              erewrite selN_selNopt.
+              rewrite selN_app2.
+              rewrite selN_app.
+
+              erewrite selN_bimap; simpl; auto.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length; lia.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+             
+              rewrite skipn_length; lia.
+              repeat rewrite firstn_length_l; lia.
+              repeat constructor; eauto.
+              repeat rewrite app_length.
+              rewrite skipn_length, firstn_length_l, bimap_length, min_l.
+              rewrite map_length, app_length; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              lia.
+              rewrite selN_firstn.
+              rewrite skipn_selN.
+              rewrite firstn_length_l.
+              replace (count (current_part (decode_header v)) + (i - count (current_part (decode_header v)))) with i by lia.
+              rewrite <- selN_selNopt; eauto.
+              apply H8; eauto.
+              all: try lia.
+              repeat constructor; eauto.
+              rewrite app_length in *;
+              rewrite firstn_length_l; lia.
+              rewrite log_start_eq, firstn_length_l; lia.
               
-
+              rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length in *; lia.
+              rewrite map_length, app_length in *; lia.
+            }
+            {(** last part of log **) 
+              rewrite upd_batch_set_ne; eauto.
+              erewrite selN_selNopt; eauto.
+              repeat rewrite selN_app2; eauto.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l.
+              rewrite skipn_selN; eauto.
+              rewrite map_length, app_length in *.
+              replace (length l_addr + length l_data + count (current_part (decode_header v)) +
+        (i - count (current_part (decode_header v)) - (length l_addr + length l_data)))  with i by lia.          
+              erewrite <- selN_selNopt; eauto.
+              apply H8; eauto.
+              all: try lia.
+              repeat constructor; eauto.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length, app_length in *; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.              
+              rewrite skipn_length; lia.
+              
+              rewrite firstn_length_l; lia.
+              repeat constructor; eauto.
+              repeat rewrite app_length.
+              rewrite firstn_length_l by lia.
+              rewrite skipn_length, bimap_length, min_l.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length, app_length; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              
+              intros Hx; apply in_seq in Hx.              
+              rewrite map_length, app_length in *;
+              rewrite log_start_eq in Hx; simpl in *; lia.         
+            }
+            lia.    
+            repeat rewrite firstn_length_l; eauto.            
+            rewrite map_length, app_length; lia.
+            rewrite skipn_length; lia.
+            {
+              apply in_app_iff in H; split_ors.
+              {
+                apply in_firstn_in in H.
+                rewrite H15; eauto.
+              }
+              apply in_app_iff in H; split_ors.
+              {
+                rewrite bimap_combine_map in H.
+                apply in_map_iff in H; cleanup_no_match.
+                simpl.
+                destruct x; simpl; eapply in_combine_r in H12.
+                apply in_firstn_in in H12.
+                apply in_skipn_in in H12.
+                rewrite H15; eauto.
+              }
+              {
+                apply in_skipn_in in H.
+                rewrite H15; eauto.
+              }
+            }
+            {
+              repeat rewrite map_length in *;
+              repeat rewrite app_length in *.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l.
+              rewrite skipn_length;
+              rewrite map_length, app_length; lia.
+              lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+            }
+          }
           
-          XXXXX
+          {
+            repeat rewrite map_length in *;
+            repeat rewrite app_length in *.
+            rewrite bimap_length, min_l.
+            repeat rewrite firstn_length_l.
+            rewrite skipn_length;
+            rewrite map_length, app_length; lia.
+            lia.
+            repeat rewrite firstn_length_l; eauto.
+            rewrite map_length, app_length; lia.
+            rewrite skipn_length; lia.
+          }
+          {
+            unfold log_header_block_rep in *; logic_clean; subst; eauto.
+          }
+          {
+            unfold log_header_block_rep in *; logic_clean; subst; eauto.
+          }
+          {
+            repeat rewrite map_length in *;
+            repeat rewrite app_length in *.
+            repeat rewrite firstn_length_l.
+            unfold log_header_block_rep in *; logic_clean; subst; eauto.
+            lia.
+          }
+          {
+            unfold log_rep_inner in *; simpl in *; cleanup_no_match; simpl in *.
+            split.
+            {
+              unfold header_part_is_valid in *; simpl in *; logic_clean; simpl in *.
+              intuition eauto.
+              rewrite map_app.
+              rewrite firstn_app2.
+              rewrite <- firstn_map_comm; eauto.
+              rewrite map_length, firstn_length_l; lia.
+              eapply hashes_in_hashmap_subset.
+              
+              rewrite map_app.
+              rewrite firstn_app2.
+              rewrite <- firstn_map_comm; eauto.
+              rewrite map_length, firstn_length_l; lia.
+              apply upd_batch_consistent_subset; eauto.
+            }
+            {
+              unfold txns_valid in *;
+              simpl in *; logic_clean; simpl in *.
+              rewrite <- H in *.
+              intuition eauto.
+              eapply Forall_impl; [| eauto].
+              
+              unfold txn_well_formed, record_is_valid; intros; logic_clean.
+              simpl in *; intuition eauto.
 
+              rewrite <- skipn_firstn_comm.
+              rewrite map_app.
+              rewrite firstn_app_l.
+              rewrite <- firstn_map_comm; eauto.
+              rewrite firstn_firstn, min_l.
+              rewrite skipn_firstn_comm; eauto.
+              lia.
+              rewrite map_length, firstn_length_l; lia.
+
+              rewrite <- skipn_firstn_comm.
+              rewrite map_app.
+              rewrite firstn_app_l.
+              rewrite <- firstn_map_comm; eauto.
+              rewrite firstn_firstn, min_l.
+              rewrite skipn_firstn_comm; eauto.
+              lia.
+              rewrite map_length, firstn_length_l; lia.
+              eapply H22; eauto.
+              eapply upd_batch_set_none; eauto.
+            }
+          }
+        }
+        {
+          apply upd_batch_set_ne.
+          intros Hx; apply in_seq in Hx.
+          pose proof data_start_where_log_ends.
+          unfold log_header_rep, log_rep_general,
+          log_rep_explicit, log_header_block_rep in *;
+          simpl in *; cleanup_no_match; simpl in *.
+          rewrite map_length, log_start_eq in *.
+          lia.
+        }
+    }
+    {
+      simpl; rewrite upd_batch_set_ne; eauto.
+      intros Hx; apply in_seq in Hx.
+      rewrite hdr_block_num_eq in *; lia.
+    }
+  }
+  {
+    eapply update_header_finished in H7; eauto.
+    2: {
+      simpl; rewrite upd_batch_set_ne; eauto.
+      intros Hx; apply in_seq in Hx.
+      rewrite hdr_block_num_eq in *; lia.
+    }
+    right; right.
+    cleanup_no_match; repeat cleanup_pairs.
+    exists (Build_txn {|
+                         key := x0;
+                         start := count (current_part (decode_header v0));
+                         addr_count := length l_addr;
+                         data_count := length l_data |} (firstn (length l_data) (blocks_to_addr_list l_addr)) l_addr l_data).
+    simpl.
+    intuition eauto.
+
+    {
+      unfold log_header_rep, log_rep_general, log_rep_explicit in *; cleanup_no_match.
+      unfold log_crash_rep; simpl.
+      exists v0, (encode_header
+           (update_hdr (decode_header v0)
+              {|
+              hash := rolling_hash (hash (current_part (decode_header v0)))
+                        (map (encrypt x0) (l_addr ++ l_data));
+              count := count (current_part (decode_header v0)) + (length l_addr + length l_data);
+              records := records (current_part (decode_header v0)) ++
+                         [{|
+                          key := x0;
+                          start := count (current_part (decode_header v0));
+                          addr_count := length l_addr;
+                          data_count := length l_data |}] |})).
+
+      rewrite encode_decode_header; simpl.
+      exists (firstn (count (current_part (decode_header (fst x)))) x1),
+          (bimap (fun v vs => (v, fst vs::snd vs)) (map (encrypt x0) (l_addr++l_data)) (firstn (length (l_addr++l_data)) (skipn (count (current_part (decode_header (fst x)))) x1)) ++ skipn (length (l_addr++l_data) + (count (current_part (decode_header (fst x))))) x1).
+          simpl in *.
+          intuition eauto.
+          {
+            unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
+            intuition eauto.
+            rewrite upd_eq; simpl; eauto.
+            simpl in *; subst; eauto.
+          }
+          {
+            unfold log_data_blocks_rep in *; simpl in *; cleanup_no_match.
+            intuition eauto.
+            rewrite firstn_length_l in H16.
+            rewrite upd_ne.
+            rewrite upd_batch_set_ne; eauto.
+            erewrite selN_selNopt; eauto.
+            rewrite selN_firstn; eauto.
+            erewrite <- selN_selNopt; eauto.
+            apply H; eauto.
+            all: try lia.
+            rewrite firstn_length_l; lia.
+            intros Hx; apply in_seq in Hx.
+            rewrite log_start_eq in Hx; simpl in *.
+            unfold log_header_block_rep in *; simpl in *; cleanup_no_match.
+            simpl in *; lia.
+            rewrite log_start_eq, hdr_block_num_eq; lia.
+            apply in_firstn_in in H16; eauto.        
+            rewrite firstn_length_l; lia.
+          }
+          { 
+            unfold log_header_block_rep, log_data_blocks_rep in *; simpl in *; cleanup_no_match; simpl in *.
+            intuition eauto.
+            repeat rewrite app_length in *.
+            rewrite bimap_length, min_l in H12.
+            rewrite firstn_length_l in H12.
+            rewrite skipn_length in H12.
+            repeat rewrite map_length, app_length in H12.
             
-  
+            replace (count (current_part (decode_header v0)) +
+        (length l_addr + length l_data +
+         (length x1 - (length l_addr + length l_data + count (current_part (decode_header v0)))))) with (length x1) in H12 by lia.
+            rewrite upd_ne.
+            destruct (lt_dec i (count (current_part (decode_header v0)))).
+            {(** first_part of log **) 
+              rewrite upd_batch_set_ne; eauto.
+              erewrite selN_selNopt; eauto.
+              rewrite selN_app; eauto.
+              rewrite selN_firstn; eauto.
+              erewrite <- selN_selNopt; eauto.
+              apply H; eauto.
+              all: try lia.
+              repeat constructor; eauto.
+              rewrite firstn_length_l; lia.
+              repeat constructor; eauto.
+              repeat rewrite app_length.
+              rewrite firstn_length_l by lia.
+              lia.
+
+              intros Hx; apply in_seq in Hx.
+              rewrite log_start_eq in Hx; simpl in *; lia.
+            }
+            destruct (lt_dec i (length (l_addr++l_data) + count (current_part (decode_header v0)))).
+            {(** overwritten part of the log **)
+              erewrite upd_batch_set_seq_in.
+              erewrite selN_selNopt.
+              rewrite selN_app2.
+              rewrite selN_app.
+
+              erewrite selN_bimap; simpl; auto.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length; lia.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+             
+              rewrite skipn_length; lia.
+              repeat rewrite firstn_length_l; lia.
+              repeat constructor; eauto.
+              repeat rewrite app_length.
+              rewrite skipn_length, firstn_length_l, bimap_length, min_l.
+              rewrite map_length, app_length; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              lia.
+              rewrite selN_firstn.
+              rewrite skipn_selN.
+              rewrite firstn_length_l.
+              replace (count (current_part (decode_header v0)) + (i - count (current_part (decode_header v0)))) with i by lia.
+              rewrite <- selN_selNopt; eauto.
+              apply H; eauto.
+              all: try lia.
+              repeat constructor; eauto.
+              rewrite app_length in *;
+              rewrite firstn_length_l; lia.
+              rewrite log_start_eq, firstn_length_l; lia.
+              
+              rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length in *; lia.
+              rewrite map_length, app_length in *; lia.
+            }
+            {(** last part of log **) 
+              rewrite upd_batch_set_ne; eauto.
+              erewrite selN_selNopt; eauto.
+              repeat rewrite selN_app2; eauto.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l.
+              rewrite skipn_selN; eauto.
+              rewrite map_length, app_length in *.
+              replace (length l_addr + length l_data + count (current_part (decode_header v0)) +
+        (i - count (current_part (decode_header v0)) - (length l_addr + length l_data)))  with i by lia.          
+              erewrite <- selN_selNopt; eauto.
+              apply H; eauto.
+              all: try lia.
+              repeat constructor; eauto.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length, app_length in *; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.              
+              rewrite skipn_length; lia.
+              
+              rewrite firstn_length_l; lia.
+              repeat constructor; eauto.
+              repeat rewrite app_length.
+              rewrite firstn_length_l by lia.
+              rewrite skipn_length, bimap_length, min_l.
+              repeat rewrite firstn_length_l; try lia.
+              rewrite map_length, app_length; lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+              
+              intros Hx; apply in_seq in Hx.              
+              rewrite map_length, app_length in *;
+              rewrite log_start_eq in Hx; simpl in *; lia.         
+            }
+            rewrite log_start_eq, hdr_block_num_eq; lia.
+            lia.    
+            repeat rewrite firstn_length_l; eauto.            
+            rewrite map_length, app_length; lia.
+            rewrite skipn_length; lia.
+            {
+              apply in_app_iff in H12; split_ors.
+              {
+                apply in_firstn_in in H12.
+                rewrite H8; eauto.
+              }
+              apply in_app_iff in H12; split_ors.
+              {
+                rewrite bimap_combine_map in H12.
+                apply in_map_iff in H12; cleanup_no_match.
+                simpl.
+                destruct x; simpl; eapply in_combine_r in H17.
+                apply in_firstn_in in H17.
+                apply in_skipn_in in H17.
+                rewrite H8; eauto.
+              }
+              {
+                apply in_skipn_in in H12.
+                rewrite H8; eauto.
+              }
+            }
+            {
+              repeat rewrite map_length in *;
+              repeat rewrite app_length in *.
+              rewrite bimap_length, min_l.
+              repeat rewrite firstn_length_l.
+              rewrite skipn_length;
+              rewrite map_length, app_length; lia.
+              lia.
+              repeat rewrite firstn_length_l; eauto.
+              rewrite map_length, app_length; lia.
+              rewrite skipn_length; lia.
+            }
+          }
+          
+          {
+            repeat rewrite map_length in *;
+            repeat rewrite app_length in *.
+            rewrite bimap_length, min_l.
+            repeat rewrite firstn_length_l.
+            rewrite skipn_length;
+            rewrite map_length, app_length; lia.
+            lia.
+            repeat rewrite firstn_length_l; eauto.
+            rewrite map_length, app_length; lia.
+            rewrite skipn_length; lia.
+          }
+          {
+            unfold log_header_block_rep in *; simpl in *;
+            cleanup_no_match; subst; eauto.
+            simpl in *; rewrite app_length in *;
+            lia.
+          }
+          {
+            unfold log_header_block_rep in *; simpl in *;
+            cleanup_no_match; subst; eauto.
+          }
+          {
+            unfold log_header_block_rep in *; simpl in *;
+            cleanup_no_match; subst; eauto.
+          }
+          {
+            repeat rewrite map_length in *;
+            repeat rewrite app_length in *.
+            repeat rewrite firstn_length_l.            
+            unfold log_header_block_rep in *; simpl in *;
+            cleanup_no_match; subst; eauto.         
+            unfold log_header_block_rep in *; logic_clean; subst; eauto.
+            lia.
+          }
+          {
+            unfold log_rep_inner in *; simpl in *; cleanup_no_match; simpl in *.
+            unfold log_header_block_rep in *; simpl in *;
+            cleanup_no_match; subst; simpl in *.
+            split.
+            { 
+              unfold header_part_is_valid in *; simpl in *; logic_clean; simpl in *.
+              intuition eauto.
+              repeat rewrite map_app.
+              rewrite firstn_app.
+              rewrite map_length, firstn_length_l.
+              replace (count (current_part (decode_header v0)) + (length l_addr + length l_data) -
+        count (current_part (decode_header v0))) with (length l_addr + length l_data) by lia.
+              rewrite <- firstn_map_comm; eauto.
+              rewrite firstn_firstn, min_r by lia.
+              rewrite firstn_app2.
+              repeat rewrite rolling_hash_app.
+              rewrite bimap_combine_map, map_map; simpl.
+              rewrite map_fst_combine.
+              rewrite H, rolling_hash_app; eauto.
+              rewrite app_length, map_length,
+              firstn_length_l, app_length.
+              rewrite map_length; eauto.
+              rewrite skipn_length; lia.
+              rewrite map_length, bimap_length, min_l.
+              rewrite app_length;
+              repeat rewrite map_length; eauto.
+              rewrite firstn_length_l.
+              repeat rewrite app_length;
+              repeat rewrite map_length; eauto.
+              rewrite skipn_length; lia.
+              lia.              
+              eapply hashes_in_hashmap_subset.
+              
+              repeat rewrite map_app.
+              rewrite firstn_app_le.
+              rewrite firstn_app2.
+              admit.
+
+              repeat rewrite map_length;
+              rewrite bimap_length, min_l.
+              rewrite app_length;
+              repeat rewrite map_length;
+              rewrite firstn_length_l; lia.
+              rewrite firstn_length_l.
+              repeat rewrite app_length;
+              repeat rewrite map_length; eauto.
+              rewrite skipn_length; lia.
+              rewrite map_length, firstn_length_l; lia.
+              apply upd_batch_consistent_subset; eauto.
+              rewrite app_length in *; lia.
+              {
+                rewrite map_app; simpl; rewrite fold_left_app; simpl.
+                lia.
+              }
+              {
+                admit.
+              }              
+            }
+            {
+              unfold txns_valid in *;
+              simpl in *; logic_clean; simpl in *.
+              rewrite <- H12 in *.
+              intuition eauto.
+              {
+                rewrite map_app; simpl; eauto.
+              }
+              {
+                apply Forall_app.
+                {
+                  eapply Forall_impl; [| eauto].
+                  
+                  unfold txn_well_formed, record_is_valid; intros; logic_clean.
+                  simpl in *; intuition eauto.
+                  lia.
+                  
+                  rewrite <- skipn_firstn_comm.
+                  rewrite map_app.
+                  rewrite firstn_app_l.
+                  rewrite <- firstn_map_comm; eauto.
+                  rewrite firstn_firstn, min_l.
+                  rewrite skipn_firstn_comm; eauto.
+                  lia.
+                  rewrite map_length, firstn_length_l; lia.
+                  
+                  rewrite <- skipn_firstn_comm.
+                  rewrite map_app.
+                  rewrite firstn_app_l.
+                  rewrite <- firstn_map_comm; eauto.
+                  rewrite firstn_firstn, min_l.
+                  rewrite skipn_firstn_comm; eauto.
+                  lia.
+                  rewrite map_length, firstn_length_l; lia.
+                  eapply H22; eauto.
+                  eapply upd_batch_set_none; eauto.
+                  rewrite upd_ne in H28; eauto.
+                  eapply Forall_forall in H21; eauto.
+                  pose proof data_start_where_log_ends.
+                  pose proof hdr_before_log.
+                  lia.
+                }
+                {
+                  unfold txn_well_formed, record_is_valid;
+                  simpl; intuition eauto; try lia.
+                  {
+                    repeat rewrite map_app.
+                    rewrite skipn_app_eq.
+                    rewrite bimap_combine_map.
+                    rewrite map_map; simpl.
+                    rewrite map_fst_combine.
+                    rewrite <- app_assoc.
+                    rewrite firstn_app2; eauto.
+                    rewrite map_length; eauto.
+                    
+                    rewrite firstn_length_l.
+                    repeat rewrite app_length;
+                    repeat rewrite map_length; eauto.
+                    rewrite skipn_length; lia.
+                    rewrite map_length, firstn_length_l; lia.
+                  }
+                  {
+                    repeat rewrite map_app.
+                    rewrite skipn_app_r_ge.
+                    rewrite bimap_combine_map.
+                    rewrite map_map; simpl.
+                    rewrite map_fst_combine.
+                    rewrite <- app_assoc.
+                    rewrite skipn_app_eq.
+                    rewrite firstn_app2; eauto.
+                    rewrite map_length; eauto.
+
+                    repeat rewrite map_length.                    
+                    rewrite firstn_length_l; lia.
+                    rewrite firstn_length_l.
+                    repeat rewrite app_length;
+                    repeat rewrite map_length; eauto.
+                    rewrite skipn_length; lia.
+                    rewrite map_length, firstn_length_l; lia.
+                  }
+                  {
+                    rewrite upd_ne in H17.
+                    eapply upd_batch_set_none in H17; eauto.
+                    eapply Forall_forall in H2; eauto.
+                    pose proof data_start_where_log_ends.
+                    pose proof hdr_before_log.
+                    lia.
+                  }
+                }
+              }
+            }
+          }
+          {
+            unfold log_rep_inner in *; simpl in *; cleanup_no_match; simpl in *.
+            unfold log_header_block_rep in *; simpl in *;
+            cleanup_no_match; subst; simpl in *.
+            split.
+            { 
+              unfold header_part_is_valid in *; simpl in *; logic_clean; simpl in *.
+              intuition eauto.
+              repeat rewrite map_app.
+              rewrite firstn_app2.
+              rewrite <- firstn_map_comm; eauto.
+              
+              rewrite map_length,
+              firstn_length_l; eauto; lia.
+              repeat rewrite map_app.
+              rewrite firstn_app2.
+              rewrite <- firstn_map_comm.
+              eapply hashes_in_hashmap_subset; eauto.
+              apply upd_batch_consistent_subset; eauto.
+              repeat rewrite <- map_app; eauto.
+              rewrite map_length,
+              firstn_length_l; eauto; lia.
+            }
+            {
+              unfold txns_valid in *;
+              simpl in *; logic_clean; simpl in *.
+              rewrite <- H12 in *.
+              intuition eauto.
+              {
+                eapply Forall_impl; [| eauto].
+                
+                unfold txn_well_formed, record_is_valid; intros; logic_clean.
+                simpl in *; intuition eauto.
+                  
+                rewrite <- skipn_firstn_comm.
+                rewrite map_app.
+                rewrite firstn_app_l.
+                rewrite <- firstn_map_comm; eauto.
+                rewrite firstn_firstn, min_l.
+                rewrite skipn_firstn_comm; eauto.
+                lia.
+                rewrite map_length, firstn_length_l; lia.
+                
+                rewrite <- skipn_firstn_comm.
+                rewrite map_app.
+                rewrite firstn_app_l.
+                rewrite <- firstn_map_comm; eauto.
+                rewrite firstn_firstn, min_l.
+                rewrite skipn_firstn_comm; eauto.
+                lia.
+                rewrite map_length, firstn_length_l; lia.
+                eapply H22; eauto.
+                eapply upd_batch_set_none; eauto.
+                rewrite upd_ne in H28; eauto.
+                eapply Forall_forall in H21; eauto.
+                pose proof data_start_where_log_ends.
+                pose proof hdr_before_log.
+                lia.
+              }
+            }
+          }
+    }
+    {
+      unfold log_header_rep, log_rep_general, log_rep_explicit,
+      log_header_block_rep in *; simpl in *; cleanup_no_match; simpl in *.
+      rewrite upd_ne.
+      rewrite upd_batch_set_ne; eauto.
+      {
+        
+        intros Hx; apply in_seq in Hx.
+        pose proof data_start_where_log_ends.
+         rewrite map_length, app_length in *;
+         rewrite log_start_eq in H; simpl in *; lia.
+      }
+      {
+        pose proof data_start_where_log_ends.
+        pose proof hdr_before_log.
+        lia.
+      }
+      Unshelve.
+      all: repeat constructor; eauto.
+Admitted.
+
+
 Theorem commit_finished:
-  forall txns l_addr l_data o s s' t,
+  forall txns l_addr l_data hdr o s s' t,
     let addr_list := (firstn (length l_data) (blocks_to_addr_list l_addr)) in
     
-    log_rep txns s ->
+    log_header_rep hdr txns s ->
     NoDup addr_list ->
     Forall (fun a => a >= data_start) addr_list ->
     (forall a, In a addr_list -> (snd s) a <> None) ->
@@ -2152,34 +2838,90 @@ Theorem commit_finished:
     exec CryptoDiskLang o s (commit l_addr l_data) (Finished s' t) ->
     (exists txn,
        t = true /\
-      addr_blocks txn = l_addr /\
-      data_blocks txn = l_data /\
-      log_rep (txns ++ [txn]) s' /\
-      (forall a, a >= data_start -> (snd s') a = (sync (snd s)) a)) \/
-    (t = false /\ s' = s).
+       addr_blocks txn = l_addr /\
+       data_blocks txn = l_data /\
+       log_rep (txns ++ [txn]) s' /\
+       (forall a, a >= data_start -> (snd s') a = (sync (snd s)) a)) \/
+    (t = false /\ s' = s /\ count (current_part hdr) + length (l_addr ++ l_data) > log_length).
 Proof.
   unfold commit, read_header; intros.
   repeat invert_exec.
   right; repeat cleanup_pairs; eauto.
-  unfold log_rep in *; cleanup.
+  {
+    intuition eauto.
+    unfold log_header_rep, log_rep_general, log_rep_explicit, log_header_block_rep in *;
+    simpl in *; cleanup; simpl in *.
+    rewrite app_length;    
+    apply Nat.ltb_lt; eauto.
+  }
   repeat cleanup_pairs.
   eapply commit_txn_finished in H5; eauto.
   logic_clean; left; eexists; intuition eauto.
-  unfold log_rep_general, log_rep_explicit, log_header_block_rep in *.
+  unfold log_header_rep, log_rep_general, log_rep_explicit, log_header_block_rep in *.
   simpl in *; cleanup; simpl; rewrite app_length; eauto.
   apply Nat.ltb_ge; eauto.
 Qed.
 
 
+Theorem commit_crashed:
+  forall txns l_addr l_data o s s',
+    let addr_list := (firstn (length l_data) (blocks_to_addr_list l_addr)) in
+    
+    log_rep txns s ->
+    NoDup addr_list ->
+    Forall (fun a => a >= data_start) addr_list ->
+    (forall a, In a addr_list -> (snd s) a <> None) ->
+    length l_data <= length (blocks_to_addr_list l_addr) ->
+    
+    exec CryptoDiskLang o s (commit l_addr l_data) (Crashed s') ->
+    (log_rep txns s' /\ snd s' = snd s) \/
+    (log_crash_rep (During_Commit_Log_Write txns) s' /\
+     (forall a, a >= data_start -> (snd s') a = (snd s) a)) \/
+    (exists txn,
+       addr_blocks txn = l_addr /\
+       data_blocks txn = l_data /\
+       log_crash_rep (During_Commit_Header_Write txns (txns ++ [txn])) s' /\
+       (forall a, a >= data_start -> (snd s') a = (snd s) a)) \/
+    (exists txn,
+       addr_blocks txn = l_addr /\
+       data_blocks txn = l_data /\
+       log_rep (txns ++ [txn]) s' /\
+       (forall a, a >= data_start -> (snd s') a = sync (snd s) a)).
+Proof.
+  unfold commit, read_header; simpl; intros.
+  repeat invert_exec.
+  split_ors; cleanup; repeat invert_exec; eauto.
+  {(** read_header crashed **)
+    split_ors; cleanup; repeat invert_exec; eauto.
+  }
+  split_ors; cleanup; repeat invert_exec; eauto.
+  {(** commit_txn_crashed **)
+    unfold log_rep in *; cleanup.
+    eapply commit_txn_crashed in H4; eauto.
+    intuition eauto.
+    unfold log_rep_general, log_rep_explicit, log_header_block_rep in *;
+    simpl in *; cleanup; simpl in *.
+    rewrite app_length;
+    apply Nat.ltb_ge in D; lia.
+  }
+  {
+    unfold log_rep in *; cleanup.
+    eapply commit_txn_finished in H4; eauto.
+    unfold log_rep_general, log_rep_explicit, log_header_block_rep in *;
+    simpl in *; cleanup; simpl in *.
+    rewrite app_length;
+    apply Nat.ltb_ge in D; lia.
+  }
+Qed.
 
 
-
-
-Theorem recovery_finished:
+Theorem recover_finished:
   forall o s txns s' r,
     log_reboot_rep txns s ->
     exec CryptoDiskLang o s recover (Finished s' r) ->
-    log_rep txns s'.
+    log_rep txns s' /\
+    r = combine (map addr_list txns) (map data_blocks txns) /\
+    (forall a, a >= data_start -> snd s' a = sync (snd s) a).
 Proof.
   unfold log_reboot_rep, log_rep; intros; cleanup.
   unfold recover, write_header in *.
@@ -2195,6 +2937,7 @@ Proof.
       cleanup_no_match; repeat cleanup_pairs.
 
       unfold log_rep_general, log_rep_explicit in *; cleanup.
+      split.
       do 3 eexists; do 2 split; simpl.  
       {
         unfold log_header_block_rep in *; cleanup; simpl in *.
@@ -2246,24 +2989,46 @@ Proof.
           eapply Forall_forall in H7; eauto.
           unfold txn_well_formed in *; cleanup_no_match.
           intuition eauto.
-          rewrite sync_upd_comm in H22.
-          rewrite upd_ne in H22; eauto.    
-          eapply sync_not_none in H22; eauto.
-          eapply Forall_forall in H16; eauto.
+          rewrite sync_upd_comm in H21.
+          rewrite upd_ne in H21; eauto.    
+          eapply sync_not_none in H21; eauto.
+          eapply Forall_forall in H15; eauto.
           pose proof data_start_where_log_ends.
           pose proof hdr_before_log.
           lia.
         }
       }
+      {
+        split.
+        unfold log_rep_inner, txns_valid in *; logic_clean.
+        rewrite <- H6.
+        erewrite bimap_get_addr_list.
+        eauto.
+        3: eauto.
+        destruct x0; eauto.
+        rewrite map_length; eauto.
+        simpl.
+        intros.
+        rewrite sync_upd_comm; simpl.
+        rewrite upd_ne; eauto.
+        pose proof hdr_before_log.
+        pose proof data_start_where_log_ends.
+        lia.
+      }
     }
   }
 Qed.
 
-Theorem recovery_crashed:
+Theorem recover_crashed:
   forall o s txns s',
     log_reboot_rep txns s ->
     exec CryptoDiskLang o s recover (Crashed s') ->
-    log_reboot_rep txns s' \/ log_crash_rep (During_Recovery txns) s' \/ log_rep txns s'.
+    (log_reboot_rep txns s' /\
+      (forall a, a >= data_start -> snd s' a = snd s a)) \/
+     (log_crash_rep (During_Recovery txns) s' /\
+      (forall a, a >= data_start -> snd s' a = snd s a)) \/
+     (log_rep txns s' /\
+      (forall a, a >= data_start -> snd s' a = sync (snd s) a)) .
 Proof.
   unfold log_reboot_rep, recover; intros; cleanup.
   repeat invert_exec_no_match; cleanup_no_match; eauto.
@@ -2271,7 +3036,8 @@ Proof.
   {
     eapply read_encrypted_log_crashed in H0; eauto.
     cleanup; eauto.
-    left; do 4 eexists; eauto.
+    left; split; eauto.
+    do 4 eexists; eauto.
     {
       unfold log_rep_explicit in *; cleanup; intuition eauto.
       {
@@ -2294,10 +3060,10 @@ Proof.
       unfold write_header in *.
       invert_exec_no_match; split_ors; cleanup_no_match; repeat invert_exec_no_match.
       {
-        invert_exec'' H0; repeat invert_exec_no_match.
-        {      
-          left; do 4 eexists; eauto.
+        {
           repeat cleanup_pairs; eauto.
+          left; split; eauto.
+          do 4 eexists; eauto.
           {
             unfold log_rep_explicit in *; cleanup; intuition eauto.
             unfold log_rep_inner in *; logic_clean; intuition eauto.
@@ -2309,20 +3075,20 @@ Proof.
       split_ors; cleanup_no_match; repeat invert_exec_no_match.
       {
         repeat cleanup_pairs.
-        right; left.
+        right; left; split.
         {
           unfold log_rep_explicit, log_header_block_rep in *; cleanup_no_match; simpl in *.
           unfold log_crash_rep.
           exists v, (encode_header
-           {|
-           old_part := match x0 with
-                       | Current_Part => current_part (decode_header (fst x1))
-                       | Old_Part => old_part (decode_header (fst x1))
-                       end;
-           current_part := match x0 with
-                           | Current_Part => current_part (decode_header (fst x1))
-                           | Old_Part => old_part (decode_header (fst x1))
-                           end |}).
+                  {|
+                    old_part := match x0 with
+                                | Current_Part => current_part (decode_header (fst x1))
+                                | Old_Part => old_part (decode_header (fst x1))
+                                end;
+                    current_part := match x0 with
+                                    | Current_Part => current_part (decode_header (fst x1))
+                                    | Old_Part => old_part (decode_header (fst x1))
+                                    end |}).
           simpl.
           exists x2.
           repeat rewrite encode_decode_header; simpl.
@@ -2353,8 +3119,8 @@ Proof.
               unfold txns_valid in *; simpl in *; intuition eauto.
               eapply Forall_impl; [| eauto].
               unfold txn_well_formed; simpl; intros; cleanup_no_match; intuition eauto.
-              rewrite upd_ne in H21; eauto.
-              eapply Forall_forall in H15; eauto.
+              rewrite upd_ne in H20; eauto.
+              eapply Forall_forall in H14; eauto.
               pose proof data_start_where_log_ends.
               pose proof hdr_before_log.
               lia.
@@ -2368,13 +3134,19 @@ Proof.
               unfold txns_valid in *; simpl in *; intuition eauto.
               eapply Forall_impl; [| eauto].
               unfold txn_well_formed; simpl; intros; cleanup_no_match; intuition eauto.
-              rewrite upd_ne in H21; eauto.
-              eapply Forall_forall in H15; eauto.
+              rewrite upd_ne in H20; eauto.
+              eapply Forall_forall in H14; eauto.
               pose proof data_start_where_log_ends.
               pose proof hdr_before_log.
               lia.
             }      
           }
+        }
+        {
+          intros.
+          apply upd_ne.
+          pose proof hdr_before_log.
+          pose proof data_start_where_log_ends; lia.
         }
       }
       {
@@ -2385,21 +3157,21 @@ Proof.
         clear H0 H3 H4 H6.
         cleanup_no_match.
         
-        right; right.
+        right; right; split.
         unfold log_rep, log_rep_general.
         {
           unfold log_rep_explicit, log_header_block_rep in *; cleanup_no_match; simpl in *.
           eexists.
           exists (encode_header
-           {|
-           old_part := match x0 with
-                       | Current_Part => current_part (decode_header (fst x1))
-                       | Old_Part => old_part (decode_header (fst x1))
-                       end;
-           current_part := match x0 with
-                           | Current_Part => current_part (decode_header (fst x1))
-                           | Old_Part => old_part (decode_header (fst x1))
-                           end |}, []).
+               {|
+                 old_part := match x0 with
+                             | Current_Part => current_part (decode_header (fst x1))
+                             | Old_Part => old_part (decode_header (fst x1))
+                             end;
+                 current_part := match x0 with
+                                 | Current_Part => current_part (decode_header (fst x1))
+                                 | Old_Part => old_part (decode_header (fst x1))
+                                 end |}, []).
           simpl.
           exists (map (fun vs => (fst vs, [])) x2).
           repeat rewrite encode_decode_header; simpl.
@@ -2436,16 +3208,23 @@ Proof.
               unfold txns_valid in *; simpl in *; intuition eauto.
               eapply Forall_impl; [| eauto].
               unfold txn_well_formed; simpl; intros; cleanup_no_match; intuition eauto.
-              rewrite sync_upd_comm in H21; simpl in *.
-              rewrite upd_ne in H21; eauto.
-              eapply sync_not_none in H21; eauto.
-              eapply Forall_forall in H15; eauto.
+              rewrite sync_upd_comm in H20; simpl in *.
+              rewrite upd_ne in H20; eauto.
+              eapply sync_not_none in H20; eauto.
+              eapply Forall_forall in H14; eauto.
               pose proof data_start_where_log_ends.
               pose proof hdr_before_log.
               lia.
             }      
           }
         }
+        {
+          simpl; intros.
+          rewrite sync_upd_comm; simpl.
+          apply upd_ne.
+          pose proof hdr_before_log.
+          pose proof data_start_where_log_ends; lia.
+        }          
       }
     }
   }

@@ -36,126 +36,6 @@ Section HorizontalComposition.
         O2.(exec) o2 (snd s) p2 (Crashed s2) ->
         exec' (Token2 o2) s (P2 _ p2) (Crashed (fst s, s2)).
   
-  Definition weakest_precondition' T (p: horizontal_composition_prog T) :=
-    match p with
-    | P1 _ p1 =>
-      fun Q o s =>
-      exists o1,
-      o = Token1 o1 /\ O1.(weakest_precondition) p1 (fun r s' => Q r (s', snd s)) o1 (fst s)
-    | P2 _ p2 =>
-      fun Q o s =>
-      exists o2,
-      o = Token2 o2 /\ O2.(weakest_precondition) p2 (fun r s' => Q r (fst s, s')) o2 (snd s)
-    end.
-
-  Definition weakest_crash_precondition' T (p: horizontal_composition_prog T) :=
-    match p with
-    | P1 _ p1 =>
-      fun Q o s =>
-      exists o1,
-      o = Token1 o1 /\ O1.(weakest_crash_precondition) p1 (fun s' => Q (s', snd s)) o1 (fst s)
-    | P2 _ p2 =>
-      fun Q o s =>
-      exists o2,
-      o = Token2 o2 /\ O2.(weakest_crash_precondition) p2 (fun s' => Q (fst s, s')) o2 (snd s)
-    end.
-
-  Definition strongest_postcondition' T (p: horizontal_composition_prog T) :=
-    match p with
-    | P1 _ p1 =>
-      fun P t s' =>
-      O1.(strongest_postcondition) p1 (fun o s => P (Token1 o) (s, snd s')) t (fst s')
-    | P2 _ p2 =>
-      fun P t s' =>
-        O2.(strongest_postcondition) p2 (fun o s => P (Token2 o) (fst s', s)) t (snd s')
-    end.
-
-  Definition strongest_crash_postcondition' T (p: horizontal_composition_prog T) :=
-    match p with
-    | P1 _ p1 =>
-      fun P s' =>
-      O1.(strongest_crash_postcondition) p1 (fun o s => P (Token1 o) (s, snd s')) (fst s')
-    | P2 _ p2 =>
-      fun P s' =>
-        O2.(strongest_crash_postcondition) p2 (fun o s => P (Token2 o) (fst s', s)) (snd s')
-    end.
-
-   Theorem wp_complete':
-      forall T (p: horizontal_composition_prog T) H Q,
-        (forall o s, H o s -> weakest_precondition' p Q o s) <->
-        (forall o s, H o s ->
-                (exists s' v, exec' o s p (Finished s' v) /\ Q v s')).
-   Proof.
-     intros; destruct p; simpl;
-     split; intros;
-       try solve [
-         specialize H0 with (1:= X); cleanup;
-         eapply wp_to_exec in H1; cleanup;
-         do 2 eexists; split; eauto;
-         econstructor; eauto ];
-       try solve [
-         specialize H0 with (1:= X); cleanup;
-         inversion H0; cleanup;
-         eexists; split; eauto;
-         eapply exec_to_wp; eauto ].
-   Qed.       
-     
-   Theorem wcp_complete':
-     forall T (p: horizontal_composition_prog T) H C,
-       (forall o s, H o s -> weakest_crash_precondition' p C o s) <->
-       (forall o s, H o s ->
-               (exists s', exec' o s p (Crashed s') /\ C s')).
-   Proof.
-     intros; destruct p; simpl;
-     split; intros;
-     try solve [
-         specialize H0 with (1:= X); cleanup;
-         eapply wcp_to_exec in H1; cleanup;
-         eexists; split; eauto;
-         econstructor; eauto ];
-     try solve [
-         specialize H0 with (1:= X); cleanup;
-         inversion H0; cleanup;
-         eexists; split; eauto;
-         eapply exec_to_wcp; eauto ].
-   Qed.
-
-   Theorem sp_complete':
-     forall T (p: horizontal_composition_prog T) P (Q: T -> state' -> Prop),
-       (forall t s', strongest_postcondition' p P t s' -> Q t s') <->
-       (forall o s s' t, P o s -> exec' o s p (Finished s' t) -> Q t s').
-   Proof.
-     intros; destruct p; simpl;
-     split; intros;
-     try solve [
-           inversion H1; cleanup;
-           eapply H;
-           eapply exec_to_sp; simpl; eauto;
-           destruct s; simpl in *; eauto ];
-     try solve [
-           eapply sp_to_exec in H0; cleanup;
-           eapply H; eauto;
-           destruct s'; simpl in *; econstructor; eauto ].
-   Qed.    
-
-   Theorem scp_complete':
-     forall T (p: horizontal_composition_prog T) P (C: state' -> Prop),
-       (forall s', strongest_crash_postcondition' p P s' -> C s') <->
-       (forall o s s', P o s -> exec' o s p (Crashed s') ->  C s').
-Proof.
-     intros; destruct p; simpl;
-     split; intros;
-     try solve [
-           inversion H1; cleanup;
-           eapply H;
-           eapply exec_to_scp; simpl; eauto;
-           destruct s; simpl in *; eauto ];
-     try solve [
-           eapply scp_to_exec in H0; cleanup;
-           eapply H; eauto;
-           destruct s'; simpl in *; econstructor; eauto ].
-Qed.
-  
   Theorem exec_deterministic_wrt_token' :
     forall o s T (p: horizontal_composition_prog T) ret1 ret2,
       exec' o s p ret1 ->
@@ -175,12 +55,15 @@ Qed.
   Definition HorizontalComposition :=
     Build_Core
       horizontal_composition_prog exec'
-      weakest_precondition'
+
+      (* weakest_precondition'
       weakest_crash_precondition'
-      strongest_postcondition'
+      
+        strongest_postcondition'
       strongest_crash_postcondition'
       wp_complete' wcp_complete'
       sp_complete' scp_complete'
+       *)
       exec_deterministic_wrt_token'.
 
 Import Language.
@@ -212,53 +95,3 @@ Arguments P2 {O1 O2 T}.
 
 Notation "'<1|'  p >" := (P1 p)(right associativity, at level 60).
 Notation "'<2|'  p >" := (P2 p)(right associativity, at level 60).
-
-(** SP Theorems **)
-Import Language.
-(*
-Theorem sp_lift1:
-  forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
-    T (p: prog L1 T) s t P,
-    strongest_postcondition HL (lift_L1 O2 p) P t s ->
-    strongest_postcondition L1 p (fun o sx => P (map (fun o' =>
-                                                     match o' with
-                                                     |OpToken _ o1 =>
-                                                      OpToken (HorizontalComposition O1 O2) [Token1 O1 O2 o1]%list
-                                                     |Language.Cont _ =>
-                                                      Language.Cont _
-                                                     |Language.Crash _ =>
-                                                      Language.Crash _
-                                                     end) o) (sx, snd s)) t (fst s).
-Proof.
-  induction p; destruct s; simpl in *; intros; cleanup; eauto.
-  eapply H in H0; simpl in *.
-  eapply sp_to_exec in H0; cleanup.
-  eapply IHp in H1; simpl in *.
-  setoid_rewrite <- map_app in H1.
-  exists x; intuition eauto.
-  eapply exec_to_sp; eauto.
-Qed.
-
-Theorem sp_lift2:
-  forall O1 O2 (L1 : Language O1) (L2: Language O2) (HL: Language (HorizontalComposition O1 O2))
-    T (p: prog L2 T) s t P,
-    strongest_postcondition HL (lift_L2 O1 p) P t s ->
-    strongest_postcondition L2 p (fun o sx => P (map (fun o' =>
-                                                     match o' with
-                                                     |OpToken _ o2 =>
-                                                      OpToken (HorizontalComposition O1 O2) [Token2 O1 O2 o2]%list
-                                                     |Language.Cont _ =>
-                                                      Language.Cont _
-                                                     |Language.Crash _ =>
-                                                      Language.Crash _
-                                                     end) o) (fst s, sx)) t (snd s).
-Proof.
-  induction p; destruct s; simpl in *; intros; cleanup; eauto.
-  eapply H in H0; simpl in *.
-  eapply sp_to_exec in H0; cleanup.
-  eapply IHp in H1; simpl in *.
-  setoid_rewrite <- map_app in H1.
-  exists x; intuition eauto.
-  eapply exec_to_sp; eauto.
-Qed.
-*)

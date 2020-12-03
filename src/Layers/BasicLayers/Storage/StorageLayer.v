@@ -12,8 +12,6 @@ Section StorageLayer.
   | Cont : token'.
 
   Definition state' := option V.
-
-  Definition after_crash' (s1 s2: state') := s2 = None.
   
   Inductive storage_prog : Type -> Type :=
   | Get : storage_prog V
@@ -155,7 +153,8 @@ Section StorageLayer.
     Build_Core
       storage_prog
       exec'
-      weakest_precondition'
+      (*
+        weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
       strongest_crash_postcondition'
@@ -163,6 +162,7 @@ Section StorageLayer.
       wcp_complete'
       sp_complete'
       scp_complete'
+      *)
       exec_deterministic_wrt_token'.
 
   Definition StorageLang := Build_Language StorageOperation.

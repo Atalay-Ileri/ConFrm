@@ -8,10 +8,6 @@ Set Implicit Arguments.
   | Cont : token'.
 
   Definition state' := user.
-
-  (** TODO: This may need to change
-  Definition after_crash' (s1 s2: state') := s1 = s2.
-   **)
   
   Inductive authentication_prog : Type -> Type :=
   | Auth : user -> authentication_prog (option unit).
@@ -128,7 +124,7 @@ Set Implicit Arguments.
     Build_Core
       authentication_prog
       exec'
-      weakest_precondition'
+      (*weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
       strongest_crash_postcondition'
@@ -136,6 +132,7 @@ Set Implicit Arguments.
       wcp_complete'
       sp_complete'
       scp_complete'
+      *)
       exec_deterministic_wrt_token'.
 
   Definition AuthenticationLang := Build_Language AuthenticationOperation.

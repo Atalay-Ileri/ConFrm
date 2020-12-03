@@ -243,7 +243,7 @@ Fixpoint records_are_consecutive_starting_from n records :=
       records'
   end.
 
-Definition header_part_is_valid log_blocks key_list hash_map header_part :=
+Definition header_part_is_valid log_blocks hash_map header_part :=
   let valid_log_blocks := firstn (count header_part) log_blocks in
   (** Hash validity *)
   hash header_part = rolling_hash hash0 valid_log_blocks /\
@@ -252,22 +252,20 @@ Definition header_part_is_valid log_blocks key_list hash_map header_part :=
   (count header_part) <= log_length /\
   (count header_part) = fold_left Nat.add (map (fun rec => addr_count rec + data_count rec) (records header_part))0 /\
   (** Record validity **)
-  Forall (record_is_valid key_list (count header_part)) (records header_part) /\
   records_are_consecutive_starting_from 0 (records header_part).
 
-Definition txn_well_formed (log_blocks: list value) (em: encryptionmap) (disk: @mem addr _ (set value)) txn :=
+Definition txn_well_formed header_part (log_blocks: list value) key_list (disk: @mem addr _ (set value)) txn :=
   let record := record txn in
   let key := key record in
   let start := start record in
   let addr_count := addr_count record in
   let data_count := data_count record in
   
+  record_is_valid key_list (count header_part) record /\
   map (encrypt key) (addr_blocks txn) = firstn addr_count (skipn start log_blocks) /\
   map (encrypt key) (data_blocks txn) = firstn data_count (skipn (addr_count + start) log_blocks) /\
   addr_list txn = firstn (length (data_blocks txn)) (blocks_to_addr_list (addr_blocks txn)) /\
   NoDup (addr_list txn) /\
-  Forall (fun v => em (encrypt key v) = Some (key, v)) (addr_blocks txn) /\
-  Forall (fun v => em (encrypt key v) = Some (key, v)) (data_blocks txn) /\
   Forall (fun a => a >= data_start) (addr_list txn) /\
   (forall a, In a (addr_list txn) -> disk a <> None) /\
   addr_count = length (addr_blocks txn) /\
@@ -275,10 +273,10 @@ Definition txn_well_formed (log_blocks: list value) (em: encryptionmap) (disk: @
   data_count <= length (blocks_to_addr_list (addr_blocks txn)).
 
 
-Definition txns_valid header_part (log_blocks: list value) (em: encryptionmap) disk (txns: list txn) :=
+Definition txns_valid header_part (log_blocks: list value) key_list disk (txns: list txn) :=
   (** Records match the header *)
   map record txns = records header_part /\
-  Forall (txn_well_formed log_blocks em disk) txns.
+  Forall (txn_well_formed header_part log_blocks key_list disk) txns.
 
 Definition log_header_block_rep
            (header_state: Header_State)
@@ -320,16 +318,15 @@ Definition log_rep_inner
            (state: state CryptoDiskLang) :=
   let crypto_maps := fst state in
   let disk := snd state in
-  let key_list := fst (fst crypto_maps) in
-  let encryption_map := snd (fst crypto_maps) in
+  let key_list := fst crypto_maps in
   let hash_map := snd crypto_maps in
   let header_part :=
       match valid_part with
       | Old_Part => old_part hdr
       | Current_Part => current_part hdr
       end in
-  header_part_is_valid log_blocks key_list hash_map header_part /\
-  txns_valid header_part log_blocks encryption_map disk txns.
+  header_part_is_valid log_blocks hash_map header_part /\
+  txns_valid header_part log_blocks key_list disk txns.
 
 
 Definition log_rep_explicit (header_state: Header_State) (log_state: Log_State) (valid_part: Valid_Part) (hdr: header) (txns: list txn) 

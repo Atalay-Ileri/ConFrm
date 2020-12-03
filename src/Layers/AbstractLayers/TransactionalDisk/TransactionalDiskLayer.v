@@ -487,7 +487,8 @@ Section TransactionalDisk.
     Build_Core
       transactional_disk_prog
       exec'
-      weakest_precondition'
+      (*
+        weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
       strongest_crash_postcondition'
@@ -495,6 +496,7 @@ Section TransactionalDisk.
       wcp_complete'
       sp_complete'
       scp_complete'
+       *)
       exec_deterministic_wrt_token'.
 
   Definition TransactionalDiskLang := Build_Language TransactionalDiskOperation.

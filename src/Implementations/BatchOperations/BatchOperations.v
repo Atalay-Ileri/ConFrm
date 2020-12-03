@@ -124,7 +124,7 @@ Qed.
 Theorem decrypt_all_finished:
   forall key evl o s s' t,
     exec CryptoDiskLang o s (decrypt_all key evl) (Finished s' t) ->
-    exists plain_blocks, t = plain_blocks /\ evl = map (encrypt key) plain_blocks /\ s' = s.
+    t = map (decrypt key) evl /\ s' = s.
 Proof.
   induction evl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -165,7 +165,6 @@ Proof.
   repeat invert_exec; cleanup.
   edestruct IHvl; eauto; cleanup.
   simpl in *; intuition eauto.
-  repeat destruct s; destruct p; simpl in *; eauto.
 Qed.
 
 Theorem hash_all_crashed:
@@ -202,63 +201,45 @@ Proof.
   generalize vl (hash_function h a).
   induction vl0; simpl; intros; eauto.
   destruct vl0; simpl in *; eauto.
-  specialize (IHvl0 (hash_function h1 a1)); lia.
+  specialize (IHvl0 (hash_function h1 a0)); lia.
 Qed.
 
 Theorem encrypt_all_finished:
   forall key vl o s s' t,
     exec CryptoDiskLang o s (encrypt_all key vl) (Finished s' t) ->
-    consistent_with_upds (snd (fst (fst s))) (map (encrypt key) vl) (map (fun v => (key, v)) vl) /\
     t = map (encrypt key) vl /\
-    snd s' = snd s /\
-fst s' = ((fst (fst (fst s)), upd_batch (snd (fst (fst s))) (map (encrypt key) vl) (map (fun v => (key, v)) vl)), snd (fst s)).
+    s' = s.
 Proof.
   induction vl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
-  
-  - intuition eauto.
-    destruct s', s; simpl; intuition eauto.
 
   - edestruct IHvl; eauto; cleanup.
     eexists; intuition eauto.
+    destruct s; simpl; eauto.
 Qed.
 
 Theorem encrypt_all_crashed:
   forall key vl o s s',
     exec CryptoDiskLang o s (encrypt_all key vl) (Crashed s') ->
-    exists n,
-      let vl' := firstn n vl in
-      n <= length vl /\
-    consistent_with_upds (snd (fst (fst s))) (map (encrypt key) vl') (map (fun v => (key, v)) vl') /\
-    snd s' = snd s /\
-    fst s' = ((fst (fst (fst s)), upd_batch (snd (fst (fst s))) (map (encrypt key) vl') (map (fun v => (key, v)) vl')), snd (fst s)).
+    s' = s.
 Proof.
   induction vl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
-  
-  - exists 0; simpl; intuition eauto.
-    destruct s', s; simpl; intuition eauto.
 
   - split_ors; cleanup; repeat invert_exec.
     {
-      exists 0; simpl in *; cleanup; intuition eauto.
-      lia.
       repeat destruct s; simpl; intuition eauto.      
     }
     split_ors; cleanup; repeat invert_exec.
     {
-      edestruct IHvl; eauto; cleanup.
-      repeat cleanup_pairs.
-      exists (S x0); simpl; eauto.
-      intuition eauto.
-      lia.
+      eapply IHvl; eauto; cleanup; eauto.
+      destruct s; simpl in *; eauto.
     }
     {
       eapply encrypt_all_finished in H; cleanup.
-      repeat cleanup_pairs.
-      exists (S (length vl)); simpl; repeat rewrite firstn_exact; intuition eauto.
+      destruct s; simpl; eauto.
     }      
 Qed.
 

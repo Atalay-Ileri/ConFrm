@@ -150,7 +150,8 @@ Section CacheLayer.
     Build_Core
       cache_prog
       exec'
-      weakest_precondition'
+      (* 
+         weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
       strongest_crash_postcondition'
@@ -158,6 +159,7 @@ Section CacheLayer.
       wcp_complete'
       sp_complete'
       scp_complete'
+       *)
       exec_deterministic_wrt_token'.
 
   Definition CacheLang := Build_Language CacheOperation.
