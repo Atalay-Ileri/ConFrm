@@ -12,11 +12,6 @@ End DiskAllocatorParams.
 
 Module DiskAllocator := BlockAllocator DiskAllocatorParams.
 
-Record File := {
-    owner: user;
-    blocks: list value;
-  }.
-
 Definition file_rep (file: File) (inode: Inode) (file_block_map: disk value) :=
   file.(owner) = inode.(Inode.owner) /\
   length file.(blocks) = length inode.(block_numbers) /\

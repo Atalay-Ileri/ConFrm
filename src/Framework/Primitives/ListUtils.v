@@ -5562,3 +5562,76 @@ Lemma nil_or_app:
 Qed.
 
  
+Lemma selNopt_seq:
+  forall m n a,
+    a < m ->
+    selNopt (seq n m) a = Some (n + a).
+Proof.
+  induction m; simpl; intros.
+  lia.
+  destruct a.
+  rewrite Nat.add_0_r; eauto.
+  rewrite IHm.
+  replace (S n + a) with (n + S a) by lia; eauto.
+  lia.
+Qed.
+
+Lemma selN_bimap:
+  forall A B C (f: A -> B -> C) l1 l2 n def1 def2 def3,
+    length l1 = length l2 ->
+    n < length l1 ->
+    selN (bimap f l1 l2) n def3 = f (selN l1 n def1) (selN l2 n def2).
+Proof.
+  induction l1; simpl; intros; try lia.
+  destruct l2; simpl in *; try lia.
+  destruct n; simpl in *; eauto.
+  erewrite IHl1; eauto; lia.
+Qed.
+
+Lemma in_split_first:
+  forall T (TEQ : forall t t' : T, {t = t'} + {t <> t'})
+    (l : list T) (t : T), In t l -> exists l1 l2 : list T, l = l1 ++ t :: l2 /\ ~ In t l1.
+  induction l; simpl; intuition.
+  subst.
+  exists nil, l; simpl; eauto.
+  destruct (TEQ a t); subst.
+  exists nil, l; simpl; eauto.
+  edestruct IHl; eauto; intuition.
+  destruct H; intuition; subst.
+  exists (a::x), x0; simpl; split; eauto.
+  intros; intuition eauto.
+Qed.
+
+Lemma Forall2_app_split:
+  forall A B (l1 l2: list A) (l3 l4: list B) P,
+    Forall2 P (l1++l2) (l3++l4) ->
+    length l1 = length l3 ->
+    Forall2 P l1 l3 /\ Forall2 P l2 l4.
+Proof.
+  induction l1; intros; destruct l3;
+  simpl in *; try lia; eauto.
+  inversion H; subst.
+  apply IHl1 in H6; try lia.
+  intuition eauto.
+Qed.
+
+Lemma list_list_in_EXM:
+  forall A (AEQ: EqDec A) l_l_a (a: A),
+    (exists n, n < length l_l_a /\
+          In a (selN l_l_a n []) /\
+          (forall l_a, In l_a (skipn (S n) l_l_a) -> ~In a l_a)) \/
+    (forall l_a, In l_a l_l_a -> ~In a l_a).
+Proof.
+  induction l_l_a; simpl; intros.
+  right; intuition.
+  specialize (IHl_l_a a0).
+  intuition; subst.
+  destruct H; intuition subst.
+  left; exists (S x); intuition eauto.
+  lia.
+  destruct (in_dec AEQ a0 a).
+  left; exists 0; simpl; intuition eauto.
+  lia.
+  right; intuition eauto.
+  subst; eauto.
+Qed.

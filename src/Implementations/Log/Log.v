@@ -1,4 +1,4 @@
-Require Import EquivDec Framework CryptoDiskLayer BatchOperations.
+Require Import EquivDec Framework TotalMem CryptoDiskLayer BatchOperations.
 Require Import Datatypes PeanoNat.
 Require Import Lia Sumbool.
 Require Import FSParameters.
@@ -254,7 +254,7 @@ Definition header_part_is_valid log_blocks hash_map header_part :=
   (** Record validity **)
   records_are_consecutive_starting_from 0 (records header_part).
 
-Definition txn_well_formed header_part (log_blocks: list value) key_list (disk: @mem addr _ (set value)) txn :=
+Definition txn_well_formed header_part (log_blocks: list value) key_list (disk: @total_mem addr _ (set value)) txn :=
   let record := record txn in
   let key := key record in
   let start := start record in
@@ -266,8 +266,7 @@ Definition txn_well_formed header_part (log_blocks: list value) key_list (disk: 
   map (encrypt key) (data_blocks txn) = firstn data_count (skipn (addr_count + start) log_blocks) /\
   addr_list txn = firstn (length (data_blocks txn)) (blocks_to_addr_list (addr_blocks txn)) /\
   NoDup (addr_list txn) /\
-  Forall (fun a => a >= data_start) (addr_list txn) /\
-  (forall a, In a (addr_list txn) -> disk a <> None) /\
+  Forall (fun a => disk_size > a  /\ a >= data_start) (addr_list txn) /\
   addr_count = length (addr_blocks txn) /\
   data_count = length (data_blocks txn) /\
   data_count <= length (blocks_to_addr_list (addr_blocks txn)).
@@ -285,7 +284,7 @@ Definition log_header_block_rep
   let crypto_maps := fst state in
   let disk := snd state in
     (** Header *)
-    disk hdr_block_num = Some hdr_blockset /\
+    disk hdr_block_num = hdr_blockset /\
     (** Sync status **)
     match header_state with
     | Hdr_Synced =>
@@ -300,7 +299,7 @@ Definition log_data_blocks_rep
   let crypto_maps := fst state in
   let disk := snd state in
     (** Log Blocks *)
-    (forall i, i < length log_blocksets -> disk (log_start + i) = selNopt log_blocksets i) /\
+    (forall i, i < length log_blocksets -> disk (log_start + i) = selN log_blocksets i (value0, [])) /\
     (** Sync status **)
     match log_state with
     | Synced =>

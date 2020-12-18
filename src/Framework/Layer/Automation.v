@@ -269,3 +269,19 @@ Local Lemma lift2_invert_exec_crashed :
   |[H : exec' _ _ (Bind _ _) _ |- _ ] =>
    apply bind_sep in H; repeat cleanup_no_match
   end.
+
+  Ltac unify_execs :=
+    match goal with
+    |[H : recovery_exec ?x ?y ?z ?a ?b ?c _,
+      H0 : recovery_exec ?x ?y ?z ?a ?b ?c _ |- _ ] =>
+     eapply recovery_exec_deterministic_wrt_reboot_state in H; [| apply H0]
+    | [ H: exec ?x ?y ?z ?a _,
+        H0: exec ?x ?y ?z ?a _ |- _ ] =>
+      eapply exec_deterministic_wrt_oracle in H; [| apply H0]
+    | [ H: exec' ?x ?y ?z _,
+        H0: exec' ?x ?y ?z _ |- _ ] =>
+      eapply exec_deterministic_wrt_oracle in H; [| apply H0]
+    | [ H: exec _ ?x ?y ?z _,
+        H0: Language.exec' ?x ?y ?z _ |- _ ] =>
+      eapply exec_deterministic_wrt_oracle in H; [| apply H0]
+    end.

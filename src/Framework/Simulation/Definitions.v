@@ -4,21 +4,20 @@ Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
   {
     compile_core : forall T, O_abs.(Core.operation) T -> L_imp.(prog) T;
     refines_to_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
-    token_refines_to: forall T, L_imp.(state) -> O_abs.(Core.operation) T -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
+    token_refines_to: forall T, L_imp.(state) -> O_abs.(Core.operation) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
   }.
 
 Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) :=
   {
     compile : forall T, L_abs.(prog) T -> L_imp.(prog) T;
     refines_to: L_imp.(state) -> L_abs.(state) -> Prop;
-    oracle_refines_to: forall T, L_imp.(state) -> L_abs.(prog) T -> L_imp.(oracle) -> L_abs.(oracle) -> Prop;
+    oracle_refines_to: forall T, L_imp.(state) -> L_abs.(prog) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> L_abs.(oracle) -> Prop;
   }.
 
 Arguments Build_CoreRefinement {_ _ _}.
 Arguments compile_core {_ _ _} _ {_}.
 Arguments refines_to_core {_ _ _}.
 Arguments token_refines_to {_ _ _} _ {_}.
-
 
 Arguments Build_Refinement {_ _ _ _}.
 Arguments compile {_ _ _ _} _ {_}.
@@ -38,22 +37,23 @@ Section Relations.
     match lo_imp, lo_abs with
     | o_imp :: loi, o_abs :: loa =>
       length lo_imp = length lo_abs /\
-      R.(oracle_refines_to) s p_abs o_imp o_abs /\
+      (forall s' t,
+         L_imp.(exec) o_imp s (R.(compile) p_abs) (Finished s' t) ->
+         R.(oracle_refines_to) s p_abs (fun s => s) o_imp o_abs) /\
       (forall s',
          L_imp.(exec) o_imp s (R.(compile) p_abs) (Crashed s') ->
          match l_get_reboot_state_imp with
          | get_reboot_state_imp :: lgrsi =>
+           R.(oracle_refines_to) s p_abs get_reboot_state_imp o_imp o_abs /\
            recovery_oracles_refine_to (get_reboot_state_imp s') rec_abs rec_abs lgrsi loi loa
          | _ => False
          end)
     | _, _ => False
     end.
 
-  
-
-Definition abstract_oracles_exists {T} (p_abs: L_abs.(prog) T) rec_abs l_get_reboot_state :=
+Definition abstract_oracles_exist_wrt Rel {T} (p_abs: L_abs.(prog) T) rec_abs l_get_reboot_state :=
   forall l_oi si si',
-    (exists sa, R.(refines_to) si sa) -> 
+    (exists sa: L_abs.(state), Rel si sa) -> 
     L_imp.(recovery_exec) l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
     exists l_oa, recovery_oracles_refine_to si p_abs rec_abs l_get_reboot_state l_oi l_oa.
 
@@ -210,7 +210,7 @@ Arguments recovery_oracles_refine_to {_ _ _ _} _ {_}.
 Arguments refines_to_related {_ _ _ _}.
 Arguments refines_to_valid {_ _ _ _}.
 Arguments exec_compiled_preserves_validity {_ _ _ _} _ {_}.
-Arguments abstract_oracles_exists {_ _ _ _} _ {_}.
+Arguments abstract_oracles_exist_wrt {_ _ _ _} _ _ {_}.
 Arguments oracle_refines_to_same_from_related {_ _ _ _} _ {_}.
 Arguments SelfSimulation {_ _ _}.
 Arguments SelfSimulation_Weak {_ _ _}.
@@ -243,8 +243,8 @@ Lemma SS_transfer:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
-    abstract_oracles_exists R p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exists R p2_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines_to) p1_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines_to) p2_abs rec_abs l_get_reboot_state_imp ->
     
     oracle_refines_to_same_from_related R p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
@@ -282,8 +282,8 @@ Proof.
   match goal with
   | [H: recovery_exec _ _ _ _ (compile _ ?p1) _ _,
      H0: recovery_exec _ _ _ _ (compile _ ?p2) _ _,
-     H1: abstract_oracles_exists _ ?p1 _ _,
-     H2: abstract_oracles_exists _ ?p2 _ _ |- _ ] =>
+     H1: abstract_oracles_exist_wrt _ _ ?p1 _ _,
+     H2: abstract_oracles_exist_wrt _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
     eapply_fresh H2 in H0; eauto; cleanup;
     try solve [ unfold refines_to_valid, refines_to_related in *; cleanup; eauto]

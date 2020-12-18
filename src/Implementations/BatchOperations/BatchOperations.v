@@ -1,4 +1,4 @@
-Require Import Lia Framework CryptoDiskLayer.
+Require Import Lia Framework TotalMem CryptoDiskLayer.
 
   Fixpoint read_consecutive a count:=
     match count with
@@ -54,21 +54,18 @@ Theorem write_batch_finished:
   forall al vl o t s s',
     length al = length vl ->
     exec CryptoDiskLang o s (write_batch al vl) (Finished s' t) ->
-    (forall a, In a al -> (snd s) a <> None) /\
+    (forall a, In a al -> a < disk_size) /\
     fst s' = fst s /\ snd s' = upd_batch_set (snd s) al vl.
 Proof.
   induction al; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
+  intuition eauto.
 
   eapply IHal in H0; try lia; cleanup.
   simpl in *; cleanup.
   intuition eauto.
   subst; congruence.
-  destruct (addr_dec a a0); subst; try congruence.
-  eapply H0; eauto.
-  rewrite upd_ne; eauto.
-  unfold upd_set; cleanup; eauto.
 Qed.
 
 Theorem write_batch_crashed:
@@ -77,7 +74,7 @@ Theorem write_batch_crashed:
     exec CryptoDiskLang o s (write_batch al vl) (Crashed s') ->
     exists n,
       n <= length al /\
-      (forall a, In a (firstn n al) -> (snd s) a <> None) /\
+      (forall a, In a (firstn n al) -> a < disk_size) /\
       fst s' = fst s /\ snd s' = upd_batch_set (snd s) (firstn n al) (firstn n vl).
 Proof.
   induction al; simpl; intros;
@@ -86,12 +83,14 @@ Proof.
 
   {
     exists 0; split; intuition eauto.
+    simpl in *; intuition.
   }
   
   split_ors; cleanup; repeat invert_exec; simpl.
   {
     exists 0; split; intuition eauto; simpl in *.
     lia.
+    intuition.
   }
 
   split_ors; cleanup; repeat invert_exec; simpl in *.
@@ -101,10 +100,6 @@ Proof.
     exists (S x0); split; intuition eauto; simpl in *.
     lia.
     split_ors; cleanup; eauto.
-    eapply H1; eauto.
-    destruct (addr_dec a a0); cleanup.
-    rewrite upd_ne; eauto.
-    erewrite upd_set_upd_some; eauto.
   }
   {
     eapply write_batch_finished in H0; eauto; cleanup.
@@ -114,10 +109,7 @@ Proof.
     repeat rewrite firstn_oob by lia.
     cleanup; split; intuition eauto; simpl in *.
     cleanup.
-    eapply H0; eauto.
-    destruct (addr_dec a a0); cleanup.
-    rewrite upd_ne; eauto.
-    erewrite upd_set_upd_some; eauto.
+    eauto.
   }
 Qed.
   
@@ -150,6 +142,8 @@ Proof.
   eapply decrypt_all_finished in H; cleanup; eauto.
   destruct s; eauto.
 Qed.
+
+Import Mem.
 
 Theorem hash_all_finished:
   forall vl h o s t s',
@@ -250,7 +244,7 @@ Theorem read_consecutive_finished:
     (forall i,
        i < count ->
        exists vs,
-         (snd s) (a + i) = Some vs /\
+         (snd s) (a + i) = vs /\
          fst vs = selN t i value0) /\
     s' = s.
 Proof.

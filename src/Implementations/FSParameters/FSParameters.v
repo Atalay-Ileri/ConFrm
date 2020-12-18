@@ -1,7 +1,6 @@
 Require Import Framework Lia.
 
 Axiom block_size: nat.
-Axiom disk_size: nat.
 
 Definition super_block_num := 0.
 Definition hdr_block_num := 1.
@@ -26,6 +25,9 @@ Definition data_length := disk_size - data_start.
 Lemma data_start_where_log_ends:
   data_start = log_start + log_length.
 Proof. eauto. Qed.
+
+Axiom data_fits_in_disk:
+  disk_size = data_start + data_length.
 
 (* Below all reside in data region indexed accordingly *)
 (* For simplicity, it will be 1 inode per block *)

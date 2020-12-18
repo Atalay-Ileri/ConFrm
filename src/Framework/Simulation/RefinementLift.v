@@ -13,13 +13,12 @@ Section RefinementLift.
     exact (Bind (compile T p2) (fun x => compile T' (p x))).
   Defined.
 
-  Fixpoint oracle_refines_to T (d1: state L_imp) (p: prog L_abs T) o1 o2 : Prop :=
+  Fixpoint oracle_refines_to T (d1: state L_imp) (p: prog L_abs T) get_reboot_state_imp o1 o2 : Prop :=
     match p with    
     |Op _ op =>
      exists o2',
      o2 =  [OpToken C_abs o2'] /\
-     CoreRefinement.(token_refines_to) d1 op o1 o2'
-
+       CoreRefinement.(token_refines_to) d1 op get_reboot_state_imp o1 o2'
     | Ret v =>
       (exists d1',
          exec L_imp o1 d1 (Ret v) (Crashed d1') /\
@@ -33,12 +32,12 @@ Section RefinementLift.
       o1 = o1'++o1'' /\
       o2 = o2' ++ o2'' /\
      ((exists d1', exec L_imp o1' d1 (compile T1 p1) (Crashed d1') /\
-         oracle_refines_to T1 d1 p1 o1' o2') \/
+         oracle_refines_to T1 d1 p1 get_reboot_state_imp o1' o2') \/
       (exists d1' r ret,
          exec L_imp o1' d1 (compile T1 p1) (Finished d1' r) /\
          exec L_imp o1'' d1' (compile T2 (p2 r)) ret /\
-         oracle_refines_to T1 d1 p1 o1' o2' /\
-         oracle_refines_to T2 d1' (p2 r) o1'' o2''
+         oracle_refines_to T1 d1 p1 (fun s => s) o1' o2' /\
+         oracle_refines_to T2 d1' (p2 r) get_reboot_state_imp o1'' o2''
          ))
     end.
 

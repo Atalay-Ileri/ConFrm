@@ -22,6 +22,8 @@ Axiom value_to_nat_to_value:
   forall v, nat_to_value (value_to_nat v) = v.
 Axiom value_eq_dec: EqDec value.
 
+Axiom disk_size: addr.
+
 (* For Crypto *)
 Axiom hash : Type.
 Axiom hash_eq_dec: EqDec hash.
@@ -183,3 +185,8 @@ Instance hash_dec : EqDec hash := hash_eq_dec.
 
 Notation "'handle_dec'" := handle_eq_dec.
 Notation "'permission_dec'" := permission_eq_dec.
+
+Record File := {
+    owner: user;
+    blocks: list value;
+  }.

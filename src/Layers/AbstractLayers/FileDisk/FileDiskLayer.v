@@ -1,4 +1,4 @@
-Require Import Lia Framework File.
+Require Import Lia Framework.
 Import ListNotations.
 Close Scope predicate_scope.
 
@@ -929,7 +929,8 @@ Section FileDisk.
     Build_Core
       file_disk_prog
       exec'
-      weakest_precondition'
+      (*
+        weakest_precondition'
       weakest_crash_precondition'
       strongest_postcondition'
       strongest_crash_postcondition'
@@ -937,6 +938,7 @@ Section FileDisk.
       wcp_complete'
       sp_complete'
       scp_complete'
+       *)
       exec_deterministic_wrt_token'.
 
   Definition FileDiskLang := Build_Language FileDiskOperation.
