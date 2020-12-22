@@ -1,4 +1,6 @@
-Require Import Framework FSParameters File FileDiskLayer FileDiskRefinement.
+Require Import Framework FSParameters FileDiskLayer.
+(* 
+Require Import File FileDiskRefinement.
 Require Import AuthenticatedDiskLayer.
 Require Import TransactionalDiskLayer TransactionalDiskRefinement.
 Require Import TransactionCacheLayer.
@@ -19,22 +21,23 @@ Notation "'TransactionalDisk'" := (TransactionalDiskLang data_length) (at level 
 Notation "'TransactionalDisk.refinement'" := TransactionalDiskRefinement.
 
 Notation "'AuthenticatedDisk'" := AuthenticatedDiskLang (at level 0).
+ *)
 
+Notation "'FileDiskOp'" := (FileDiskOperation inode_count). 
 Notation "'FileDisk'" := (FileDiskLang inode_count) (at level 0).
-Notation "'FileDisk.refinement'" := FileDiskRefinement.
 
-Definition same_for_user (s1 s2: FileDisk.(state)) :=
-  let u1 := fst s1 in
-  let u2 := fst s2 in
-  let d1 := snd s1 in
-  let d2 := snd s2 in
-  u1 = u2 /\
+(*
+Notation "'FileDisk.refinement'" := FileDiskRefinement.
+ *)
+
+Definition same_for_user_except (u: user) (exclude: option addr) (d1 d2: FileDisk.(state)) :=
   addrs_match_exactly d1 d2 /\
   (forall inum file1 file2,
+     exclude <> Some inum ->
      d1 inum = Some file1 ->
      d2 inum = Some file2 ->
-     (file1.(owner) = u1 \/
-      file2.(owner) = u1) ->
+     (file1.(owner) = u \/
+      file2.(owner) = u) ->
      file1 = file2) /\
   (forall inum file1 file2,
      d1 inum = Some file1 ->
@@ -132,10 +135,10 @@ Fixpoint horizontally_compose_valid_prog2 {O1 O2} (L1: Language O1) (L2: Languag
            (forall r, horizontally_compose_valid_prog2 L1 L2 LL C T2 (p2 r))
          end.
 
-
+(*
 Lemma ss_hc_rev_p1:
   forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
-    R C V,
+    u R C V,
     SelfSimulation LL R C V ->
     forall s2,
       SelfSimulation L1
@@ -226,6 +229,7 @@ Proof.
         exists (Crashed s4); simpl; intuition eauto.
         econstructor; eauto.
 Qed.
+ 
 
 Lemma ss_hc_rev_p2:
   forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
@@ -499,24 +503,1804 @@ Proof.
         exists (Crashed s3); simpl; intuition eauto.
         econstructor; eauto.
 Qed.
-
+*)
 (** Relation Definitions *)
 
 (** Top Layer *)
 (* File Disk *)
-Definition FD_valid_state := fun (s: state FileDisk) => exists fmap, files_rep fmap (snd s).
-Definition FD_valid_prog  := fun T (p: prog FileDisk T) => True.
-Definition FD_related_states := same_for_user.
+(* Definition FD_valid_state := fun (s: state FileDisk) => exists fmap, files_rep fmap (snd s). *)
+Definition FD_related_states u ex := same_for_user_except u ex.
+
+Theorem ss_FD_Recover:
+  forall n u u' ex,
+    SelfSimulation u (FileDiskOp.(Op) Recover) (FileDiskOp.(Op) Recover) (FileDiskOp.(Op) Recover)(fun _ => True) (FD_related_states u' ex) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; induction n; simpl; intros.
+  {
+    repeat invert_exec.
+    simpl in *.
+    invert_exec'' H9; cleanup.
+    invert_exec.
+    exists (RFinished s2 tt); intuition eauto.
+    solve [repeat econstructor; eauto].
+  }
+  {
+    destruct lo; simpl in *;
+    repeat invert_exec.
+    invert_exec'' H12; invert_exec.
+    eapply IHn in H14; eauto; cleanup.
+    exists (Recovered (extract_state_r x)); simpl; intuition eauto.
+    repeat econstructor; eauto.
+  }
+Qed.
+
+Theorem ss_FD_read:
+  forall n inum off u u',
+    SelfSimulation u (FileDiskOp.(Op) (Read inum off)) (FileDiskOp.(Op) (Read inum off)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup.
+    invert_exec'' H11.
+    inversion H7.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      rewrite H3 in *.
+      eapply_fresh H14 in H10; eauto.
+      logic_clean.
+      assert_fresh (off < length (blocks f)). {
+        eapply nth_error_Some.
+        intros Hx.
+        apply nth_error_None in Hx.
+        rewrite <- H16 in Hx.
+        apply nth_error_None in Hx.
+        congruence.
+      }
+      
+      apply nth_error_Some in A.
+      destruct_fresh (nth_error (blocks f) off); try congruence.
+      
+      exists (RFinished s2 (Some v0)); simpl; intuition eauto.
+      repeat econstructor; eauto.
+      cleanup; eauto.
+      cleanup; eauto.
+      eapply H13 in H10; eauto.
+      cleanup; eauto.
+      congruence.
+      cleanup.
+      destruct (H2 inum).
+      exfalso; apply H; congruence.
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      split.
+      repeat split_ors; subst;
+      try solve [repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H1; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        apply nth_error_None in H6.
+        rewrite H5 in H6; apply nth_error_None in H6.
+        eauto.
+
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    congruence.
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    edestruct ss_FD_Recover; eauto.
+    cleanup.
+    exists (Recovered (extract_state_r x)).
+    intuition eauto.
+    repeat econstructor; eauto.
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+Theorem ss_FD_write:
+  forall n inum off v u u',
+    SelfSimulation u (FileDiskOp.(Op) (Write inum off v)) (FileDiskOp.(Op) (Write inum off v)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      subst.
+      eapply_fresh H2 in H11; eauto.
+      logic_clean; subst.
+      
+      exists (RFinished (upd s2 inum (Build_File (owner f) (updN (blocks f) off v))) (Some tt)); simpl; intuition eauto.
+      repeat econstructor; eauto.
+      rewrite <- H4; eauto.
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H11; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H11; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite length_updN; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; eauto; congruence.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply_fresh H2 in H10; eauto; try congruence; cleanup.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= upd s2 inum (Build_File (owner f) (updN (blocks f) off v))).
+      instantiate (2:= u').
+      instantiate (1:= None).
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite length_updN; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      cleanup.
+      exists (Recovered (extract_state_r x)); simpl.
+      intuition eauto.
+      repeat econstructor; eauto.
+
+      cleanup.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+
+
+Theorem ss_FD_extend:
+  forall n inum v u u',
+    SelfSimulation u (FileDiskOp.(Op) (Extend inum v)) (FileDiskOp.(Op) (Extend inum v)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      subst.
+      eapply_fresh H2 in H10; eauto.
+      logic_clean; subst.
+      
+      exists (RFinished (upd s2 inum (Build_File (owner f) ((blocks f) ++ [v]))) (Some tt));
+      simpl; intuition eauto.
+      repeat econstructor; eauto.
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite app_length; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; eauto; congruence.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply H2 in H10; eauto; try congruence; cleanup.      
+      repeat (split; eauto).
+      do 3 econstructor; eauto.
+
+      cleanup; eauto.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply_fresh H2 in H9; eauto; try congruence; cleanup.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= upd s2 inum (Build_File (owner f) ((blocks f) ++ [v]))).
+      instantiate (1:= None).
+      instantiate (1:= u').
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H9; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H9; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite app_length; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      cleanup.
+      exists (Recovered (extract_state_r x)); simpl.
+      intuition eauto.
+      repeat econstructor; eauto.
+
+      cleanup.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+
+
+Theorem ss_FD_set_owner:
+  forall n inum u u' u'',
+    SelfSimulation u (FileDiskOp.(Op) (SetOwner inum u'')) (FileDiskOp.(Op) (SetOwner inum u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      subst.
+      eapply_fresh H2 in H10; eauto.
+      logic_clean; subst.
+             
+      exists (RFinished (upd s2 inum (Build_File u'' (blocks f))) (Some tt));
+      simpl; intuition eauto.
+      repeat econstructor; eauto.
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; eauto; congruence.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply_fresh H2 in H9; eauto; try congruence; cleanup.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= upd s2 inum (Build_File u'' (blocks f))).
+      instantiate (1:= Some inum).
+      instantiate (1:= u').
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H9; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H9; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      {
+        cleanup.
+        exists (Recovered (extract_state_r x)); simpl.
+        intuition eauto.
+        repeat econstructor; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; congruence.
+      }
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+
+Theorem ss_FD_create:
+  forall n u u' u'',
+    SelfSimulation u (FileDiskOp.(Op) (Create u'')) (FileDiskOp.(Op) (Create u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      edestruct (H inum).
+      exfalso; apply H5; eauto; congruence.
+             
+      exists (RFinished (upd s2 inum (Build_File u'' [])) (Some inum));
+      simpl; intuition eauto.
+      repeat econstructor; eauto.
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H5; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H5; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H5; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H5; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H4 in H5; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H4 in H5; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      {
+        do 3 econstructor; eauto.
+        intros.
+        apply H8 in H.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        cleanup; eauto.
+        apply H1; eauto.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H5; congruence.
+      }
+      
+      cleanup; eauto.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= upd s2 inum (Build_File u'' [])).
+      instantiate (1:= None).
+      instantiate (1:= u').
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H5; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H5; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H5; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H5; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H4; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H4; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      {
+        cleanup.
+        exists (Recovered (extract_state_r x)); simpl.
+        intuition eauto.
+        repeat econstructor; eauto.
+      }
+      
+    }
+  }
+Qed.
+
+
+Theorem ss_FD_delete:
+  forall n inum u u',
+    SelfSimulation u (FileDiskOp.(Op) (Delete inum)) (FileDiskOp.(Op) (Delete inum)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      subst.
+      eapply_fresh H2 in H9; eauto.
+      logic_clean; subst.
+             
+      exists (RFinished (delete s2 inum) (Some tt));
+      simpl; intuition eauto.
+      repeat (econstructor; eauto).
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite delete_eq in H8; eauto; congruence.
+        rewrite delete_ne in *; eauto.
+        apply H in H10; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite delete_eq in H8; eauto; congruence.
+        rewrite delete_ne in *; eauto.
+        apply H in H10; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; eauto; congruence.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply_fresh H2 in H4; eauto; try congruence; cleanup.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= delete s2 inum).
+      instantiate (1:= None).
+      instantiate (1:= u').
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite delete_eq in H7; eauto; congruence.
+        rewrite delete_ne in *; eauto.
+        apply H in H7; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite delete_eq in H7; eauto; congruence.
+        rewrite delete_ne in *; eauto.
+        apply H in H7; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+          eapply H2 in H7; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite delete_eq in *; eauto.
+          cleanup.
+        }
+        {
+          rewrite delete_ne in *; eauto.
+          eapply H2 in H7; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      {
+        cleanup.
+        exists (Recovered (extract_state_r x)); simpl.
+        intuition eauto.
+        repeat econstructor; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H5; congruence.
+      }
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+
+
+Theorem ss_FD_write_input:
+  forall n inum off v1 v2 u u',
+    SelfSimulation u (FileDiskOp.(Op) (Write inum off v1)) (FileDiskOp.(Op) (Write inum off v2)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      subst.
+      eapply_fresh H2 in H11; eauto.
+      logic_clean; subst.
+      
+      exists (RFinished (upd s2 inum (Build_File (owner f) (updN (blocks f) off v2))) (Some tt)); simpl; intuition eauto.
+      repeat econstructor; eauto.
+      rewrite <- H4; eauto.
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H11; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H11; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite length_updN; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; eauto; congruence.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply_fresh H2 in H10; eauto; try congruence; cleanup.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= upd s2 inum (Build_File (owner f) (updN (blocks f) off v2))).
+      instantiate (2:= u').
+      instantiate (1:= Some inum).
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite length_updN; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      cleanup.
+      exists (Recovered (extract_state_r x)); simpl.
+      intuition eauto.
+      repeat econstructor; eauto.
+
+      cleanup.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+
+
+Theorem ss_FD_extend_input:
+  forall n inum v1 v2 u u',
+    SelfSimulation u (FileDiskOp.(Op) (Extend inum v1)) (FileDiskOp.(Op) (Extend inum v2)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+Proof.
+  unfold SelfSimulation; intros.
+  repeat invert_exec.
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H11.
+    inversion H7; subst.
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum).
+      logic_clean.
+      subst.
+      eapply_fresh H2 in H10; eauto.
+      logic_clean; subst.
+      
+      exists (RFinished (upd s2 inum (Build_File (owner f) ((blocks f) ++ [v2]))) (Some tt));
+      simpl; intuition eauto.
+      repeat econstructor; eauto.
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H8; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H10; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite app_length; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H8; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup; eauto.
+      }
+      {
+        cleanup.
+        destruct (H inum).
+        exfalso; apply H3; eauto; congruence.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply H2 in H10; eauto; try congruence; cleanup.      
+      repeat (split; eauto).
+      do 3 econstructor; eauto.
+
+      cleanup; eauto.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
+    }
+  }
+  {
+    destruct n; simpl in *; cleanup; try congruence.
+    invert_exec'' H10.
+    invert_exec.
+    {
+      edestruct ss_FD_Recover; eauto.
+      cleanup.
+      exists (Recovered (extract_state_r x)).
+      intuition eauto.
+      repeat econstructor; eauto.
+    }
+    {
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in H2.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply_fresh H2 in H9; eauto; try congruence; cleanup.
+      
+      edestruct ss_FD_Recover; eauto.
+      instantiate (1:= upd s2 inum (Build_File (owner f) ((blocks f) ++ [v2]))).
+      instantiate (1:= Some inum).
+      instantiate (1:= u').
+      {
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly.
+        intuition eauto.
+        {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        destruct (addr_dec a inum); subst.
+        rewrite upd_eq in H7; eauto; congruence.
+        rewrite upd_ne in *; eauto.
+        apply H in H6; congruence.
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H9; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *.
+          eapply H1 in H9; eauto; try congruence.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      {
+        cleanup.
+        destruct (addr_dec inum inum0); subst.
+        {
+          rewrite upd_eq in *; eauto.
+          cleanup.
+          simpl in *; eauto.
+          repeat rewrite app_length; eauto.
+        }
+        {
+          rewrite upd_ne in *; eauto.
+          eapply H2 in H6; eauto; try congruence.
+          cleanup; eauto.
+        }
+      }
+      }
+      cleanup.
+      exists (Recovered (extract_state_r x)); simpl.
+      intuition eauto.
+      repeat econstructor; eauto.
+
+      cleanup.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+Qed.
+
+
 
 (** Intermediate Layers *)
 (* Authenticated Disk *)
 Definition AD_valid_state := refines_to_valid FileDisk.refinement FD_valid_state.
-Definition AD_valid_prog  := compiles_to_valid FileDisk.refinement FD_valid_prog.
 Definition AD_related_states := refines_to_related FileDisk.refinement FD_related_states.
 
 (* Transactional Disk *)
 Definition TD_valid_state s1 := fun s2 => AD_valid_state (s1, s2).
-Definition TD_valid_prog  := horizontally_compose_valid_prog2 AuthenticationLang TransactionalDisk AuthenticatedDisk AD_valid_prog.
 Definition TD_related_states s1 := fun s2 s2' => AD_related_states (s1, s2) (s1, s2').
 
 (* Transaction Cache *)
@@ -570,7 +2354,7 @@ Definition DL_related_states s := fun s2 s2' => CrD_related_states (fst s) (snd 
 (** NI Theorems *)
 (** Top Layer *)
 Theorem ss_FD:
-  SelfSimulation FileDisk FD_valid_state FD_valid_prog FD_related_states.
+  SelfSimulation FileDisk FD_valid_state FD_related_states.
 Proof. Admitted.
 
 (** Intermediate Layers *)

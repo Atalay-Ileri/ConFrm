@@ -19,57 +19,57 @@ Variable disk_size: addr.
   | Recover : logged_disk_prog unit.
    
   Inductive exec' :
-    forall T, token' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
+    forall T, user -> token' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
   | ExecReadSuccess : 
-      forall d a,
+      forall d a u,
         a  < disk_size ->
-        exec' Cont d (Read a) (Finished d (d a))
+        exec' u Cont d (Read a) (Finished d (d a))
 
   | ExecReadFail : 
-      forall d a,
+      forall d a u,
         a  >= disk_size ->
-        exec' Cont d (Read a) (Finished d value0)
+        exec' u Cont d (Read a) (Finished d value0)
              
   | ExecWriteSuccess :
-      forall d la lv,
+      forall d la lv u,
         NoDup la ->
         length la = length lv ->
         Forall (fun a => a < disk_size) la ->
-        exec' Cont d (Write la lv) (Finished (upd_batch d la lv) tt)
+        exec' u Cont d (Write la lv) (Finished (upd_batch d la lv) tt)
 
   | ExecWriteFail :
-      forall d la lv,
+      forall d la lv u,
         ~NoDup la \/ length la <> length lv \/
         ~Forall (fun a => a < disk_size) la ->
-        exec' Cont d (Write la lv) (Finished d tt)
+        exec' u Cont d (Write la lv) (Finished d tt)
 
   | ExecRecover : 
-      forall d,
-        exec' Cont d Recover (Finished d tt)
+      forall d u,
+        exec' u Cont d Recover (Finished d tt)
 
   | ExecCrashBefore :
-      forall d T (p: logged_disk_prog T),
-        exec' CrashBefore d p (Crashed d)
+      forall d T (p: logged_disk_prog T) u,
+        exec' u CrashBefore d p (Crashed d)
 
   | ExecCrashWriteAfter :
-      forall d la lv,
+      forall d la lv u,
         NoDup la ->
         length la = length lv ->
         Forall (fun a => a < disk_size) la ->
-        exec' CrashAfter d (Write la lv) (Crashed (upd_batch d la lv)).
+        exec' u CrashAfter d (Write la lv) (Crashed (upd_batch d la lv)).
 
   Hint Constructors exec' : core.
 
   Theorem exec_deterministic_wrt_token' :
-    forall o s T (p: logged_disk_prog T) ret1 ret2,
-      exec' o s p ret1 ->
-      exec' o s p ret2 ->
+    forall u o s T (p: logged_disk_prog T) ret1 ret2,
+      exec' u o s p ret1 ->
+      exec' u o s p ret2 ->
       ret1 = ret2.
   Proof.
     intros; destruct p; simpl in *; cleanup;
     repeat
       match goal with
-      | [H: exec' _ _ _ _ |- _] =>
+      | [H: exec' _ _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
       end; eauto;
     try split_ors; intuition;
@@ -87,4 +87,3 @@ End LoggedDisk.
 
 Notation "| p |" := (Op LoggedDiskOperation p)(at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op LoggedDiskOperation p1) (fun x => p2))(right associativity, at level 60). 
-Notation "p >> s" := (p s) (right associativity, at level 60, only parsing).

@@ -22,47 +22,47 @@ Definition hashmap := @mem hash hash_dec (hash * value).
   | Decrypt : key -> value -> crypto_prog value.
    
   Inductive exec' :
-    forall T, token' ->  state' -> crypto_prog T -> @Result state' T -> Prop :=
+    forall T, user -> token' ->  state' -> crypto_prog T -> @Result state' T -> Prop :=
 
   | ExecHash : 
-      forall s h v,
+      forall s h v u,
         let kl := fst s in
         let hm := snd s in
         let hv := hash_function h v in
         consistent hm hv (h, v) ->
-        exec' Cont s (Hash h v) (Finished (kl, (upd hm hv (h, v))) hv)
+        exec' u Cont s (Hash h v) (Finished (kl, (upd hm hv (h, v))) hv)
              
   | ExecEncrypt : 
-      forall s k v,
-        exec' Cont s (Encrypt k v) (Finished s (encrypt k v))
+      forall s k v u,
+        exec' u Cont s (Encrypt k v) (Finished s (encrypt k v))
 
   | ExecDecrypt : 
-      forall s ev k,
-        exec' Cont s (Decrypt k ev) (Finished s (decrypt k ev))
+      forall s ev k u,
+        exec' u Cont s (Decrypt k ev) (Finished s (decrypt k ev))
 
   | ExecGetKey : 
-      forall s k,
+      forall s k u,
         let kl := fst s in
         let hm := snd s in
         ~In k kl ->
-        exec' (Key k) s GetKey (Finished ((k::kl), hm) k)
+        exec' u (Key k) s GetKey (Finished ((k::kl), hm) k)
  
   | ExecCrash :
-      forall T d (p: crypto_prog T),
-        exec' Crash d p (Crashed d).
+      forall T d (p: crypto_prog T) u,
+        exec' u Crash d p (Crashed d).
 
   Hint Constructors exec' : core.
   
   Theorem exec_deterministic_wrt_token' :
-    forall o s T (p: crypto_prog T) ret1 ret2,
-      exec' o s p ret1 ->
-      exec' o s p ret2 ->
+    forall u o s T (p: crypto_prog T) ret1 ret2,
+      exec' u o s p ret1 ->
+      exec' u o s p ret2 ->
       ret1 = ret2.
   Proof.
     intros; destruct p; simpl in *; cleanup;
     repeat
       match goal with
-      | [H: exec' _ _ _ _ |- _] =>
+      | [H: exec' _ _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
       end; eauto.
   Qed.

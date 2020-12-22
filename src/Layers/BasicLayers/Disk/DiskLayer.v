@@ -22,40 +22,39 @@ Section DiskLayer.
   | Sync : disk_prog unit.
    
   Inductive exec' :
-    forall T, token' ->  state' -> disk_prog T -> @Result state' T -> Prop :=
+    forall T, user -> token' ->  state' -> disk_prog T -> @Result state' T -> Prop :=
   | ExecRead : 
-      forall d a,
+      forall d a u,
         in_domain a ->
-        exec' Cont d (Read a) (Finished d (fst (d a)))
+        exec' u Cont d (Read a) (Finished d (fst (d a)))
              
   | ExecWrite :
-      forall d a v,
+      forall d a v u,
         in_domain a ->
-        exec' Cont d (Write a v) (Finished (upd d a (v, (fst (d a)::snd (d a)))) tt)
+        exec' u Cont d (Write a v) (Finished (upd d a (v, (fst (d a)::snd (d a)))) tt)
 
   | ExecSync :
-      forall d,
-        exec' Cont d Sync (Finished (sync d) tt)
+      forall d u,
+        exec' u Cont d Sync (Finished (sync d) tt)
  
   | ExecCrash :
-      forall T d (p: disk_prog T),
-        exec' Crash d p (Crashed d).
+      forall T d (p: disk_prog T) u,
+        exec' u Crash d p (Crashed d).
 
   Hint Constructors exec' : core.
 
   Theorem exec_deterministic_wrt_token' :
-    forall o s T (p: disk_prog T) ret1 ret2,
-      exec' o s p ret1 ->
-      exec' o s p ret2 ->
+    forall u o s T (p: disk_prog T) ret1 ret2,
+      exec' u o s p ret1 ->
+      exec' u o s p ret2 ->
       ret1 = ret2.
   Proof.
     intros; destruct p; simpl in *; cleanup;
     repeat
       match goal with
-      | [H: exec' _ _ _ _ |- _] =>
+      | [H: exec' _ _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
-      end; eauto.
-    
+      end; eauto.    
   Qed. 
   
   Definition DiskOperation :=

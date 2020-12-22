@@ -18,35 +18,35 @@ Section HorizontalComposition.
   | P2 : forall T, O2.(operation) T -> horizontal_composition_prog T.
 
 
-  Inductive exec': forall T, token' -> state' -> horizontal_composition_prog T -> @Result state' T -> Prop :=
+  Inductive exec': forall T, user -> token' -> state' -> horizontal_composition_prog T -> @Result state' T -> Prop :=
   | ExecP1:
-      forall T (p1: O1.(operation) T) o1 s s1 r,
-        O1.(exec) o1 (fst s) p1 (Finished s1 r) ->
-        exec' (Token1 o1) s (P1 _ p1) (Finished (s1, snd s) r)
+      forall T (p1: O1.(operation) T) u o1 s s1 r,
+        O1.(exec) u o1 (fst s) p1 (Finished s1 r) ->
+        exec' u (Token1 o1) s (P1 _ p1) (Finished (s1, snd s) r)
   | ExecP2:
-      forall T (p2: O2.(operation) T) o2 s s2 r,
-        O2.(exec) o2 (snd s) p2 (Finished s2 r) ->
-        exec' (Token2 o2) s (P2 _ p2) (Finished (fst s, s2) r)
+      forall T (p2: O2.(operation) T) u o2 s s2 r,
+        O2.(exec) u o2 (snd s) p2 (Finished s2 r) ->
+        exec' u (Token2 o2) s (P2 _ p2) (Finished (fst s, s2) r)
   | ExecP1Crash:
-      forall T (p1: O1.(operation) T) o1 s s1,
-        O1.(exec) o1 (fst s) p1 (Crashed s1) ->
-        exec' (Token1 o1) s (P1 _ p1) (Crashed (s1, snd s))
+      forall T (p1: O1.(operation) T) u o1 s s1,
+        O1.(exec) u o1 (fst s) p1 (Crashed s1) ->
+        exec' u (Token1 o1) s (P1 _ p1) (Crashed (s1, snd s))
   | ExecP2Crash:
-      forall T (p2: O2.(operation) T) o2 s s2,
-        O2.(exec) o2 (snd s) p2 (Crashed s2) ->
-        exec' (Token2 o2) s (P2 _ p2) (Crashed (fst s, s2)).
+      forall T (p2: O2.(operation) T) u o2 s s2,
+        O2.(exec) u o2 (snd s) p2 (Crashed s2) ->
+        exec' u (Token2 o2) s (P2 _ p2) (Crashed (fst s, s2)).
   
   Theorem exec_deterministic_wrt_token' :
-    forall o s T (p: horizontal_composition_prog T) ret1 ret2,
-      exec' o s p ret1 ->
-      exec' o s p ret2 ->
+    forall u o s T (p: horizontal_composition_prog T) ret1 ret2,
+      exec' u o s p ret1 ->
+      exec' u o s p ret2 ->
       ret1 = ret2.
   Proof.
     intros; destruct p; simpl in *;
     inversion H; inversion H0;
     sigT_eq; clear H H0; cleanup;
-    try solve [inversion H9; subst;
-               eapply exec_deterministic_wrt_token in H6;
+    try solve [inversion H11; subst;
+               eapply exec_deterministic_wrt_token in H7;
                eauto; cleanup; eauto].
   Qed.
 
