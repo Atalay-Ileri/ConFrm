@@ -19,24 +19,24 @@ Section LoggedDiskBisimulation.
 
   Ltac unify_execs :=
     match goal with
-    |[H : recovery_exec ?x ?y ?z ?a ?b ?c _,
-      H0 : recovery_exec ?x ?y ?z ?a ?b ?c _ |- _ ] =>
+    |[H : recovery_exec ?u ?x ?y ?z ?a ?b ?c _,
+      H0 : recovery_exec ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
      eapply recovery_exec_deterministic_wrt_reboot_state in H; [| apply H0]
-    | [ H: exec ?x ?y ?z ?a _,
-        H0: exec ?x ?y ?z ?a _ |- _ ] =>
+    | [ H: exec ?u ?x ?y ?z ?a _,
+        H0: exec ?u ?x ?y ?z ?a _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
-    | [ H: exec' ?x ?y ?z _,
-        H0: exec' ?x ?y ?z _ |- _ ] =>
+    | [ H: exec' ?u ?x ?y ?z _,
+        H0: exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
-    | [ H: exec _ ?x ?y ?z _,
-        H0: Language.exec' ?x ?y ?z _ |- _ ] =>
+    | [ H: exec _ ?u ?x ?y ?z _,
+        H0: Language.exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     end.
   
   Lemma recovery_oracles_refine_to_length:
     forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (ref: Refinement L_imp L_abs)
-      l_o_imp l_o_abs  s T (p1: L_abs.(prog) T) rec l_rf, 
-      recovery_oracles_refine_to ref s p1 rec l_rf l_o_imp l_o_abs ->
+      l_o_imp l_o_abs T (u: user) s (p1: L_abs.(prog) T) rec l_rf u, 
+      recovery_oracles_refine_to ref u s p1 rec l_rf l_o_imp l_o_abs ->
       length l_o_imp = length l_o_abs.
   Proof.
     induction l_o_imp; simpl; intros; eauto.
@@ -66,8 +66,8 @@ Section LoggedDiskBisimulation.
 
   
   Theorem abstract_oracles_exist_wrt_recover:
-    forall l_selector, 
-      abstract_oracles_exist_wrt refinement refines_to_reboot (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
+    forall l_selector u, 
+      abstract_oracles_exist_wrt refinement refines_to_reboot u (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
@@ -78,11 +78,11 @@ Section LoggedDiskBisimulation.
       destruct t.
       left.
       eexists; intuition eauto.
-      eapply recover_finished in H7; eauto.
+      eapply recover_finished in H8; eauto.
       unify_execs; cleanup.
     }
     { 
-      eapply IHl_selector in H11; eauto; cleanup.
+      eapply IHl_selector in H12; eauto; cleanup.
       exists ([OpToken (LoggedDiskOperation data_length) CrashBefore]::x0); simpl.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -92,11 +92,11 @@ Section LoggedDiskBisimulation.
       right.
       eexists; repeat split; eauto.
       intros.
-      eapply_fresh recover_crashed in H10; eauto.
+      eapply_fresh recover_crashed in H11; eauto.
       logic_clean; eauto.
       eauto.
       
-      eapply_fresh recover_crashed in H10; eauto.
+      eapply_fresh recover_crashed in H11; eauto.
       cleanup; repeat split_ors;
       simpl in *; unfold cached_log_reboot_rep in H0;
       cleanup;
@@ -113,8 +113,8 @@ Section LoggedDiskBisimulation.
   Qed.
 
   Theorem abstract_oracles_exist_wrt_recover':
-    forall l_selector, 
-      abstract_oracles_exist_wrt refinement refines_to (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
+    forall l_selector u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
@@ -126,7 +126,7 @@ Section LoggedDiskBisimulation.
       left.
       eexists; intuition eauto.
       unfold refines_to, cached_log_reboot_rep in *; cleanup.
-      eapply recover_finished in H6; eauto.
+      eapply recover_finished in H7; eauto.
       eexists; intuition eauto.
       unify_execs; cleanup.
     }
@@ -135,7 +135,7 @@ Section LoggedDiskBisimulation.
       cleanup.
       eapply log_rep_to_reboot_rep_same in H0.
               
-      eapply abstract_oracles_exist_wrt_recover in H10; eauto; cleanup.
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
       exists ([OpToken (LoggedDiskOperation data_length) CrashBefore]::x); simpl.
       repeat split; eauto;
       intros; simpl in *; try unify_execs; cleanup.
@@ -145,11 +145,11 @@ Section LoggedDiskBisimulation.
       eexists; repeat split; eauto.
       intros.
       
-      eapply_fresh recover_crashed in H9; eauto.
+      eapply_fresh recover_crashed in H10; eauto.
       logic_clean; eauto.
       eauto.
       
-      eapply_fresh recover_crashed in H9; eauto;
+      eapply_fresh recover_crashed in H10; eauto;
       [|
         unfold cached_log_reboot_rep;
         eexists; intuition eauto
@@ -170,8 +170,8 @@ Section LoggedDiskBisimulation.
   Qed.
 
   Theorem abstract_oracles_exist_wrt_read:
-    forall l_selector a, 
-      abstract_oracles_exist_wrt refinement refines_to (|Read a|) (|Recover|) (cached_disk_reboot_list l_selector).
+    forall l_selector a u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Read a|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
@@ -182,7 +182,7 @@ Section LoggedDiskBisimulation.
       left.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      eapply_fresh read_finished in H6; eauto; cleanup.
+      eapply_fresh read_finished in H7; eauto; cleanup.
       cleanup; eauto.
     }
     {
@@ -190,17 +190,17 @@ Section LoggedDiskBisimulation.
       cleanup.
       eapply_fresh log_rep_to_reboot_rep_same in H0.
               
-      eapply abstract_oracles_exist_wrt_recover in H10; eauto; cleanup.
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
       exists ([OpToken (LoggedDiskOperation data_length) CrashBefore]::x); simpl.
       repeat split; eauto; intros; simpl in *; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H1; eauto.
       
       eexists; repeat split; eauto.
       right; eexists; intuition eauto.      
-      eapply_fresh read_crashed in H9; cleanup; eauto.
+      eapply_fresh read_crashed in H10; cleanup; eauto.
       eauto.
       {        
-        eapply_fresh read_crashed in H9; cleanup; eauto.
+        eapply_fresh read_crashed in H10; cleanup; eauto.
         eapply reboot_rep_to_reboot_rep in Hx.
         eexists; unfold cached_log_reboot_rep; simpl.
         eexists; simpl; intuition eauto.
@@ -215,9 +215,148 @@ Section LoggedDiskBisimulation.
   Arguments cached_log_rep: simpl never.
   Arguments cached_log_crash_rep: simpl never.
 
+  Lemma upd_batch_noop:
+    forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) m tm,
+      Mem.upd_batch m l_a l_v = m ->
+      Forall (fun a => m a = None) l_a -> 
+      length l_a = length l_v ->
+      upd_batch tm l_a l_v = tm.
+  Proof.
+    induction l_a; simpl; intros; eauto.
+    destruct l_v; eauto.
+    inversion H0; cleanup.
+    destruct (in_dec AEQ a l_a).
+    {
+      rewrite Mem.upd_batch_upd_in_noop in H; eauto.
+      rewrite upd_batch_upd_in_noop; eauto.
+    }
+    {
+      rewrite Mem.upd_batch_upd in H; eauto.
+      eapply equal_f with (x:= a) in H.              
+      rewrite Mem.upd_eq in *; eauto; cleanup.
+    }
+  Qed.
+
+  Lemma list_upd_batch_noop:
+    forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) m,
+      Mem.list_upd_batch m l_l_a l_l_v = m ->
+      Forall (Forall (fun a => m a = None)) l_l_a ->
+      Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
+      (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
+  Proof.
+    do 4 intro.
+    eapply rev_ind with
+        (P:= fun l_l_a =>
+               forall (l_l_v : list (list V)) (m : mem),
+                 Mem.list_upd_batch m l_l_a l_l_v = m ->
+                 Forall (Forall (fun a : A => m a = None)) l_l_a ->                      
+                 Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
+                 forall tm : total_mem, list_upd_batch tm l_l_a l_l_v = tm);
+    simpl; intros; eauto.
+    {
+      destruct (nil_or_app l_l_v); cleanup.
+      destruct (l++[x]); simpl; eauto.
+      
+      
+      eapply_fresh forall2_length in H2.
+      repeat rewrite app_length in *; simpl in *.
+      eapply_fresh Forall2_app_split in H2; cleanup; eauto; try lia.
+      eapply_fresh forall_app_l in H1.
+      eapply_fresh forall_app_r in H1.
+      rewrite Mem.list_upd_batch_app in H0; simpl in *; try lia.
+      inversion Hx0; cleanup.
+      rewrite list_upd_batch_app; simpl in *; try lia.
+      destruct (nil_or_app x); cleanup;
+      simpl in *; eauto.
+      destruct (nil_or_app x0); cleanup.
+      destruct (x3 ++ [x2]); simpl in *; eauto.
+      inversion H4; cleanup.
+      repeat rewrite app_length in *; simpl in *.
+      rewrite Mem.upd_batch_app in *; simpl in *; try lia.
+      apply forall_app_l in H7; inversion H7; cleanup.
+      apply equal_f with (x0:= x2) in H0.
+      rewrite Mem.upd_eq in *; eauto; cleanup.
+    }
+  Qed.
+
+  Lemma upd_batch_noop_empty_mem:
+    forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) tm,
+      Mem.upd_batch empty_mem l_a l_v = empty_mem ->
+      length l_a = length l_v ->
+      upd_batch tm l_a l_v = tm.
+  Proof.
+    induction l_a; simpl; intros; eauto.
+    destruct l_v; eauto.
+    destruct (in_dec AEQ a l_a).
+    {
+      rewrite Mem.upd_batch_upd_in_noop in H; eauto.
+      rewrite upd_batch_upd_in_noop; eauto.
+    }
+    {
+      rewrite Mem.upd_batch_upd in H; eauto.
+      eapply equal_f with (x:= a) in H.              
+      rewrite Mem.upd_eq in *; eauto.
+      unfold empty_mem in *; congruence.
+    }
+  Qed.
+  
+  Lemma upd_batch_eq_empty_mem:
+    forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) m,
+      Mem.upd_batch m l_a l_v = empty_mem ->
+      m = empty_mem /\
+      (l_a = [] \/ l_v = []).
+  Proof.
+    induction l_a; simpl; intros; eauto.
+    destruct l_v; eauto.
+    eapply IHl_a in H.
+    destruct H.
+    eapply equal_f with (x:=a) in H.
+    rewrite Mem.upd_eq in H; eauto.
+    unfold empty_mem in *; congruence.
+  Qed.
+
+  Lemma list_upd_batch_eq_empty_mem:
+    forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) m,
+      Mem.list_upd_batch m l_l_a l_l_v = empty_mem ->
+      m = empty_mem /\
+      (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
+  Proof.
+    induction l_l_a; simpl; intros; eauto.
+    destruct l_l_v; eauto.
+    eapply IHl_l_a in H.
+    destruct H.
+    apply upd_batch_eq_empty_mem in H.
+    destruct H.
+    split; eauto.
+    intros; rewrite H0.            
+    intuition; subst; simpl; eauto.
+    destruct a; eauto.
+  Qed.
+
+  (*
+  Lemma list_upd_batch_upd_batch_empty_mem:
+    forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) l_a l_v (m: @mem A AEQ V),
+      Mem.list_upd_batch (Mem.upd_batch empty_mem l_a l_v) l_l_a l_l_v = Mem.list_upd_batch empty_mem l_l_a l_l_v  ->
+      m = empty_mem /\
+      (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
+  Proof.
+    induction l_l_a; simpl; intros; eauto.
+    destruct l_l_v; eauto.
+    eapply IHl_l_a in H.
+    destruct H.
+    apply upd_batch_eq_empty_mem in H.
+    destruct H.
+    split; eauto.
+    intros; rewrite H0.            
+    intuition; subst; simpl; eauto.
+    destruct a; eauto.
+  Qed.
+  *)
+  
+
   Theorem abstract_oracles_exist_wrt_write:
-    forall l_selector l_a l_v,
-      abstract_oracles_exist_wrt refinement refines_to (|Write l_a l_v|) (|Recover|) (cached_disk_reboot_list l_selector).
+    forall l_selector l_a l_v u,
+      abstract_oracles_exist_wrt refinement refines_to u (|Write l_a l_v|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
@@ -228,7 +367,7 @@ Section LoggedDiskBisimulation.
       left.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      eapply_fresh write_finished in H6; eauto.
+      eapply_fresh write_finished in H7; eauto.
       unfold refines_to, cached_log_rep in *;
       cleanup; eauto.
       intuition eauto.
@@ -236,10 +375,10 @@ Section LoggedDiskBisimulation.
     {
       unfold refines_to, cached_log_rep in *.
       cleanup.
-      eapply_fresh write_crashed in H9; eauto.
+      eapply_fresh write_crashed in H10; eauto.
       2: unfold cached_log_rep; eexists; eauto.
               
-      eapply abstract_oracles_exist_wrt_recover in H10; eauto; cleanup.
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
       repeat split_ors.
       {
         exists ([OpToken (LoggedDiskOperation data_length) CrashBefore]::x); simpl.
@@ -253,123 +392,7 @@ Section LoggedDiskBisimulation.
         unfold cached_log_rep in *; simpl in *; cleanup.
         eexists; intuition eauto.
 
-        Lemma upd_batch_noop:
-            forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) m tm,
-              Mem.upd_batch m l_a l_v = m ->
-              Forall (fun a => m a = None) l_a -> 
-              length l_a = length l_v ->
-              upd_batch tm l_a l_v = tm.
-          Proof.
-            induction l_a; simpl; intros; eauto.
-            destruct l_v; eauto.
-            inversion H0; cleanup.
-            destruct (in_dec AEQ a l_a).
-            {
-              rewrite Mem.upd_batch_upd_in_noop in H; eauto.
-              rewrite upd_batch_upd_in_noop; eauto.
-            }
-            {
-              rewrite Mem.upd_batch_upd in H; eauto.
-              eapply equal_f with (x:= a) in H.              
-              rewrite Mem.upd_eq in *; eauto; cleanup.
-            }
-          Qed.
-
-          Lemma list_upd_batch_noop:
-            forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) m,
-            Mem.list_upd_batch m l_l_a l_l_v = m ->
-            Forall (Forall (fun a => m a = None)) l_l_a ->
-            Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
-            (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
-          Proof.
-            do 4 intro.
-            eapply rev_ind with
-                (P:= fun l_l_a =>
-                       forall (l_l_v : list (list V)) (m : mem),
-                         Mem.list_upd_batch m l_l_a l_l_v = m ->
-                         Forall (Forall (fun a : A => m a = None)) l_l_a ->                      
-                         Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
-                         forall tm : total_mem, list_upd_batch tm l_l_a l_l_v = tm);
-            simpl; intros; eauto.
-            {
-              destruct (nil_or_app l_l_v); cleanup.
-              destruct (l++[x]); simpl; eauto.
-              
-              
-              eapply_fresh forall2_length in H2.
-              repeat rewrite app_length in *; simpl in *.
-              eapply_fresh Forall2_app_split in H2; cleanup; eauto; try lia.
-              eapply_fresh forall_app_l in H1.
-              eapply_fresh forall_app_r in H1.
-              rewrite Mem.list_upd_batch_app in H0; simpl in *; try lia.
-              inversion Hx0; cleanup.
-              rewrite list_upd_batch_app; simpl in *; try lia.
-              destruct (nil_or_app x); cleanup;
-              simpl in *; eauto.
-              destruct (nil_or_app x0); cleanup.
-              destruct (x3 ++ [x2]); simpl in *; eauto.
-              inversion H4; cleanup.
-              repeat rewrite app_length in *; simpl in *.
-              rewrite Mem.upd_batch_app in *; simpl in *; try lia.
-              apply forall_app_l in H7; inversion H7; cleanup.
-              apply equal_f with (x0:= x2) in H0.
-              rewrite Mem.upd_eq in *; eauto; cleanup.
-            }
-          Qed.
-
-         Lemma upd_batch_noop_empty_mem:
-            forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) tm,
-              Mem.upd_batch empty_mem l_a l_v = empty_mem ->
-              length l_a = length l_v ->
-              upd_batch tm l_a l_v = tm.
-          Proof.
-            induction l_a; simpl; intros; eauto.
-            destruct l_v; eauto.
-            destruct (in_dec AEQ a l_a).
-            {
-              rewrite Mem.upd_batch_upd_in_noop in H; eauto.
-              rewrite upd_batch_upd_in_noop; eauto.
-            }
-            {
-              rewrite Mem.upd_batch_upd in H; eauto.
-              eapply equal_f with (x:= a) in H.              
-              rewrite Mem.upd_eq in *; eauto.
-              unfold empty_mem in *; congruence.
-            }
-          Qed.
-          
-          Lemma upd_batch_eq_empty_mem:
-            forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) m,
-            Mem.upd_batch m l_a l_v = empty_mem ->
-            m = empty_mem /\
-            (l_a = [] \/ l_v = []).
-          Proof.
-            induction l_a; simpl; intros; eauto.
-            destruct l_v; eauto.
-            eapply IHl_a in H.
-            destruct H.
-            eapply equal_f with (x:=a) in H.
-            rewrite Mem.upd_eq in H; eauto.
-            unfold empty_mem in *; congruence.
-          Qed.
-
-          Lemma list_upd_batch_eq_empty_mem:
-            forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) m,
-            Mem.list_upd_batch m l_l_a l_l_v = empty_mem ->
-            m = empty_mem /\
-            (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
-          Proof.
-            induction l_l_a; simpl; intros; eauto.
-            destruct l_l_v; eauto.
-            eapply IHl_l_a in H.
-            destruct H.
-            apply upd_batch_eq_empty_mem in H.
-            destruct H.
-            split; eauto.
-            intros; rewrite H0.            
-            intuition; subst; simpl; eauto.
-            destruct a; eauto.
-          Qed.
+        
 
           Lemma list_upd_batch_eq_list_upd_batch_set:
           forall A AEQ V l_a1 l_v1 l_a2 l_v2 (tm: @total_mem A AEQ (V * list V)) m,
@@ -442,6 +465,7 @@ Section LoggedDiskBisimulation.
           }
           {
             destruct l_a2; simpl in *.
+            
             admit.
             destruct l_v2; simpl in *; try lia.
             extensionality x.
@@ -476,23 +500,7 @@ Section LoggedDiskBisimulation.
             
             
 
-          Lemma list_upd_batch_upd_batch_empty_mem:
-            forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) l_a l_v m,
-            Mem.list_upd_batch (Mem.upd_batch empty_mem l_a l_v) l_l_a l_l_v = Mem.list_upd_batch empty_mem l_l_a l_l_v  ->
-            m = empty_mem /\
-            (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
-          Proof.
-            induction l_l_a; simpl; intros; eauto.
-            destruct l_l_v; eauto.
-            eapply IHl_l_a in H.
-            destruct H.
-            apply upd_batch_eq_empty_mem in H.
-            destruct H.
-            split; eauto.
-            intros; rewrite H0.            
-            intuition; subst; simpl; eauto.
-            destruct a; eauto.
-          Qed.
+          
 
           Search Mem.upd_batch Mem.list_upd_batch.
             

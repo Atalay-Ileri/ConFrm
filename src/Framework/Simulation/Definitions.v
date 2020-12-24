@@ -207,7 +207,7 @@ Definition Simulation rec_abs l_get_reboot_state_imp l_get_reboot_state_abs
 
 End Relations.
 
-Arguments recovery_oracles_refine_to {_ _ _ _} _ _ {_}.
+Arguments recovery_oracles_refine_to {_ _ _ _} _ {_}.
 Arguments refines_to_related {_ _ _ _}.
 Arguments refines_to_valid {_ _ _ _}.
 Arguments exec_compiled_preserves_validity {_ _ _ _} _ {_}.

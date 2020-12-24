@@ -51,9 +51,9 @@ Fixpoint hash_all h vl :=
 (** Specs **)
 
 Theorem write_batch_finished:
-  forall al vl o t s s',
+  forall al vl o t s s' u,
     length al = length vl ->
-    exec CryptoDiskLang o s (write_batch al vl) (Finished s' t) ->
+    exec CryptoDiskLang u o s (write_batch al vl) (Finished s' t) ->
     (forall a, In a al -> a < disk_size) /\
     fst s' = fst s /\ snd s' = upd_batch_set (snd s) al vl.
 Proof.
@@ -69,9 +69,9 @@ Proof.
 Qed.
 
 Theorem write_batch_crashed:
-  forall al vl o s s',
+  forall al vl o s s' u,
     length al = length vl ->
-    exec CryptoDiskLang o s (write_batch al vl) (Crashed s') ->
+    exec CryptoDiskLang u o s (write_batch al vl) (Crashed s') ->
     exists n,
       n <= length al /\
       (forall a, In a (firstn n al) -> a < disk_size) /\
@@ -114,8 +114,8 @@ Proof.
 Qed.
   
 Theorem decrypt_all_finished:
-  forall key evl o s s' t,
-    exec CryptoDiskLang o s (decrypt_all key evl) (Finished s' t) ->
+  forall key evl o s s' t u,
+    exec CryptoDiskLang u o s (decrypt_all key evl) (Finished s' t) ->
     t = map (decrypt key) evl /\ s' = s.
 Proof.
   induction evl; simpl; intros;
@@ -127,8 +127,8 @@ Proof.
 Qed.
 
 Theorem decrypt_all_crashed:
-  forall key evl o s s',
-    exec CryptoDiskLang o s (decrypt_all key evl) (Crashed s') ->
+  forall key evl o s s' u,
+    exec CryptoDiskLang u o s (decrypt_all key evl) (Crashed s') ->
     s' = s.
 Proof.
   induction evl; simpl; intros;
@@ -146,8 +146,8 @@ Qed.
 Import Mem.
 
 Theorem hash_all_finished:
-  forall vl h o s t s',
-    exec CryptoDiskLang o s (hash_all h vl) (Finished s' t) ->
+  forall vl h o s t s' u,
+    exec CryptoDiskLang u o s (hash_all h vl) (Finished s' t) ->
     t = rolling_hash h vl /\
     consistent_with_upds (snd (fst s)) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
     (snd (fst s')) = upd_batch (snd (fst s)) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
@@ -162,8 +162,8 @@ Proof.
 Qed.
 
 Theorem hash_all_crashed:
-  forall vl h o s s',
-    exec CryptoDiskLang o s (hash_all h vl) (Crashed s') ->
+  forall vl h o s s' u,
+    exec CryptoDiskLang u o s (hash_all h vl) (Crashed s') ->
     exists n,
       n <= length (rolling_hash_list h vl) /\
     consistent_with_upds (snd (fst s)) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
@@ -199,8 +199,8 @@ Proof.
 Qed.
 
 Theorem encrypt_all_finished:
-  forall key vl o s s' t,
-    exec CryptoDiskLang o s (encrypt_all key vl) (Finished s' t) ->
+  forall key vl o s s' t u,
+    exec CryptoDiskLang u o s (encrypt_all key vl) (Finished s' t) ->
     t = map (encrypt key) vl /\
     s' = s.
 Proof.
@@ -214,8 +214,8 @@ Proof.
 Qed.
 
 Theorem encrypt_all_crashed:
-  forall key vl o s s',
-    exec CryptoDiskLang o s (encrypt_all key vl) (Crashed s') ->
+  forall key vl o s s' u,
+    exec CryptoDiskLang u o s (encrypt_all key vl) (Crashed s') ->
     s' = s.
 Proof.
   induction vl; simpl; intros;
@@ -238,8 +238,8 @@ Proof.
 Qed.
 
 Theorem read_consecutive_finished:
-  forall count a o s s' t,
-    exec CryptoDiskLang o s (read_consecutive a count) (Finished s' t) ->
+  forall count a o s s' t u,
+    exec CryptoDiskLang u o s (read_consecutive a count) (Finished s' t) ->
     length t = count /\
     (forall i,
        i < count ->
@@ -265,8 +265,8 @@ Proof.
 Qed.
 
 Theorem read_consecutive_crashed:
-  forall count a o s s',
-    exec CryptoDiskLang o s (read_consecutive a count) (Crashed s') ->
+  forall count a o s s' u,
+    exec CryptoDiskLang u o s (read_consecutive a count) (Crashed s') ->
     s' = s.
 Proof.
   induction count; simpl; intros;

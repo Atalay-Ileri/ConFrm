@@ -10,9 +10,9 @@ Set Nested Proofs Allowed.
 (** Specs **)
 
 Theorem update_header_finished:
-  forall header_part vs s' s o t,
+  forall header_part vs s' s o t u,
     (snd s) hdr_block_num = vs ->
-    exec CryptoDiskLang o s (update_header header_part) (Finished s' t) ->
+    exec CryptoDiskLang u o s (update_header header_part) (Finished s' t) ->
     fst s' = fst s /\
     snd s' = upd (snd s) hdr_block_num (encode_header (update_hdr (decode_header (fst vs)) header_part), fst vs :: snd vs).
 Proof.
@@ -22,8 +22,8 @@ Proof.
 Qed.
 
 Theorem update_header_crashed:
-  forall header_part s' s o,
-    exec CryptoDiskLang o s (update_header header_part) (Crashed s') ->
+  forall header_part s' s o u,
+    exec CryptoDiskLang u o s (update_header header_part) (Crashed s') ->
     s' = s.
 Proof.
   unfold update_header, write_header, read_header; simpl; intros.
@@ -35,7 +35,7 @@ Proof.
 Qed.
 
 Theorem decrypt_txn_finished:
-  forall txn log_blocks plain_blocks t s' s o,
+  forall txn log_blocks plain_blocks t s' s o u,
     let key := key txn in
     let start := start txn in
     let addr_count := addr_count txn in
@@ -46,7 +46,7 @@ Theorem decrypt_txn_finished:
     let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
     txn_blocks = map (encrypt key) plain_blocks ->
     length addr_list = length data_blocks ->
-    exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Finished s' t) ->
+    exec CryptoDiskLang u o s (decrypt_txn txn log_blocks) (Finished s' t) ->
     t = (addr_list, data_blocks) /\ s' = s.
 Proof.
   unfold decrypt_txn; simpl; intros;
@@ -60,8 +60,8 @@ Qed.
 
 
 Theorem decrypt_txn_crashed:
-  forall txn log_blocks s' s o,
-    exec CryptoDiskLang o s (decrypt_txn txn log_blocks) (Crashed s') ->
+  forall txn log_blocks s' s o u,
+    exec CryptoDiskLang u o s (decrypt_txn txn log_blocks) (Crashed s') ->
     s' = s.
 Proof.
   unfold decrypt_txn; simpl; intros;
@@ -73,7 +73,7 @@ Qed.
 
 
 Theorem apply_txn_finished:
-  forall txn log_blocks plain_blocks t s' s o,
+  forall txn log_blocks plain_blocks t s' s o u,
     let key := key txn in
     let start := start txn in
     let addr_count := addr_count txn in
@@ -84,7 +84,7 @@ Theorem apply_txn_finished:
     let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
     txn_blocks = map (encrypt key) plain_blocks ->
     length addr_list = length data_blocks ->
-    exec CryptoDiskLang o s (apply_txn txn log_blocks) (Finished s' t) ->
+    exec CryptoDiskLang u o s (apply_txn txn log_blocks) (Finished s' t) ->
     fst s' = fst s /\ snd s' = upd_batch_set (snd s) addr_list data_blocks.
 Proof.
   unfold apply_txn; simpl; intros;
@@ -97,7 +97,7 @@ Proof.
 Qed.
 
 Theorem apply_txn_crashed:
-  forall txn log_blocks plain_blocks s' s o,
+  forall txn log_blocks plain_blocks s' s o u,
     let key := key txn in
     let start := start txn in
     let addr_count := addr_count txn in
@@ -108,7 +108,7 @@ Theorem apply_txn_crashed:
     let addr_list := firstn data_count (blocks_to_addr_list addr_blocks) in
     txn_blocks = map (encrypt key) plain_blocks ->
     length addr_list = length data_blocks ->
-    exec CryptoDiskLang o s (apply_txn txn log_blocks) (Crashed s') ->
+    exec CryptoDiskLang u o s (apply_txn txn log_blocks) (Crashed s') ->
     fst s' = fst s /\ exists n, snd s' = upd_batch_set (snd s) (firstn n addr_list) (firstn n data_blocks).
 Proof.
   unfold apply_txn; simpl; intros;
@@ -126,7 +126,7 @@ Proof.
 Qed.
 
 Theorem apply_txns_finished:
-  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
+  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t u,
     let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
     
     Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
@@ -134,7 +134,7 @@ Theorem apply_txns_finished:
     Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
     Forall (fun txn_record => start txn_record + addr_count txn_record + data_count txn_record <= length log_blocks) txns ->
     
-    exec CryptoDiskLang o s (apply_txns txns log_blocks) (Finished s' t) ->
+    exec CryptoDiskLang u o s (apply_txns txns log_blocks) (Finished s' t) ->
     fst s' = fst s /\
     snd s' = list_upd_batch_set (snd s) l_addr_list l_plain_data_blocks.
 Proof.
@@ -181,7 +181,7 @@ Qed.
 
 
 Theorem apply_txns_crashed:
-  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s',
+  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' u,
     let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
     
     Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
@@ -189,7 +189,7 @@ Theorem apply_txns_crashed:
     Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
     Forall (fun txn_record => start txn_record + addr_count txn_record + data_count txn_record <= length log_blocks) txns ->
     
-    exec CryptoDiskLang o s (apply_txns txns log_blocks) (Crashed s') ->
+    exec CryptoDiskLang u o s (apply_txns txns log_blocks) (Crashed s') ->
     fst s' = fst s /\
     exists n m, snd s' = upd_batch_set (list_upd_batch_set (snd s) (firstn n l_addr_list) (firstn n l_plain_data_blocks)) (firstn m (selN l_addr_list n [])) (firstn m (selN l_plain_data_blocks n [])).
 Proof.
@@ -272,7 +272,7 @@ Global Opaque apply_txns.
 
 
 Theorem decrypt_txns_finished:
-  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t,
+  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t u,
     let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
     
     Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
@@ -280,7 +280,7 @@ Theorem decrypt_txns_finished:
     Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
     Forall (fun txn_record => start txn_record + addr_count txn_record + data_count txn_record <= length log_blocks) txns ->
     
-    exec CryptoDiskLang o s (decrypt_txns txns log_blocks) (Finished s' t) ->
+    exec CryptoDiskLang u o s (decrypt_txns txns log_blocks) (Finished s' t) ->
     t = combine l_addr_list l_plain_data_blocks /\
     s' = s.
 Proof.
@@ -324,14 +324,14 @@ Proof.
 Qed.
 
 Theorem decrypt_txns_crashed:
-  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s',
+  forall txns log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' u,
     let l_addr_list := bimap get_addr_list txns l_plain_addr_blocks in
     
     Forall2 (plain_addr_blocks_valid log_blocks) l_plain_addr_blocks txns ->
     Forall2 (plain_data_blocks_valid log_blocks) l_plain_data_blocks txns ->
     Forall2 (fun l1 l2 => length l1 = length l2) l_addr_list l_plain_data_blocks ->
     Forall (fun txn_record => start txn_record + addr_count txn_record + data_count txn_record <= length log_blocks) txns ->
-    exec CryptoDiskLang o s (decrypt_txns txns log_blocks) (Crashed s') ->
+    exec CryptoDiskLang u o s (decrypt_txns txns log_blocks) (Crashed s') ->
     s' = s.
 Proof.
   induction txns; simpl; intros;
@@ -409,7 +409,7 @@ Qed.
 
 
 Theorem read_encrypted_log_finished :
-  forall o s txns hdr r s' header_state log_state valid_part hdr_blockset log_blocksets,
+  forall o s txns hdr r s' header_state log_state valid_part hdr_blockset log_blocksets u,
     let valid_header_part :=
         match valid_part with
         | Old_Part => old_part hdr
@@ -420,7 +420,7 @@ Theorem read_encrypted_log_finished :
     log_rep_explicit header_state log_state valid_part hdr txns hdr_blockset log_blocksets s ->
     (valid_part = Old_Part ->
      hash (current_part hdr) <> rolling_hash hash0 (firstn (count (current_part hdr)) (map fst log_blocksets))) ->
-    exec CryptoDiskLang o s read_encrypted_log (Finished s' r) ->
+    exec CryptoDiskLang u o s read_encrypted_log (Finished s' r) ->
     r =  (valid_header_part, valid_log_blocks) /\
     fst (fst s') = fst (fst s) /\
     snd s' = snd s /\
@@ -431,10 +431,10 @@ Proof.
   {(** Current part **)
     invert_exec.
     invert_exec'' H1.    
+    invert_exec'' H9.
+    invert_exec'' H12.
     invert_exec'' H8.
-    invert_exec'' H11.
-    invert_exec'' H7.
-    invert_exec'' H8.
+    invert_exec'' H9.
     invert_exec.
     eapply read_consecutive_finished in H1; cleanup.
     assert (x3 = firstn (count (current_part hdr)) (map fst log_blocksets)).
@@ -488,10 +488,10 @@ Proof.
   {(** Old Part **)
     invert_exec.
     invert_exec'' H1.    
+    invert_exec'' H9.
+    invert_exec'' H12.
     invert_exec'' H8.
-    invert_exec'' H11.
-    invert_exec'' H7.
-    invert_exec'' H8.
+    invert_exec'' H9.
     invert_exec.
     eapply read_consecutive_finished in H1; cleanup.
     assert (x3 = firstn (count (current_part hdr)) (map fst log_blocksets)).
@@ -573,7 +573,7 @@ Proof.
 Qed.
 
 Theorem read_encrypted_log_crashed :
-  forall o s txns hdr s' header_state log_state valid_part hdr_blockset log_blocksets,
+  forall o s txns hdr s' header_state log_state valid_part hdr_blockset log_blocksets u,
     let valid_header_part :=
         match valid_part with
         | Old_Part => old_part hdr
@@ -584,7 +584,7 @@ Theorem read_encrypted_log_crashed :
     log_rep_explicit header_state log_state valid_part hdr txns hdr_blockset log_blocksets s ->
     (valid_part = Old_Part ->
      hash (current_part hdr) <> rolling_hash hash0 (firstn (count (current_part hdr)) (map fst log_blocksets))) ->
-    exec CryptoDiskLang o s read_encrypted_log (Crashed s') ->
+    exec CryptoDiskLang u o s read_encrypted_log (Crashed s') ->
     fst (fst s') = fst (fst s) /\
     snd s' = snd s /\
     subset (snd (fst s)) (snd (fst s')).
@@ -668,12 +668,12 @@ Qed.
 
 
 Theorem flush_txns_finished:
-  forall txns txn_records log_blocks log_blocksets hdr hdr_blockset o s s' t,
+  forall txns txn_records log_blocks log_blocksets hdr hdr_blockset o s s' t u,
 
     log_rep_explicit Hdr_Synced Synced Current_Part hdr txns hdr_blockset log_blocksets s ->
     txn_records = records (current_part hdr) ->
     log_blocks = firstn (count (current_part hdr)) (map fst log_blocksets) ->
-    exec CryptoDiskLang o s (flush_txns txn_records log_blocks) (Finished s' t) ->
+    exec CryptoDiskLang u o s (flush_txns txn_records log_blocks) (Finished s' t) ->
     fst s' = fst s /\
     log_rep [] s' /\
     snd s' = sync (upd_set (list_upd_batch_set (snd s) (map addr_list txns) (map data_blocks txns)) hdr_block_num (encode_header (update_hdr hdr header_part0))).
@@ -811,12 +811,12 @@ Proof.
 Qed.
 
 Theorem flush_txns_crashed:
-  forall txns txn_records log_blocks log_blocksets hdr hdr_blockset o s s',
+  forall txns txn_records log_blocks log_blocksets hdr hdr_blockset o s s' u,
 
     log_rep_explicit Hdr_Synced Synced Current_Part hdr txns hdr_blockset log_blocksets s ->
     txn_records = records (current_part hdr) ->
     log_blocks = firstn (count (current_part hdr)) (map fst log_blocksets) ->
-    exec CryptoDiskLang o s (flush_txns txn_records log_blocks) (Crashed s') ->
+    exec CryptoDiskLang u o s (flush_txns txn_records log_blocks) (Crashed s') ->
     fst s' = fst s /\
     ((log_rep txns s' /\ (exists n m : nat,
                            snd s' =
@@ -1058,10 +1058,10 @@ Qed.
 
 
 Theorem apply_log_finished:
-  forall txns hdr o s s' t,
+  forall txns hdr o s s' t u,
 
     log_header_rep hdr txns s ->
-    exec CryptoDiskLang o s apply_log (Finished s' t) ->
+    exec CryptoDiskLang u o s apply_log (Finished s' t) ->
     fst (fst s') = fst (fst s) /\
     subset (snd (fst s)) (snd (fst s')) /\
     log_rep [] s' /\
@@ -1080,10 +1080,10 @@ Qed.
 
 
 Theorem apply_log_crashed:
-  forall txns hdr o s s',
+  forall txns hdr o s s' u,
 
     log_header_rep hdr txns s ->
-    exec CryptoDiskLang o s apply_log (Crashed s') ->
+    exec CryptoDiskLang u o s apply_log (Crashed s') ->
     fst (fst s') = fst (fst s) /\
     subset (snd (fst s)) (snd (fst s')) /\
     ((log_rep txns s' /\ snd s' = snd s) \/
@@ -1128,10 +1128,20 @@ Proof.
   }
 Qed.
 
+Lemma selN_seq:
+  forall len start n def,
+    n < len ->
+    selN (seq start len) n def = (start + n).
+Proof.
+  induction len; simpl; intuition eauto.
+  lia.
+  destruct n; eauto.
+  rewrite IHlen; lia.
+Qed.
 
 
 Theorem commit_txn_finished:
-  forall txns hdr l_addr l_data o s s' t,
+  forall txns hdr l_addr l_data o s s' t u,
     let addr_list := (firstn (length l_data) (blocks_to_addr_list l_addr)) in
     
     log_header_rep hdr txns s ->
@@ -1140,7 +1150,7 @@ Theorem commit_txn_finished:
     Forall (fun a => disk_size > a /\ a >= data_start) addr_list ->
     length l_data <= length (blocks_to_addr_list l_addr) ->
     
-    exec CryptoDiskLang o s (commit_txn l_addr l_data) (Finished s' t) ->
+    exec CryptoDiskLang u o s (commit_txn l_addr l_data) (Finished s' t) ->
     exists txn,
       addr_blocks txn = l_addr /\
       data_blocks txn = l_data /\
@@ -1213,17 +1223,6 @@ Proof.
         rewrite firstn_length_l.
         rewrite selN_app1.
         erewrite upd_batch_eq; eauto.
-
-        Lemma selN_seq:
-          forall len start n def,
-            n < len ->
-            selN (seq start len) n def = (start + n).
-        Proof.
-          induction len; simpl; intuition eauto.
-          lia.
-          destruct n; eauto.
-          rewrite IHlen; lia.
-        Qed.
         
         rewrite selN_seq.
         rewrite log_start_eq; simpl.
@@ -1513,7 +1512,7 @@ Admitted.
 Arguments log_crash_rep : simpl never.
 
 Theorem commit_txn_crashed:
-  forall txns hdr l_addr l_data o s s',
+  forall txns hdr l_addr l_data o s s' u,
     let addr_list := (firstn (length l_data) (blocks_to_addr_list l_addr)) in
     
     log_header_rep hdr txns s ->
@@ -1522,7 +1521,7 @@ Theorem commit_txn_crashed:
     Forall (fun a => disk_size > a /\ a >= data_start) addr_list ->
     length l_data <= length (blocks_to_addr_list l_addr) ->
     
-    exec CryptoDiskLang o s (commit_txn l_addr l_data) (Crashed s') ->
+    exec CryptoDiskLang u o s (commit_txn l_addr l_data) (Crashed s') ->
     (log_rep txns s' /\ snd s' = snd s) \/
     (log_crash_rep (During_Commit_Log_Write txns) s' /\
      (forall a, a >= data_start -> (snd s') a = (snd s) a)) \/
@@ -2610,7 +2609,7 @@ Admitted.
 
 
 Theorem commit_finished:
-  forall txns l_addr l_data hdr o s s' t,
+  forall txns l_addr l_data hdr o s s' t u,
     let addr_list := (firstn (length l_data) (blocks_to_addr_list l_addr)) in
     
     log_header_rep hdr txns s ->
@@ -2618,7 +2617,7 @@ Theorem commit_finished:
     Forall (fun a => disk_size > a /\ a >= data_start) addr_list ->
     length l_data <= length (blocks_to_addr_list l_addr) ->
     
-    exec CryptoDiskLang o s (commit l_addr l_data) (Finished s' t) ->
+    exec CryptoDiskLang u o s (commit l_addr l_data) (Finished s' t) ->
     (exists txn,
        t = true /\
        addr_blocks txn = l_addr /\
@@ -2647,7 +2646,7 @@ Qed.
 
 
 Theorem commit_crashed:
-  forall txns l_addr l_data o s s',
+  forall txns l_addr l_data o s s' u,
     let addr_list := (firstn (length l_data) (blocks_to_addr_list l_addr)) in
     
     log_rep txns s ->
@@ -2655,7 +2654,7 @@ Theorem commit_crashed:
     Forall (fun a => disk_size > a /\ a >= data_start) addr_list ->
     length l_data <= length (blocks_to_addr_list l_addr) ->
     
-    exec CryptoDiskLang o s (commit l_addr l_data) (Crashed s') ->
+    exec CryptoDiskLang u o s (commit l_addr l_data) (Crashed s') ->
     (log_rep txns s' /\ snd s' = snd s) \/
     (log_crash_rep (During_Commit_Log_Write txns) s' /\
      (forall a, a >= data_start -> (snd s') a = (snd s) a)) \/
@@ -2697,9 +2696,9 @@ Proof.
 Qed.
 
 Theorem recover_finished:
-  forall o s txns s' r,
+  forall o s txns s' r u,
     log_reboot_rep txns s ->
-    exec CryptoDiskLang o s recover (Finished s' r) ->
+    exec CryptoDiskLang u o s recover (Finished s' r) ->
     log_rep txns s' /\
     r = combine (map addr_list txns) (map data_blocks txns) /\
     (forall a, a >= data_start -> snd s' a = sync (snd s) a).
@@ -2734,7 +2733,7 @@ Proof.
         unfold log_data_blocks_rep in *; cleanup; simpl in *; intuition eauto.
 
         {
-          rewrite map_length in H8.
+          rewrite map_length in H9.
           rewrite sync_upd_comm; simpl.
           rewrite upd_ne.
           unfold sync; erewrite selN_map. 
@@ -2745,7 +2744,7 @@ Proof.
           lia.
         }
         {
-          apply in_map_iff in H8; cleanup; simpl; eauto.
+          apply in_map_iff in H9; cleanup; simpl; eauto.
         }
         {
           rewrite map_length, <- H3; eauto.
@@ -2793,9 +2792,9 @@ Proof.
 Qed.
 
 Theorem recover_crashed:
-  forall o s txns s',
+  forall o s txns s' u,
     log_reboot_rep txns s ->
-    exec CryptoDiskLang o s recover (Crashed s') ->
+    exec CryptoDiskLang u o s recover (Crashed s') ->
     (log_reboot_rep txns s' /\
       (forall a, a >= data_start -> snd s' a = snd s a)) \/
      (log_crash_rep (During_Recovery txns) s' /\

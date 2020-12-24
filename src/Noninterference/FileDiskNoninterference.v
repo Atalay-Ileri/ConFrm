@@ -2293,7 +2293,7 @@ Proof.
 Qed.
 
 
-
+(*
 (** Intermediate Layers *)
 (* Authenticated Disk *)
 Definition AD_valid_state := refines_to_valid FileDisk.refinement FD_valid_state.
@@ -2558,3 +2558,4 @@ Proof.
 
       
 Admitted.
+*)

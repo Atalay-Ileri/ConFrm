@@ -148,9 +148,9 @@ Set Nested Proofs Allowed.
 (*** SPECS ***)
 Global Opaque Log.commit Log.apply_log.
 Theorem write_batch_to_cache_finished:
-  forall al vl o s s' t,
+  forall al vl o s s' t u,
     length al = length vl ->
-    exec CachedDiskLang o s (write_batch_to_cache al vl) (Finished s' t) ->
+    exec CachedDiskLang u o s (write_batch_to_cache al vl) (Finished s' t) ->
     snd s' = snd s /\
     fst s' = Mem.upd_batch (fst s) al vl.
 Proof.
@@ -163,8 +163,8 @@ Qed.
 
 
 Theorem write_batch_to_cache_crashed:
-  forall al vl o s s',
-    exec CachedDiskLang o s (write_batch_to_cache al vl) (Crashed s') ->
+  forall al vl o s s' u,
+    exec CachedDiskLang u o s (write_batch_to_cache al vl) (Crashed s') ->
     snd s' = snd s.
 Proof.
   induction al; simpl; intros;
@@ -176,9 +176,9 @@ Proof.
 Qed.
 
 Theorem write_lists_to_cache_finished:
-  forall l_la_lv s o s' t,
+  forall l_la_lv s o s' t u,
     Forall (fun la_lv => length (fst la_lv) = length (snd la_lv)) l_la_lv ->
-    exec CachedDiskLang o s (write_lists_to_cache l_la_lv) (Finished s' t) ->
+    exec CachedDiskLang u o s (write_lists_to_cache l_la_lv) (Finished s' t) ->
     fst s' = Mem.list_upd_batch (fst s) (map fst l_la_lv) (map snd l_la_lv) /\
     snd s' = snd s.
 Proof.
@@ -192,9 +192,9 @@ Qed.
   
 
 Theorem write_lists_to_cache_crashed:
-  forall l_la_lv s o s',
+  forall l_la_lv s o s' u,
     Forall (fun la_lv => length (fst la_lv) = length (snd la_lv)) l_la_lv ->
-    exec CachedDiskLang o s (write_lists_to_cache l_la_lv) (Crashed s') ->
+    exec CachedDiskLang u o s (write_lists_to_cache l_la_lv) (Crashed s') ->
     snd s' = snd s.
 Proof.
   induction l_la_lv; simpl; intros; repeat invert_exec; eauto.
@@ -208,9 +208,9 @@ Proof.
 Qed.
 
 Theorem read_finished:
-  forall merged_disk a s o s' t,
+  forall merged_disk a s o s' t u,
     cached_log_rep merged_disk s ->
-    exec CachedDiskLang o s (read a) (Finished s' t) ->
+    exec CachedDiskLang u o s (read a) (Finished s' t) ->
     ((exists v, 
     merged_disk a = v /\
     t = v /\
@@ -224,8 +224,8 @@ Proof.
     unfold cached_log_rep in *; cleanup.
     
     eapply equal_f in H.
-    rewrite H in H6.
-    eapply Mem.list_upd_batch_some in H6.
+    rewrite H in H7.
+    eapply Mem.list_upd_batch_some in H7.
     unfold empty_mem in *; split_ors; try congruence.
     
     eexists.
@@ -259,7 +259,7 @@ Proof.
     simpl in *.
     unfold cached_log_rep in *; cleanup.
     eapply equal_f in H.
-    setoid_rewrite H6 in H.
+    setoid_rewrite H7 in H.
     symmetry in H; eapply list_upd_batch_none in H.
     logic_clean.
     eexists.
@@ -295,8 +295,8 @@ Proof.
 Admitted.
 
 Theorem read_crashed:
-  forall a s o s',
-    exec CachedDiskLang o s (read a) (Crashed s') ->
+  forall a s o s' u,
+    exec CachedDiskLang u o s (read a) (Crashed s') ->
     s' = s.
 Proof.
   unfold read; simpl; intros; cleanup; repeat invert_exec; eauto.
@@ -309,9 +309,9 @@ Qed.
 
 
 Lemma recover_finished:  
-  forall merged_disk s o s' t,
+  forall merged_disk s o s' t u,
   cached_log_reboot_rep merged_disk s ->
-  exec CachedDiskLang o s recover (Finished s' t) ->
+  exec CachedDiskLang u o s recover (Finished s' t) ->
   cached_log_rep merged_disk s'.
 Proof.
   unfold recover, cached_log_reboot_rep; intros; cleanup.
@@ -372,9 +372,9 @@ Proof.
 Qed.
 
 Lemma recover_crashed:  
-  forall merged_disk s o s',
+  forall merged_disk s o s' u,
   cached_log_reboot_rep merged_disk s ->
-  exec CachedDiskLang o s recover (Crashed s') ->
+  exec CachedDiskLang u o s recover (Crashed s') ->
   (cached_log_reboot_rep merged_disk s' \/
   cached_log_crash_rep (During_Recovery merged_disk) s' \/
   cached_log_crash_rep (After_Commit merged_disk) s') /\
@@ -599,9 +599,9 @@ Proof.
 Qed.
   
 Theorem write_finished:
-  forall merged_disk s o al vl s' t,
+  forall merged_disk s o al vl s' t u,
   cached_log_rep merged_disk s ->
-  exec CachedDiskLang o s (write al vl) (Finished s' t) ->
+  exec CachedDiskLang u o s (write al vl) (Finished s' t) ->
   cached_log_rep merged_disk s' \/
   (cached_log_rep (upd_batch merged_disk al vl) s' /\
    Forall (fun a => a < data_length) al).
@@ -810,9 +810,9 @@ Qed.
 
 
 Theorem write_crashed:
-  forall merged_disk s o al vl s',
+  forall merged_disk s o al vl s' u,
   cached_log_rep merged_disk s ->
-  exec CachedDiskLang o s (write al vl) (Crashed s') ->
+  exec CachedDiskLang u o s (write al vl) (Crashed s') ->
   cached_log_rep merged_disk s' \/
   cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk al vl)) s' \/
   cached_log_crash_rep (After_Commit (upd_batch merged_disk al vl)) s' \/

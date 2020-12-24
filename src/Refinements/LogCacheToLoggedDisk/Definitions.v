@@ -15,44 +15,44 @@ Definition compile T (p2: Core.operation abs_core T) : prog impl T.
  exact recover.
 Defined.
 
-Definition token_refines_to  T (d1: state impl) (p: Core.operation abs_core T) get_reboot_state o1 o2 : Prop :=
+Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T) get_reboot_state o1 o2 : Prop :=
    match p with
    | Read a =>
      (exists d1' r,
-        exec impl o1 d1 (read a) (Finished d1' r) /\
+        exec impl u o1 d1 (read a) (Finished d1' r) /\
         o2 = Cont /\
         (forall merged_disk,
            cached_log_rep merged_disk d1 -> 
            cached_log_rep merged_disk d1')) \/
      (exists d1',
-        exec impl o1 d1 (read a) (Crashed d1') /\
+        exec impl u o1 d1 (read a) (Crashed d1') /\
         o2 = CrashBefore /\
         (forall merged_disk,
             cached_log_rep merged_disk d1 -> 
             cached_log_rep merged_disk d1'))
    | Write la lv =>
      (exists d1' r,
-          exec impl o1 d1 (write la lv) (Finished d1' r) /\          
+          exec impl u o1 d1 (write la lv) (Finished d1' r) /\          
           o2 = Cont /\
           (forall merged_disk,
              cached_log_rep merged_disk d1 ->
              (cached_log_rep merged_disk d1' \/
              cached_log_rep (upd_batch merged_disk la lv) d1'))) \/
      (exists d1',
-        (exec impl o1 d1 (write la lv) (Crashed d1') /\
+        (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashBefore /\
          (forall merged_disk,
             cached_log_rep merged_disk d1 -> 
             cached_log_rep merged_disk d1' \/
             cached_log_crash_rep (During_Apply merged_disk) d1' \/
             cached_log_crash_rep (After_Apply merged_disk) d1') \/
-        (exec impl o1 d1 (write la lv) (Crashed d1') /\
+        (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashAfter /\
          (** ???? **)
          (forall merged_disk,
             cached_log_rep merged_disk d1 ->
             cached_log_crash_rep (After_Commit (upd_batch merged_disk la lv)) d1')) \/
-        (exec impl o1 d1 (write la lv) (Crashed d1') /\
+        (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          (forall merged_disk,
             cached_log_rep merged_disk d1 ->
             cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk la lv)) d1' /\
@@ -61,13 +61,13 @@ Definition token_refines_to  T (d1: state impl) (p: Core.operation abs_core T) g
             ))))
    | Recover =>
      (exists d1',
-        exec impl o1 d1 recover (Finished d1' tt) /\
+        exec impl u o1 d1 recover (Finished d1' tt) /\
         o2 = Cont /\
         (forall merged_disk,
            cached_log_reboot_rep merged_disk d1 ->
            cached_log_rep merged_disk d1')) \/
      (exists d1',
-        exec impl o1 d1 recover (Crashed d1') /\
+        exec impl u o1 d1 recover (Crashed d1') /\
         o2 = CrashBefore /\
         (forall merged_disk,
            cached_log_reboot_rep merged_disk d1 ->
