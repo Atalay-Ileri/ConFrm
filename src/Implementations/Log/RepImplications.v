@@ -997,7 +997,7 @@ Lemma crash_rep_apply_to_reboot_rep :
   forall s txns selector,
     log_crash_rep (During_Apply txns) s ->
     log_reboot_rep txns (fst s, select_total_mem selector (snd s)) \/
-    log_reboot_rep [] (fst s, select_total_mem selector (snd s)).
+    log_reboot_rep [] (fst s, select_total_mem selector (list_upd_batch_set (snd s) (map addr_list txns) (map data_blocks txns))).
 Proof. 
    unfold non_colliding_selector, log_crash_rep, log_header_rep,
   log_reboot_rep, log_rep_general, log_rep_explicit; intros; cleanup.
@@ -1064,12 +1064,16 @@ Proof.
     simpl; intuition eauto.
     {
       unfold select_total_mem; simpl; cleanup; simpl; eauto.
-      rewrite select_for_addr_not_1_latest in *; eauto.
+      rewrite list_upd_batch_set_not_in.
+      rewrite H2; erewrite select_for_addr_not_1_latest; eauto.
+      (** Long but doable **)
+      admit.
     }
     {    
       unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
       intuition eauto.
       {
+        rewrite list_upd_batch_set_not_in.
         rewrite H0; eauto.
         rewrite select_for_addr_synced.
         rewrite <- H4 in H9.
@@ -1080,6 +1084,8 @@ Proof.
         simpl in *; subst; eauto.
         eapply H3.
         eapply in_selN; lia.
+        (** Long but doable **)
+        admit.
       }
     }
     { congruence. }

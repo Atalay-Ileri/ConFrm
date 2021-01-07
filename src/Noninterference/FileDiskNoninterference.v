@@ -2292,7 +2292,49 @@ Proof.
   all: repeat econstructor; eauto.
 Qed.
 
+Definition not_set_owner {T} (o : FileDiskOp.(operation) T) :=
+  match o with
+  | SetOwner _ _ => False
+  | _ => True
+  end.
 
+Theorem ss_FD_not_change_owner:
+  forall T (o : FileDiskOp.(operation) T) n u u',
+    not_set_owner o ->
+    SelfSimulation u (FileDiskOp.(Op) o) (FileDiskOp.(Op) o) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+Proof.
+  intros; destruct o; eauto.
+  apply ss_FD_read.
+  apply ss_FD_write.
+  apply ss_FD_extend.
+  simpl in *; intuition.
+  apply ss_FD_create.
+  apply ss_FD_delete.
+  apply ss_FD_Recover.
+Qed.
+
+Theorem two_user_exec:
+  forall T1 T2 (o1: FileDiskOp.(operation) T1) (o2: FileDiskOp.(operation) T2)
+    s1 ret1 s2 ret2 l_o1 n l_o2 m user adversary,
+    not_set_owner o1 ->
+    not_set_owner o2 ->
+    FD_related_states adversary None s1 s2 ->
+    recovery_exec FileDisk user l_o1 s1 (repeat (fun s => s) n) (FileDiskOp.(Op) o1) (FileDiskOp.(Op) Recover) ret1 ->
+    recovery_exec FileDisk adversary l_o2 (extract_state_r ret1) (repeat (fun s => s) m) (FileDiskOp.(Op) o2) (FileDiskOp.(Op) Recover) ret2 ->
+    exists ret1' ret2',
+      recovery_exec FileDisk user l_o1 s2 (repeat (fun s => s) n) (FileDiskOp.(Op) o1) (FileDiskOp.(Op) Recover) ret1' /\
+      recovery_exec FileDisk adversary l_o2 (extract_state_r ret1') (repeat (fun s => s) m) (FileDiskOp.(Op) o2) (FileDiskOp.(Op) Recover)ret2' /\
+      FD_related_states adversary None (extract_state_r ret2) (extract_state_r ret2') /\
+      extract_ret_r ret2 = extract_ret_r ret2'.
+Proof.
+  intros.
+  eapply ss_FD_not_change_owner in H1; try apply H; eauto.
+  cleanup.
+  eapply ss_FD_not_change_owner in H4; eauto.
+  cleanup.
+  do 2 eexists; intuition eauto.
+Qed.
+    
 (*
 (** Intermediate Layers *)
 (* Authenticated Disk *)

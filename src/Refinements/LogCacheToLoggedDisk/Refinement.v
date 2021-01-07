@@ -8,6 +8,9 @@ Local Notation "'imp'" := CachedDiskLang.
 Local Notation "'abs'" := (LoggedDiskLang data_length).
 Local Notation "'refinement'" := LoggedDiskRefinement.
 
+
+
+
 Section LoggedDiskBisimulation.
 
   Definition cached_disk_reboot_list l_selector : list (imp.(state) -> imp.(state)) :=
@@ -64,6 +67,49 @@ Section LoggedDiskBisimulation.
     inversion H; simpl; eauto.
   Qed.
 
+  Lemma map_addr_list_eq_map_map:
+    forall txns s hdr_state log_state valid_part hdr hdr_blockset log_blocksets,
+      log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blocksets s ->
+      map addr_list txns =
+      map (map (Init.Nat.add data_start))
+          (map (map (fun a => a - data_start)) (map addr_list txns)).
+  Proof.
+    intros.
+    repeat rewrite map_map.
+    apply map_ext_in.
+    intros.
+    rewrite map_map.
+    rewrite map_noop; eauto.
+    intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *;
+    simpl in *; cleanup_no_match.
+    eapply Forall_forall in H9; eauto.
+    unfold txn_well_formed in H9; simpl in *; cleanup_no_match.
+    eapply Forall_forall in H13; eauto; lia.
+  Qed.
+
+  Lemma shift_select_total_mem_synced:
+    forall A AEQ V (tm: @total_mem A AEQ (V * list V)) selector f,
+      (forall a, snd (tm (f a)) = []) ->
+      shift f (select_total_mem selector tm) = shift f tm.
+  Proof.
+    intros.
+    extensionality a; simpl.
+    unfold shift, select_total_mem; simpl.
+    rewrite select_for_addr_synced; eauto.
+    erewrite <- (H a).
+    destruct_fresh (tm (f a)); eauto.
+  Qed.
+
+  Lemma sumbool_agree_addr_dec:
+    forall n x y,
+      sumbool_agree (addr_dec x y) (addr_dec (n + x) (n + y)).
+  Proof.
+    unfold sumbool_agree; intros; intuition eauto.
+    destruct (addr_dec x y);
+    destruct (addr_dec (n + x) (n + y)); eauto;
+    try congruence; try lia.
+  Qed.
   
   Theorem abstract_oracles_exist_wrt_recover:
     forall l_selector u, 
@@ -214,146 +260,7 @@ Section LoggedDiskBisimulation.
 
   Arguments cached_log_rep: simpl never.
   Arguments cached_log_crash_rep: simpl never.
-
-  Lemma upd_batch_noop:
-    forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) m tm,
-      Mem.upd_batch m l_a l_v = m ->
-      Forall (fun a => m a = None) l_a -> 
-      length l_a = length l_v ->
-      upd_batch tm l_a l_v = tm.
-  Proof.
-    induction l_a; simpl; intros; eauto.
-    destruct l_v; eauto.
-    inversion H0; cleanup.
-    destruct (in_dec AEQ a l_a).
-    {
-      rewrite Mem.upd_batch_upd_in_noop in H; eauto.
-      rewrite upd_batch_upd_in_noop; eauto.
-    }
-    {
-      rewrite Mem.upd_batch_upd in H; eauto.
-      eapply equal_f with (x:= a) in H.              
-      rewrite Mem.upd_eq in *; eauto; cleanup.
-    }
-  Qed.
-
-  Lemma list_upd_batch_noop:
-    forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) m,
-      Mem.list_upd_batch m l_l_a l_l_v = m ->
-      Forall (Forall (fun a => m a = None)) l_l_a ->
-      Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
-      (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
-  Proof.
-    do 4 intro.
-    eapply rev_ind with
-        (P:= fun l_l_a =>
-               forall (l_l_v : list (list V)) (m : mem),
-                 Mem.list_upd_batch m l_l_a l_l_v = m ->
-                 Forall (Forall (fun a : A => m a = None)) l_l_a ->                      
-                 Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
-                 forall tm : total_mem, list_upd_batch tm l_l_a l_l_v = tm);
-    simpl; intros; eauto.
-    {
-      destruct (nil_or_app l_l_v); cleanup.
-      destruct (l++[x]); simpl; eauto.
-      
-      
-      eapply_fresh forall2_length in H2.
-      repeat rewrite app_length in *; simpl in *.
-      eapply_fresh Forall2_app_split in H2; cleanup; eauto; try lia.
-      eapply_fresh forall_app_l in H1.
-      eapply_fresh forall_app_r in H1.
-      rewrite Mem.list_upd_batch_app in H0; simpl in *; try lia.
-      inversion Hx0; cleanup.
-      rewrite list_upd_batch_app; simpl in *; try lia.
-      destruct (nil_or_app x); cleanup;
-      simpl in *; eauto.
-      destruct (nil_or_app x0); cleanup.
-      destruct (x3 ++ [x2]); simpl in *; eauto.
-      inversion H4; cleanup.
-      repeat rewrite app_length in *; simpl in *.
-      rewrite Mem.upd_batch_app in *; simpl in *; try lia.
-      apply forall_app_l in H7; inversion H7; cleanup.
-      apply equal_f with (x0:= x2) in H0.
-      rewrite Mem.upd_eq in *; eauto; cleanup.
-    }
-  Qed.
-
-  Lemma upd_batch_noop_empty_mem:
-    forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) tm,
-      Mem.upd_batch empty_mem l_a l_v = empty_mem ->
-      length l_a = length l_v ->
-      upd_batch tm l_a l_v = tm.
-  Proof.
-    induction l_a; simpl; intros; eauto.
-    destruct l_v; eauto.
-    destruct (in_dec AEQ a l_a).
-    {
-      rewrite Mem.upd_batch_upd_in_noop in H; eauto.
-      rewrite upd_batch_upd_in_noop; eauto.
-    }
-    {
-      rewrite Mem.upd_batch_upd in H; eauto.
-      eapply equal_f with (x:= a) in H.              
-      rewrite Mem.upd_eq in *; eauto.
-      unfold empty_mem in *; congruence.
-    }
-  Qed.
   
-  Lemma upd_batch_eq_empty_mem:
-    forall A (AEQ: EqDec A) V (l_a: list A) (l_v: list V) m,
-      Mem.upd_batch m l_a l_v = empty_mem ->
-      m = empty_mem /\
-      (l_a = [] \/ l_v = []).
-  Proof.
-    induction l_a; simpl; intros; eauto.
-    destruct l_v; eauto.
-    eapply IHl_a in H.
-    destruct H.
-    eapply equal_f with (x:=a) in H.
-    rewrite Mem.upd_eq in H; eauto.
-    unfold empty_mem in *; congruence.
-  Qed.
-
-  Lemma list_upd_batch_eq_empty_mem:
-    forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) m,
-      Mem.list_upd_batch m l_l_a l_l_v = empty_mem ->
-      m = empty_mem /\
-      (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
-  Proof.
-    induction l_l_a; simpl; intros; eauto.
-    destruct l_l_v; eauto.
-    eapply IHl_l_a in H.
-    destruct H.
-    apply upd_batch_eq_empty_mem in H.
-    destruct H.
-    split; eauto.
-    intros; rewrite H0.            
-    intuition; subst; simpl; eauto.
-    destruct a; eauto.
-  Qed.
-
-  (*
-  Lemma list_upd_batch_upd_batch_empty_mem:
-    forall A (AEQ: EqDec A) V (l_l_a: list (list A)) (l_l_v: list (list V)) l_a l_v (m: @mem A AEQ V),
-      Mem.list_upd_batch (Mem.upd_batch empty_mem l_a l_v) l_l_a l_l_v = Mem.list_upd_batch empty_mem l_l_a l_l_v  ->
-      m = empty_mem /\
-      (forall tm, list_upd_batch tm l_l_a l_l_v = tm).
-  Proof.
-    induction l_l_a; simpl; intros; eauto.
-    destruct l_l_v; eauto.
-    eapply IHl_l_a in H.
-    destruct H.
-    apply upd_batch_eq_empty_mem in H.
-    destruct H.
-    split; eauto.
-    intros; rewrite H0.            
-    intuition; subst; simpl; eauto.
-    destruct a; eauto.
-  Qed.
-  *)
-  
-
   Theorem abstract_oracles_exist_wrt_write:
     forall l_selector l_a l_v u,
       abstract_oracles_exist_wrt refinement refines_to u (|Write l_a l_v|) (|Recover|) (cached_disk_reboot_list l_selector).
@@ -391,127 +298,13 @@ Section LoggedDiskBisimulation.
         left.
         unfold cached_log_rep in *; simpl in *; cleanup.
         eexists; intuition eauto.
-
-        
-
-          Lemma list_upd_batch_eq_list_upd_batch_set:
-          forall A AEQ V l_a1 l_v1 l_a2 l_v2 (tm: @total_mem A AEQ (V * list V)) m,
-            Mem.list_upd_batch m l_a1 l_v1 =
-            Mem.list_upd_batch m l_a2 l_v2 ->
-            Forall (Forall (fun a => m a = None)) l_a1 ->
-            Forall (Forall (fun a => m a = None)) l_a2 ->
-            Forall2 (fun l_a l_v => length l_a = length l_v) l_a1 l_v1 ->
-            Forall2 (fun l_a l_v => length l_a = length l_v) l_a2 l_v2 ->
-            list_upd_batch tm l_a1  l_v1 =
-            list_upd_batch tm l_a2 l_v2.
-          Proof.
-            do 4 intro.
-            apply rev_ind with
-                (P:=
-                   fun l_a1 =>
-                forall (l_v1 : list (list (V * list V))) (l_a2 : list (list A)) (l_v2 : list (list (V * list V)))
-    (tm : total_mem) (m : mem),
-  Mem.list_upd_batch m l_a1 l_v1 = Mem.list_upd_batch m l_a2 l_v2 ->
-  Forall (Forall (fun a : A => m a = None)) l_a1 ->
-  Forall (Forall (fun a : A => m a = None)) l_a2 ->
-  Forall2 (fun (l_a : list A) (l_v : list (V * list V)) => length l_a = length l_v) l_a1 l_v1 ->
-  Forall2 (fun (l_a : list A) (l_v : list (V * list V)) => length l_a = length l_v) l_a2 l_v2 ->
-  list_upd_batch tm l_a1 l_v1 = list_upd_batch tm l_a2 l_v2);
-            simpl; intros; eauto.
-          {
-            symmetry in H; eapply list_upd_batch_noop in H; eauto.
-          }
-          destruct (nil_or_app l_v1); cleanup; simpl in *; eauto.
-          {
-            destruct (l ++ [x]); simpl in *;
-            symmetry in H0; eapply list_upd_batch_noop in H0; eauto.
-          }
-          destruct (nil_or_app l_a2); cleanup; simpl in *; eauto.
-          {
-            erewrite list_upd_batch_noop; eauto.
-          }
-          {
-            destruct (nil_or_app l_v2); cleanup; simpl in *; eauto.
-            {
-              destruct (x3 ++ [x2]); simpl in *; eauto;
-              eapply list_upd_batch_noop in H0; eauto.
-            }
-            {
-              do 2 rewrite Mem.list_upd_batch_app in H0.
-              simpl in *.
-              setoid_rewrite list_upd_batch_app; simpl.
-
-
-        Lemma list_upd_batch_eq_list_upd_batch_set:
-          forall A AEQ V l_a1 l_v1 l_a2 l_v2 (tm: @total_mem A AEQ V) m,
-            Mem.upd_batch m l_a1 l_v1 =
-            Mem.upd_batch m l_a2 l_v2 ->
-            length l_a1 = length l_v1 ->
-            length l_a2 = length l_v2 ->
-            upd_batch tm l_a1 l_v1 =
-            upd_batch tm l_a2 l_v2.
-        Proof.
-          induction l_a1; simpl; intros; eauto.
-          {
-            destruct l_v1; simpl in *; try lia.            
-            symmetry in H; eapply upd_batch_noop in H; eauto.
-            admit.
-          }
-          destruct l_v1; simpl in *; try lia.
-          destruct (in_dec AEQ a l_a1).
-          {
-            rewrite Mem.upd_batch_upd_in_noop in H; eauto.
-            rewrite upd_batch_upd_in_noop; eauto.
-          }
-          {
-            destruct l_a2; simpl in *.
-            
-            admit.
-            destruct l_v2; simpl in *; try lia.
-            extensionality x.
-            destruct (AEQ a x); subst.
-            rewrite Mem.upd_batch_upd in H; eauto.
-            eapply equal_f with (x:= a) in H.              
-            rewrite Mem.upd_eq in *; eauto; cleanup.
-            }
-          {
-            symmetry in H; apply list_upd_batch_eq_empty_mem in H.
-            destruct H; eauto.
-          }
-          destruct l_a2; simpl in *.
-          {
-            apply list_upd_batch_eq_empty_mem in H.
-            destruct H; eauto.
-            rewrite H2.
-            eapply upd_batch_eq_empty_mem in H; cleanup.
-            intuition; subst;  simpl; eauto.
-            destruct a; eauto.
-          }
-          {
-            destruct l_v2; simpl in *; eauto.
-            {
-              apply list_upd_batch_eq_empty_mem in H.
-              destruct H; eauto.
-              rewrite H2.
-              eapply upd_batch_eq_empty_mem in H; cleanup.
-              intuition; subst;  simpl; eauto.
-              destruct a; eauto.
-            }
-            
-            
-
-          
-
-          Search Mem.upd_batch Mem.list_upd_batch.
-            
-            
-          {
-            destruct l_a2; simpl in *; eauto.
-            destruct l_v2; simpl in *; eauto.
-            
-          
-        (** Use H3 here **)
-        admit.
+        rewrite <- H6.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H4; eauto.
+        repeat rewrite total_mem_map_shift_comm.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set.
+        rewrite H4; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
         eauto.
       }
       unfold cached_log_crash_rep in *; cleanup.
@@ -528,21 +321,43 @@ Section LoggedDiskBisimulation.
         intuition eauto.
         unfold cached_log_rep in *; cleanup.
         left; eexists; intuition eauto.
-        (** Use H3 here **)
-        admit.
+        setoid_rewrite <- H4.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H6; eauto.
+        repeat rewrite total_mem_map_shift_comm.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set.
+        rewrite H6; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
         
         unfold cached_log_rep in *; cleanup.
         left; intuition eauto.
-        eapply crash_rep_log_write_to_reboot_rep in H2.
+        eapply crash_rep_log_write_to_reboot_rep in H3.
         unfold cached_log_reboot_rep.
         eexists; intuition eauto.
         simpl.
-        (** Use H3 here **)
-        admit.
-        eauto.
+
+        (*** NEW ******)
+        unfold log_rep, log_reboot_rep, log_rep_general in *.
+        logic_clean.
+        erewrite map_addr_list_eq_map_map; eauto.
+        rewrite shift_list_upd_batch_set_comm; eauto.
+        setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+        rewrite shift_list_upd_batch_set_comm; eauto.
+        rewrite shift_select_total_mem_synced.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H6; eauto.       
+        repeat rewrite <- shift_list_upd_batch_set_comm.        
+        repeat erewrite <- map_addr_list_eq_map_map; eauto.
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        setoid_rewrite <- H6; eauto.
+
+        all: try apply sumbool_agree_addr_dec.
+        all: try eapply log_rep_forall2_txns_length_match; eauto.
+        all: unfold log_rep, log_rep_general; eauto.
+        intros; apply H5; lia.
       }
       {
-        eapply_fresh crash_rep_header_write_to_reboot_rep in H2.
+        eapply_fresh crash_rep_header_write_to_reboot_rep in H3.
         split_ors.
         {
           exists ([OpToken (LoggedDiskOperation data_length) CrashBefore]::x); simpl.
@@ -557,18 +372,47 @@ Section LoggedDiskBisimulation.
           unfold cached_log_rep in *; cleanup.
           right; do 2 eexists; intuition eauto;
           repeat rewrite <- sync_list_upd_batch_set in *.
-          (** Use H6 here **)
-          admit.
-          admit.
+          setoid_rewrite <- H4.
+          setoid_rewrite <- H5.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H8; eauto.
+          repeat rewrite total_mem_map_shift_comm.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set.
+          rewrite H8; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+
+          setoid_rewrite <- H5.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H8; eauto.
+          repeat rewrite total_mem_map_shift_comm.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set.
+          rewrite H8; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
           
           unfold cached_log_rep in *; cleanup.
           left; intuition eauto.
           unfold cached_log_reboot_rep.
           eexists; intuition eauto.
           simpl.
-          (** Use H6 here **)
-          admit.
-          eauto.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H8; eauto.
+
+          unfold log_rep, log_reboot_rep, log_rep_general in *.
+          logic_clean.
+          erewrite map_addr_list_eq_map_map; eauto.
+          rewrite shift_list_upd_batch_set_comm; eauto.
+          setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+          rewrite shift_list_upd_batch_set_comm; eauto.
+          rewrite shift_select_total_mem_synced.
+          
+          repeat rewrite <- shift_list_upd_batch_set_comm.        
+          repeat erewrite <- map_addr_list_eq_map_map; eauto.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          setoid_rewrite <- H8; eauto.
+          
+          all: try apply sumbool_agree_addr_dec.
+          all: try eapply log_rep_forall2_txns_length_match; eauto.
+          intros; apply H6; lia.
         }
         {
           exists ([OpToken (LoggedDiskOperation data_length) CrashAfter]::x); simpl.
@@ -583,18 +427,49 @@ Section LoggedDiskBisimulation.
           unfold cached_log_rep in *; cleanup.
           right; do 2 eexists; intuition eauto.
           repeat rewrite <- sync_list_upd_batch_set in *.
-          (** use H5 here **)
-          admit.
-          admit.
+
+          setoid_rewrite <- H4.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H8; eauto.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          setoid_rewrite <- H8; eauto.
+          setoid_rewrite H5; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+
+          setoid_rewrite <- H5.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H8; eauto.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          setoid_rewrite <- H8; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
           
           unfold cached_log_rep in *; cleanup.
           right; intuition eauto.
           unfold cached_log_reboot_rep.
           eexists; intuition eauto.
           simpl.
-          (** Use H3 here **)
-          admit.
-          eauto.
+          
+          unfold log_rep, log_reboot_rep, log_rep_general in *.
+          logic_clean.
+          erewrite map_addr_list_eq_map_map; eauto.
+          rewrite shift_list_upd_batch_set_comm; eauto.
+          setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+          rewrite shift_list_upd_batch_set_comm; eauto.
+          rewrite shift_select_total_mem_synced.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H8; eauto.       
+          repeat rewrite <- shift_list_upd_batch_set_comm.        
+          repeat erewrite <- map_addr_list_eq_map_map; eauto.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          setoid_rewrite <- H8;
+          setoid_rewrite H5; eauto.
+          
+          all: try apply sumbool_agree_addr_dec.
+          all: try eapply log_rep_forall2_txns_length_match; eauto.
+          all: unfold log_rep, log_rep_general; eauto.
+          intros; apply H6; lia.
         }
         (** Non-colliding selector goal **)
         admit.
@@ -612,9 +487,13 @@ Section LoggedDiskBisimulation.
         unfold cached_log_rep in *; cleanup.
         eexists; intuition eauto.
         repeat rewrite <- sync_list_upd_batch_set in *.
-        (** use H5 here **)
-        admit.
-
+        setoid_rewrite <- e.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H3; eauto.
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        setoid_rewrite <- H3; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
         eauto.
       }
       {
@@ -624,13 +503,18 @@ Section LoggedDiskBisimulation.
         eexists; repeat split; eauto.
         right.
         eexists; left; intuition eauto.
-        unfold cached_log_rep in H3; cleanup.
+        unfold cached_log_rep in H4; cleanup.
         right; left; eauto.
         unfold cached_log_crash_rep in *;
         simpl in *; cleanup.
         eexists; intuition eauto.
-        (** Use H3 here **)
-        admit.
+        setoid_rewrite <- H6.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H4; eauto.
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        setoid_rewrite <- H4; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
         eauto.
       }
       {
@@ -640,23 +524,28 @@ Section LoggedDiskBisimulation.
         eexists; repeat split; eauto.
         right.
         eexists; left; intuition eauto.
-        unfold cached_log_rep in H3; cleanup.
+        unfold cached_log_rep in H4; cleanup.
         right; right; eauto.
         unfold cached_log_crash_rep in *;
         simpl in *; cleanup.
         eexists; intuition eauto.
-        (** Use H3 here **)
-        admit.
+        setoid_rewrite <- H6.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H4; eauto.
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        setoid_rewrite <- H4; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
+        eapply log_rep_forall2_txns_length_match; eauto.
         eauto.
       }
       {
         repeat split_ors.
         {
           unfold cached_log_rep in *; cleanup; eauto;
-          try eapply log_rep_to_reboot_rep in H2;
+          try eapply log_rep_to_reboot_rep in H3;
           eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
           eexists; intuition eauto.
-          eapply select_total_mem_synced in H4; eauto.
+          eapply select_total_mem_synced in H6; eauto.
         }
         {
           unfold cached_log_crash_rep in *; cleanup; eauto.
@@ -665,15 +554,15 @@ Section LoggedDiskBisimulation.
             eapply crash_rep_log_write_to_reboot_rep in H1.
             eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
-            eapply select_total_mem_synced in H3; eauto.
+            eapply select_total_mem_synced in H5; eauto.
           }
           {
             eapply crash_rep_header_write_to_reboot_rep in H1.
             split_ors;
             eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
-            eapply select_total_mem_synced in H4; eauto.
-            eapply select_total_mem_synced in H4; eauto.
+            eapply select_total_mem_synced in H6; eauto.
+            eapply select_total_mem_synced in H6; eauto.
             (** Non-colliding selector goal **)
             admit.
           }
@@ -683,7 +572,7 @@ Section LoggedDiskBisimulation.
           eapply log_rep_to_reboot_rep in H1.
           eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
           eexists; intuition eauto.
-          eapply select_total_mem_synced in H3; eauto.
+          eapply select_total_mem_synced in H5; eauto.
         }
         {
           unfold cached_log_crash_rep in *; cleanup; eauto.
@@ -691,23 +580,23 @@ Section LoggedDiskBisimulation.
           split_ors;
           eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
           eexists; intuition eauto.
-          eapply select_total_mem_synced in H3; eauto.
-          eapply select_total_mem_synced in H3; eauto.
+          eapply select_total_mem_synced in H4; eauto.
+          eapply select_total_mem_synced in H4; eauto.
         }
         {
           unfold cached_log_crash_rep in *; cleanup; eauto.
           eapply log_rep_to_reboot_rep in H1.
           eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
           eexists; intuition eauto.
-          eapply select_total_mem_synced in H3; eauto.
+          eapply select_total_mem_synced in H5; eauto.
         }
       }
     }
   Admitted.
     
   Theorem abstract_oracles_exists_logged_disk:
-    forall T (p_abs: abs.(prog) T) l_selector, 
-      abstract_oracles_exist_wrt refinement refines_to p_abs (|Recover|) (cached_disk_reboot_list l_selector).
+    forall T (p_abs: abs.(prog) T) l_selector u, 
+      abstract_oracles_exist_wrt refinement refines_to u p_abs (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt; induction p_abs;
     simpl; intros; cleanup.
@@ -728,8 +617,8 @@ Section LoggedDiskBisimulation.
       {
         destruct l_selector; simpl in *; try congruence; cleanup.
         repeat invert_exec.
-        invert_exec'' H7.
-        eapply abstract_oracles_exist_wrt_recover in H9; eauto.
+        invert_exec'' H8.
+        eapply abstract_oracles_exist_wrt_recover in H10; eauto.
         cleanup.
         exists ([Language.Crash (LoggedDiskOperation data_length)]::x0);
         simpl; intuition eauto.
@@ -748,7 +637,7 @@ Section LoggedDiskBisimulation.
     {
       repeat invert_exec.
       {
-        invert_exec'' H9.
+        invert_exec'' H10.
         edestruct IHp_abs; eauto.
         instantiate (2:= []); simpl.
         eapply ExecFinished; eauto.
@@ -764,14 +653,14 @@ Section LoggedDiskBisimulation.
         exists ([o0 ++ o]); intuition eauto.
         do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
-        invert_exec; split_ors; cleanup; repeat (unify_execs; cleanup).
-        (** Need Finished_oracle_prefix lemma **)
-        admit.
-        admit.
+        invert_exec; split_ors; cleanup; repeat (unify_execs; cleanup).        
+        eapply finished_not_crashed_oracle_prefix in H8; eauto.
+        eapply exec_finished_deterministic_prefix in H8; eauto; cleanup.
+        unify_execs; cleanup.
       }
       {
         destruct l_selector; simpl in *; try congruence; cleanup.
-        invert_exec'' H8.
+        invert_exec'' H9.
         {
           edestruct IHp_abs; eauto.
           instantiate (2:= []); simpl.
@@ -789,16 +678,22 @@ Section LoggedDiskBisimulation.
           simpl in *.
           exists ((o0 ++ o)::l); intuition eauto.
           - invert_exec; try split_ors; repeat (unify_execs; cleanup).
-            (** Need Finished_oracle_prefix lemma **)
-            admit.
+            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            unify_execs; cleanup.
           - invert_exec; cleanup; try split_ors; try cleanup;
             repeat (unify_execs; cleanup).
-            admit.
-            admit.
+            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
+            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            unify_execs; cleanup; eauto.
+            specialize H4 with (1:= H12); cleanup.
+            do 4 eexists; intuition eauto.
+            right; simpl; repeat eexists; intuition eauto.
           - invert_exec; cleanup; try split_ors; try cleanup;
             repeat (unify_execs; cleanup).
-            admit.
-            admit.
+            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
+            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            unify_execs; cleanup; eauto.
+            specialize H4 with (1:= H12); cleanup; eauto.
         }
         {
           edestruct IHp_abs; eauto.
@@ -809,19 +704,26 @@ Section LoggedDiskBisimulation.
           simpl in *.
           exists (o::l); intuition eauto.
           - invert_exec; cleanup; try split_ors;
-            cleanup; repeat (unify_execs; cleanup).
-            (** Need Finished_oracle_prefix lemma **)
-            admit.
+            cleanup; repeat (unify_execs; cleanup).            
+            exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto.
           - invert_exec; cleanup; try split_ors;
             cleanup; repeat (unify_execs; cleanup).
-            (** Need Finished_oracle_prefix lemma **)
-            admit.
-            admit.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
+            specialize H3 with (1:= H6).
+            clear H5.
+            logic_clean; eauto.
+            exists o1, o2, o, nil; intuition eauto.
+            rewrite app_nil_r; eauto.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
+            eauto; cleanup.
           - invert_exec; cleanup; try split_ors;
             cleanup; repeat (unify_execs; cleanup).
-            (** Need Finished_oracle_prefix lemma **)
-            admit.
-            admit.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
+            specialize H3 with (1:= H6).
+            clear H5.
+            logic_clean; eauto.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
+            eauto; cleanup.
         }
       }
     }
@@ -849,8 +751,8 @@ Section LoggedDiskBisimulation.
   Qed.
   
 Lemma recovery_simulation :
-  forall l_selector,
-    SimulationForProgramGeneral _ _ _ _ refinement _ (|Recover|) (|Recover|)
+  forall l_selector u,
+    SimulationForProgramGeneral _ _ _ _ refinement u _ (|Recover|) (|Recover|)
                          (cached_disk_reboot_list l_selector)
                          (logged_disk_reboot_list (length l_selector))
                          refines_to_reboot refines_to.
@@ -860,7 +762,7 @@ Proof.
     destruct l_o_imp; intuition; simpl in *.
     cleanup; intuition.
     invert_exec; simpl in *; cleanup; intuition.
-    specialize H2 with (1:= H11).
+    specialize H2 with (1:= H12).
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
     
     eexists; intuition eauto.
@@ -876,13 +778,13 @@ Proof.
     invert_exec; simpl in *; cleanup; intuition;
     cleanup; intuition eauto; repeat (unify_execs; cleanup).
     clear H1.
-    specialize H2 with (1:= H10).
+    specialize H2 with (1:= H11).
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
     edestruct IHl_selector; eauto.
     instantiate (1:= s_abs).
     all: eauto.
     unfold refines_to_reboot in *; logic_clean.
-    eapply_fresh recover_crashed in H10; eauto.
+    eapply_fresh recover_crashed in H11; eauto.
     cleanup; simpl in *; split; eauto.
     unfold cached_log_reboot_rep in *; cleanup.
 
@@ -975,8 +877,8 @@ Proof.
 Qed. 
 
 Lemma read_simulation :
-  forall a l_selector,
-    SimulationForProgram refinement (|Read a|) (|Recover|)
+  forall a l_selector u,
+    SimulationForProgram refinement u (|Read a|) (|Recover|)
                          (cached_disk_reboot_list l_selector)
                          (logged_disk_reboot_list (length l_selector)).
 Proof.
@@ -986,9 +888,9 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;
                         unify_execs; cleanup].
     {
-      specialize H1 with (1:= H9).
+      specialize H1 with (1:= H10).
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
-      eapply_fresh read_finished in H9; cleanup; eauto.
+      eapply_fresh read_finished in H10; cleanup; eauto.
       destruct l_selector; simpl in *; try congruence; cleanup.
       destruct l; simpl in *; try lia.
       unfold logged_disk_reboot_list; simpl.
@@ -1008,10 +910,10 @@ Proof.
     }
     {
       clear H1.
-      specialize H3 with (1:= H8).
+      specialize H3 with (1:= H9).
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       destruct l_selector; simpl in *; try congruence; cleanup.
-      eapply_fresh read_crashed in H8; cleanup.
+      eapply_fresh read_crashed in H9; cleanup.
       
       edestruct recovery_simulation; eauto.
       unfold refines_to in *.
@@ -1023,8 +925,17 @@ Proof.
       intuition eauto.
       eexists; intuition eauto.
       simpl; eauto.
-      (** Need select_mem = m fact here **)
-      admit.
+
+      unfold log_rep, log_reboot_rep, log_rep_general in *.
+      logic_clean.
+      setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+      rewrite shift_list_upd_batch_set_comm; eauto.
+      rewrite shift_select_total_mem_synced.      
+      repeat rewrite <- shift_list_upd_batch_set_comm.        
+      repeat erewrite <- map_addr_list_eq_map_map; eauto.
+      
+      all: try apply sumbool_agree_addr_dec.
+      intros; apply H5; lia.
       apply select_total_mem_synced in H3; eauto.
       
       exists (Recovered (extract_state_r x)); simpl; intuition eauto.
@@ -1032,11 +943,11 @@ Proof.
       eapply ExecRecovered; eauto.
       repeat econstructor.
     }
-Admitted.
+Qed.
 
 Lemma write_simulation :
-  forall l_a l_v l_selector,
-    SimulationForProgram refinement (|Write l_a l_v|) (|Recover|)
+  forall l_a l_v l_selector u,
+    SimulationForProgram refinement u (|Write l_a l_v|) (|Recover|)
                          (cached_disk_reboot_list l_selector)
                          (logged_disk_reboot_list (length l_selector)).
 Proof.
@@ -1046,10 +957,10 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;    
     unify_execs; cleanup].
     {
-      specialize H1 with (1:= H9).
+      specialize H1 with (1:= H10).
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       {
-        eapply write_finished in H9; eauto.
+        eapply write_finished in H10; eauto.
         destruct l_selector; simpl in *; try congruence; cleanup.
         destruct l; simpl in *; try lia.
         unfold logged_disk_reboot_list; simpl.
@@ -1087,7 +998,7 @@ Proof.
     {
       unfold refines_to in *.
       clear H1.
-      specialize H3 with (1:= H8).
+      specialize H3 with (1:= H9).
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       destruct l_selector; simpl in *; try congruence; cleanup.
       
@@ -1105,7 +1016,7 @@ Proof.
             eapply log_rep_to_reboot_rep in H3.
             eexists; intuition eauto.
             intros.
-            apply select_total_mem_synced in H6; eauto.
+            apply select_total_mem_synced in H7; eauto.
           }
           {
           exists (Recovered (extract_state_r x2)); simpl; intuition eauto.        
@@ -1113,50 +1024,102 @@ Proof.
           eapply ExecRecovered.
           repeat econstructor.
           unfold refines_to, cached_log_rep in *; cleanup.
-          (** Need select_mem = m fact here **)
-          admit.
-        }
+          unfold log_rep, log_reboot_rep, log_rep_general in *.
+          logic_clean.
+          erewrite map_addr_list_eq_map_map; eauto.
+          rewrite shift_list_upd_batch_set_comm; eauto.
+          erewrite <- shift_select_total_mem_synced.      
+          repeat rewrite <- shift_list_upd_batch_set_comm.        
+          repeat erewrite <- map_addr_list_eq_map_map; eauto.
+          
+          all: try apply sumbool_agree_addr_dec.
+          intros; apply H5; lia.
+          }
       }
         {
           unfold cached_log_crash_rep in *; cleanup.
-        eapply crash_rep_apply_to_reboot_rep in H1.
-        repeat split_ors; edestruct recovery_simulation; eauto;
-        try solve [eapply H3; eauto].
-        {
-          unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
-          split.          
-          eexists; intuition eauto.
-          intros.
-          apply select_total_mem_synced in H3; eauto.
-        }
-        {
-          exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
-          unfold logged_disk_reboot_list; simpl.
-          eapply ExecRecovered.
-          repeat econstructor.
-          unfold refines_to, cached_log_rep in *; cleanup.
-          (** Need select_mem = m fact here **)
-          admit.
-        }
-        {
-          unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
-          split.
-          eexists; intuition eauto.
-          intros.
-          apply select_total_mem_synced in H3; eauto.
-        }
-        {
-          exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
-          unfold logged_disk_reboot_list; simpl.
-          eapply ExecRecovered.
-          repeat econstructor.
-          unfold refines_to, cached_log_rep in *; cleanup.
-          (** Need select_mem = m fact here **)
-          admit.
-        }
-      }        
+          eapply crash_rep_apply_to_reboot_rep in H1.
+          repeat split_ors; edestruct recovery_simulation; eauto;
+          try solve [eapply H3; eauto].
+          {
+            unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
+            split.          
+            eexists; intuition eauto.
+            intros.
+            apply select_total_mem_synced in H3; eauto.
+          }
+          {
+            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+            unfold logged_disk_reboot_list; simpl.
+            eapply ExecRecovered.
+            repeat econstructor.
+            unfold refines_to, cached_log_rep in *; cleanup.
+            unfold log_rep, log_reboot_rep, log_rep_general in *.
+            logic_clean.
+            erewrite map_addr_list_eq_map_map; eauto.
+            rewrite shift_list_upd_batch_set_comm; eauto.
+            erewrite <- shift_select_total_mem_synced.      
+            repeat rewrite <- shift_list_upd_batch_set_comm.        
+            repeat erewrite <- map_addr_list_eq_map_map; eauto.
+            
+            all: try apply sumbool_agree_addr_dec.
+            (** Investigate this further **)
+            admit.
+          }
+          {
+            unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
+            split.
+            eexists; intuition eauto.
+            intros.
+            apply select_total_mem_synced in H3; eauto.
+          }
+          {
+            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+            unfold logged_disk_reboot_list; simpl.
+            eapply ExecRecovered.
+            repeat econstructor.
+            unfold refines_to, cached_log_rep in *; cleanup.
+            simpl in *.
+            unfold log_rep, log_reboot_rep, log_rep_general in *.
+            logic_clean.
+            erewrite map_addr_list_eq_map_map; eauto.
+            rewrite shift_list_upd_batch_set_comm; eauto.
+            erewrite <- shift_select_total_mem_synced.      
+            repeat rewrite <- shift_list_upd_batch_set_comm.        
+            repeat erewrite <- map_addr_list_eq_map_map; eauto.
+            
+            all: try apply sumbool_agree_addr_dec.
+            intros; apply H5; lia.
+            (** Need select_mem = m fact here **)
+            admit.
+          }
+        }        
         {
           unfold cached_log_crash_rep in H1; cleanup.
+          edestruct recovery_simulation; eauto;
+          try solve [eapply H3; eauto].
+          {
+            unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
+            split.          
+            eapply log_rep_to_reboot_rep in H1.
+            eexists; intuition eauto.
+            intros.
+            apply select_total_mem_synced in H3; eauto.
+          }
+          {
+            exists (Recovered (extract_state_r x)); simpl; intuition eauto.        
+            unfold logged_disk_reboot_list; simpl.
+            eapply ExecRecovered.
+            repeat econstructor.
+            unfold refines_to, cached_log_rep in *; simpl in *; cleanup; eauto.
+            (** Need select_mem = m fact here **)
+            admit.
+          }
+        }
+      }        
+      {
+        specialize H4 with (1:= H0).
+        unfold cached_log_crash_rep in *; cleanup.
         edestruct recovery_simulation; eauto;
         try solve [eapply H3; eauto].
         {
@@ -1165,54 +1128,32 @@ Proof.
           eapply log_rep_to_reboot_rep in H1.
           eexists; intuition eauto.
           intros.
-          apply select_total_mem_synced in H3; eauto.
+          apply select_total_mem_synced in H4; eauto.
         }
         {
-          exists (Recovered (extract_state_r x)); simpl; intuition eauto.        
+          exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
           unfold logged_disk_reboot_list; simpl.
           eapply ExecRecovered.
-          repeat econstructor.
-          unfold refines_to, cached_log_rep in *; simpl in *; cleanup; eauto.
-          (** Need select_mem = m fact here **)
+          repeat econstructor; eauto.
+          (** Nodup goal **)
           admit.
-        }
-        }
-      }        
-      {
-        specialize H4 with (1:= H0).
-        unfold cached_log_crash_rep in *; cleanup.
-        edestruct recovery_simulation; eauto;
-          try solve [eapply H3; eauto].
+          (** Length goal **)
+          admit.
+          (** Bound goal **)
+          admit.            
+          unfold refines_to, cached_log_rep in *; simpl in *; cleanup; eauto.
+          setoid_rewrite H3; eauto.
           {
-            unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
-            split.          
-            eapply log_rep_to_reboot_rep in H1.
-            eexists; intuition eauto.
-            intros.
-            apply select_total_mem_synced in H4; eauto.
-          }
-          {
-            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
-            unfold logged_disk_reboot_list; simpl.
-            eapply ExecRecovered.
-            repeat econstructor; eauto.
-            (** Nodup goal **)
-            admit.
-            (** Length goal **)
-            admit.
-            (** Bound goal **)
-            admit.            
-            unfold refines_to, cached_log_rep in *; simpl in *; cleanup; eauto.
-            setoid_rewrite H3; eauto.
+            unfold log_rep, log_rep_general in H1.
             rewrite <- sync_list_upd_batch_set.
             (** Need select_mem = m fact here **)
             admit.
           }
-      }
-      {
-        specialize H3 with (1:= H0); cleanup.
-        split_ors; cleanup.
-        
+        }
+        {
+          specialize H3 with (1:= H0); cleanup.
+          split_ors; cleanup.
+          
         {
           unfold cached_log_reboot_rep in *; simpl in *;
           cleanup.
