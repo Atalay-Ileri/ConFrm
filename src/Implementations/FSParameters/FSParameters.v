@@ -57,13 +57,4 @@ Proof.
   lia.
 Qed.
 
-Axiom addr_list_to_blocks : list addr -> list value.
-Axiom blocks_to_addr_list : list value -> list addr.
-Axiom addr_list_to_blocks_to_addr_list:
-  forall l_a,
-  exists l_a', blocks_to_addr_list (addr_list_to_blocks l_a) = l_a ++ l_a'.
-Axiom blocks_to_addr_list_to_blocks:
-  forall l_b,
-    addr_list_to_blocks (blocks_to_addr_list l_b) = l_b.
-
 Global Opaque super_block_num hdr_block_num log_start data_start data_length inode_blocks_start file_blocks_start.

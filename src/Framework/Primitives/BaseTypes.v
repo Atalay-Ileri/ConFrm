@@ -24,6 +24,20 @@ Axiom value_eq_dec: EqDec value.
 
 Axiom disk_size: addr.
 
+Axiom addr_list_to_blocks : list addr -> list value.
+Axiom blocks_to_addr_list : list value -> list addr.
+Axiom addr_list_to_blocks_to_addr_list:
+  forall l_a,
+  exists l_a', blocks_to_addr_list (addr_list_to_blocks l_a) = app l_a l_a'.
+Axiom blocks_to_addr_list_to_blocks:
+  forall l_b,
+    addr_list_to_blocks (blocks_to_addr_list l_b) = l_b.
+
+Axiom addr_list_to_blocks_length_eq:
+  forall l_a l_b,
+    length l_a = length l_b ->
+    length (addr_list_to_blocks l_a) = length (addr_list_to_blocks l_b).
+
 (* For Crypto *)
 Axiom hash : Type.
 Axiom hash_eq_dec: EqDec hash.

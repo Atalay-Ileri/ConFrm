@@ -1000,6 +1000,9 @@ Proof.
         unfold log_rep_inner in *; simpl in *; logic_clean.
         intuition eauto.
       }
+      {
+        unfold log_header_block_rep in *; simpl in *; cleanup; simpl; eauto.
+      }
     }
     {
       repeat cleanup_pairs.
@@ -2892,8 +2895,15 @@ Proof.
           }
           {
             unfold log_rep_inner in *; simpl in *; cleanup_no_match; intuition eauto.
-            exists x0; intuition eauto.
-            eapply header_part_is_valid_subset; eauto; cleanup; eauto.     
+            cleanup; intuition eauto.
+            {
+              left; intuition eauto.
+              eapply header_part_is_valid_subset; eauto; cleanup; eauto.
+            }
+            {
+              right; intuition eauto.
+              eapply header_part_is_valid_subset; eauto; cleanup; eauto.
+            }
           }
         }
         {
@@ -2974,4 +2984,3 @@ Proof.
     }
   }
 Qed.
-

@@ -4,7 +4,8 @@ Import ListNotations.
 Set Implicit Arguments.
 
 Section LoggedDisk.
-Variable disk_size: addr.
+  Variable log_size: nat.
+  Variable disk_size: nat.
 
   Inductive token' :=
   | CrashBefore : token'
@@ -22,7 +23,7 @@ Variable disk_size: addr.
     forall T, user -> token' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
   | ExecReadSuccess : 
       forall d a u,
-        a  < disk_size ->
+        a < disk_size ->
         exec' u Cont d (Read a) (Finished d (d a))
 
   | ExecReadFail : 
@@ -35,12 +36,14 @@ Variable disk_size: addr.
         NoDup la ->
         length la = length lv ->
         Forall (fun a => a < disk_size) la ->
+        length (addr_list_to_blocks la) + length lv <= log_size ->
         exec' u Cont d (Write la lv) (Finished (upd_batch d la lv) tt)
 
   | ExecWriteFail :
       forall d la lv u,
         ~NoDup la \/ length la <> length lv \/
-        ~Forall (fun a => a < disk_size) la ->
+        ~Forall (fun a => a < disk_size) la \/
+        length (addr_list_to_blocks la) + length lv > log_size ->
         exec' u Cont d (Write la lv) (Finished d tt)
 
   | ExecRecover : 
@@ -56,6 +59,7 @@ Variable disk_size: addr.
         NoDup la ->
         length la = length lv ->
         Forall (fun a => a < disk_size) la ->
+        length (addr_list_to_blocks la) + length lv <= log_size ->
         exec' u CrashAfter d (Write la lv) (Crashed (upd_batch d la lv)).
 
   Hint Constructors exec' : core.

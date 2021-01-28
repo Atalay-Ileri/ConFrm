@@ -41,11 +41,10 @@ Section RefinementLift.
          ))
     end.
 
-  (*
   Theorem exec_compiled_preserves_refinement_finished:
-    forall T (p: L_abs.(prog) T) o s_imp s_imp' r,
+    forall T (p: L_abs.(prog) T) o s_imp s_imp' r u,
       (exists s_abs, CoreRefinement.(refines_to_core) s_imp s_abs) ->
-      L_imp.(exec) o s_imp (compile T p) (Finished s_imp' r) ->
+      L_imp.(exec) u o s_imp (compile T p) (Finished s_imp' r) ->
       (exists s_abs', CoreRefinement.(refines_to_core) s_imp' s_abs').
   Proof.
     induction p; simpl; intros;
@@ -53,6 +52,7 @@ Section RefinementLift.
     try solve [eapply CoreRefinement.(exec_compiled_preserves_refinement_finished_core); eauto].
   Qed.
 
+  (*
   Theorem exec_compiled_preserves_refinement_crashed:
     forall T (p: L_abs.(prog) T) o s_imp s_imp',
       (exists s_abs, CoreRefinement.(refines_to_core) s_imp s_abs) ->
@@ -71,7 +71,8 @@ Section RefinementLift.
     Build_Refinement
       compile
       CoreRefinement.(refines_to_core)
-      oracle_refines_to.
+      oracle_refines_to
+      exec_compiled_preserves_refinement_finished.
 
 End RefinementLift.
 

@@ -1205,14 +1205,22 @@ Proof.
     }
   }
 Qed.
+
   
 Theorem write_finished:
   forall merged_disk s o al vl s' t u,
   cached_log_rep merged_disk s ->
   exec CachedDiskLang u o s (write al vl) (Finished s' t) ->
-  cached_log_rep merged_disk s' \/
+  (cached_log_rep merged_disk s' /\
+   (~Forall (fun a => a < data_length) al \/
+    ~NoDup al \/
+    length al <> length vl \/
+    length (addr_list_to_blocks (map (plus data_start) al)) + length vl > log_length )) \/
   (cached_log_rep (upd_batch merged_disk al vl) s' /\
-   Forall (fun a => a < data_length) al).
+   Forall (fun a => a < data_length) al /\
+   NoDup al /\
+   length al = length vl /\
+   length (addr_list_to_blocks (map (plus data_start) al)) + length vl <= log_length).
 Proof.
   unfold write; simpl; intros.
   cleanup; simpl in *; invert_exec_no_match; simpl in *; cleanup_no_match; simpl in *; eauto.
@@ -1423,6 +1431,12 @@ Proof.
     rewrite H7.
     rewrite app_length, map_length; lia.
   }
+  {
+    left; intuition eauto; lia.
+  }
+  {
+    left; intuition eauto; lia.
+  }
 Qed.
 
 
@@ -1431,10 +1445,14 @@ Theorem write_crashed:
   cached_log_rep merged_disk s ->
   exec CachedDiskLang u o s (write al vl) (Crashed s') ->
   cached_log_rep merged_disk s' \/
-  cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk al vl)) s' \/
+  ((cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk al vl)) s' \/
   cached_log_crash_rep (After_Commit (upd_batch merged_disk al vl)) s' \/
   cached_log_crash_rep (During_Apply merged_disk) s' \/
-  cached_log_crash_rep (After_Apply merged_disk) s'.
+  cached_log_crash_rep (After_Apply merged_disk) s') /\
+   Forall (fun a => a < data_length) al /\
+   NoDup al /\
+   length al = length vl /\
+   length (addr_list_to_blocks (map (plus data_start) al)) + length vl <= log_length).
 Proof.
   unfold cached_log_rep, write; simpl; intros.
   cleanup; invert_exec.
@@ -1450,7 +1468,8 @@ Proof.
           left; eexists; intuition eauto.
         }
         {
-          right; left; unfold cached_log_crash_rep; simpl.
+          right; repeat (split; eauto).
+          left; unfold cached_log_crash_rep; simpl.
           left; eexists; intuition eauto.
           
           assert (A: map addr_list x =
@@ -1495,7 +1514,8 @@ Proof.
           }
         }
         {
-          right; left; unfold cached_log_crash_rep; simpl.
+          right; intuition eauto.
+          left; unfold cached_log_crash_rep; simpl.
           right; do 2 eexists; intuition eauto.
           {
             
@@ -1626,7 +1646,8 @@ Proof.
         }
 
         {
-          right; right; left; unfold cached_log_crash_rep; simpl.
+          right; intuition eauto.
+          right; left; unfold cached_log_crash_rep; simpl.
           eexists; intuition eauto.
           
           assert (A: map addr_list (x++[x0]) =
@@ -1730,7 +1751,8 @@ Proof.
         split_ors; cleanup; repeat invert_exec;
         repeat cleanup_pairs.
         {
-          right; right; left; unfold cached_log_crash_rep; simpl.
+          right; intuition eauto;
+          right; left; unfold cached_log_crash_rep; simpl.
           eexists; intuition eauto.
           
           assert (A: map addr_list (x++[x3]) =
@@ -1809,7 +1831,8 @@ Proof.
         {
           eapply write_batch_to_cache_crashed in H6.
           simpl in *; cleanup.
-          right; right; left; unfold cached_log_crash_rep; simpl.
+          right; intuition eauto.
+          right; left; unfold cached_log_crash_rep; simpl.
           eexists; intuition eauto.
           
           assert (A: map addr_list (x++[x3]) =
@@ -1971,7 +1994,8 @@ Proof.
                {
                  simpl in *.
                  cleanup; simpl in *.
-                 right; right; right; left; unfold cached_log_rep; simpl in *.
+                 right; intuition eauto.
+                 right; right; left; unfold cached_log_rep; simpl in *.
                  eexists; intuition eauto.
                  
                  repeat rewrite total_mem_map_shift_comm.
@@ -2050,7 +2074,8 @@ Proof.
           {(** Flush Crashed **)
             repeat invert_exec.            
              {
-               right; right; right; right; unfold cached_log_rep; simpl.
+               right; intuition eauto.
+               right; right; right; unfold cached_log_rep; simpl.
                intuition eauto.
                rewrite <- sync_shift_comm.
                rewrite shift_upd_set_noop.
@@ -2087,7 +2112,8 @@ Proof.
             split_ors; cleanup; 
             simpl in *; repeat cleanup_pairs.
             {
-              right; left; left; eexists; intuition eauto.
+              right; intuition eauto.
+              left; left; eexists; intuition eauto.
               simpl.
               rewrite shift_eq_after with (m1:= s2) (m2:= sync
          (upd_set (list_upd_batch_set s1 (map addr_list x) (map data_blocks x)) hdr_block_num
@@ -2107,7 +2133,8 @@ Proof.
             split_ors; cleanup; 
             simpl in *; repeat cleanup_pairs.
             {
-              right; left; right; do 2 eexists; intuition eauto.
+              right; intuition eauto.
+              left; right; do 2 eexists; intuition eauto.
               simpl.
               replace (addr_list x1) with (map (Init.Nat.add data_start) al).           
               rewrite shift_upd_batch_set_comm.
@@ -2159,7 +2186,8 @@ Proof.
               rewrite H8; simpl; eauto.
              }
             {
-              right; right; left; eexists; intuition eauto.
+              right; intuition eauto.
+              right; left; eexists; intuition eauto.
               simpl.
               replace (addr_list x1) with (map (Init.Nat.add data_start) al).
               rewrite shift_upd_batch_set_comm.
@@ -2230,7 +2258,8 @@ Proof.
             lia.
           }
           {
-            right; right; left; unfold cached_log_crash_rep; simpl.
+            right; intuition eauto.
+            right; left; unfold cached_log_crash_rep; simpl.
             eexists; intuition eauto.
             simpl.
             replace (addr_list x1) with (map (Init.Nat.add data_start) al).
@@ -2309,7 +2338,7 @@ Proof.
           simpl in *; cleanup.
           repeat cleanup_pairs; simpl in *.
           {
-            right; right; left; unfold cached_log_crash_rep; simpl.
+            right; intuition eauto; right; left; unfold cached_log_crash_rep; simpl.
             eexists; intuition eauto.
             simpl.
             replace (addr_list x1) with (map (Init.Nat.add data_start) al).

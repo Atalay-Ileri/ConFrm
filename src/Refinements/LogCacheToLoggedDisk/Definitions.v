@@ -1,12 +1,12 @@
-Require Import Framework TotalMem CachedDiskLayer LoggedDiskLayer Log LogCache.
+Require Import Framework TotalMem CachedDiskLayer LoggedDiskLayer Log RepImplications LogCache.
 Require Import FSParameters FunctionalExtensionality Lia.
 Close Scope predicate_scope.
 Import ListNotations.
 
 Local Definition impl_core := CachedDiskOperation.
-Local Definition abs_core := LoggedDiskOperation data_length.
+Local Definition abs_core := LoggedDiskOperation log_length data_length.
 Local Definition impl := CachedDiskLang.
-Local Definition abs := LoggedDiskLang data_length.
+Local Definition abs := LoggedDiskLang log_length data_length.
 
 Definition compile T (p2: Core.operation abs_core T) : prog impl T.
  destruct p2.
@@ -83,11 +83,6 @@ Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T)
   Definition refines_to_reboot (d1: state impl) (d2: state abs) :=
       cached_log_reboot_rep d2 d1 /\ (forall a vs, snd (snd d1) a = vs -> snd vs = nil).
 
-  
-  (** refinement preservation
-
-
-
   Set Nested Proofs Allowed.
   
   Lemma hashes_in_hashmap_subset:
@@ -102,28 +97,30 @@ Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T)
   Qed.
   
   Lemma exec_compiled_preserves_refinement_finished_core:
-    forall T (p2: abs_core.(Core.operation) T) o1 s1 s1' r,
+    forall T (p2: abs_core.(Core.operation) T) o1 s1 s1' r u,
         (exists s2, refines_to s1 s2) ->
-        impl.(exec) o1 s1 (compile T p2) (Finished s1' r)->
+        impl.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
         (exists s2', refines_to s1' s2').
   Proof.
     intros; destruct p2; simpl in *; cleanup.
     {
-      unfold read in *; repeat (invert_exec; simpl in *; cleanup);
-      try solve [inversion H5; cleanup;
-                 try inversion H7; cleanup;
-                 eexists; intuition eauto ].
+      eapply read_finished in H0; eauto; cleanup; eauto.
     }
-    
     {
       unfold refines_to in *; cleanup.
       eapply write_finished in H0; eauto.
-      simpl in *.
-      split_ors; do 2 eexists; eauto.
+      split_ors; cleanup; eauto.
     }
-    admit.
-  Admitted.
+    {
+      unfold refines_to, cached_log_rep in *; cleanup.
+      eapply recover_finished in H0; eauto.
+      unfold cached_log_reboot_rep;
+      eexists; intuition eauto.      
+      eapply log_rep_to_reboot_rep_same; eauto.
+    }
+  Qed.
 
+  (*
   Lemma exec_compiled_preserves_refinement_crashed_core:
     forall T (p2: abs_core.(Core.operation) T) o1 s1 s1',
         (exists s2, refines_to s1 s2) ->
@@ -143,8 +140,8 @@ Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T)
   Qed.
 *)
 
-  Definition LoggedDiskCoreRefinement := Build_CoreRefinement compile refines_to token_refines_to.
-  Definition LoggedDiskRefinement := LiftRefinement (LoggedDiskLang data_length) LoggedDiskCoreRefinement.
+  Definition LoggedDiskCoreRefinement := Build_CoreRefinement compile refines_to token_refines_to exec_compiled_preserves_refinement_finished_core.
+  Definition LoggedDiskRefinement := LiftRefinement (LoggedDiskLang log_length data_length) LoggedDiskCoreRefinement.
 
-  Notation "| p |" := (Op (LoggedDiskOperation data_length) p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op (LoggedDiskOperation data_length) p1) (fun x => p2))(right associativity, at level 60).
+  Notation "| p |" := (Op (LoggedDiskOperation log_length data_length) p)(at level 60).
+Notation "x <-| p1 ; p2" := (Bind (Op (LoggedDiskOperation log_length data_length) p1) (fun x => p2))(right associativity, at level 60).

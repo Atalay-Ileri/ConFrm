@@ -357,7 +357,8 @@ Definition log_crash_rep (log_crash_state: Log_Crash_State) (state: state Crypto
        current_part (decode_header old_hdr_block) = old_part (decode_header new_hdr_block) /\
        log_rep_explicit (Hdr_Not_Synced old_hdr_block) Synced Current_Part (decode_header new_hdr_block) []
                        (new_hdr_block, [old_hdr_block]) log_blocksets state /\
-       log_rep_inner Current_Part (decode_header old_hdr_block) txns (map fst log_blocksets) state
+       log_rep_inner Current_Part (decode_header old_hdr_block) txns (map fst log_blocksets) state /\
+       count (old_part (decode_header old_hdr_block)) <= log_length
 
   | During_Commit_Log_Write txns =>
     
@@ -400,17 +401,21 @@ Definition log_crash_rep (log_crash_state: Log_Crash_State) (state: state Crypto
     exists old_hdr_block new_hdr_block
       (log_blocksets: list (set value)),
       let hdr_blockset := (new_hdr_block, [old_hdr_block]) in
-      let hdr := decode_header (fst hdr_blockset) in
-
+      let hdr := decode_header new_hdr_block in
+      let old_hdr := decode_header old_hdr_block in
+      
       log_header_block_rep (Hdr_Not_Synced old_hdr_block) hdr_blockset state /\
       log_data_blocks_rep Synced log_blocksets state /\
       length log_blocksets = log_length /\
       count (current_part hdr) <= log_length /\
       count (old_part hdr) <= log_length /\
-      count (old_part (decode_header old_hdr_block)) <= log_length /\
+      count (current_part old_hdr) <= log_length /\
+      count (old_part old_hdr) <= log_length /\
       
       log_rep_inner Current_Part hdr txns (map fst log_blocksets) state /\
-      (exists valid_part, log_rep_inner valid_part (decode_header old_hdr_block) txns (map fst log_blocksets) state)
+      (log_rep_inner Current_Part old_hdr txns (map fst log_blocksets) state \/
+       (log_rep_inner Old_Part old_hdr txns (map fst log_blocksets) state /\
+      hash (current_part old_hdr) <> rolling_hash hash0 (firstn (count (current_part old_hdr)) (map fst log_blocksets))))
   end.
 
 Definition log_reboot_rep  (txns: list txn) (state: state CryptoDiskLang) :=

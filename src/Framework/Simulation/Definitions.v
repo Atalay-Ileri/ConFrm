@@ -5,6 +5,11 @@ Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
     compile_core : forall T, O_abs.(Core.operation) T -> L_imp.(prog) T;
     refines_to_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
     token_refines_to: forall T, user -> L_imp.(state) -> O_abs.(Core.operation) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
+    exec_compiled_preserves_refinement_finished_core :
+      forall T (p2: O_abs.(Core.operation) T) o1 s1 s1' r u,
+        (exists s2, refines_to_core s1 s2) ->
+        L_imp.(exec) u o1 s1 (compile_core T p2) (Finished s1' r) ->
+        (exists s2', refines_to_core s1' s2');
   }.
 
 Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) :=
@@ -12,17 +17,24 @@ Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) 
     compile : forall T, L_abs.(prog) T -> L_imp.(prog) T;
     refines_to: L_imp.(state) -> L_abs.(state) -> Prop;
     oracle_refines_to: forall T, user -> L_imp.(state) -> L_abs.(prog) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> L_abs.(oracle) -> Prop;
+    exec_compiled_preserves_refinement_finished :
+      forall T (p2: L_abs.(prog) T) o1 s1 s1' r u,
+        (exists s2, refines_to s1 s2) ->
+        L_imp.(exec) u o1 s1 (compile T p2) (Finished s1' r) ->
+        (exists s2', refines_to s1' s2');
   }.
 
 Arguments Build_CoreRefinement {_ _ _}.
 Arguments compile_core {_ _ _} _ {_}.
 Arguments refines_to_core {_ _ _}.
 Arguments token_refines_to {_ _ _} _ {_}.
+Arguments exec_compiled_preserves_refinement_finished_core {_ _ _}.
 
 Arguments Build_Refinement {_ _ _ _}.
 Arguments compile {_ _ _ _} _ {_}.
 Arguments refines_to {_ _ _ _}.
 Arguments oracle_refines_to {_ _ _ _} _ {_}.
+Arguments exec_compiled_preserves_refinement_finished {_ _ _ _}.
 
 Section Relations.
   Variable O_imp O_abs: Core.
