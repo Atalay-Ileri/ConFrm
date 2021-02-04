@@ -1162,5 +1162,41 @@ Proof.
     lia.
 Qed.
 
+Lemma shift_select_total_mem_synced:
+  forall A AEQ V (tm: @total_mem A AEQ (V * list V)) selector f,
+    (forall a, snd (tm (f a)) = nil) ->
+    shift f (select_total_mem selector tm) = shift f tm.
+Proof.
+  intros.
+  extensionality a; simpl.
+  unfold shift, select_total_mem; simpl.
+  rewrite select_for_addr_synced; eauto.
+  erewrite <- (H a).
+  destruct (tm (f a)) eqn:D; eauto.
+Qed.
+
+Lemma select_total_mem_synced:
+    forall A AEQ V (m: @total_mem A AEQ (V * list V)) selector (a: A) vs,
+      select_total_mem selector m a = vs ->
+      snd vs = nil.
+  Proof.
+    unfold select_total_mem; intros.
+    destruct (m a); try congruence.
+    inversion H; simpl; eauto.
+  Qed.
+
+  Lemma select_total_mem_synced_noop:
+    forall A AEQ V (m: @total_mem A AEQ (V * list V)) selector,
+      (forall a vs, m a = vs -> snd vs = nil) ->
+      select_total_mem selector m = m.
+  Proof.
+    intros; extensionality a.
+    unfold select_total_mem; simpl.
+    destruct (m a) eqn:D; eauto.
+    apply H in D; subst; eauto.
+    simpl in *; subst; eauto.
+    rewrite select_for_addr_synced; simpl; eauto.
+  Qed.
+  
 Hint Rewrite upd_eq using (solve [ auto ]) : upd.
 Hint Rewrite upd_ne using (solve [ auto ]) : upd.

@@ -254,7 +254,7 @@ Definition header_part_is_valid log_blocks hash_map header_part :=
   (** Record validity **)
   records_are_consecutive_starting_from 0 (records header_part).
 
-Definition txn_well_formed header_part (log_blocks: list value) key_list (disk: @total_mem addr _ (set value)) txn :=
+Definition txn_well_formed header_part (log_blocks: list value) key_list encryption_map (disk: @total_mem addr _ (set value)) txn :=
   let record := record txn in
   let key := key record in
   let start := start record in
@@ -269,13 +269,15 @@ Definition txn_well_formed header_part (log_blocks: list value) key_list (disk: 
   Forall (fun a => disk_size > a  /\ a >= data_start) (addr_list txn) /\
   addr_count = length (addr_blocks txn) /\
   data_count = length (data_blocks txn) /\
-  data_count <= length (blocks_to_addr_list (addr_blocks txn)).
+  data_count <= length (blocks_to_addr_list (addr_blocks txn)) /\
+  (forall i, i < addr_count -> encryption_map (encrypt key (selN (addr_blocks txn) i value0)) = Some (key, selN (addr_blocks txn) i value0)) /\
+  (forall i, i < data_count -> encryption_map (encrypt key (selN (data_blocks txn) i value0)) = Some (key, selN (data_blocks txn) i value0)).
 
 
-Definition txns_valid header_part (log_blocks: list value) key_list disk (txns: list txn) :=
+Definition txns_valid header_part (log_blocks: list value) key_list encryption_map disk (txns: list txn) :=
   (** Records match the header *)
   map record txns = records header_part /\
-  Forall (txn_well_formed header_part log_blocks key_list disk) txns.
+  Forall (txn_well_formed header_part log_blocks key_list encryption_map disk) txns.
 
 Definition log_header_block_rep
            (header_state: Header_State)
@@ -317,15 +319,16 @@ Definition log_rep_inner
            (state: state CryptoDiskLang) :=
   let crypto_maps := fst state in
   let disk := snd state in
-  let key_list := fst crypto_maps in
-  let hash_map := snd crypto_maps in
+  let key_list := fst (fst crypto_maps) in
+  let hash_map := snd (fst crypto_maps) in
+  let encryption_map := snd crypto_maps in
   let header_part :=
       match valid_part with
       | Old_Part => old_part hdr
       | Current_Part => current_part hdr
       end in
   header_part_is_valid log_blocks hash_map header_part /\
-  txns_valid header_part log_blocks key_list disk txns.
+  txns_valid header_part log_blocks key_list encryption_map disk txns.
 
 
 Definition log_rep_explicit (header_state: Header_State) (log_state: Log_State) (valid_part: Valid_Part) (hdr: header) (txns: list txn) 

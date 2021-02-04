@@ -1,5 +1,6 @@
 Require Import Framework.
 Import ListNotations.
+Import Mem.
 
 Set Implicit Arguments.
 

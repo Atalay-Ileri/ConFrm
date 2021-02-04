@@ -1,13 +1,7 @@
-Require Import Lia Framework.
+Require Import Lia Framework TotalMem.
 Import ListNotations.
 
 Set Implicit Arguments.
-
-Definition apply_mem {A AEQ V} (m: @mem A AEQ V) (tm: @total_mem A AEQ V):=
-  fun a => match m a with
-        | Some v => v
-        | None => tm a
-        end.
 
 Section TransactionalDisk.
   
@@ -20,10 +14,10 @@ Section TransactionalDisk.
   | Cont : token'
   | TxnFull : token'.
 
-  Definition state' := ((@mem addr addr_dec value) * (@total_mem addr addr_dec value))%type.
+  Definition state' := ((@total_mem addr addr_dec value) * (@total_mem addr addr_dec value))%type.
   
   Inductive transactional_disk_prog : Type -> Type :=
-  | Start : transactional_disk_prog unit
+  (* | Start : transactional_disk_prog unit *)
   | Read : addr -> transactional_disk_prog value
   | Write : addr -> value -> transactional_disk_prog unit
   | Commit : transactional_disk_prog unit
@@ -32,20 +26,18 @@ Section TransactionalDisk.
 
   Inductive exec' :
     forall T, user -> token' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=
-  | ExecStart : 
+  (* | ExecStart : 
       forall s u,
         let c := fst s in
         let d := snd s in
-        exec' u Cont s Start (Finished (empty_mem, d) tt)
+        exec' u Cont s Start (Finished (empty_mem, d) tt) *)
               
   | ExecReadInbound : 
-      forall s a v u,
+      forall s a u,
         let c := fst s in
         let d := snd s in
         a < disk_size ->
-        (c a = Some v \/
-        (c a = None /\ d a = v)) ->
-        exec' u Cont s (Read a) (Finished s v)
+        exec' u Cont s (Read a) (Finished s (c a))
 
   | ExecReadOutbound : 
       forall s a u,
@@ -57,7 +49,7 @@ Section TransactionalDisk.
         let c := fst s in
         let d := snd s in
         a < disk_size ->
-        exec' u Cont s (Write a v) (Finished ((Mem.upd c a v), d) tt)
+        exec' u Cont s (Write a v) (Finished ((upd c a v), d) tt)
 
   | ExecWriteInboundFull :
       forall s a v u,
@@ -73,19 +65,15 @@ Section TransactionalDisk.
 
   | ExecCommit : 
       forall s u,
-        let c := fst s in
-        let d := snd s in
-        exec' u Cont s Commit (Finished (empty_mem, apply_mem c d) tt)
+        exec' u Cont s Commit (Finished (fst s, fst s) tt)
 
   | ExecAbort : 
       forall s u,
-        let c := fst s in
-        let d := snd s in
-        exec' u Cont s Abort (Finished (empty_mem, d) tt)
+        exec' u Cont s Abort (Finished (snd s, snd s) tt)
 
   | ExecRecover : 
       forall s u,
-        exec' u Cont s Recover (Finished s tt)
+        exec' u Cont s Recover (Finished (snd s, snd s) tt)
 
   | ExecCrashBefore :
       forall d T (p: transactional_disk_prog T) u,
@@ -94,8 +82,7 @@ Section TransactionalDisk.
   | ExecCommitCrashAfter :
       forall s u,
         let c := fst s in
-        let d := snd s in
-        exec' u CrashAfter s Commit (Crashed (empty_mem, apply_mem c d)).
+        exec' u CrashAfter s Commit (Crashed (c, c)).
 
   (* 
      | ExecCrashDuringCommit :

@@ -112,50 +112,75 @@ Proof.
     eauto.
   }
 Qed.
-  
+
+
+Import Mem.
+
 Theorem decrypt_all_finished:
   forall key evl o s s' t u,
     exec CryptoDiskLang u o s (decrypt_all key evl) (Finished s' t) ->
-    t = map (decrypt key) evl /\ s' = s.
+    t = map (decrypt key) evl /\
+    consistent_with_upds (snd (fst s)) evl (map (fun ev => (key, decrypt key ev)) evl) /\
+    fst (fst s') = fst (fst s) /\
+    snd (fst s') = upd_batch (snd (fst s)) evl (map (fun ev => (key, decrypt key ev)) evl) /\
+    snd s' = snd s.
 Proof.
   induction evl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
   edestruct IHevl; eauto; cleanup.
   eexists; intuition eauto.
-  destruct s; eauto.
+  repeat cleanup_pairs; eauto.
 Qed.
 
 Theorem decrypt_all_crashed:
   forall key evl o s s' u,
     exec CryptoDiskLang u o s (decrypt_all key evl) (Crashed s') ->
-    s' = s.
+    exists n,
+      consistent_with_upds (snd (fst s)) (firstn n evl) (firstn n (map (fun ev => (key, decrypt key ev)) evl)) /\
+      fst (fst s') = fst (fst s) /\
+      snd (fst s') = upd_batch (snd (fst s)) (firstn n evl) (firstn n (map (fun ev => (key, decrypt key ev)) evl)) /\
+    snd s' = snd s.
 Proof.
   induction evl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
+  exists 0; simpl; eauto.
+  
   split_ors; cleanup; repeat invert_exec.
-  destruct s; eauto.
+  exists 0; simpl; eauto.
+  
   split_ors; cleanup; repeat invert_exec.
-  destruct s; eauto.
-
-  eapply decrypt_all_finished in H; cleanup; eauto.
-  destruct s; eauto.
+  {
+    apply IHevl in H; cleanup.
+    exists (S x0); simpl; intuition eauto.
+    repeat cleanup_pairs; eauto.
+    destruct p; eauto.
+  }
+  {
+    eapply decrypt_all_finished in H; cleanup; eauto.
+    exists (S (length evl)); simpl.
+    repeat rewrite firstn_oob; try lia.
+    intuition eauto.
+    repeat cleanup_pairs; eauto.
+    destruct p; eauto.
+    rewrite map_length; eauto.
+  }
 Qed.
 
-Import Mem.
 
 Theorem hash_all_finished:
   forall vl h o s t s' u,
     exec CryptoDiskLang u o s (hash_all h vl) (Finished s' t) ->
     t = rolling_hash h vl /\
-    consistent_with_upds (snd (fst s)) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
-    (snd (fst s')) = upd_batch (snd (fst s)) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
-    fst (fst s') = fst (fst s) /\
+    consistent_with_upds (snd (fst (fst s))) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
+    (snd (fst (fst s'))) = upd_batch (snd (fst (fst s))) (rolling_hash_list h vl) (combine (h:: rolling_hash_list h vl) vl) /\
+    fst (fst (fst s')) = fst (fst (fst s)) /\
+    snd (fst s') = snd (fst s) /\
     snd s' = snd s.
 Proof.
   induction vl; simpl; intros.
-  repeat invert_exec; cleanup; eauto.
+  repeat invert_exec; cleanup; intuition eauto.
   repeat invert_exec; cleanup.
   edestruct IHvl; eauto; cleanup.
   simpl in *; intuition eauto.
@@ -166,9 +191,10 @@ Theorem hash_all_crashed:
     exec CryptoDiskLang u o s (hash_all h vl) (Crashed s') ->
     exists n,
       n <= length (rolling_hash_list h vl) /\
-    consistent_with_upds (snd (fst s)) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
-    (snd (fst s')) = upd_batch (snd (fst s)) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
-    fst (fst s') = fst (fst s) /\
+    consistent_with_upds (snd (fst (fst s))) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
+    (snd (fst (fst s'))) = upd_batch (snd (fst (fst s))) (firstn n (rolling_hash_list h vl)) (firstn n (combine (h:: rolling_hash_list h vl) vl)) /\
+    fst (fst (fst s')) = fst (fst (fst s)) /\
+    snd (fst s') = snd (fst s) /\
     snd s' = snd s.
 Proof.
   induction vl; simpl; intros.
@@ -202,7 +228,10 @@ Theorem encrypt_all_finished:
   forall key vl o s s' t u,
     exec CryptoDiskLang u o s (encrypt_all key vl) (Finished s' t) ->
     t = map (encrypt key) vl /\
-    s' = s.
+    consistent_with_upds (snd (fst s)) (map (encrypt key) vl) (map (fun v => (key, v)) vl) /\
+    fst (fst s') = fst (fst s) /\
+    snd (fst s') = upd_batch (snd (fst s)) (map (encrypt key) vl) (map (fun v => (key, v)) vl) /\
+    snd s' = snd s.
 Proof.
   induction vl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -210,31 +239,46 @@ Proof.
 
   - edestruct IHvl; eauto; cleanup.
     eexists; intuition eauto.
-    destruct s; simpl; eauto.
+    repeat cleanup_pairs; eauto.
 Qed.
 
 Theorem encrypt_all_crashed:
   forall key vl o s s' u,
     exec CryptoDiskLang u o s (encrypt_all key vl) (Crashed s') ->
-    s' = s.
+    exists n,
+      consistent_with_upds (snd (fst s)) (firstn n (map (encrypt key) vl)) (firstn n (map (fun v => (key, v)) vl)) /\
+      fst (fst s') = fst (fst s) /\
+      snd (fst s') = upd_batch (snd (fst s)) (firstn n (map (encrypt key) vl)) (firstn n (map (fun v => (key, v)) vl)) /\
+    snd s' = snd s.
+
 Proof.
   induction vl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
+  {
+    exists 0; simpl; eauto.
+  }
 
-  - split_ors; cleanup; repeat invert_exec.
-    {
-      repeat destruct s; simpl; intuition eauto.      
-    }
-    split_ors; cleanup; repeat invert_exec.
-    {
-      eapply IHvl; eauto; cleanup; eauto.
-      destruct s; simpl in *; eauto.
-    }
-    {
-      eapply encrypt_all_finished in H; cleanup.
-      destruct s; simpl; eauto.
-    }      
+  split_ors; cleanup; repeat invert_exec.
+  {
+    exists 0; simpl; eauto.
+  }
+  split_ors; cleanup; repeat invert_exec.
+  {
+    eapply IHvl in H; eauto; cleanup; eauto.
+    exists (S x0); simpl; intuition eauto.
+    repeat cleanup_pairs; eauto.
+    destruct p; simpl in *; eauto.
+  }
+  {
+    eapply encrypt_all_finished in H; cleanup.
+    exists (S (length vl)); simpl.
+    repeat rewrite firstn_oob; try lia.
+    intuition eauto.
+    repeat cleanup_pairs; eauto.
+    destruct p; simpl; eauto.
+    all: rewrite map_length; eauto.
+  }      
 Qed.
 
 Theorem read_consecutive_finished:

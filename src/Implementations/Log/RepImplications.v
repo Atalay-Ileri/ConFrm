@@ -16,8 +16,8 @@ Proof.
 Qed.
 
 Lemma txns_valid_nil:
-  forall log_blocks em s,
-    txns_valid header_part0 log_blocks em s [].
+  forall log_blocks kl em s,
+    txns_valid header_part0 log_blocks kl em s [].
 Proof.
   unfold txns_valid; simpl; intros; intuition eauto.
 Qed.
@@ -62,10 +62,10 @@ Definition plain_data_blocks_valid log_blocks plain_data_blocks txn :=
 
 
 Lemma bimap_get_addr_list:
-  forall txns header_part log_blocks kl d,
+  forall txns header_part log_blocks kl em d,
     count header_part <= log_length ->
     length log_blocks = log_length ->
-    Forall (txn_well_formed header_part log_blocks kl d) txns ->
+    Forall (txn_well_formed header_part log_blocks kl em d) txns ->
     bimap get_addr_list (map record txns) (map addr_blocks txns) = map addr_list txns.
 Proof.
   induction txns; simpl; intros; eauto.
@@ -221,10 +221,6 @@ Proof.
   rewrite Mem.upd_nop; eauto.
 Qed.
 
-
-
-
-
 Lemma hashes_in_hashmap_subset:
   forall l h hm hm',
     hashes_in_hashmap hm h l ->
@@ -246,7 +242,38 @@ Proof.
   eapply hashes_in_hashmap_subset; eauto.
 Qed.
 
-Lemma log_rep_explicit_subset:
+Lemma txns_valid_subset:
+  forall log_blocks em em' hdr_part kl d txns,    
+    txns_valid hdr_part log_blocks kl em d txns ->
+    subset em em' ->    
+    txns_valid hdr_part log_blocks kl em' d txns.
+Proof.
+  unfold txns_valid; intros; cleanup.
+  intuition eauto.
+  eapply Forall_impl; [| eauto].
+  unfold txn_well_formed; intros.
+  cleanup; intuition eauto.
+  specialize (H0 (encrypt (key (record a)) (selN (addr_blocks a) i value0))); cleanup; eauto.
+  specialize (H0 (encrypt (key (record a)) (selN (data_blocks a) i value0))); cleanup; eauto.
+Qed.
+
+Lemma log_rep_explicit_hash_map_subset:
+  forall hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s s',
+    log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s ->
+    subset (snd (fst (fst s))) (snd (fst (fst s'))) ->
+    fst (fst (fst s')) = fst (fst (fst s)) ->
+    snd (fst s') = snd (fst s) ->
+    snd s' = snd s ->
+    log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s'.
+Proof.      
+  intros; repeat cleanup_pairs; simpl in *.
+  unfold log_rep_explicit in *; logic_clean; simpl in *.
+  intuition eauto.
+  unfold log_rep_inner in *; logic_clean; intuition eauto.  
+  eapply header_part_is_valid_subset; eauto.
+Qed.
+
+Lemma log_rep_explicit_encryption_map_subset:
   forall hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s s',
     log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blecksets s ->
     subset (snd (fst s)) (snd (fst s')) ->
@@ -257,8 +284,8 @@ Proof.
   intros; repeat cleanup_pairs; simpl in *.
   unfold log_rep_explicit in *; logic_clean; simpl in *.
   intuition eauto.
-  unfold log_rep_inner in *; logic_clean; intuition eauto.
-  eapply header_part_is_valid_subset; eauto.
+  unfold log_rep_inner in *; logic_clean; intuition eauto.  
+  eapply txns_valid_subset; eauto.
 Qed.
 
 Lemma record_is_valid_new_count:
@@ -429,18 +456,32 @@ Proof.
   all: exact key0.
 Qed.
 
-(** Selector does not cause a hash collision. **)
-Definition non_colliding_selector selector (s: CryptoDiskLang.(state)) :=
-  forall old_log_blocksets new_log_blocks,
-    length old_log_blocksets = length new_log_blocks ->
-    length old_log_blocksets <= log_length ->
-    (forall i, i < length old_log_blocksets ->
-          (snd s) (log_start + i) = selN old_log_blocksets i (value0, [])) ->
-    (forall i, i < length new_log_blocks ->
-          (select_total_mem selector (snd s)) (log_start + i) = selN (map (fun v => (v, [])) new_log_blocks) i (value0, [])) ->
-    rolling_hash hash0 (map fst old_log_blocksets) = rolling_hash hash0 new_log_blocks ->
-    map fst old_log_blocksets = new_log_blocks.
-
+Lemma log_rep_update_disk_subset:
+  forall txns hdr n m s s',
+    log_header_rep hdr txns s ->
+    fst (fst s') = fst (fst s) ->
+    subset (snd (fst s)) (snd (fst s')) ->
+    snd s' =
+    upd_batch_set
+      (list_upd_batch_set (snd s)
+                          (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
+                          (firstn n (map data_blocks txns)))
+      (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+      (firstn m (selN (map data_blocks txns) n [])) ->
+    log_rep txns s'.
+Proof.
+  intros.
+  unfold log_header_rep, log_rep_general in *; cleanup.
+  eapply log_rep_update_disk_preserves.
+  instantiate (1:= (fst s', snd s)).
+  all: eauto.
+  
+  eapply log_rep_explicit_encryption_map_subset in H.
+  instantiate (1:= (fst s', snd s)) in H.
+  unfold log_header_rep, log_rep_general; eauto.
+  all: simpl; eauto.
+Qed.
+ 
 
 Lemma crash_rep_header_write_to_reboot_rep :
   forall s old_txns new_txns selector,

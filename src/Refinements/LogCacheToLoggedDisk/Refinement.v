@@ -54,16 +54,6 @@ Section LoggedDiskBisimulation.
     inversion H; simpl; eauto.
   Qed.
 
-  Lemma select_total_mem_synced:
-    forall A AEQ V (m: @total_mem A AEQ (V * list V)) selector (a: A) vs,
-      select_total_mem selector m a = vs ->
-      snd vs = nil.
-  Proof.
-    unfold select_total_mem; intros.
-    destruct (m a); try congruence.
-    inversion H; simpl; eauto.
-  Qed.
-
   Lemma map_addr_list_eq_map_map:
     forall txns s hdr_state log_state valid_part hdr hdr_blockset log_blocksets,
       log_rep_explicit hdr_state log_state valid_part hdr txns hdr_blockset log_blocksets s ->
@@ -85,18 +75,7 @@ Section LoggedDiskBisimulation.
     eapply Forall_forall in H13; eauto; lia.
   Qed.
 
-  Lemma shift_select_total_mem_synced:
-    forall A AEQ V (tm: @total_mem A AEQ (V * list V)) selector f,
-      (forall a, snd (tm (f a)) = []) ->
-      shift f (select_total_mem selector tm) = shift f tm.
-  Proof.
-    intros.
-    extensionality a; simpl.
-    unfold shift, select_total_mem; simpl.
-    rewrite select_for_addr_synced; eauto.
-    erewrite <- (H a).
-    destruct_fresh (tm (f a)); eauto.
-  Qed.
+  
 
   Lemma sumbool_agree_addr_dec:
     forall n x y,
@@ -734,18 +713,7 @@ Section LoggedDiskBisimulation.
     intros; intuition (cleanup; eauto).
   Qed.
 
-  Lemma select_total_mem_synced_noop:
-    forall A AEQ V (m: @total_mem A AEQ (V * list V)) selector,
-      (forall a vs, m a = vs -> snd vs = nil) ->
-      select_total_mem selector m = m.
-  Proof.
-    intros; extensionality a.
-    unfold select_total_mem; simpl.
-    destruct (m a) eqn:D; eauto.
-    apply H in D; subst; eauto.
-    simpl in *; subst; eauto.
-    rewrite select_for_addr_synced; simpl; eauto.
-  Qed.
+  
   
 Lemma recovery_simulation :
   forall l_selector u,
@@ -811,7 +779,7 @@ Proof.
         simpl in *; logic_clean.
         repeat split_ors; cleanup;
         match goal with
-        | [H: Forall (txn_well_formed _ _ _ _) _,
+        | [H: Forall (txn_well_formed _ _ _ _ _) _,
               H0: In _ (map _ _) |- _] =>
           apply in_map_iff in H0; logic_clean; subst;
           eapply Forall_forall in H; eauto;
@@ -1213,6 +1181,7 @@ Admitted.
 
 End LoggedDiskBisimulation.
 
+(*
 Section TransferToCachedDisk.
 
   Theorem transfer_to_CachedDisk:
@@ -1243,3 +1212,4 @@ Section TransferToCachedDisk.
   Qed.
 
 End TransferToCachedDisk.
+*)

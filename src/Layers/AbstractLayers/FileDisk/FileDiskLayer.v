@@ -1,6 +1,6 @@
 Require Import Lia Framework.
 Import ListNotations.
-Close Scope predicate_scope.
+Import Mem.
 
 Set Implicit Arguments.
 
