@@ -24,7 +24,7 @@ Section FileDisk.
   | Read : Inum -> addr -> file_disk_prog (option value)
   | Write : Inum -> addr -> value -> file_disk_prog (option unit)
   | Extend : Inum -> value -> file_disk_prog (option unit)
-  | SetOwner : Inum -> user -> file_disk_prog (option unit)
+  | ChangeOwner : Inum -> user -> file_disk_prog (option unit)
   | Create : user -> file_disk_prog (option addr)
   | Delete : Inum -> file_disk_prog (option unit)
   | Recover : file_disk_prog unit.
@@ -86,20 +86,20 @@ Section FileDisk.
         file.(owner) = u ->
         exec' u DiskFull d (Extend inum v) (Finished d None)
 
-  | ExecSetOwnerSuccess :
+  | ExecChangeOwnerSuccess :
       forall d u inum file o,
         inum < disk_size ->
         d inum = Some file ->
         file.(owner) = u ->
         let new_file := Build_File o file.(blocks) in
-        exec' u Cont d (SetOwner inum o) (Finished (upd d inum new_file) (Some tt))
+        exec' u Cont d (ChangeOwner inum o) (Finished (upd d inum new_file) (Some tt))
 
-  | ExecSetOwnerFail :
+  | ExecChangeOwnerFail :
       forall d u inum file o,
         (inum >= disk_size \/
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
-        exec' u Cont d (SetOwner inum o) (Finished d None)
+        exec' u Cont d (ChangeOwner inum o) (Finished d None)
 
   | ExecCreateSuccess :
       forall d u inum owner,
@@ -135,13 +135,13 @@ Section FileDisk.
       forall u d T (p: file_disk_prog T),
         exec' u CrashBefore d p (Crashed d)
 
-  | ExecSetOwnerCrashAfter :
+  | ExecChangeOwnerCrashAfter :
       forall d u inum file o,
         inum < disk_size ->
         d inum = Some file ->
         file.(owner) = u ->
         let new_file := Build_File o file.(blocks) in
-        exec' u CrashAfter d (SetOwner inum o) (Crashed (upd d inum new_file))
+        exec' u CrashAfter d (ChangeOwner inum o) (Crashed (upd d inum new_file))
 
   | ExecWriteCrashAfter :
       forall d u inum file off v,

@@ -1,4 +1,4 @@
-Require Import Framework FSParameters FileDiskLayer.
+Require Import Framework Mem FSParameters FileDiskLayer.
 (* 
 Require Import File FileDiskRefinement.
 Require Import AuthenticatedDiskLayer.

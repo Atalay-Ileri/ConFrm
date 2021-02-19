@@ -13,28 +13,37 @@ End DiskAllocatorParams.
 Module DiskAllocator := BlockAllocator DiskAllocatorParams.
 
 Definition file_rep (file: File) (inode: Inode) (file_block_map: disk value) :=
-  file.(owner) = inode.(Inode.owner) /\
+  file.(BaseTypes.owner) = inode.(Inode.owner) /\
   length file.(blocks) = length inode.(block_numbers) /\
   (forall i block_number,
        nth_error inode.(block_numbers) i = Some block_number ->
        nth_error file.(blocks) i = file_block_map block_number).
 
-Definition files_inner_rep (file_map: @mem Inum addr_dec File) inode_map file_block_map :=
-   addrs_match_exactly file_map inode_map /\
+Definition file_map_rep (file_disk: @mem Inum addr_dec File) inode_map file_block_map :=
+   addrs_match_exactly file_disk inode_map /\
    (forall inum inode file,
      inode_map inum  = Some inode ->
-     file_map inum = Some file ->
+     file_disk inum = Some file ->
      file_rep file inode file_block_map).
 
-Definition files_rep (file_map: disk File) :=
-  exists* inode_map,
-    inode_rep inode_map *
-    exists* file_block_map,
-    DiskAllocator.block_allocator_rep file_block_map *
-    [[ files_inner_rep file_map inode_map file_block_map ]].
+Definition files_inner_rep (file_disk: disk File) (d: @total_mem addr addr_dec value):=
+  exists inode_map,
+    inode_rep inode_map d /\
+    
+  exists file_block_map,
+    DiskAllocator.block_allocator_rep file_block_map d /\
+    file_map_rep file_disk inode_map file_block_map.
+
+Definition files_rep (file_disk: disk File) (d: AuthenticatedDiskLang.(state)) :=
+  fst (snd d) = snd (snd d) /\
+  files_inner_rep file_disk (fst (snd d)).
+
+Definition files_crash_rep (file_disk: disk File) (d: AuthenticatedDiskLang.(state)) :=
+  files_inner_rep file_disk (snd (snd d)).
+
+Definition files_reboot_rep := files_crash_rep.
 
 Local Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) :=
-  _ <- |ADDO| Start;
   mo <- |ADDP| get_owner inum;
   if mo is Some owner then
     ok <- |ADAO| Auth owner;
@@ -96,7 +105,7 @@ Local Fixpoint free_all_blocks block_nums :=
 end.
 
 Local Definition delete_inner inum :=
-  mbl <- get_block_numbers inum;
+  mbl <- get_all_block_numbers inum;
   if mbl is Some block_numbers then
     ok <- free_all_blocks block_numbers;
     if ok is Some tt then
@@ -129,7 +138,6 @@ Definition change_owner inum owner := auth_then_exec inum (change_owner_inner ow
 Definition delete inum := auth_then_exec inum delete_inner.
 
 Definition create owner :=
-  _ <- |ADDO| Start;
   r <- |ADDP| alloc owner;
   if r is Some inum then
      _ <- |ADDO| Commit;
@@ -141,6 +149,189 @@ Definition create owner :=
 Definition recover :=
   _ <- |ADDO| Recover;
   Ret tt.
+
+Definition update_file f off v := Build_File f.(BaseTypes.owner) (updN f.(blocks) off v).
+Definition extend_file f v := Build_File f.(BaseTypes.owner) (f.(blocks) ++ [v]).
+Definition new_file o := Build_File o [].
+Definition change_file_owner f o := Build_File o f.(blocks).
+
+Lemma read_finished:
+  forall u o s s' r inum off fd,
+    files_rep fd s ->
+    exec AuthenticatedDiskLang u o s (read inum off) (Finished s' r) ->
+    files_rep fd s' /\
+    ((r = None /\
+      (inum >= inode_count \/
+       fd inum = None \/
+       (exists file,
+          fd inum = Some file /\
+          file.(BaseTypes.owner) <> u)))\/
+     (exists f,
+        r = nth_error f.(blocks) off /\
+        fd inum = Some f /\
+        inum < inode_count /\
+        f.(BaseTypes.owner) = u)).
+Admitted.
+
+Lemma read_crashed:
+  forall u o s s' inum off fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (read inum off) (Crashed s') ->
+    files_crash_rep fm s'.
+Admitted.
+
+Lemma write_finished:
+  forall u o s s' r inum off v fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (write inum off v) (Finished s' r) ->
+    (r = None /\
+     (inum >= inode_count \/
+      fm inum = None \/
+      (exists file,
+         fm inum = Some file /\
+         file.(BaseTypes.owner) <> u)) /\
+     files_rep fm s') \/
+    (exists f, r = Some tt /\
+          fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          off < length f.(blocks) /\
+          files_rep (Mem.upd fm inum (update_file f off v)) s').
+Admitted.
+
+Lemma write_crashed:
+  forall u o s s' inum off v fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (write inum off v) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          off < length f.(blocks) /\
+          files_crash_rep (Mem.upd fm inum (update_file f off v)) s').
+Admitted.
+
+Lemma extend_finished:
+  forall u o s s' r inum v fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (extend inum v) (Finished s' r) ->
+    (r = None /\
+     (inum >= inode_count \/
+      fm inum = None \/
+      (exists file, fm inum = Some file /\ file.(BaseTypes.owner) <> u)) /\
+     files_rep fm s') \/
+    (exists f, r = Some tt /\ fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          files_rep (Mem.upd fm inum (extend_file f v)) s').
+Admitted.
+
+Lemma extend_crashed:
+  forall u o s s' inum v fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (extend inum v) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          files_crash_rep (Mem.upd fm inum (extend_file f v)) s').
+Admitted.
+
+Lemma delete_finished:
+  forall u o s s' r inum fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (delete inum) (Finished s' r) ->
+    (r = None /\
+     (inum >= inode_count \/
+      fm inum = None \/
+      (exists file, fm inum = Some file /\ file.(BaseTypes.owner) <> u)) /\
+     files_rep fm s') \/
+    (exists f, r = Some tt /\ fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          files_rep (Mem.delete fm inum) s').
+Admitted.
+
+Lemma delete_crashed:
+  forall u o s s' inum fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (delete inum) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          files_crash_rep (Mem.delete fm inum) s').
+Admitted.
+
+Lemma create_finished:
+  forall u o s s' r own fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (create own) (Finished s' r) ->
+    (r = None /\
+     (forall inum : nat, inum < inode_count -> fm inum <> None) /\
+     files_rep fm s') \/
+    (exists inum, r = Some inum /\
+             fm inum = None /\
+             inum < inode_count /\
+             files_rep (Mem.upd fm inum (new_file own)) s').
+Admitted.
+
+Lemma create_crashed:
+  forall u o s s' own fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (create own) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists inum, fm inum = None /\
+             inum < inode_count /\
+             files_crash_rep (Mem.upd fm inum (new_file own)) s').
+Admitted.
+
+Lemma change_owner_finished:
+  forall u o s s' r inum own fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (change_owner inum own) (Finished s' r) ->
+    (r = None /\
+     (inum >= inode_count \/
+      fm inum = None \/
+      (exists file, fm inum = Some file /\ file.(BaseTypes.owner) <> u)) /\
+     files_rep fm s') \/
+    (exists f,
+       r = Some tt /\
+       fm inum = Some f /\
+       inum < inode_count /\
+       f.(BaseTypes.owner) = u /\
+       files_rep (Mem.upd fm inum (change_file_owner f own)) s').
+Admitted.
+
+Lemma change_owner_crashed:
+  forall u o s s' inum own fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (change_owner inum own) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f,
+       fm inum = Some f /\
+       inum < inode_count /\
+       f.(BaseTypes.owner) = u /\
+       files_crash_rep (Mem.upd fm inum (change_file_owner f own)) s').
+Admitted.
+
+
+Lemma recover_finished:
+  forall u o s s' r fm,
+    files_reboot_rep fm s ->
+    exec AuthenticatedDiskLang u o s (recover) (Finished s' r) ->
+    files_rep fm s'.
+Admitted.
+
+Lemma recover_crashed:
+  forall u o s s' fm,
+    files_reboot_rep fm s ->
+    exec AuthenticatedDiskLang u o s (recover) (Crashed s') ->
+    files_crash_rep fm s'.
+Admitted.
+
+
+
 
 
 (*

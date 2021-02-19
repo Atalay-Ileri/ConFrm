@@ -29,26 +29,29 @@ Module InodeAllocator := BlockAllocator InodeAllocatorParams.
 
 Import InodeAllocator.
 
-Open Scope predicate_scope.
-
 Definition free_block_number (inode_map: disk Inode) bn :=
   forall i inode, inode_map i = Some inode -> ~ In bn inode.(block_numbers).
 
-Definition compatible_inode (inode_map: disk Inode) i inode :=
+Definition inode_valid inode :=
   NoDup inode.(block_numbers) /\
-   forall j inode_j,
+  Forall (fun bn => bn < data_length) inode.(block_numbers).
+
+Definition inode_map_valid (inode_map: disk Inode) :=
+  (forall i inode_i, inode_map i = Some inode_i -> inode_valid inode_i) /\
+  (forall i j inode_i inode_j,
      i <> j ->
+     inode_map i = Some inode_i ->
      inode_map j = Some inode_j ->
-     NoDup (inode.(block_numbers) ++ inode_j.(block_numbers)).
+     NoDup (inode_i.(block_numbers) ++ inode_j.(block_numbers))).
   
 Definition inode_map_rep inode_block_map (inode_map: disk Inode) :=
-  forall i, inode_map i = option_map decode_inode (inode_block_map i).
+  (forall i, inode_map i = option_map decode_inode (inode_block_map i)) /\
+       inode_map_valid inode_map.
 
-Definition inode_rep (inode_map: disk Inode) : @predicate addr addr_dec value :=
-  exists* inode_block_map,
-    block_allocator_rep inode_block_map *
-    [[ forall i, inode_map i = option_map decode_inode (inode_block_map i) ]] *
-    [[ forall i inode, inode_map i = Some inode -> compatible_inode inode_map i inode ]].
+Definition inode_rep (inode_map: disk Inode) (d: @total_mem addr addr_dec value):=
+  exists inode_block_map,
+    block_allocator_rep inode_block_map d /\
+    inode_map_rep inode_block_map inode_map.
 
 Local Definition get_inode inum :=
   r <- read inum;
@@ -92,7 +95,7 @@ Definition get_block_number inum off:=
   else
     Ret None.
 
-Definition get_block_numbers inum :=
+Definition get_all_block_numbers inum :=
   r <- get_inode inum;
   if r is Some inode then
     Ret (Some inode.(block_numbers))

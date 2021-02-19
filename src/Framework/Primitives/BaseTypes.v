@@ -1,4 +1,4 @@
-Require EquivDec.
+Require Import EquivDec Lia.
 (* For disk *)
 (* Axiom addr : Type. *)
 
@@ -33,10 +33,25 @@ Axiom blocks_to_addr_list_to_blocks:
   forall l_b,
     addr_list_to_blocks (blocks_to_addr_list l_b) = l_b.
 
-Axiom addr_list_to_blocks_length_eq:
+Axiom addr_list_to_blocks_length_le:
+  forall l,
+    length (addr_list_to_blocks l) <= length l.
+
+
+Axiom addr_list_to_blocks_length_le_preserve:
+  forall l1 l2,
+    length l1 <= length l2 ->
+    length (addr_list_to_blocks l1) <= length (addr_list_to_blocks l2).
+
+Lemma addr_list_to_blocks_length_eq:
   forall l_a l_b,
     length l_a = length l_b ->
     length (addr_list_to_blocks l_a) = length (addr_list_to_blocks l_b).
+Proof.
+  intros.
+  apply PeanoNat.Nat.le_antisymm;
+  eapply addr_list_to_blocks_length_le_preserve; lia.
+Qed.
 
 (* For Crypto *)
 Axiom hash : Type.

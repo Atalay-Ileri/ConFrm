@@ -1,1571 +1,1301 @@
-Require Import Framework FSParameters AuthenticatedDiskLayer FileDiskLayer.
+Require Import Framework FSParameters.
+Require Import AuthenticatedDiskLayer FileDiskLayer.
 Require Import File FileToFileDisk.Definitions.
-Require Import ClassicalFacts FunctionalExtensionality Psatz.
-Require Import Arith.
+Require Import ClassicalFacts FunctionalExtensionality Lia.
 
 Set Nested Proofs Allowed.
 
-Notation "'low_op'" := (TransactionalDiskOperation data_length).
-Notation "'high_op'" := (FileDiskOperation inode_count).
-Notation "'low'" := (TransactionalDiskLang data_length).
-Notation "'high'" := (FileDiskLang inode_count).
-Notation "'refinement'" := FileDiskRefinement.
+Local Notation "'imp'" := AuthenticatedDiskLang.
+Local Notation "'abs'" := (FileDiskLang inode_count).
+Local Notation "'refinement'" := FileDiskRefinement.
 
-Section FileDiskBisimulation.
+Section FileDiskSimulation.
 
-  Lemma some_not_none:
-    forall T st (t: T),
-      st = Some t ->
-      st <> None.
+  Definition authenticated_disk_reboot_list n :=
+    repeat (fun s: imp.(state) => (fst s, (snd (snd s), snd (snd s)))) n.
+
+  Definition file_disk_reboot_list n :=
+    repeat (fun s : abs.(state) => s) n.
+
+  Ltac unify_execs :=
+    match goal with
+    |[H : recovery_exec ?u ?x ?y ?z ?a ?b ?c _,
+      H0 : recovery_exec ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
+     eapply recovery_exec_deterministic_wrt_reboot_state in H; [| apply H0]
+    | [ H: exec ?u ?x ?y ?z ?a _,
+        H0: exec ?u ?x ?y ?z ?a _ |- _ ] =>
+      eapply exec_deterministic_wrt_oracle in H; [| apply H0]
+    | [ H: exec' ?u ?x ?y ?z _,
+        H0: exec' ?u ?x ?y ?z _ |- _ ] =>
+      eapply exec_deterministic_wrt_oracle in H; [| apply H0]
+    | [ H: exec _ ?u ?x ?y ?z _,
+        H0: Language.exec' ?u ?x ?y ?z _ |- _ ] =>
+      eapply exec_deterministic_wrt_oracle in H; [| apply H0]
+    end.
+  
+  Lemma recovery_oracles_refine_to_length:
+    forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (ref: Refinement L_imp L_abs)
+      l_o_imp l_o_abs T (u: user) s (p1: L_abs.(prog) T) rec l_rf u, 
+      recovery_oracles_refine_to ref u s p1 rec l_rf l_o_imp l_o_abs ->
+      length l_o_imp = length l_o_abs.
   Proof.
-    intros; congruence.
-  Qed.
-
-  Lemma NoDup_nth_ne:
-    forall T (l: list T) i j def1 def2,
-      NoDup l ->
-      i <> j ->
-      i < length l ->
-      j < length l ->
-      nth i l def1 <> nth j l def2.
-  Proof.
-    induction l; simpl; intros; try lia.
-    destruct i, j; try lia.
-    inversion H; cleanup.
-    intros Heq.
-    apply H5.
-    rewrite Heq.
-    eapply nth_In; lia.
-
-    inversion H; cleanup.
-    intros Heq.
-    apply H5.
-    rewrite <- Heq.
-    eapply nth_In; lia.
-
-    inversion H; cleanup.
-    eapply IHl; eauto; lia.
-  Qed.
-
-  Lemma NoDup_app_nth_ne:
-    forall T (l1 l2: list T) i j def1 def2,
-      NoDup (l1++l2) ->
-      i < length l1 ->
-      j < length l2 ->
-      nth i l1 def1 <> nth j l2 def2.
-  Proof.
-    induction l1; simpl; intros; try lia.
-    destruct i; try lia.
-    inversion H; cleanup.
-    intros Heq.
-    apply H4.
-    rewrite Heq.
-    apply in_or_app.
-    right.
-    eapply nth_In; lia.
-
-    destruct l2; simpl in *; try lia.
-    destruct j; try lia.
-    inversion H; cleanup.
-    intros Heq.
-
-    apply NoDup_app_comm in H5.
-    simpl in *.
-    inversion H5; cleanup.
-    apply H6.
-    apply in_or_app.
-    right.
-    eapply nth_In; lia.
-
-    inversion H; cleanup.
-    apply NoDup_app_comm in H5.
-    simpl in *.
-    inversion H5; cleanup.
-    eapply IHl1; eauto; try lia.
-    apply NoDup_app_comm; eauto.
+    induction l_o_imp; simpl; intros; eauto.
+    tauto.
+    destruct l_o_abs; try tauto; eauto.
   Qed.
   
-  Lemma files_inner_rep_upd:
-    forall fmap imap fbmap a a0 v f,
-      
-      files_inner_rep fmap imap fbmap ->
-      fmap a = Some f ->
-      (forall i inode,
-         imap i = Some inode ->
-         Inode.compatible_inode imap i inode) -> 
-      exists fbmap',
-        files_inner_rep (upd fmap a  {|
-                               owner := owner f;
-                               blocks := updN (blocks f) a0 v |}) imap fbmap'.
+  Theorem abstract_oracles_exist_wrt_recover:
+    forall n u, 
+      abstract_oracles_exist_wrt refinement refines_to_reboot u (|Recover|) (|Recover|) (authenticated_disk_reboot_list n).
   Proof.
-    unfold files_inner_rep; intros; cleanup.
-    destruct (lt_dec a0 (length (blocks f))).
-    2: {
-      rewrite updN_oob by lia.
-      destruct f; simpl in *;
-      rewrite upd_nop; eauto.
-    }              
-    specialize (H a) as Hx.
-    destruct_fresh (imap a); intuition (try congruence).
-    specialize H2 with (1:=D)(2:=H0) as Hx. 
-    exists (upd fbmap (nth a0 (Inode.block_numbers i) 0) v).
-    split.
-    unfold addrs_match_exactly in *; intros.
-    destruct (addr_eq_dec a a1); subst;
-    [ rewrite upd_eq in *; eauto
-    | rewrite upd_ne in *; eauto]; cleanup; eauto.
-    split; congruence.
-
-    intros.
-    destruct (addr_eq_dec a inum); subst;
-    [ rewrite upd_eq in *; eauto
-    | rewrite upd_ne in *; eauto]; cleanup; eauto.
+    unfold abstract_oracles_exist_wrt, refines_to_reboot; induction n;
+    simpl; intros; cleanup; invert_exec.
     {
-      unfold file_rep in *; simpl in *; cleanup.
+      exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
       intuition eauto.
-      
-      rewrite length_updN; eauto.
-      destruct (addr_eq_dec a0 i); subst;
-      [ repeat rewrite upd_eq in *; eauto
-      | repeat rewrite upd_ne in *; eauto]; cleanup; eauto.
-      
-      erewrite nth_error_nth'.
-      rewrite <- nth_selN_eq.
-      rewrite selN_updN_eq_default; eauto.
-      rewrite length_updN; lia.
-      rename H8 into Hx.
-      erewrite nth_error_nth' in Hx; cleanup; eauto.
-      
-      erewrite nth_error_nth'.
-      rewrite <- nth_selN_eq.
-      rewrite selN_updN_ne; eauto.
-      rewrite nth_selN_eq.
-      rewrite <- nth_error_nth'; eauto.
-      
-      rename H8 into Hx.
-      apply some_not_none in Hx.
-      apply nth_error_Some in Hx.
-      lia.
-      
-      rename H8 into Hx.
-      apply some_not_none in Hx.
-      apply nth_error_Some in Hx.
-      rewrite length_updN; lia.
-      assert (Alen: i < length (Inode.block_numbers inode)).
-      {
-        eapply nth_error_Some; congruence.
-      }
-      
-      edestruct H1; eauto.
-      intros Hnot.
-      rename H8 into Hx.
-      erewrite nth_error_nth' in Hx; cleanup; eauto.              
-      eapply NoDup_nth_ne; eauto.
-    }
-
-    {
-      specialize H2 with (1:=H4)(2:=H6).
-      unfold file_rep in *; simpl in *; cleanup.
-      intuition eauto.
-      rewrite upd_ne; eauto.
-
-      pose proof H12 as Hx.
-      apply some_not_none in Hx.
-      apply nth_error_Some in Hx.
-      
-      erewrite nth_error_nth' in H12; eauto.
-      cleanup.
-      rewrite <- H14.
-      eapply NoDup_app_nth_ne; eauto.
-      specialize H1 with (1:=D); destruct H1.
-      apply NoDup_app_comm; eauto.
-      Unshelve.
-      all: eauto.
-    }
-  Qed.
-
-  (*
-  Lemma refines_to_upd:
-    forall s1 s2 a a0 f v,
-      refines_to s1 s2 ->
-      snd s2 a = Some f ->
-      exists s1', refines_to s1'
-                        (fst s2, upd (snd s2) a
-                                     {|
-                                       owner := owner f;
-                                       blocks := updN (blocks f) a0 v |}).
-  Proof.
-    unfold refines_to; simpl; intros; cleanup.
-    destruct (lt_dec a0 (length (blocks f))).
-    2: {
-      rewrite updN_oob by lia.
-      destruct f; simpl in *;
-      rewrite upd_nop; eauto.
-    }
-    
-    unfold files_rep in *.    
-    apply pimpl_exists_l_star_r in H2.
-    destruct H2 as [imap Hx].
-    rewrite pimpl_exists_l_star_r in Hx.
-    apply pimpl_exists_l_star_r in Hx.
-    destruct Hx as [fbmap Hx].
-    destruct_lift Hx.
-    eapply files_inner_rep_upd in H7; eauto.
-    cleanup.
-    exists (fst s2, (upd (fst (snd s1)) a0 v, snd (snd s1))).
-    simpl; intuition eauto.        
-    exists imap.
-    rewrite mem_union_upd.
-    (** TODO: prove a block allocator rep upd lemma. **)
-    admit.
-    unfold Inode.inode_rep in *.
-    apply pimpl_exists_r_star_r in H1.
-    destruct H1.
-    destruct_lifts; eauto.
-    Unshelve.
-    all: eauto.
-  Admitted.
-   *)
-  Lemma files_inner_rep_extend:
-    forall fmap imap fbmap a v f bn,
-      files_inner_rep fmap imap fbmap ->
-      Inode.free_block_number imap bn ->  
-      fmap a = Some f ->
-      (forall i inode,
-         imap i = Some inode ->
-         Inode.compatible_inode imap i inode) -> 
-      exists inode,
-        imap a = Some inode /\
-        files_inner_rep
-          (upd fmap a
-               (Build_File f.(owner) (f.(blocks)++[v])))
-          (upd imap a
-               (Inode.Build_Inode
-                  inode.(Inode.owner)
-                          (inode.(Inode.block_numbers)++[bn])))
-          (upd fbmap bn v).
-  Proof.
-    unfold files_inner_rep; intros; cleanup.        
-    specialize (H a) as Hx.
-    destruct_fresh (imap a); intuition (try congruence).
-    specialize H3 with (1:=D)(2:=H1) as Hx.
-    exists i.
-    split; eauto.
-    split; unfold addrs_match_exactly in *; intros.
-    destruct (addr_eq_dec a a0); subst;
-    [ repeat rewrite upd_eq in *; eauto
-    | repeat rewrite upd_ne in *; eauto]; cleanup; eauto.
-    split; congruence.
-
-    intros.
-    destruct (addr_eq_dec a inum); subst;
-    [ rewrite upd_eq in *; eauto
-    | rewrite upd_ne in *; eauto]; cleanup; eauto.
-    {
-      unfold file_rep in *; simpl in *; cleanup.
-      intuition eauto.
-      
-      repeat rewrite app_length; eauto.
-      pose proof H9 as Hx.
-      apply some_not_none in Hx.
-      apply nth_error_Some in Hx.
-      rewrite app_length in Hx; simpl in Hx.
-      rewrite Nat.add_1_r in Hx.
-      inversion Hx; subst.
-      {
-        rewrite nth_error_app2; try lia.
-        rename H9 into Hy.
-        rewrite nth_error_app2 in Hy; try lia.
-        rewrite Nat.sub_diag in Hy.
-        rewrite H7, Nat.sub_diag;
-        simpl in *; cleanup.
-        rewrite upd_eq; eauto.
-      }
-      {
-        rewrite nth_error_app1; try lia.
-        rename H9 into Hy.
-        rewrite nth_error_app1 in Hy; try lia.
-        rewrite upd_ne; eauto.
-
-        rename H0 into Hfree.
-        unfold Inode.free_block_number in Hfree.
-        unfold not; intros; cleanup; eapply Hfree; eauto.
-        eapply nth_error_In; eauto.
-      }
-    }
-
-    {
-      specialize H3 with (1:= H5)(2:= H7).
-      unfold file_rep in *; simpl in *; cleanup.
-      intuition eauto.
-      rewrite upd_ne; eauto.
-
-      rename H0 into Hfree.
-      unfold Inode.free_block_number in Hfree.
-      unfold not; intros; cleanup; eapply Hfree; eauto.
-      eapply nth_error_In; eauto.
-    }
-  Qed.
-
-  Lemma files_inner_rep_change_owner:
-    forall fmap imap fbmap a u f,
-      files_inner_rep fmap imap fbmap ->
-      fmap a = Some f ->
-      exists inode,
-        imap a = Some inode /\
-        files_inner_rep
-          (upd fmap a (Build_File u f.(blocks)))
-          (upd imap a (Inode.Build_Inode u (inode.(Inode.block_numbers))))
-          fbmap.
-  Proof.
-    unfold files_inner_rep; intros; cleanup.        
-    specialize (H a) as Hx.
-    destruct_fresh (imap a); intuition (try congruence).
-    specialize H1 with (1:=D)(2:=H0) as Hx. 
-    exists i.
-    split; eauto.
-    split; unfold addrs_match_exactly in *; intros.
-    destruct (addr_eq_dec a a0); subst;
-    [ repeat rewrite upd_eq in *; eauto
-    | repeat rewrite upd_ne in *; eauto]; cleanup; eauto.
-    split; congruence.
-    
-    destruct (addr_eq_dec a inum); subst;
-    [ rewrite upd_eq in *; eauto
-    | rewrite upd_ne in *; eauto]; cleanup; eauto.
-    unfold file_rep in *; simpl in *; cleanup.
-    intuition eauto.
-  Qed.
-
-  Lemma files_inner_rep_create:
-    forall fmap imap fbmap a u,
-      files_inner_rep fmap imap fbmap ->
-      fmap a = None ->
-      files_inner_rep
-        (upd fmap a (Build_File u []))
-        (upd imap a (Inode.Build_Inode u []))
-        fbmap.
-  Proof.
-    unfold files_inner_rep; intros; cleanup.        
-    specialize (H a) as Hx.
-    destruct_fresh (imap a); intuition (try congruence).
-    
-    unfold addrs_match_exactly in *; intros.
-    destruct (addr_eq_dec a a0); subst;
-    [ repeat rewrite upd_eq in *; eauto
-    | repeat rewrite upd_ne in *; eauto]; cleanup; eauto.
-    split; congruence.
-    
-    destruct (addr_eq_dec a inum); subst;
-    [ rewrite upd_eq in *; eauto
-    | rewrite upd_ne in *; eauto]; cleanup; eauto.
-    unfold file_rep in *; simpl in *; cleanup.
-    intuition eauto.
-    destruct i; simpl in *; cleanup.
-  Qed.
-
-  
-  Lemma files_inner_rep_delete:
-    forall fmap imap fbmap a f,
-      files_inner_rep fmap imap fbmap ->
-      fmap a = Some f ->
-      (forall i inode,
-         imap i = Some inode ->
-         Inode.compatible_inode imap i inode) -> 
-      exists inode,
-        imap a = Some inode /\
-        files_inner_rep
-          (Mem.delete fmap a)
-          (Mem.delete imap a)
-          (delete_all fbmap inode.(Inode.block_numbers)).
-  Proof.
-    unfold files_inner_rep; intros; cleanup.        
-    specialize (H a) as Hx.
-    destruct_fresh (imap a); intuition (try congruence).
-
-    exists i; split; eauto.
-    split; unfold addrs_match_exactly in *; intros.
-    destruct (addr_eq_dec a a0); subst;
-    [ repeat rewrite delete_eq in *; eauto
-    | repeat rewrite delete_ne in *; eauto]; cleanup; eauto.
-    split; congruence.
-    
-    destruct (addr_eq_dec a inum); subst;
-    [ rewrite delete_eq in *; eauto
-    | rewrite delete_ne in *; eauto]; cleanup; eauto.
-    
-    specialize H2 with (1:= H4)(2:= H6); cleanup.
-    unfold file_rep in *; simpl in *; cleanup.
-    intuition eauto.
-    rewrite delete_all_not_in; eauto.
-
-    rename H9 into Hnth.
-    apply nth_error_In in Hnth.
-    specialize H1 with (1:=H4) as Hx; destruct Hx.
-    eapply not_In_NoDup_app; eauto.
-  Qed.
-  
-  (*
-  Lemma refines_to_extend:
-    forall s1 s2 a f v,
-      refines_to s1 s2 ->
-      snd s2 a = Some f ->
-      exists s1',
-        refines_to s1'
-                   (fst s2, upd (snd s2) a
-                                {|
-                                  owner := owner f;
-                                  blocks := (blocks f) ++ [v] |}).
-  Proof.
-    unfold refines_to; simpl; intros; cleanup.
-    
-    unfold files_rep in *.
-    destruct H1 as [imap Hx].
-    apply pimpl_exists_l_star_r in Hx.
-    destruct Hx as [fbmap Hx].
-    destruct_lift Hx.
-    eapply files_inner_rep_extend in H5; eauto.
-    cleanup.
-    (** TODO: prove a block allocator rep extend lemma. **)
-    admit.
-    (** TODO: Find a way to specify there is a free block number **)
-    admit.
-    unfold Inode.inode_rep in *.
-    apply pimpl_exists_r_star_r in H1.
-    destruct H1.
-    destruct_lifts; eauto.
-    Unshelve.
-    all: eauto.
-  Admitted.
-
-  Lemma refines_to_change_owner:
-    forall s1 s2 a f u,
-      refines_to s1 s2 ->
-      snd s2 a = Some f ->
-      exists s1',
-        refines_to s1'
-                   (fst s2, upd (snd s2) a
-                                (Build_File u f.(blocks))).
-  Proof.
-    unfold refines_to; simpl; intros; cleanup.
-    
-    unfold files_rep in *.
-    destruct H1 as [imap Hx].
-    apply pimpl_exists_l_star_r in Hx.
-    destruct Hx as [fbmap Hx].
-    destruct_lift Hx.
-    eapply files_inner_rep_change_owner in H5; eauto.
-    cleanup.
-    (** TODO: prove a block allocator rep change_owner lemma. **)
-    admit.
-    Unshelve.
-    all: eauto.
-  Admitted.
-
-  Lemma refines_to_create:
-    forall s1 s2 a u,
-      refines_to s1 s2 ->
-      snd s2 a = None ->
-      exists s1',
-        refines_to s1'
-                   (fst s2, upd (snd s2) a
-                                (Build_File u [])).
-  Proof.
-    unfold refines_to; simpl; intros; cleanup.
-    
-    unfold files_rep in *.
-    destruct H1 as [imap Hx].
-    apply pimpl_exists_l_star_r in Hx.
-    destruct Hx as [fbmap Hx].
-    destruct_lift Hx.
-    eapply files_inner_rep_create in H5; eauto.
-    cleanup.
-    (** TODO: prove a block allocator rep change_owner lemma. **)
-    admit.
-    Unshelve.
-    all: eauto.
-  Admitted.
-
-  Lemma refines_to_delete:
-    forall s1 s2 a f,
-      refines_to s1 s2 ->
-      snd s2 a = Some f ->
-      exists s1',
-        refines_to s1' (fst s2, Mem.delete (snd s2) a).
-  Proof.
-    unfold refines_to; simpl; intros; cleanup.
-    
-    unfold files_rep in *.
-    destruct H1 as [imap Hx].
-    apply pimpl_exists_l_star_r in Hx.
-    destruct Hx as [fbmap Hx].
-    destruct_lift Hx.
-    eapply files_inner_rep_delete in H5; eauto.
-    cleanup.
-    (** TODO: prove a block allocator rep change_owner lemma. **)
-    admit.
-    Unshelve.
-    all: eauto.
-  Admitted.
-
-  Theorem sp_implies_refines_to:
-    forall T (p : file_disk_prog T) x s s2 t o2,
-      refines_to x s2 ->
-      strongest_postcondition Definitions.high (Op high_op p)
-                              (fun o s' =>
-                                 refines_to x s' /\ s' = s2 /\ o = o2) t s ->
-      exists s1', refines_to s1' s.
-  Proof.
-    intros.
-    destruct p; 
-    simpl in *; cleanup;
-    split_ors; cleanup;
-    try solve [intuition eauto].
-    
-    { (* Write *)
-      setoid_rewrite <- H3 at 2.
-      eapply refines_to_upd; eauto.
-    }
-    {(* Extend *)
-      split_ors; cleanup;
-      try solve [ eexists; eauto ].
-      setoid_rewrite <- H3 at 2.
-      eapply refines_to_extend; eauto.
-    }
-    { (* Change Owner *)
-      eapply refines_to_change_owner; eauto.
-    }
-    { (* Create *)
-      eapply refines_to_create; eauto.
-    }
-    { (* Delete *)
-      eapply refines_to_delete; eauto.
-    }
-  Qed.
-
-  Theorem scp_implies_refines_to:
-    forall T (p : file_disk_prog T) x s s2 o2,
-      refines_to x s2 ->
-      strongest_crash_postcondition Definitions.high (Op high_op p)
-                                    (fun o s' =>
-                                       refines_to x s' /\ s' = s2 /\ o = o2) s ->
-      exists s1', refines_to s1' s.
-  Proof.
-    intros.
-    destruct p; 
-    simpl in *; cleanup;
-    repeat (split_ors; cleanup);
-    try solve [intuition eauto].
-    
-    { (* Write *)
-      setoid_rewrite <- H3 at 2.
-      eapply refines_to_upd; eauto.
-    }
-    {(* Extend *)
-      setoid_rewrite <- H3 at 2.
-      eapply refines_to_extend; eauto.
-    }
-    { (* Change Owner *)
-      eapply refines_to_change_owner; eauto.
-    }
-    { (* Create *)
-      eapply refines_to_create; eauto.
-    }
-    { (* Delete *)
-      eapply refines_to_delete; eauto.
-    }
-  Qed.
- 
-   
-  Theorem exec_compiled_preserves_refinement:
-    exec_compiled_preserves_refinement refinement.
-  Proof.
-    unfold exec_compiled_preserves_refinement.
-    induction p2; simpl; intros; cleanup.
-    { (** Op p **)
-      destruct p; simpl in *.
-      { (** read **)
-        destruct ret; simpl in *.
-        { (** Finished **)
-          eapply exec_to_sp with (P:= fun o s => refines_to s x /\ s = s1 /\ o = o1) in H0; eauto.
-          eapply sp_impl in H0.
-          apply read_ok in H0; unfold refines_to in *;
-          simpl; intros; eauto.
-          cleanup.
-          split_ors; cleanup.
-
-          exists (fst s, snd x); intuition eauto.
-          simpl; cleanup.
-          setoid_rewrite H2.
-          rewrite mem_union_empty_mem.
-          pred_apply' H2; cancel.
-          instantiate (1:= emp).
-          cancel.
-          split_ors; cleanup.
-          destruct s1; simpl in *.
-          repeat (simpl in *; cleanup).
-Admitted.          
-
-  Theorem exec_preserves_refinement:
-    exec_preserves_refinement refinement.
-  Proof.
-    unfold exec_preserves_refinement;
-    induction p; simpl in *; intros.
-    { (* Op *)
-      cleanup; destruct ret.
-      { (* Finished *)
-        eapply sp_implies_refines_to; eauto;        
-        eapply exec_to_sp; eauto.
-      }
-      { (* Crashed *)
-        eapply scp_implies_refines_to; eauto;
-        eapply exec_to_scp; eauto.
-      }
-      }
-    { (* Ret *)
-      cleanup; invert_exec; cleanup; simpl; eauto.
-    }
-    { (* Bind *)
-      cleanup; invert_exec; cleanup; simpl; eauto.
-      { (* Finished *)
-        edestruct IHp; eauto; simpl in *.
-        edestruct H; eauto.
-      }
-      { (* Crashed *)
-        split_ors; cleanup;
-        edestruct IHp; eauto;
-        edestruct H; eauto.
-      }
-      }
-  Qed.
-   *)
-  
-  Lemma wp_low_to_high_read :
-    forall inum a,
-      wp_low_to_high_prog' _ _ _ _ refinement _ (Op high_op (Read inum a)).
-  Proof.
-    unfold wp_low_to_high_prog'; intros; cleanup.
-    eapply wp_to_exec in H; cleanup.
-    simpl in H1; cleanup.
-    eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
-    destruct H4; cleanup.    
-    split_ors; cleanup;
-    eapply exec_deterministic_wrt_oracle in H1; eauto; cleanup.
-    
-    simpl in *.
-    eexists; intuition eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ s = s1 /\ o = o1) in H2; eauto.
-
-    unfold refines_to in H0; cleanup.
-
-    eapply sp_impl in H2.
-    eapply read_ok in H2.
-
-    split_ors; cleanup.
-    {
-      destruct_fresh (nth_error (blocks x0) a).
-      {
-        left; intuition eauto.
-        (** TODO: Solve this from file existence. **)
-        admit.
-        do 2 eexists; intuition eauto.
-        unfold refines_to in *; cleanup; eauto.
-      }
-      {
-        right; intuition eauto.
-        unfold refines_to; intuition eauto.
-      }
-    }
-
-    {
-      right; intuition eauto.      
-      unfold refines_to in *; cleanup; eauto.
-      unfold refines_to in *; cleanup; eauto.
-      right; right;
       eexists; intuition eauto.
-      unfold refines_to in *; cleanup; eauto.
+      left.
+      eexists; intuition eauto.
+      destruct t0; eauto.
+      eapply_fresh recover_finished in H0; eauto.
+      unify_execs; cleanup.
     }
-    simpl; intros.
-    cleanup; eauto.
-  Admitted.
-  
-  Lemma wp_high_to_low_read :
-    forall inum a,
-      wp_high_to_low_prog' _ _ _ _ refinement _ (Op high_op (Read inum a)).
-  Proof.
-    unfold wp_high_to_low_prog'; intros; cleanup.
-    simpl in H; cleanup.
-    repeat invert_exec; cleanup.
-    {
-      simpl in H1; cleanup.
-      destruct H1; cleanup.
-      split_ors; cleanup.
-      eapply exec_to_wp; eauto; simpl.
-      split; eauto.
-      split_ors; cleanup; try lia.
-      
-      eapply exec_to_sp with (P := fun o s => refines_to s s2' /\ o = o1 /\ s = s1) in H1; eauto.
-      unfold refines_to in H1.
-      apply sp_extract_precondition in H1; cleanup.
-      eapply sp_impl in H1.
-      eapply read_ok in H1.
-      split_ors; cleanup.
-      instantiate (1:= snd s2') in H1; cleanup; eauto.
-      split_ors; cleanup.
-      simpl in *; unfold refines_to in *; cleanup; exfalso; eauto.
+    { 
+      eapply IHn in H11; eauto; cleanup.
+      exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+      eapply_fresh recover_crashed in H10; eauto; cleanup.
+      repeat split; eauto; try (unify_execs; cleanup).
+      eapply recovery_oracles_refine_to_length in H0; eauto.
+      intros; unify_execs; cleanup.
+      eexists; repeat split; eauto;
+      simpl in *.
+      intros.
 
-      clear H1.
-      simpl in *; intros; cleanup; eauto.
+      eapply_fresh recover_crashed in H10; eauto; cleanup.
+      eauto.
+      eapply_fresh recover_crashed in H10; eauto; cleanup.      
     }
+  Qed.
+
+  Theorem abstract_oracles_exist_wrt_recover':
+    forall n u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Recover|) (|Recover|) (authenticated_disk_reboot_list n).
+  Proof.
+    unfold abstract_oracles_exist_wrt, refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
     {
-      destruct H3; cleanup; try lia.
-      simpl in H1; cleanup.
-      destruct H1; cleanup.
-      destruct H1; cleanup.
-      eapply exec_to_wp; eauto; simpl.
-      split; eauto.
+      exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+      intuition eauto.
+      eexists; intuition eauto.
       
-      eapply exec_to_sp with (P := fun o s => refines_to s s2' /\ o = o1 /\ s = s1) in H1; eauto.
-      unfold refines_to in H1.
-      apply sp_extract_precondition in H1; cleanup.
-      eapply sp_impl in H1.
-      eapply read_ok in H1.
-      destruct H1; cleanup; eauto.
+      unify_execs; cleanup.
+      eapply_fresh recover_finished in H7; eauto.
+      left; eexists; intuition eauto.
+      destruct t0; eauto.
+      unify_execs; cleanup.      
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+      eapply_fresh recover_crashed in H10; eauto; cleanup.
+      repeat split; eauto; try (unify_execs; cleanup).
+      eapply recovery_oracles_refine_to_length in H0; eauto.
+      intros; unify_execs; cleanup.
+      eexists; repeat split; eauto;
+      simpl in *.
+      intros.
       
-      (** TODO: contradict with file existing **)
-      admit.
-
-      clear H1 H2 H7.
-      simpl in *; intros; cleanup; eauto.
-    }    
-  Admitted.
-
-  Lemma wcp_low_to_high_read :
-    forall inum a,
-      wcp_low_to_high_prog' _ _ _ _ refinement _ (Op high_op (Read inum a)).
-  Proof.
-    unfold wcp_low_to_high_prog'; intros; cleanup.
-    eapply wcp_to_exec in H; cleanup.
-    simpl in H1; cleanup.
-    eapply exec_deterministic_wrt_oracle in H; eauto; cleanup.
-    destruct H4; cleanup.    
-    split_ors; cleanup;
-    eapply exec_deterministic_wrt_oracle in H1; eauto; cleanup.
-    
-    simpl in *.
-    eexists; intuition eauto.
-  Qed.
-  
-  Lemma wcp_high_to_low_read :
-    forall inum a,
-      wcp_high_to_low_prog' _ _ _ _ refinement _ (Op high_op (Read inum a)).
-  Proof.
-    unfold wcp_high_to_low_prog'; intros; cleanup.
-    simpl in H; cleanup.
-    repeat invert_exec; cleanup.
-    simpl in H1; cleanup.
-    destruct H1; cleanup.
-    split_ors; cleanup.
-    eapply exec_to_wcp; eauto.
-  Qed.
-  
-  Lemma wp_low_to_high_write :
-    forall inum a v,
-      wp_low_to_high_prog' _ _ _ _ refinement _ (Op high_op (Write inum a v)).
-  Proof.
-    unfold wp_low_to_high_prog'; intros; cleanup.
-    simpl in H1; cleanup.
-    destruct H3; cleanup.
-    repeat (split_ors; cleanup); eapply exec_deterministic_wrt_oracle in H3; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2 /\ o = o1 /\ s = s1) in H2; eauto.
-    unfold write in *.
-    simpl; cleanup.
-    eexists; intuition eauto.
-    left; intuition eauto.
-    
-    clear H1 H17; unfold refines_to in *; simpl in *; cleanup.
-    rewrite apply_list_app; eauto.
-  Qed.
-  
-  Lemma wp_high_to_low_write :
-    forall a vl,
-      wp_high_to_low_prog' _ _ _ _ refinement _ (|Write a vl|).
-  Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    repeat invert_exec; cleanup.
-    repeat (split_ors; cleanup).
-    eapply exec_to_wp; simpl; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    unfold write in *.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H1; unfold refines_to in *; simpl in *; cleanup.
-    rewrite apply_list_app; eauto.
-    rewrite <- H1 at 1; rewrite apply_list_app; simpl; eauto.
-  Qed.
-  
-  
-  Lemma wcp_low_to_high_write :
-    forall a vl,
-      wcp_low_to_high_prog' _ _ _ _ refinement _ (|Write a vl|).
-  Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup;
-    eexists; intuition eauto.
-    
-    right; intuition eauto.
-    apply refines_to_upd; eauto.
-  Qed.
-  
-  Lemma wcp_high_to_low_write :
-    forall a vl,
-      wcp_high_to_low_prog' _ _ _ _ refinement _ (|Write a vl|).
-  Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    repeat split_ors; cleanup; repeat invert_exec;
-    try inversion H8; try clear H8; cleanup;
-    try inversion H9; try clear H9; cleanup;
-    eapply exec_to_wcp; eauto.
-    - split_ors; cleanup; eauto.
+      eapply_fresh recover_crashed in H10; eauto; cleanup.
+      eauto.
+      unfold refines_to, files_rep, files_reboot_rep, files_crash_rep in *;
+      simpl; cleanup; eauto.
       
-    - split_ors; cleanup; eauto.
-      repeat invert_exec;
-      repeat match goal with
-             | [H: Operation.exec _ _ _ _ _ |- _ ] =>
-               inversion H; clear H; cleanup
-             | [H: exec' _ _ _ _ |- _ ] =>
-               inversion H; clear H; cleanup
-             end.
-      eapply refines_to_upd; eauto.
+      eapply_fresh recover_crashed in H10; eauto; cleanup.
+      unfold refines_to, refines_to_reboot,
+      files_rep, files_reboot_rep, files_crash_rep in *;
+      simpl; cleanup; eauto.
+    }
+  Qed.
+
+  Theorem abstract_oracles_exist_wrt_read:
+    forall n a inum u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Read inum a|) (|Recover|) (authenticated_disk_reboot_list n).
+  Proof.
+    unfold abstract_oracles_exist_wrt, refines_to,
+    refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
+    {
+      exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+      intuition eauto.
+      eexists; intuition eauto.
+      left; eexists; intuition eauto.
+      unify_execs; cleanup.
+      eapply_fresh read_finished in H7; eauto.
+      eexists; intuition eauto.
+      unify_execs; cleanup.      
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+      eapply_fresh read_crashed in H10; eauto; cleanup.
+      repeat split; eauto; try (unify_execs; cleanup).
+      eapply recovery_oracles_refine_to_length in H0; eauto.
+      intros; unify_execs; cleanup.
+      eexists; repeat split; eauto;
+      simpl in *; intros.      
+
+      eapply_fresh read_crashed in H10; eauto; cleanup.
+      eauto.
+      eapply_fresh read_crashed in H10; eauto; cleanup.      
+    }
   Qed.
   
-  Lemma wp_low_to_high_start :
-    wp_low_to_high_prog' _ _ _ _ refinement _ (|Start|).
+  Theorem abstract_oracles_exist_wrt_write:
+    forall n inum a v u,
+      abstract_oracles_exist_wrt refinement refines_to u (|Write inum a v|) (|Recover|) (authenticated_disk_reboot_list n).
   Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H0 H9.
-    unfold refines_to in *; cleanup; eauto.
-  Qed.
+    unfold abstract_oracles_exist_wrt, refines_to,
+    refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
+    {      
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eapply_fresh write_finished in H7; eauto.
+        split_ors; cleanup;        
+        left; eexists; repeat (split; eauto);
+        unify_execs; cleanup;
 
-  Lemma wp_high_to_low_start :
-    wp_high_to_low_prog' _ _ _ _ refinement _ (|Start|).
-  Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    repeat (split_ors; cleanup).
+        repeat split_ors; cleanup;
+        do 2 eexists;
+        try solve [right; eauto;
+                   repeat (split; eauto) ].
+        left; repeat (split; eauto).
+        intros; unify_execs; cleanup.
+      }
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      eapply_fresh write_crashed in H10; eauto; cleanup.
+      split_ors; cleanup.
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *; intros.
+        unfold files_rep, files_crash_rep in *; cleanup.
 
-    repeat invert_exec; cleanup.    
-    eapply exec_to_wp; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H H5.
-    unfold refines_to in *; cleanup; eauto.
-  Qed.
-
-  Lemma wcp_low_to_high_start :
-    wcp_low_to_high_prog' _ _ _ _ refinement _ (|Start|).
-  Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup; eauto.
-    eexists; intuition eauto.
-    right; unfold refines_to in *; cleanup; eauto.
-  Qed.
-
-  Lemma wcp_high_to_low_start :
-    wcp_high_to_low_prog' _ _ _ _ refinement _ (|Start|).
-  Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    eapply exec_to_wcp; eauto.
-    split_ors; cleanup.
-    repeat invert_exec; eauto.
-    repeat invert_exec; eauto.
-    cleanup.
-    repeat
-      match goal with
-      | [H: Operation.exec _ _ _ _ _ |- _ ] =>
-        inversion H; clear H; cleanup
-      | [H: exec' _ _ _ _ |- _ ] =>
-        inversion H; clear H; cleanup
-      end.
-    unfold refines_to in *; cleanup; eauto.
-  Qed.
-
-  
-  Lemma wp_low_to_high_abort :
-    wp_low_to_high_prog' _ _ _ _ refinement _ (|Abort|).
-  Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H1 H9.
-    unfold refines_to in *; simpl in *; cleanup; eauto.
-  Qed.
-
-  Lemma wp_high_to_low_abort :
-    wp_high_to_low_prog' _ _ _ _ refinement _ (|Abort|).
-  Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    repeat (split_ors; cleanup).
-
-    repeat invert_exec; cleanup.    
-    eapply exec_to_wp; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    clear H1 H5.
-    unfold refines_to in *; simpl; cleanup; eauto.
-  Qed.
-
-  Lemma wcp_low_to_high_abort :
-    wcp_low_to_high_prog' _ _ _ _ refinement _ (|Abort|).
-  Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup; eauto.
-    eexists; intuition eauto.
-    right; unfold refines_to in *; cleanup; eauto.
-  Qed.
-
-  Lemma wcp_high_to_low_abort :
-    wcp_high_to_low_prog' _ _ _ _ refinement _ (|Abort|).
-  Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    eapply exec_to_wcp; eauto.
-    split_ors; cleanup.
-    repeat invert_exec; eauto.
-    repeat invert_exec; eauto.
-    cleanup.
-    repeat
-      match goal with
-      | [H: Operation.exec _ _ _ _ _ |- _ ] =>
-        inversion H; clear H; cleanup
-      | [H: exec' _ _ _ _ |- _ ] =>
-        inversion H; clear H; cleanup
-      end.
-    unfold refines_to in *; cleanup; eauto.
-  Qed.
-
-  
-  Lemma wp_low_to_high_commit :
-    wp_low_to_high_prog' _ _ _ _ refinement _ (|Commit|).
-  Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H3; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.    
-    unfold refines_to; simpl; cleanup; eauto.
-    intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H14 in D; cleanup.
-    rewrite <- H7; eauto.
-  Qed.
-
-  Lemma wp_high_to_low_commit :
-    wp_high_to_low_prog' _ _ _ _ refinement _ (|Commit|).
-  Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    repeat (split_ors; cleanup).
-
-    repeat invert_exec; cleanup.    
-    eapply exec_to_wp; eauto.
-    eapply exec_to_sp with (P := fun o s => refines_to s s2) in H; eauto.
-    simpl in *; cleanup.
-    eexists; intuition eauto.
-    unfold refines_to; simpl; cleanup; eauto.
-    intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H2 in D; cleanup.
-    rewrite <- H7; eauto.
-  Qed.
-
-  Lemma wcp_low_to_high_commit :
-    wcp_low_to_high_prog' _ _ _ _ refinement _ (|Commit|).
-  Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    split_ors; cleanup; eauto.
-    eexists; intuition eauto.
-    right; intuition eauto.
-    unfold refines_to; simpl; cleanup; eauto.
-    intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H2 in D; cleanup; eauto.
-  Qed.
-
-  Lemma wcp_high_to_low_commit :
-    wcp_high_to_low_prog' _ _ _ _ refinement _ (|Commit|).
-  Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    eapply exec_to_wcp; eauto.
-    split_ors; cleanup.
-    repeat invert_exec; eauto.
-    repeat invert_exec; eauto.
-    cleanup.
-    repeat
-      match goal with
-      | [H: Operation.exec _ _ _ _ _ |- _ ] =>
-        inversion H; clear H; cleanup
-      | [H: exec' _ _ _ _ |- _ ] =>
-        inversion H; clear H; cleanup
-      end.
-    unfold refines_to; simpl; cleanup; eauto.
-    clear H4; intuition.
-    unfold refines_to in H1; cleanup; intuition;
-    setoid_rewrite H2 in D; cleanup; eauto.
-  Qed.
-  
-
-  Lemma wp_low_to_high_ret :
-    forall T (v: T),
-      wp_low_to_high_prog' _ _ _ _ refinement _ (Ret v).
-  Proof.
-    unfold wp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    invert_exec; intuition eauto.
-  Qed.
-
-  Lemma wp_high_to_low_ret :
-    forall T (v: T),
-      wp_high_to_low_prog' _ _ _ _ refinement _ (Ret v).
-  Proof.
-    unfold wp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    clear H4; eapply exec_to_wp; simpl; eauto.
-    econstructor.
-  Qed.
-
-  Lemma wcp_low_to_high_ret :
-    forall T (v: T),
-      wcp_low_to_high_prog' _ _ _ _ refinement _ (Ret v).
-  Proof.
-    unfold wcp_low_to_high_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup; eapply exec_deterministic_wrt_oracle in H0; eauto; cleanup.
-    eexists; intuition eauto.
-    invert_exec; eauto.
-  Qed.
-
-  Lemma wcp_high_to_low_ret :
-    forall T (v: T),
-      wcp_high_to_low_prog' _ _ _ _ refinement _ (Ret v).
-  Proof.
-    unfold wcp_high_to_low_prog', compilation_of; simpl; intros; cleanup.
-    unfold compilation_of in *; simpl in *; intros; cleanup.
-    split_ors; cleanup.
-    repeat invert_exec.
-    eapply exec_to_wcp; eauto.
-    econstructor; eauto.
-  Qed.
-  
-  Theorem sbs_read :
-    forall a,
-      StrongBisimulationForProgram refinement (|Read a|).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    eapply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_read.
-    apply wp_high_to_low_read.    
-    apply wcp_low_to_high_read.
-    apply wcp_high_to_low_read.
-  Qed.
-
-  Theorem sbs_write :
-    forall a lv,
-      StrongBisimulationForProgram refinement (|Write a lv|).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    eapply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_write.
-    apply wp_high_to_low_write.
-    apply wcp_low_to_high_write.
-    apply wcp_high_to_low_write.
-  Qed.
-
-  Theorem sbs_start :
-    StrongBisimulationForProgram refinement (|Start|).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    apply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_start.
-    apply wp_high_to_low_start.
-    apply wcp_low_to_high_start.
-    apply wcp_high_to_low_start.
-  Qed.
-
-  Theorem sbs_abort :
-    StrongBisimulationForProgram refinement (|Abort|).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    apply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_abort.
-    apply wp_high_to_low_abort.
-    apply wcp_low_to_high_abort.
-    apply wcp_high_to_low_abort.
-  Qed.
-
-  Theorem sbs_commit :
-    StrongBisimulationForProgram refinement (|Commit|).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    apply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_commit.
-    apply wp_high_to_low_commit.
-    apply wcp_low_to_high_commit.
-    apply wcp_high_to_low_commit.
-  Qed.
-
-  
-  Theorem sbs_ret :
-    forall T (v: T),
-      StrongBisimulationForProgram refinement (Ret v).              
-  Proof.
-    intros.
-    eapply bisimulation_from_wp_prog; eauto.
-    exact exec_preserves_refinement.
-    exact exec_compiled_preserves_refinement.
-    eapply Build_WP_Bisimulation_prog.
-    apply wp_low_to_high_ret.
-    apply wp_high_to_low_ret.
-    apply wcp_low_to_high_ret.
-    apply wcp_high_to_low_ret.
-  Qed.
-
-  Theorem sbs_bind:
-    forall T1 T2 (p1: high.(prog) T1) (p2: T1 -> high.(prog) T2),
-      StrongBisimulationForProgram refinement p1 ->
-      (forall t, StrongBisimulationForProgram refinement (p2 t)) ->
-      StrongBisimulationForProgram refinement (Bind p1 p2).
-  Proof.
-    intros.
-    edestruct H.
-    constructor; intros.
-    simpl in *; unfold compilation_of in *;
-    simpl in *; cleanup.
-
-    split; intros.
-    - (* Low to High *)
-      invert_exec; cleanup.
-      
-      + split_ors; cleanup.
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup.
+        XXXX
         
-        eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
-        eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        edestruct H0.
-        simpl in *; unfold compilation_of in *;
-        edestruct strong_bisimulation_for_program_correct0; eauto.
-        edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-        cleanup.
-        eexists; intuition eauto.
-        econstructor; eauto.
-        simpl; eauto.
-        
-      +
-        split_ors; cleanup;
-        split_ors; cleanup;
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
-        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          exists (Crashed s); repeat (split; eauto).
-          eapply ExecBindCrash; eauto.
-
-        *
-          eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
-          eapply_fresh exec_deterministic_wrt_oracle in H6; eauto; cleanup.
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-          edestruct H0.
-          simpl in *; unfold compilation_of in *;
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H3.
-          cleanup.
-          eexists; intuition eauto.
-          econstructor; eauto.
-          simpl; eauto.
-
-    - (* High to Low *)
-      invert_exec; cleanup.
-      
-
-      + split_ors; cleanup.
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H2; eauto; cleanup.
-
-        edestruct strong_bisimulation_for_program_correct; eauto.
-        edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-        eapply_fresh exec_finished_deterministic_prefix in H2; eauto; cleanup.
+        eapply_fresh write_crashed in H10; eauto; cleanup.
+        split_ors; cleanup.
+        {
+          right; eexists; intuition eauto.
+        }
+        right; eexists; intuition eauto.
+          eauto.
+      }
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        apply (owner x1).
+    
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
         simpl in *.
-        edestruct H0.
-        simpl in *; unfold compilation_of in *;
-        edestruct strong_bisimulation_for_program_correct0; eauto.
-        edestruct H4; eauto; simpl in *; cleanup; try intuition; clear H4 H9; cleanup.           
-        eapply_fresh exec_deterministic_wrt_oracle in H3; eauto; cleanup.
-        eexists; intuition eauto.
-        econstructor; eauto.
         
-      +
-        split_ors; cleanup;
-        split_ors; cleanup;
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H4; eauto; cleanup;
-        try solve [eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup].
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H6; eauto; simpl in *; cleanup; try intuition; clear H6 H7.
-          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-          simpl in *.
-          exists (Crashed x5); repeat (split; eauto).
-          eapply ExecBindCrash; eauto.
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        right; eexists; repeat (split; eauto).
+        eauto.
+      }
+          
 
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H8; eauto; simpl in *; cleanup; try intuition; clear H8 H9.
-          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H7; eauto; simpl in *; cleanup; try intuition; clear H7 H8.
-          eapply_fresh exec_deterministic_wrt_oracle_prefix in H3; eauto; cleanup.
-
-        *
-          edestruct strong_bisimulation_for_program_correct; eauto.
-          edestruct H9; eauto; simpl in *; cleanup; try intuition; clear H9 H10.
-          eapply_fresh exec_finished_deterministic_prefix in H3; eauto; cleanup.
-          edestruct H0.
-          simpl in *; unfold compilation_of in *;
-          edestruct strong_bisimulation_for_program_correct0; eauto.
-          edestruct H2; eauto; simpl in *; cleanup; try intuition; clear H2 H9.
-          cleanup.
-          eapply_fresh exec_deterministic_wrt_oracle in H4; eauto; cleanup.
-          eexists; intuition eauto.
-          econstructor; eauto.
-          Unshelve.
-          all: eauto.
+      eapply_fresh write_crashed in H10; eauto; cleanup.
+      split_ors; cleanup;
+      unfold refines_to, refines_to_reboot,
+      files_rep, files_reboot_rep, files_crash_rep in *;
+      simpl; cleanup; eauto.
+    }
+    
+    Unshelve.
+    all: repeat constructor; eauto.
   Qed.
 
-  Hint Resolve sbs_read sbs_write sbs_start sbs_abort sbs_commit sbs_ret sbs_bind : core.
-  
-  Theorem sbs :
-    StrongBisimulation refinement.              
+    Theorem abstract_oracles_exist_wrt_extend:
+    forall n inum v u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Extend inum v|) (|Recover|) (authenticated_disk_reboot_list n).
   Proof.
-    apply bisimulation_restrict_prog.
-    induction p; eauto.
-    destruct p; eauto.
+    unfold abstract_oracles_exist_wrt,
+    refines_to, refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
+    {      
+      eapply_fresh extend_finished in H7; eauto.
+      split_ors; cleanup.
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        eexists; repeat (split; eauto).
+        left; eexists; repeat (split; eauto).
+        unify_execs; cleanup.
+
+        repeat split_ors; cleanup;
+        do 2 eexists; right; eauto;
+        left; repeat (split; eauto).        
+        intros; unify_execs; cleanup.
+      }
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        intuition eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        left; eexists; intuition eauto.
+        unify_execs; cleanup.
+        do 2 eexists; left; repeat (split; eauto).
+        unify_execs; cleanup.
+      }
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      eapply_fresh extend_crashed in H10; eauto; cleanup.
+      split_ors; cleanup.
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        eauto.
+      }
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        apply (owner x1).
+    
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        right; eexists; repeat (split; eauto).
+        eauto.
+      }
+          
+      {
+        eapply_fresh extend_crashed in H10; eauto; cleanup.
+        split_ors; cleanup;
+        unfold refines_to, refines_to_reboot,
+        files_rep, files_reboot_rep, files_crash_rep in *;
+        simpl; cleanup; eauto.
+      }
+    }
+    
+    Unshelve.
+    all: repeat econstructor; eauto.
   Qed.
 
-  Hint Resolve sbs : core.
+  Theorem abstract_oracles_exist_wrt_delete:
+    forall n inum u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Delete inum|) (|Recover|) (authenticated_disk_reboot_list n).
+  Proof.
+    Proof.
+    unfold abstract_oracles_exist_wrt,
+    refines_to, refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
+    {      
+      eapply_fresh delete_finished in H7; eauto.
+      split_ors; cleanup.
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        eexists; repeat (split; eauto).
+        left; eexists; repeat (split; eauto).
+        unify_execs; cleanup.
 
-  Theorem sbs_general:
-    forall valid_state_h valid_prog_h,
-      exec_compiled_preserves_validity refinement
-                                       (refines_to_valid refinement valid_state_h) ->
-      
-      exec_preserves_validity TransactionalDiskLang valid_state_h ->
-      
-      StrongBisimulationForValidStates refinement
-                                       (refines_to_valid refinement valid_state_h)
-                                       valid_state_h
-                                       (compiles_to_valid refinement valid_prog_h)        
-                                       valid_prog_h.  
+        repeat split_ors; cleanup;
+        do 2 eexists; right; eauto;
+        repeat (split; eauto).        
+        intros; unify_execs; cleanup.
+      }
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        intuition eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        left; eexists; intuition eauto.
+        unify_execs; cleanup.
+        do 2 eexists; left; repeat (split; eauto).
+        unify_execs; cleanup.
+      }
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      eapply_fresh delete_crashed in H10; eauto; cleanup.
+      split_ors; cleanup.
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        eauto.
+      }
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        apply (owner x1).
+    
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        right; eexists; repeat (split; eauto).
+        eauto.
+      }
+          
+      {
+        eapply_fresh delete_crashed in H10; eauto; cleanup.
+        split_ors; cleanup;
+        unfold refines_to, refines_to_reboot,
+        files_rep, files_reboot_rep, files_crash_rep in *;
+        simpl; cleanup; eauto.
+      }
+    }
+    
+    Unshelve.
+    all: repeat econstructor; eauto.
+    Qed.
+
+    Theorem abstract_oracles_exist_wrt_change_owner:
+    forall n inum own u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|ChangeOwner inum own|) (|Recover|) (authenticated_disk_reboot_list n).
+  Proof.
+    Proof.
+    unfold abstract_oracles_exist_wrt,
+    refines_to, refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
+    {      
+      eapply_fresh change_owner_finished in H7; eauto.
+      split_ors; cleanup.
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        eexists; repeat (split; eauto).
+        left; eexists; repeat (split; eauto).
+        unify_execs; cleanup.
+
+        repeat split_ors; cleanup;
+        do 2 eexists; right; eauto;
+        repeat (split; eauto).        
+        intros; unify_execs; cleanup.
+      }
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        intuition eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        left; eexists; intuition eauto.
+        unify_execs; cleanup.
+        do 2 eexists; left; repeat (split; eauto).
+        unify_execs; cleanup.
+      }
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      eapply_fresh change_owner_crashed in H10; eauto; cleanup.
+      split_ors; cleanup.
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        eauto.
+      }
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+    
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        right; eexists; repeat (split; eauto).
+        eauto.
+      }          
+      {
+        eapply_fresh change_owner_crashed in H10; eauto; cleanup.
+        split_ors; cleanup;
+        unfold refines_to, refines_to_reboot,
+        files_rep, files_reboot_rep, files_crash_rep in *;
+        simpl; cleanup; eauto.
+      }
+    }
+    
+    Unshelve.
+    all: repeat econstructor; eauto.
+    Qed.
+
+    Theorem abstract_oracles_exist_wrt_create:
+    forall n own u, 
+      abstract_oracles_exist_wrt refinement refines_to u (|Create own|) (|Recover|) (authenticated_disk_reboot_list n).
+  Proof.
+    Proof.
+    unfold addr, abstract_oracles_exist_wrt,
+    refines_to, refines_to_reboot; destruct n;
+    simpl; intros; cleanup; invert_exec.
+    {      
+      eapply_fresh create_finished in H7; eauto.
+      split_ors; cleanup.
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) InodesFull] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        eexists; repeat (split; eauto).
+        left; eexists; repeat (split; eauto).
+        unify_execs; cleanup.
+
+        right.        
+        repeat split_ors; cleanup;
+        eexists; eauto;
+        repeat (split; eauto).
+        intros; unify_execs; cleanup.
+      }
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) (NewInum x0)] ]; simpl.
+        intuition eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        left; eexists; intuition eauto.
+        unify_execs; cleanup.
+        left; eexists; repeat (split; eauto).
+        unify_execs; cleanup.
+      }
+    }
+    {        
+      eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
+      eapply_fresh create_crashed in H10; eauto; cleanup.
+      split_ors; cleanup.
+      {
+        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        eauto.
+      }
+      {
+        exists ([OpToken (FileDiskOperation inode_count) (CrashAfterCreate x1)]::x0); simpl.
+        repeat split; eauto; try (unify_execs; cleanup).
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+    
+        intros; unify_execs; cleanup.
+        eexists; repeat split; eauto;
+        simpl in *.
+        
+        eexists; repeat (split; eauto).
+        right; eexists; intuition eauto.
+        right; eexists; repeat (split; eauto).
+        eauto.
+      }          
+      {
+        eapply_fresh create_crashed in H10; eauto; cleanup.
+        split_ors; cleanup;
+        unfold refines_to, refines_to_reboot,
+        files_rep, files_reboot_rep, files_crash_rep in *;
+        simpl; cleanup; eauto.
+      }
+    }
+    Qed.
+    
+    
+  Theorem abstract_oracles_exists_file_disk:
+    forall T (p_abs: abs.(prog) T) n u, 
+      abstract_oracles_exist_wrt refinement refines_to u p_abs (|Recover|) (authenticated_disk_reboot_list n).
+  Proof.
+    unfold abstract_oracles_exist_wrt; induction p_abs;
+    simpl; intros; cleanup.
+    {(** OPS **)
+      destruct o.
+      eapply abstract_oracles_exist_wrt_read; eauto.
+      eapply abstract_oracles_exist_wrt_write; eauto.
+      eapply abstract_oracles_exist_wrt_extend; eauto.
+      eapply abstract_oracles_exist_wrt_change_owner; eauto.
+      eapply abstract_oracles_exist_wrt_create; eauto.
+      eapply abstract_oracles_exist_wrt_delete; eauto.
+      eapply abstract_oracles_exist_wrt_recover'; eauto.
+    }
+    {
+      repeat invert_exec; cleanup.
+      {
+        rewrite <- H1; simpl.
+        exists [[Language.Cont (FileDiskOperation inode_count) ]]; simpl; intuition.
+        right; intuition eauto.
+        unify_execs; cleanup.
+      }
+      {
+        destruct n; unfold authenticated_disk_reboot_list in *;
+        simpl in *; try congruence; cleanup.
+        repeat invert_exec.
+        invert_exec'' H8.
+        simpl in *.
+        eapply abstract_oracles_exist_wrt_recover in H10; eauto.
+        cleanup.
+        exists ([Language.Crash (FileDiskOperation inode_count)]::x0);
+        simpl; intuition eauto.
+        apply recovery_oracles_refine_to_length in H0; eauto.
+        left; eexists; intuition eauto.
+        econstructor.
+        invert_exec'' H1; eauto.
+        unfold refines_to, refines_to_reboot,
+        files_rep, files_reboot_rep, files_crash_rep in *.
+        cleanup; eauto.
+      }
+    }
+    {
+      repeat invert_exec.
+      {
+        invert_exec'' H10.
+        edestruct IHp_abs; eauto.
+        instantiate (2:= 0); simpl.
+        eapply ExecFinished; eauto.
+        edestruct H.
+        2: {
+          instantiate (3:= 0); simpl.
+          eapply ExecFinished; eauto.
+        }
+        eapply exec_compiled_preserves_refinement_finished in H8; eauto.
+        simpl in *; cleanup; try tauto.
+        simpl in *.
+        exists ([o0 ++ o]); intuition eauto.
+        do 4 eexists; intuition eauto.
+        right; simpl; repeat eexists; intuition eauto.
+        invert_exec; split_ors; cleanup; repeat (unify_execs; cleanup).        
+        eapply finished_not_crashed_oracle_prefix in H8; eauto.
+        eapply exec_finished_deterministic_prefix in H8; eauto; cleanup.
+        unify_execs; cleanup.
+      }
+      {
+        destruct n; unfold authenticated_disk_reboot_list in *;
+        simpl in *; try congruence; cleanup.
+        invert_exec'' H9.
+        {
+          edestruct IHp_abs; eauto.
+          instantiate (2:= 0); simpl.
+          instantiate (1:= RFinished d1' r).
+          eapply ExecFinished; eauto.
+          edestruct H.
+          2: {
+            instantiate (3:= S n); simpl.
+            instantiate (1:= Recovered (extract_state_r ret)).
+            econstructor; eauto.
+          }
+          eapply exec_compiled_preserves_refinement_finished in H7; eauto.
+          simpl in *; cleanup; try tauto.
+          simpl in *.
+          exists ((o0 ++ o)::l); intuition eauto.
+          - invert_exec; try split_ors; repeat (unify_execs; cleanup).
+            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            unify_execs; cleanup.
+          - invert_exec; cleanup; try split_ors; try cleanup;
+            repeat (unify_execs; cleanup).
+            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
+            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            unify_execs; cleanup; eauto.
+            specialize H4 with (1:= H12); cleanup.
+            do 4 eexists; intuition eauto.
+            right; simpl; repeat eexists; intuition eauto.
+          - invert_exec; cleanup; try split_ors; try cleanup;
+            repeat (unify_execs; cleanup).
+            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
+            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            unify_execs; cleanup; eauto.
+            specialize H4 with (1:= H12); cleanup; eauto.
+        }
+        {
+          edestruct IHp_abs; eauto.
+          instantiate (2:= S n); simpl.
+          instantiate (1:= Recovered (extract_state_r ret)).
+          econstructor; eauto.
+          simpl in *; cleanup; try tauto.
+          simpl in *.
+          exists (o::l); intuition eauto.
+          - invert_exec; cleanup; try split_ors;
+            cleanup; repeat (unify_execs; cleanup).            
+            exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto.
+          - invert_exec; cleanup; try split_ors;
+            cleanup; repeat (unify_execs; cleanup).
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
+            specialize H3 with (1:= H6).
+            clear H5.
+            logic_clean; eauto.
+            exists o1, o2, o, nil; intuition eauto.
+            rewrite app_nil_r; eauto.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
+            eauto; cleanup.
+          - invert_exec; cleanup; try split_ors;
+            cleanup; repeat (unify_execs; cleanup).
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
+            specialize H3 with (1:= H6).
+            clear H5.
+            logic_clean; eauto.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
+            eauto; cleanup.
+        }
+      }
+    }
+  Qed.
+
+  Lemma addrs_match_upd:
+    forall A AEQ V1 V2 (m1: @mem A AEQ V1) (m2: @mem A AEQ V2) a v,
+      addrs_match m1 m2 ->
+      m2 a <> None ->
+      addrs_match (upd m1 a v) m2.
+  Proof.
+    unfold addrs_match; intros; simpl.
+    destruct (AEQ a a0); subst;
+    [rewrite upd_eq in *
+    |rewrite upd_ne in *]; eauto.
+  Qed.
+
+  Lemma cons_l_neq:
+    forall V (l:list V) v,
+      ~ v::l = l.
+  Proof.
+    induction l; simpl; intros; try congruence.
+  Qed.
+
+  Lemma mem_union_some_l:
+    forall AT AEQ V (m1: @mem AT AEQ V) m2 a v,
+      m1 a = Some v ->
+      mem_union m1 m2 a = Some v.
+  Proof.
+    unfold mem_union; simpl; intros.
+    cleanup; eauto.
+  Qed.
+  
+  Lemma mem_union_some_r:
+    forall AT AEQ V (m1: @mem AT AEQ V) m2 a,
+      m1 a = None ->
+      mem_union m1 m2 a = m2 a.
+  Proof.
+    unfold mem_union; simpl; intros.
+    cleanup; eauto.
+  Qed.
+
+  Lemma addrs_match_mem_union1 :
+    forall A AEQ V (m1 m2: @mem A AEQ V),
+      addrs_match m1 (mem_union m1 m2).
+  Proof.
+    unfold addrs_match; intros.
+    destruct_fresh (m1 a); try congruence.
+    erewrite mem_union_some_l; eauto.
+  Qed.
+
+  Lemma addrs_match_empty_mem:
+    forall A AEQ V1 V2 (m: @mem A AEQ V1),
+      addrs_match (@empty_mem A AEQ V2) m.
+  Proof.
+    unfold addrs_match, empty_mem;
+    simpl; intros; congruence.
+  Qed.
+  
+  Lemma empty_mem_some_false:
+    forall A AEQ V (m: @mem A AEQ V) a v,
+      m = empty_mem ->
+      m a <> Some v.
   Proof.
     intros.
-    eapply bisimulation_restrict_state; eauto.
+    rewrite H.
+    unfold empty_mem; simpl; congruence.
   Qed.
+  
+  
+Lemma recovery_simulation :
+  forall n u,
+    SimulationForProgramGeneral _ _ _ _ refinement u _ (|Recover|) (|Recover|)
+                         (authenticated_disk_reboot_list n)
+                         (file_disk_reboot_list n)
+                         refines_to_reboot refines_to.
+Proof.
+  unfold SimulationForProgramGeneral; induction n; simpl; intros; cleanup.
+  {
+    destruct l_o_imp; intuition; simpl in *.
+    cleanup; intuition.
+    invert_exec; simpl in *; cleanup; intuition.
+    specialize H2 with (1:= H12).
+    cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+    
+    eexists; intuition eauto.
+    unfold file_disk_reboot_list in *; simpl.
+    simpl in *; destruct l; simpl in *; try lia.
+    instantiate (1:= RFinished s_abs tt). 
+    repeat econstructor.
+    {
+      simpl.
+      unfold refines_to, refines_to_reboot in *.
+      eapply recover_finished; eauto.
+    }
+    simpl; eauto.
+  }
+  {
+    invert_exec; simpl in *; cleanup; intuition;
+    cleanup; intuition eauto; repeat (unify_execs; cleanup).
+    clear H1.
+    specialize H2 with (1:= H11).
+    cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+    edestruct IHn.
+    eauto.
+    instantiate (1:= s_abs).
+    eauto.
+    eauto.
+      
+    unfold refines_to_reboot, files_reboot_rep in *; simpl in *; cleanup.
+    eapply recover_crashed in H11; eauto.
+    eauto.
+    
+    exists (Recovered (extract_state_r x)).
+    unfold file_disk_reboot_list in *; simpl in *.
+    unfold refines_to_reboot, files_reboot_rep in *; cleanup.
+    split; eauto.
+    repeat econstructor; eauto.
+  }
+Qed.
 
-End TransactionalDiskBisimulation.
 
+Lemma read_simulation :
+  forall a inum n u,
+    SimulationForProgram refinement u (|Read inum a|) (|Recover|)
+                         (authenticated_disk_reboot_list n)
+                         (file_disk_reboot_list n).
+Proof.
+  unfold authenticated_disk_reboot_list, SimulationForProgram,
+  SimulationForProgramGeneral; simpl; intros; cleanup.
+  
+    invert_exec; simpl in *; cleanup; intuition;
+    cleanup; try solve [intuition eauto; try congruence;
+                        unify_execs; cleanup].
+    {
+      specialize H1 with (1:= H10).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+      eapply_fresh read_finished in H10; cleanup; eauto.
+      
+      destruct n; simpl in *; try congruence; cleanup.
+      destruct l; simpl in *; try lia.
+      split_ors; cleanup.
+      {
+        exists (RFinished s_abs None);
+        simpl; repeat (split; eauto).
+        eapply ExecFinished.
+        repeat split_ors; cleanup;
+        do 2 econstructor; eauto.
+      }
+      {
+        exists (RFinished s_abs (nth_error x.(blocks) a));
+        simpl; intuition eauto.
+        eapply ExecFinished.
+        destruct_fresh (nth_error (blocks x) a);
+        do 2 econstructor; eauto.
+      }
+    }
+    {
+      clear H1.
+      specialize H3 with (1:= H9).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+      destruct n; simpl in *; try congruence; cleanup.
+
+      eapply read_crashed in H9; eauto.
+      edestruct recovery_simulation; eauto.
+      
+      exists (Recovered (extract_state_r x)); simpl; intuition eauto.
+      unfold file_disk_reboot_list; simpl.
+      eapply ExecRecovered; eauto.
+      repeat econstructor.
+    }
+    Unshelve.
+    all: repeat econstructor; eauto.
+Qed.
+
+Require Import Compare_dec.
+
+
+Lemma write_simulation :
+  forall inum a v n u,
+    SimulationForProgram refinement u (|Write inum a v|) (|Recover|)
+                         (authenticated_disk_reboot_list n)
+                         (file_disk_reboot_list n).
+Proof.
+  unfold authenticated_disk_reboot_list, SimulationForProgram,
+  SimulationForProgramGeneral; simpl; intros; cleanup.
+  
+    invert_exec; simpl in *; cleanup; intuition;
+    cleanup; try solve [intuition eauto; try congruence;
+                        unify_execs; cleanup].
+    {
+      specialize H1 with (1:= H10).
+      cleanup; repeat (split_ors; cleanup);
+      try unify_execs; cleanup;
+     
+      destruct n; simpl in *; try congruence; cleanup;
+      destruct l; simpl in *; try lia;
+      
+      eapply_fresh write_finished in H10; eauto;
+      repeat split_ors; cleanup; try congruence; try lia; 
+      try solve [
+        exists (RFinished s_abs None);
+        simpl; repeat (split; eauto);
+        eapply ExecFinished;
+        repeat split_ors; cleanup;
+        do 2 econstructor; eauto ];
+      try solve [
+        exists (RFinished  (Mem.upd s_abs inum (update_file x a v)) (Some tt));
+        simpl; repeat (split; eauto);
+        eapply ExecFinished;
+        repeat split_ors; cleanup;
+        do 2 econstructor; eauto ].
+    }
+    {
+      clear H1.
+      specialize H3 with (1:= H9).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
+      repeat split_ors; cleanup; try unify_execs; cleanup.
+      destruct n; simpl in *; try congruence; cleanup.
+      {
+        eapply_fresh write_crashed in H9; eauto;
+        repeat split_ors; cleanup; try unify_execs; cleanup;
+        edestruct recovery_simulation; eauto; cleanup.
+        
+        exists (Recovered (extract_state_r x)); simpl; split; eauto.
+        unfold file_disk_reboot_list; simpl.
+        eapply ExecRecovered; eauto.
+        repeat econstructor; eauto.
+
+        {
+          unfold refines_to, refines_to_reboot,
+          files_rep, files_reboot_rep, files_crash_rep in *; cleanup.
+        exists (Recovered (extract_state_r x2)); simpl; split; eauto.
+        unfold file_disk_reboot_list; simpl.
+        eapply ExecRecovered; eauto.
+        repeat econstructor; eauto.
+        econstructor.
+    }
+Admitted.
+
+
+Lemma abort_simulation :
+  forall n u,
+    SimulationForProgram refinement u (|Abort|) (|Recover|)
+                         (authenticated_disk_reboot_list n)
+                         (file_disk_reboot_list n).
+Proof.
+  unfold authenticated_disk_reboot_list, SimulationForProgram,
+  SimulationForProgramGeneral; simpl; intros; cleanup.
+  
+    invert_exec; simpl in *; cleanup; intuition;
+    cleanup; try solve [intuition eauto; try congruence;
+                        unify_execs; cleanup].
+    {
+      specialize H1 with (1:= H10).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+      
+      destruct n; simpl in *; try congruence; cleanup.
+      destruct l; simpl in *; try lia.
+      {
+        exists (RFinished (snd s_abs, snd s_abs) tt);
+        simpl; intuition eauto.
+        eapply ExecFinished.
+        repeat econstructor; eauto.
+        unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+        intuition eauto.
+        pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+        destruct x1; eauto.
+      }
+    }
+    {
+      clear H1.
+      specialize H3 with (1:= H9).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+      destruct n; simpl in *; try congruence; cleanup.
+      
+      edestruct recovery_simulation; eauto.
+      unfold refines_to, transaction_rep in *; cleanup.
+      instantiate (1:=(snd s_abs, snd s_abs)).
+      eauto.
+      
+      exists (Recovered (extract_state_r x)); simpl; intuition eauto.
+      unfold file_disk_reboot_list; simpl.
+      eapply ExecRecovered; eauto.
+      repeat econstructor.
+    }
+Qed.
+
+
+Lemma commit_simulation :
+  forall n u,
+    SimulationForProgram refinement u (|Commit|) (|Recover|)
+                         (authenticated_disk_reboot_list n)
+                         (file_disk_reboot_list n).
+Proof.
+  unfold authenticated_disk_reboot_list, SimulationForProgram,
+  SimulationForProgramGeneral; simpl; intros; cleanup.
+  
+    invert_exec; simpl in *; cleanup; intuition;
+    cleanup; try solve [intuition eauto; try congruence;
+                        unify_execs; cleanup].
+    {
+      specialize H1 with (1:= H10).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+      
+      destruct n; simpl in *; try congruence; cleanup.
+      destruct l; simpl in *; try lia.
+      {
+        exists (RFinished (fst s_abs, fst s_abs) tt);
+        simpl; intuition eauto.
+        eapply ExecFinished.
+        repeat econstructor; eauto.
+        unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+        intuition eauto.
+        pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+        destruct x1; eauto.
+      }
+    }
+    {
+      clear H1.
+      specialize H3 with (1:= H9).
+      cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+      destruct n; simpl in *; try congruence; cleanup.
+      
+      split_ors; cleanup.
+      {
+        edestruct recovery_simulation; eauto.
+        unfold refines_to, transaction_rep in *; cleanup.
+        instantiate (1:=(snd s_abs, snd s_abs)).
+        eauto.
+
+        exists (Recovered (extract_state_r x)); simpl; intuition eauto.
+        unfold file_disk_reboot_list; simpl.
+        eapply ExecRecovered; eauto.
+        repeat econstructor.
+      }
+      {
+        edestruct recovery_simulation; eauto.
+        unfold refines_to, transaction_rep in *; cleanup.
+        instantiate (1:=(fst s_abs, fst s_abs)).
+        eauto.
+        
+        exists (Recovered (extract_state_r x)); simpl; intuition eauto.
+        unfold file_disk_reboot_list; simpl.
+        eapply ExecRecovered; eauto.
+        repeat econstructor.
+        simpl; eauto.
+      }
+    }
+Qed.
+
+End TransactionalDiskSimulation.
+
+
+(*
 Section TransferToTransactionCache.
 
-  Lemma write_all_app :
-    forall V l1 l2 (l3 l4: list V) m,
-      length l1 = length l3 ->
-      (forall i, In i l1 -> m i <> None) ->
-      write_all m (l1++l2) (l3++l4) = write_all (write_all m l1 l3) l2 l4.
-  Proof.
-    induction l1; simpl in *; destruct l3; simpl in *;
-    intros; cleanup; try congruence.
-    destruct_fresh (m a); simpl in *.
-    erewrite IHl1; eauto.
-    intros; simpl.
-    unfold upd_disk.
-    destruct (addr_dec a i); subst; [rewrite upd_eq; eauto | rewrite upd_ne; eauto];
-    congruence.
-    exfalso; eapply H0; eauto.
-  Qed.
-  
-  Lemma write_all_merge_apply_list:
-    forall x6 x4 x,
-      refines_to (Some x6, x4) x ->
-      write_all x4 (map fst (rev x6)) (map snd (rev x6)) =
-      merge (apply_list empty_mem (rev x6)) x4.
-  Proof.
-    induction x6; simpl in *; intros; eauto.
-    unfold refines_to in *; simpl in *; cleanup.
-    repeat rewrite map_app; simpl in *.
-    rewrite write_all_app, apply_list_app in *; eauto; simpl in *.
-    unfold addrs_match in *.
-    destruct a, x; simpl in *.
-    erewrite IHx6; eauto.
-    unfold upd_disk.
-    extensionality a'; simpl.
-    unfold merge at 4; simpl.
-    - destruct (addr_dec a a'); subst; simpl;
-      [rewrite upd_eq; eauto
-      | rewrite upd_ne; eauto].
-      
-      + destruct_fresh (d0 a');
-        [| exfalso; eapply H1; eauto;
-           rewrite upd_eq; eauto; congruence ].
-        destruct_fresh (apply_list empty_mem (rev x6) a').
-        * edestruct merge_some_l
-            with (m2:= d0); eauto.
-          congruence.
-          cleanup.
-          pose proof H.
-          unfold merge in H; simpl.
-          rewrite D0, D in H.
-          destruct (merge (apply_list
-                             empty_mem (rev x6)) d0 a');
-          try congruence; cleanup.
-          rewrite upd_eq; eauto.
-  Admitted.
-  
-  Lemma high_oracle_exists_ok':
-    forall T p2 p1 ol sl sl',
-      (exists sh, refines_to sl sh) ->
-      low.(exec) ol sl p1 sl' ->
-      compilation_of T p1 p2 ->
-      exists oh, oracle_refines_to T sl p2 ol oh.
-  Proof.
-    unfold compilation_of;
-    induction p2; simpl; intros; cleanup.
-    - (* Start *)
-      destruct sl'.
-      {
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+Lemma high_oracle_exists_ok:
+    high_oracle_exists refinement.
+Proof.
+  unfold high_oracle_exists; simpl.
+  induction p2; simpl; intros; cleanup.
+  { (** Op p **)
+    destruct p; simpl in *.
+    { (** Start **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         simpl in *; cleanup.
-        eexists; left; do 2 eexists; intuition eauto.
-        destruct s; simpl in *.
-        unfold refines_to in *; simpl in *; intuition subst; eauto.
+        do 2 eexists; intuition eauto.
+        left; do 2 eexists; intuition eauto.
+        destruct s; simpl in *; subst; eauto.
       }
-      {
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+      { (** Crashed **)
+        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         simpl in *; cleanup.
         split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
         try (inversion H1; clear H1); cleanup; eauto;
         try solve [
-              eexists; right; do 2 eexists; intuition eauto;
-              destruct s; simpl in *; cleanup; eauto ].
+              do 2 eexists; intuition eauto;
+              right; do 2 eexists; intuition eauto;
+             destruct s; simpl in *; cleanup; eauto ].
       }
-    - (* Read *)
-      destruct sl'.
-      {
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+    }
+    { (** Read **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold read in Hx; simpl in Hx; cleanup;
         cleanup; simpl in *; cleanup;
-        
-        eexists; left; do 2 eexists; intuition eauto;
+        do 2 eexists; intuition eauto;
+        left; do 2 eexists; intuition eauto;
         destruct s; cleanup; simpl in *; cleanup; eauto.
       }
-      {
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+      { (** Crashed **)
+        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold read in Hx; repeat (simpl in *; cleanup).
         split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
         try (inversion H1; clear H1); cleanup; eauto;
-        try solve [
-              eexists; right; do 2 eexists; intuition eauto;
-              destruct s; simpl in *; cleanup; eauto ].
-        eexists; right; do 2 eexists; intuition eauto;
+        try solve [             
+           do 2 eexists; intuition eauto;
+           right; do 2 eexists; intuition eauto;
+           destruct s; simpl in *; cleanup; eauto ].
+      
+        do 2 eexists; intuition eauto;
+        right; do 2 eexists; intuition eauto;
         destruct s; simpl in *; cleanup; eauto.       
       }
-    - (* Write *)
-      destruct sl'.
-      {
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+    }
+    { (** Write **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold write in Hx; simpl in *; cleanup;
         cleanup; simpl in *; cleanup;      
         try destruct s; cleanup; simpl in *; cleanup; eauto;
-        eexists; left; do 2 eexists; intuition eauto;
+        
+        do 2 eexists; intuition eauto;
+        left; do 2 eexists; intuition eauto;
         try destruct s; cleanup; simpl in *; cleanup; eauto.
+        right; right; eexists; intuition eauto.
+        omega.
+        right; left; intuition eauto.
+        omega.
       }
-      {
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+      { (** Crashed **)
+        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold write in Hx; repeat (simpl in *; cleanup).
         split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
         inversion H1; clear H1; cleanup; eauto;
-        try solve [
-              eexists; right; do 2 eexists; intuition eauto;
+        try solve [    
+              do 2 eexists; intuition eauto;
+              right; do 2 eexists; intuition eauto;
               destruct s; simpl in *; cleanup; eauto ].
-        eexists; right; do 2 eexists; intuition eauto;
+        do 2 eexists; intuition eauto;
+        right; do 2 eexists; intuition eauto;
         destruct s; simpl in *; cleanup; eauto.
       }
-    - (* Commit *)
-      destruct sl'.
-      {
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
+    }
+    { (** Commit **)
+      destruct s1'.
+      { (** Finished **)
+        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         simpl in *; cleanup.
-        cleanup; simpl in *; cleanup;
-        eexists; left; do 2 eexists; intuition eauto;
-        destruct s; cleanup; simpl in *; cleanup; eauto.
+        cleanup; simpl in *; cleanup;        
+        do 2 eexists; intuition eauto;
+        left; do 2 eexists; intuition eauto;
+        destruct s; cleanup; simpl in *; cleanup; eauto;
         eexists; intuition eauto.
+        
         rewrite <- map_fst_split, <- map_snd_split.
-        erewrite write_all_merge_apply_list; eauto.
-      }
-      {
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-        simpl in *; cleanup.
-        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
-        try solve [
-              inversion H1; clear H1; cleanup; eauto;
-              eexists; right; do 2 eexists; intuition eauto;
-              destruct s; simpl in *; cleanup; eauto ].
+        rewrite mem_union_upd_batch_eq; eauto.
         
-        destruct s; simpl in *; cleanup; eauto.
-        eexists; right; do 2 eexists; intuition eauto.
-        admit. (* TODO: Solve this *)
+        exfalso; apply H; apply dedup_last_NoDup.
+        
 
-        inversion H1; clear H1; cleanup; eauto.
-        eexists; right; do 2 eexists; intuition eauto;
-        destruct s; simpl in *; cleanup; eauto.
-        admit. (* TODO: Solve this *)
-        
-        eexists; right; do 2 eexists; intuition eauto;
-        destruct s; simpl in *; cleanup; eauto.
-        right; intuition eauto; eexists; intuition eauto.
-        admit. (* TODO: Solve this *)       
-      }
-      
-    - (* Abort *)
-      destruct sl'.
-      {
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-        simpl in *; cleanup.
-        eexists; left; do 2 eexists; intuition eauto.
-      }
-      {
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = ol /\ s = sl) in H0 as Hx; eauto.
-        simpl in *; cleanup.
-        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
-        try (inversion H1; clear H1); cleanup; eauto;
-        try solve [
-              eexists; right; do 2 eexists; intuition eauto;
-              destruct s; simpl in *; cleanup; eauto ].
-      }
-    - destruct sl'; eexists; eauto.
-    - (* Bind *)
-      invert_exec.
-      + (* Finished *)
+        exfalso; apply H2; apply dedup_last_dedup_by_list_length_le.
+        rewrite <- map_fst_split, <- map_snd_split; repeat rewrite map_length; omega.
+        unfold refines_to in *; cleanup; simpl in *; eauto.
+        cleanup.
+
+         unfold refines_to in *; simpl in *;
+         cleanup; exfalso; eauto;
+         match goal with
+         | [H: addrs_match _ _ |- _ ] =>
+           unfold addrs_match in H;
+           eapply H
+         end; eauto;
+         apply apply_list_in_not_none; eauto;
+         rewrite map_fst_split; eauto.
+    }
+    {
+      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+       simpl in *; cleanup.
+       split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
+       
+       try solve [
+             inversion H1; clear H1; cleanup; eauto;        
+             do 2 eexists; intuition eauto;
+             right; do 2 eexists; intuition eauto;
+             destruct s; simpl in *; cleanup; eauto ];
+
+       
+       try solve [
+             try (inversion H1; clear H1; cleanup; eauto);  
+             repeat (split_ors; cleanup);
+             try solve [
+                   exfalso;
+                   match goal with
+                   | [H: ~ NoDup _ |- _] =>
+                     apply H
+                   end; apply dedup_last_NoDup ];
+             try solve [
+                   exfalso;
+                   match goal with
+                   | [H: ~ length _ = length _ |- _] =>
+                     apply H
+                   end;
+                   apply dedup_last_dedup_by_list_length_le; eauto;        
+                   rewrite <- map_fst_split, <- map_snd_split;
+                   repeat rewrite map_length; eauto ];
+             try solve [
+                   unfold refines_to in *; simpl in *;
+                   cleanup; exfalso; eauto;
+                   match goal with
+                   | [H: addrs_match _ _ |- _ ] =>
+                     unfold addrs_match in H;
+                     eapply H
+                   end; eauto;
+                   apply apply_list_in_not_none; eauto;
+                   rewrite map_fst_split; eauto ];
+             
+             do 2 eexists; intuition eauto;
+             right; do 2 eexists; intuition eauto;
+             try solve [
+                   right; left; intuition eauto;
+                   destruct s; simpl in *; cleanup; eauto;
+                   eexists; intuition eauto;        
+                   setoid_rewrite mem_union_upd_batch_eq;
+                   rewrite mem_union_empty_mem;
+                   rewrite map_fst_split, map_snd_split; eauto ];
+             try solve [
+                   right; right; intuition eauto;
+                   destruct s; simpl in *; cleanup; eauto;
+                   eexists; intuition eauto;        
+                   setoid_rewrite mem_union_upd_batch_eq;
+                   rewrite mem_union_empty_mem;
+                   rewrite map_fst_split, map_snd_split; eauto ]
+           ].
+       }
+    }
+    
+  - (** Abort **)
+    destruct s1'.
+    {
+      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+      simpl in *; cleanup.
+      do 2 eexists; intuition eauto.
+      left; do 2 eexists; intuition eauto.
+      destruct s; simpl in *; subst; eauto.
+    }
+    {
+      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+      simpl in *; cleanup.
+       split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
+       try (inversion H1; clear H1); cleanup; eauto;
+       try solve [
+             do 2 eexists; intuition eauto;
+             right; do 2 eexists; intuition eauto;
+             destruct s; simpl in *; cleanup; eauto ].
+    }
+  }
+  - (** Ret **)
+    destruct s1'; eexists; eauto.
+  - (** Bind **)
+    invert_exec.
+    + (** Finished **)
+      edestruct IHp2; eauto.
+      eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *;  eauto.
+      cleanup; simpl in *; eauto.
+      edestruct H; eauto.
+      do 5 eexists; repeat (split; eauto).
+      right; eauto.
+      do 3 eexists; repeat (split; eauto).
+    + (* Crashed *)
+      split_ors; cleanup.
+      * (* p1 crashed *)
         edestruct IHp2; eauto.
-        eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *;  eauto.
+        do 5 eexists; repeat (split; eauto).
+      * (* p2 Crashed *)
+        edestruct IHp2; eauto.
+        eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; eauto.
         cleanup; simpl in *; eauto.
         edestruct H; eauto.
         do 5 eexists; repeat (split; eauto).
         right; eauto.
-        do 3 eexists; repeat (split; eauto).        
-        unfold compilation_of; eauto.
-      + (* Crashed *)
-        split_ors; cleanup.
-        * (* p1 crashed *)
-          edestruct IHp2; eauto.
-          do 5 eexists; repeat (split; eauto).
-        * (* p2 Crashed *)
-          edestruct IHp2; eauto.
-          eapply_fresh exec_compiled_preserves_refinement in H1; simpl in *; eauto.
-          cleanup; simpl in *; eauto.
-          edestruct H; eauto.
-          do 5 eexists; repeat (split; eauto).
-          right; eauto.
-          do 3 eexists; repeat (split; eauto).
-          unfold compilation_of; eauto.
-          Unshelve.
-          all: constructor.
-  Admitted.
-
-  Lemma high_oracle_exists_ok :
-    high_oracle_exists refinement. 
-  Proof.
-    unfold high_oracle_exists; intros.
-    eapply high_oracle_exists_ok'; eauto.
-  Qed.
+        do 3 eexists; repeat (split; eauto).
+        Unshelve.
+        all: constructor.
+Qed.
 
 
-  Theorem transfer_to_TransactionCache:
+Theorem transfer_to_TransactionCache:
     forall related_states_h
-           valid_state_h
-           valid_prog_h,
-      
-      SelfSimulation
-        high
-        valid_state_h
-        valid_prog_h
-        related_states_h ->
-      
-      oracle_refines_to_same_from_related refinement related_states_h ->
+    valid_state_h
+    valid_prog_h,
+    
+    SelfSimulation
+      high
+      valid_state_h
+      valid_prog_h
+      related_states_h ->
+    
+    oracle_refines_to_same_from_related refinement related_states_h ->
 
-      exec_compiled_preserves_validity refinement                           
-                                       (refines_to_valid refinement valid_state_h) ->
-      
-      SelfSimulation
-        low
-        (refines_to_valid refinement valid_state_h)
-        (compiles_to_valid refinement valid_prog_h)
-        (refines_to_related refinement related_states_h).
-  Proof.
-    intros; eapply transfer_high_to_low; eauto.
-    apply sbs.
-    apply high_oracle_exists_ok.
-  Qed.
+    exec_compiled_preserves_validity refinement                           
+    (refines_to_valid refinement valid_state_h) ->
+    
+    SelfSimulation
+      low
+      (refines_to_valid refinement valid_state_h)
+      (compiles_to_valid refinement valid_prog_h)
+      (refines_to_related refinement related_states_h).
+Proof.
+  intros; eapply transfer_high_to_low; eauto.
+  apply sbs.
+  apply high_oracle_exists_ok.
+Qed.
 
 End TransferToTransactionCache.
+*)

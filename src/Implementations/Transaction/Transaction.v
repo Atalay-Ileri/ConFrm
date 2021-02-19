@@ -1,4 +1,5 @@
 Require Import Compare_dec Lia Framework TotalMem FSParameters TransactionCacheLayer.
+Set Nested Proofs Allowed.
 
 Fixpoint get_first (txn: list (addr * value)) a :=
   match txn  with
@@ -15,6 +16,7 @@ Definition abort :=
   _ <- |TCCO| Delete _;
   Ret tt.
 
+(** Reverses before writing back **)
 Definition commit :=
   txn <- |TCCO| Get _;
   let al := map fst txn in
@@ -25,9 +27,7 @@ Definition commit :=
   _ <- |TCCO| Delete _;
   Ret tt.
 
-(* Definition abort := start. *)
-
-(* if you read out of bounds, you get 0 block *)
+(** If you read out of bounds, you get 0 block *)
 Definition read a :=
   if lt_dec a data_length then
     txn <- |TCCO| Get _;
@@ -41,11 +41,12 @@ Definition read a :=
   else
     Ret value0.
 
-(* if you write out of bounds, nothing happens *)
+(** If you write out of bounds, nothing happens *)
 Definition write a v :=
   if lt_dec a data_length then
     txn <- |TCCO| Get _;
-    if lt_dec (length txn) log_length then
+  if le_dec (length (addr_list_to_blocks (map fst txn ++ [a])) +
+             length ((map snd txn) ++ [v])) log_length then
       _ <- |TCCO| Put (a, v);
       Ret tt
     else
@@ -54,42 +55,23 @@ Definition write a v :=
     Ret tt.
 
 Definition recover :=
+  _ <- |TCCO| Delete _;
   _ <- |TCDO| Recover;
   Ret tt.
 
 Definition transaction_rep (tcd: TransactionCacheLang.(state)) (td: (@total_mem addr addr_dec value) * (@total_mem addr addr_dec value)):=
   let al := map fst (fst tcd) in
   let vl := map snd (fst tcd) in
+  Forall (fun a => a < data_length) al /\
+  length (addr_list_to_blocks al) + length vl <= log_length /\
   fst td = upd_batch (snd tcd) (rev al) (rev vl) /\
   snd td = snd tcd.
   
 
 Definition transaction_reboot_rep (tcd: TransactionCacheLang.(state)) (td: (@total_mem addr addr_dec value) * (@total_mem addr addr_dec value)):=
-  fst tcd = [] /\
   snd td = snd tcd.
 
-Theorem abort_finished:
-  forall u s o s' r,
-    exec TransactionCacheLang u o s abort (Finished s' r) ->
-    fst s' = [] /\ snd s' = snd s.
-Proof.
-  unfold abort; intros; repeat invert_exec; eauto.
-Qed.
-
-Theorem abort_crashed:
-  forall u s o s',
-    exec TransactionCacheLang u o s abort (Crashed s') ->
-    snd s' = snd s.
-Proof.
-  unfold abort; intros; repeat invert_exec; eauto.
-  split_ors; cleanup; repeat invert_exec; eauto.
-Qed.
-
-(*
-Definition abort_finished := start_finished.
-Definition abort_crashed := start_crashed.
- *)
-
+(*** Lemmas ***)
 Lemma upd_batch_dedup_last_dedup_by_list:
   forall A AEQ V l_a l_v (tm: @total_mem A AEQ V),
     length l_a = length l_v ->
@@ -103,44 +85,46 @@ Proof.
   simpl; eauto.
 Qed.
 
-Set Nested Proofs Allowed.
-
-Theorem commit_finished :
-  forall u s o s' r td,
-    transaction_rep s td ->
-    exec TransactionCacheLang u o s commit (Finished s' r) ->
-    transaction_rep s' (fst td, fst td) \/
-    transaction_rep s' (snd td, snd td).
+Lemma dedup_last_in :
+  forall A AEQ (l: list A) a,
+    In a l <-> In a (dedup_last AEQ l).
 Proof.
-  unfold commit, transaction_rep; simpl; intros.
-  repeat invert_exec; simpl in *; cleanup;
-  repeat cleanup_pairs.
+  induction l; simpl; split; intros; eauto.
   {
-    left; simpl; split;
-    apply upd_batch_dedup_last_dedup_by_list; eauto;
-    repeat rewrite rev_length, map_length; eauto.    
+    destruct (in_dec AEQ a l); eauto.
+    apply IHl.
+    split_ors; subst; eauto.
+    
+    split_ors; try solve [econstructor; eauto].
+    apply IHl in H; solve [constructor; eauto].
   }
-  right; eauto.
+  {
+    destruct (in_dec AEQ a l); eauto.
+    apply IHl in H; eauto.
+    
+    simpl in *;
+    split_ors; try solve [econstructor; eauto].
+    apply IHl in H; eauto.
+  }
 Qed.
 
-Theorem commit_crashed :
-  forall u s o s' td,
-    transaction_rep s td ->
-    exec TransactionCacheLang u o s commit (Crashed s') ->
-    snd s' = snd td \/ snd s' = fst td.
+Lemma dedup_last_not_in :
+  forall A AEQ (l: list A) a,
+    ~ In a l <-> ~ In a (dedup_last AEQ l).
 Proof.
-  unfold commit, transaction_rep; simpl; intros.
-  repeat invert_exec; simpl in *; cleanup;
-  repeat cleanup_pairs.
-  repeat (match goal with
-    [H: exec _ _ _ _ _ _ \/ _ |- _] =>
-    destruct H
-  end; cleanup; simpl in *;
-  repeat invert_exec; simpl in *;
-  try solve [ left; eauto ];
-  try solve [
-    right; setoid_rewrite upd_batch_dedup_last_dedup_by_list at 2; eauto;
-    repeat rewrite rev_length, map_length; eauto ]).
+  unfold not; split; intros;
+  eapply dedup_last_in in H0; eauto.
+Qed.
+
+Lemma dedup_last_NoDup :
+  forall A AEQ (l: list A),
+    NoDup (dedup_last AEQ l).
+Proof.
+  induction l; simpl; eauto.
+  econstructor.
+  destruct (in_dec AEQ a l); eauto.
+  constructor; eauto.
+  apply dedup_last_not_in; eauto.
 Qed.
 
 Lemma get_first_some_upd_batch:
@@ -167,11 +151,103 @@ Proof.
   try congruence; eauto.
 Qed.
 
+
+(*** Specs ***)
+Theorem abort_finished:
+  forall u s o s' r,
+    exec TransactionCacheLang u o s abort (Finished s' r) ->
+    fst s' = [] /\ snd s' = snd s.
+Proof.
+  unfold abort; intros; repeat invert_exec; eauto.
+Qed.
+
+Theorem abort_crashed:
+  forall u s o s',
+    exec TransactionCacheLang u o s abort (Crashed s') ->
+    snd s' = snd s.
+Proof.
+  unfold abort; intros; repeat invert_exec; eauto.
+  split_ors; cleanup; repeat invert_exec; eauto.
+Qed.
+
+Theorem commit_finished :
+  forall u s o s' r td,
+    transaction_rep s td ->
+    exec TransactionCacheLang u o s commit (Finished s' r) ->
+    transaction_rep s' (fst td, fst td) /\
+    fst s' = [].
+Proof.
+  unfold commit, transaction_rep; simpl; intros.
+  repeat invert_exec; simpl in *; cleanup;
+  repeat cleanup_pairs.
+  {
+    repeat (split; eauto).
+    pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+
+    apply upd_batch_dedup_last_dedup_by_list; eauto;
+    repeat rewrite rev_length, map_length; eauto.
+    apply upd_batch_dedup_last_dedup_by_list; eauto;
+    repeat rewrite rev_length, map_length; eauto.    
+  }
+  {
+    split_ors.    
+    {
+      exfalso; apply H0; apply dedup_last_NoDup.
+    }
+    split_ors.
+    {
+      exfalso; apply H0; apply dedup_last_dedup_by_list_length_le.
+      repeat rewrite rev_length, map_length; eauto.
+    }
+   
+    split_ors.
+    {
+      exfalso; apply H0.
+      eapply Forall_forall; intros.
+      apply dedup_last_in in H1.
+      apply In_rev in H1.
+      eapply Forall_forall in H; eauto.
+    }
+    {
+      edestruct dedup_by_list_length
+        with (AEQ := addr_dec)
+             (l1:= (rev (map fst s0)))
+             (l2:= (rev (map snd s0))).
+
+      repeat rewrite rev_length, map_length in *.
+      pose proof (dedup_last_length addr_dec (rev (map fst s0))).
+      rewrite rev_length in *.
+      apply addr_list_to_blocks_length_le_preserve in H4.
+      lia.
+    }
+  }
+Qed.
+
+Theorem commit_crashed :
+  forall u s o s' td,
+    transaction_rep s td ->
+    exec TransactionCacheLang u o s commit (Crashed s') ->
+    snd s' = snd td \/ snd s' = fst td.
+Proof.
+  unfold commit, transaction_rep; simpl; intros.
+  repeat invert_exec; simpl in *; cleanup;
+  repeat cleanup_pairs.
+  repeat (match goal with
+    [H: exec _ _ _ _ _ _ \/ _ |- _] =>
+    destruct H
+  end; cleanup; simpl in *;
+  repeat invert_exec; simpl in *;
+  try solve [ left; eauto ];
+  try solve [
+    right; setoid_rewrite upd_batch_dedup_last_dedup_by_list at 2; eauto;
+    repeat rewrite rev_length, map_length; eauto ]).
+Qed.
+
 Definition read_finished :
   forall u s o s' r td a,
     transaction_rep s td ->
     exec TransactionCacheLang u o s (read a) (Finished s' r) ->
-    transaction_rep s' td /\
+    s' = s /\
     ((a < data_length /\ r = (fst td) a) \/
      (a >= data_length /\ r = value0)).
 Proof.
@@ -196,10 +272,9 @@ Proof.
 Qed.
 
 Definition read_crashed :
-  forall u s o s' td a,
-    transaction_rep s td ->
+  forall u s o s' a,
     exec TransactionCacheLang u o s (read a) (Crashed s') ->
-    transaction_rep s' td.
+    s' = s.
 Proof.
   unfold read, transaction_rep; simpl; intros.
   cleanup; repeat invert_exec; simpl in *; cleanup;
@@ -211,7 +286,9 @@ Proof.
   end; cleanup; simpl in *;
       repeat invert_exec; cleanup;
       simpl in *; eauto).
+  destruct s; eauto.
   invert_exec; simpl; eauto.
+  destruct s; eauto.
   invert_exec; simpl; eauto.
   repeat (
       match goal with
@@ -219,7 +296,7 @@ Proof.
     destruct H
   end; cleanup; simpl in *;
       repeat invert_exec; cleanup;
-      simpl in *; eauto).
+      simpl in *; eauto); destruct s; eauto.
   eauto.
 Qed.
 
@@ -228,19 +305,25 @@ Definition write_finished :
   forall u s o s' r td a v,
     transaction_rep s td ->
     exec TransactionCacheLang u o s (write a v) (Finished s' r) ->
-    (a < data_length /\
-     length (fst s) < log_length /\
-     transaction_rep s' (upd (fst td) a v, snd td)) \/
+    (transaction_rep s' (upd (fst td) a v, snd td) /\
+     s' = ((a, v):: fst s, snd s)) \/
     ((a >= data_length \/
-      length (fst s) >= log_length) /\
-     transaction_rep s' td).
+      (a < data_length /\
+       length (addr_list_to_blocks (map fst (fst s) ++ [a])) +
+             length ((map snd (fst s)) ++ [v]) > log_length)) /\
+     s' = s).
 Proof.
   unfold write, transaction_rep; intros; cleanup;
   repeat invert_exec; cleanup; simpl in *;
   repeat cleanup_pairs; eauto.
   {
-    left; split; eauto.
-    erewrite upd_batch_app; simpl; eauto.
+    left; intuition eauto.
+    clear D0.
+    setoid_rewrite app_length in l0; simpl in *.
+    erewrite addr_list_to_blocks_length_eq with (l_b:= (map fst s0 ++ [a])).
+    lia.
+    simpl; repeat rewrite app_length, map_length; simpl; lia.
+    rewrite upd_batch_app; simpl; eauto.
     repeat rewrite rev_length, map_length; eauto.
   }
   {
@@ -252,11 +335,9 @@ Proof.
 Qed.
 
 Definition write_crashed :
-  forall u s o s' td a v,
-    transaction_rep s td ->
+  forall u s o s' a v,
     exec TransactionCacheLang u o s (write a v) (Crashed s') ->
-    transaction_rep s' (upd (fst td) a v, snd td) \/
-    transaction_rep s' td.
+    snd s' = snd s.
 Proof.
   unfold write, transaction_rep; simpl; intros.
   cleanup; repeat invert_exec; simpl in *; cleanup;
@@ -277,16 +358,10 @@ Proof.
       repeat invert_exec; cleanup;
       simpl in *; eauto).
   {
-    left; split; eauto.
-    erewrite upd_batch_app; simpl; eauto.
-    repeat rewrite rev_length, map_length; eauto.
+    invert_exec; simpl; eauto.
   }
   {
-    invert_exec.
-    right; split; eauto; lia.
-  }
-  {
-    right; split; eauto; lia.
+    simpl; eauto.
   }
 Qed.
 
@@ -294,10 +369,13 @@ Definition recover_finished :
   forall u s o s' r td,
     transaction_reboot_rep s td ->
     exec TransactionCacheLang u o s recover (Finished s' r) ->
-    transaction_rep s' (snd td, snd td).
+    transaction_rep s' (snd td, snd td) /\
+    fst s' = [].
 Proof.
   unfold recover, transaction_reboot_rep, transaction_rep; intros.
   repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
+  intuition eauto.
+  pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.  
 Qed.
 
 Definition recover_crashed :
@@ -309,4 +387,17 @@ Proof.
   unfold recover, transaction_reboot_rep, transaction_rep; intros.
   repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
   split_ors; cleanup; repeat invert_exec; eauto.
+  split_ors; cleanup; repeat invert_exec; eauto.
+Qed.
+
+Definition recover_finished_2 :
+  forall u s o s' r td,
+    transaction_rep s td ->
+    exec TransactionCacheLang u o s recover (Finished s' r) ->
+    transaction_rep s' (snd td, snd td) /\ fst s' = [].
+Proof.
+  unfold recover, transaction_reboot_rep, transaction_rep; intros.
+  repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
+  intuition eauto.
+  pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
 Qed.
