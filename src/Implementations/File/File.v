@@ -1,7 +1,6 @@
 Require Import Framework FSParameters AuthenticatedDiskLayer BlockAllocator Inode.
+Require Import FunctionalExtensionality Lia.
 Import IfNotations.
-
-Open Scope predicate_scope.
 
 Module DiskAllocatorParams <: BlockAllocatorParameters.
   Definition bitmap_addr := file_blocks_start.
@@ -150,10 +149,104 @@ Definition recover :=
   _ <- |ADDO| Recover;
   Ret tt.
 
+Definition init :=
+  _ <- |ADDO| Init;
+  _ <- |ADDP| Inode.init;
+  |ADDP| DiskAllocator.init.
+
 Definition update_file f off v := Build_File f.(BaseTypes.owner) (updN f.(blocks) off v).
 Definition extend_file f v := Build_File f.(BaseTypes.owner) (f.(blocks) ++ [v]).
 Definition new_file o := Build_File o [].
 Definition change_file_owner f o := Build_File o f.(blocks).
+
+Set Nested Proofs Allowed.
+Lemma Some_injective:
+  forall A (a1 a2: A),
+    Some a1 = Some a2 ->
+    a1 = a2.
+Proof.
+  intros; congruence.
+Qed.
+
+Lemma files_inner_rep_eq:
+  forall fd1 fd2 s,
+    files_inner_rep fd1 s ->
+    files_inner_rep fd2 s ->
+    fd1 = fd2.
+Proof.
+  unfold files_rep, files_inner_rep;
+  intros; extensionality inum.
+  cleanup.
+  eapply DiskAllocator.block_allocator_rep_eq in H3; eauto; subst.
+  eapply inode_rep_eq in H; eauto; subst.
+  unfold file_map_rep in *; cleanup.
+  unfold addrs_match_exactly in *.
+  specialize (H inum); specialize (H3 inum);
+  destruct_fresh (fd1 inum); cleanup;
+  destruct_fresh (x0 inum).
+  {
+    destruct_fresh (fd2 inum).
+    {
+      eapply_fresh H2 in D0; eauto.
+      eapply_fresh H4 in D0; eauto.
+      unfold file_rep in *; cleanup.
+      destruct f, f0; simpl in *; cleanup.
+      assert_fresh (blocks = blocks0). {
+        eapply list_selN_ext'; eauto.
+        intros.
+        repeat rewrite nth_selN_eq.
+        apply Some_injective.
+        repeat rewrite <- nth_error_nth'; try lia.
+        destruct_fresh (nth_error (block_numbers i) pos).
+        erewrite H7, H10; eauto.
+        apply nth_error_None in D2; lia.
+      }
+      rewrite A; eauto.
+    }
+    {
+      edestruct H; eauto.
+      exfalso; eapply H6; congruence.
+    }
+  }
+  {
+    edestruct H3; eauto.
+    exfalso; eapply H5; congruence.
+  }
+  {
+    edestruct H3; eauto.
+    exfalso; eapply H6; congruence.
+  }
+  {
+    destruct_fresh (fd2 inum); eauto.
+    {
+      edestruct H; eauto.
+      exfalso; eapply H5; congruence.
+    }
+  }
+  Unshelve.
+  exact value0.
+Qed.
+
+Lemma files_rep_eq:
+  forall fd1 fd2 s,
+    files_rep fd1 s ->
+    files_rep fd2 s ->
+    fd1 = fd2.
+Proof.
+  unfold files_rep; intros; cleanup.
+  eapply files_inner_rep_eq in H2; eauto.
+Qed.
+
+Lemma files_crash_rep_eq:
+  forall fd1 fd2 s,
+    files_crash_rep fd1 s ->
+    files_crash_rep fd2 s ->
+    fd1 = fd2.
+Proof.
+  unfold files_crash_rep; intros; cleanup.
+  eapply files_inner_rep_eq in H; eauto.
+Qed.
+
 
 Lemma read_finished:
   forall u o s s' r inum off fd,

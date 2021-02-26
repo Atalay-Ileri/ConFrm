@@ -22,7 +22,8 @@ Section TransactionalDisk.
   | Write : addr -> value -> transactional_disk_prog unit
   | Commit : transactional_disk_prog unit
   | Abort : transactional_disk_prog unit
-  | Recover : transactional_disk_prog unit.
+  | Recover : transactional_disk_prog unit
+  | Init : transactional_disk_prog unit.
 
   Inductive exec' :
     forall T, user -> token' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=
@@ -74,6 +75,10 @@ Section TransactionalDisk.
   | ExecRecover : 
       forall s u,
         exec' u Cont s Recover (Finished (snd s, snd s) tt)
+
+  | ExecInit : 
+      forall s u,
+        exec' u Cont s Init (Finished (snd s, snd s) tt)
 
   | ExecCrashBefore :
       forall d T (p: transactional_disk_prog T) u,

@@ -27,7 +27,8 @@ Section FileDisk.
   | ChangeOwner : Inum -> user -> file_disk_prog (option unit)
   | Create : user -> file_disk_prog (option addr)
   | Delete : Inum -> file_disk_prog (option unit)
-  | Recover : file_disk_prog unit.
+  | Recover : file_disk_prog unit
+  | Init : file_disk_prog unit.
   
   Inductive exec' :
     forall T, user -> token' ->  state' -> file_disk_prog T -> @Result state' T -> Prop :=
@@ -56,6 +57,7 @@ Section FileDisk.
         let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
         exec' u Cont d (Write inum off v) (Finished (upd d inum new_file) (Some tt))
 
+  (** Check log fitting condition **)
   | ExecWriteFail :
       forall d u inum file off v,
         (inum >= disk_size \/
@@ -130,6 +132,10 @@ Section FileDisk.
   | ExecRecover : 
       forall d u,
         exec' u Cont d Recover (Finished d tt)
+
+  | ExecInit : 
+      forall d u,
+        exec' u Cont d Init (Finished empty_mem tt)
 
   | ExecCrashBefore :
       forall u d T (p: file_disk_prog T),

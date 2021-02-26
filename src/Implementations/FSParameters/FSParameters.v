@@ -1,11 +1,11 @@
 Require Import Framework Lia.
 
-Axiom block_size: nat.
+Axiom block_size: nat. (** in bits **)
 
 Definition super_block_num := 0.
 Definition hdr_block_num := 1.
 Definition log_start := 2.
-Axiom log_length : nat.
+Axiom log_length : nat. (** # of log blocks **)
 
 Lemma hdr_block_num_eq:
   hdr_block_num = 1.
@@ -29,13 +29,13 @@ Proof. eauto. Qed.
 Axiom data_fits_in_disk:
   disk_size = data_start + data_length.
 
-(* Below all reside in data region indexed accordingly *)
-(* For simplicity, it will be 1 inode per block *)
+(** Below all reside in data region indexed accordingly *)
+(** For simplicity, it will be 1 inode per block *)
 Definition inode_blocks_start := 0.
 Axiom inode_count: nat.
 Axiom inode_count_in_bounds: inode_count <= block_size.
 
-Definition file_blocks_start:= S(inode_count). (* 1 bitmap + inode_count inodes *)
+Definition file_blocks_start:= S(inode_count). (** 1 bitmap + inode_count inodes *)
 Axiom file_blocks_count : nat.
 Axiom file_blocks_count_in_bounds: file_blocks_count <= block_size.
 

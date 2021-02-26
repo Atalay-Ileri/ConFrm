@@ -7,7 +7,95 @@ Require Import FunctionalExtensionality.
 Require Import Compare_dec.
 
 Set Nested Proofs Allowed.
-(** Specs **)
+(*** Lemmas ***)
+
+Lemma subset_consistent_upd:
+  forall A AEQ V (m m' : @mem A AEQ V) l_a l_v,
+    consistent_with_upds m l_a l_v ->
+    subset (Mem.upd_batch m l_a l_v) m' ->
+    subset m m'.
+Proof. Admitted.
+
+Lemma selN_seq:
+  forall len start n def,
+    n < len ->
+    selN (seq start len) n def = (start + n).
+Proof.
+  induction len; simpl; intuition eauto.
+  lia.
+  destruct n; eauto.
+  rewrite IHlen; lia.
+Qed.
+
+Lemma upd_batch_consistent_some:
+  forall A AEQ V l_a l_v (m: @mem A AEQ V) a v,
+    consistent_with_upds m l_a l_v ->
+    m a = Some v ->
+    Mem.upd_batch m l_a l_v a = Some v.
+Proof. Admitted.
+
+
+
+(*** Specs **)
+Theorem init_finished:
+  forall s' s o t u,
+    exec CryptoDiskLang u o s init (Finished s' t) ->
+    log_rep [] s' /\
+    (forall a, snd (snd s' a) = []).
+Proof.
+  unfold init, write_header; simpl; intros.
+  repeat invert_exec; simpl in *; repeat cleanup.
+  unfold log_rep, log_rep_general, log_rep_explicit.
+  split; eauto;
+  do 3 eexists; intuition eauto.
+  {
+    unfold log_header_block_rep; simpl; eauto.
+  }
+  {
+    unfold log_data_blocks_rep; simpl; intuition eauto.
+    instantiate (1:= map (fun a => (fst (snd s a), [])) (seq log_start log_length)).
+    unfold sync; simpl.
+    rewrite upd_ne; eauto.
+    erewrite selN_map; eauto.
+    erewrite selN_seq; eauto.
+    all: try rewrite map_length, seq_length in *; eauto.
+    pose proof hdr_before_log; lia.
+    apply in_map_iff in H; cleanup; eauto.
+  }
+  {
+    try rewrite map_length, seq_length in *; eauto.
+  }
+  {
+    unfold sync; simpl.
+    rewrite upd_eq; simpl; eauto.
+    rewrite encode_decode_header; simpl; eauto.
+    lia.
+  }
+  {
+    unfold sync; simpl.
+    rewrite upd_eq; simpl; eauto.
+    rewrite encode_decode_header; simpl; eauto.
+    lia.
+  }
+  {
+    unfold sync; simpl.
+    rewrite upd_eq; simpl; eauto.
+    rewrite encode_decode_header; simpl; eauto.
+    unfold log_rep_inner; simpl; split.
+    apply header_part0_valid.
+    apply txns_valid_nil.
+  }
+  Unshelve.
+  eauto.
+Qed.
+
+Theorem init_crashed:
+  forall s' s o u,
+    exec CryptoDiskLang u o s init (Crashed s') ->
+    True.
+Proof.
+  eauto.
+Qed.
 
 Theorem update_header_finished:
   forall header_part vs s' s o t u,
@@ -206,12 +294,6 @@ Proof.
   }
 Qed.
 
-Lemma subset_consistent_upd:
-  forall A AEQ V (m m' : @mem A AEQ V) l_a l_v,
-    consistent_with_upds m l_a l_v ->
-    subset (Mem.upd_batch m l_a l_v) m' ->
-    subset m m'.
-Proof. Admitted.
 
 Theorem apply_txns_finished:
   forall txn_records log_blocks l_plain_addr_blocks l_plain_data_blocks o s s' t u,
@@ -1526,24 +1608,6 @@ Proof.
     intros; congruence.
   }
 Qed.
-
-Lemma selN_seq:
-  forall len start n def,
-    n < len ->
-    selN (seq start len) n def = (start + n).
-Proof.
-  induction len; simpl; intuition eauto.
-  lia.
-  destruct n; eauto.
-  rewrite IHlen; lia.
-Qed.
-
-Lemma upd_batch_consistent_some:
-  forall A AEQ V l_a l_v (m: @mem A AEQ V) a v,
-    consistent_with_upds m l_a l_v ->
-    m a = Some v ->
-    Mem.upd_batch m l_a l_v a = Some v.
-Proof. Admitted.
 
 
 Theorem commit_txn_finished:

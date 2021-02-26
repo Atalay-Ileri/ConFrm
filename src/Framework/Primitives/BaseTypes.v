@@ -12,17 +12,10 @@ Definition addr := nat.
 Axiom addr_eq_dec : EqDec addr.
 
 Axiom value : Type.
-Axiom nat_to_value : nat -> value.
-Axiom value_to_nat : value -> nat.
-Definition value0 := nat_to_value 0.
-
-Axiom nat_to_value_to_nat:
-  forall n, value_to_nat (nat_to_value n) = n.
-Axiom value_to_nat_to_value:
-  forall v, nat_to_value (value_to_nat v) = v.
+Axiom value0 : value.
 Axiom value_eq_dec: EqDec value.
 
-Axiom disk_size: addr.
+Axiom disk_size: addr. (** In blocks **)
 
 Axiom addr_list_to_blocks : list addr -> list value.
 Axiom blocks_to_addr_list : list value -> list addr.
@@ -103,60 +96,6 @@ Axiom decrypt_encrypt: forall k ev, encrypt k (decrypt k ev) = ev.
 Axiom user : Type.
 Axiom user0: user.
 
-Axiom handle : Type.
-Axiom handle_eq_dec: EqDec handle.
-
-(* Axiom permission : Type. *)
-Inductive permission :=
-| Public
-| Owned (u: user).
-Axiom permission_eq_dec: EqDec permission.
-
-Axiom can_access : user -> permission -> Prop.
-Axiom can_access_dec : forall u p, {can_access u p}+{~can_access u p}.
-Axiom can_access_public: forall u, can_access u Public.
-
-Definition sealed_value := (permission * value)%type.
-
-Inductive op :=
-| Uns : user -> permission -> op
-| Cho : user -> permission -> op.
-
-Definition trace := list op.
-
-Fixpoint trace_ok tr :=
-  match tr with
-  | nil =>
-    True
-  | cons h tl =>
-    match h with
-    | Uns u p =>
-      can_access u p /\ trace_ok tl
-    | Cho u p =>
-      can_access u p /\ trace_ok tl
-    end
-  end.
-
-Lemma trace_ok_app_merge:
-  forall tr tr',
-    trace_ok tr ->
-    trace_ok tr' ->
-    trace_ok (tr++tr').
-Proof.
-  induction tr; intros; simpl in *; eauto.
-  destruct a; simpl in *; destruct H; eauto.
-Qed.
-
-Lemma trace_ok_app_split:
-  forall tr tr',
-    trace_ok (tr++tr') ->
-    trace_ok tr /\ trace_ok tr'.
-Proof.
-  induction tr; simpl; intros; eauto.
-  destruct a; simpl in *; intuition eauto.
-  all: specialize IHtr with (1:= H1); intuition eauto.
-Qed.
-
 Inductive Result {State T: Type} :=
 | Finished : State -> T -> @Result State T
 | Crashed : State -> @Result State T.
@@ -212,8 +151,6 @@ Instance value_dec : EqDec value := value_eq_dec.
 Instance key_dec : EqDec key := key_eq_dec.
 Instance hash_dec : EqDec hash := hash_eq_dec.
 
-Notation "'handle_dec'" := handle_eq_dec.
-Notation "'permission_dec'" := permission_eq_dec.
 
 Record File := {
     owner: user;

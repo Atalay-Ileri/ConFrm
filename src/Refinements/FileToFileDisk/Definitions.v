@@ -39,7 +39,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
         
     | Write inum off v =>
       forall fd,
-      files_rep fd d1 ->
+        files_rep fd d1 ->
       (
         (exists d' r file,
            (
@@ -73,6 +73,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
               inum < inode_count /\
               fd inum = Some file /\
               file.(owner) = u /\
+              off < length file.(blocks) /\
               let new_file := update_file file off v in
               files_crash_rep (Mem.upd fd inum new_file) d'     
            )

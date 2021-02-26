@@ -1122,7 +1122,7 @@ Qed.
 
 Theorem ss_FD_set_owner:
   forall n inum u u' u'',
-    SelfSimulation u (FileDiskOp.(Op) (SetOwner inum u'')) (FileDiskOp.(Op) (SetOwner inum u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FileDiskOp.(Op) (ChangeOwner inum u'')) (FileDiskOp.(Op) (ChangeOwner inum u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -2292,15 +2292,15 @@ Proof.
   all: repeat econstructor; eauto.
 Qed.
 
-Definition not_set_owner {T} (o : FileDiskOp.(operation) T) :=
+Definition not_change_owner {T} (o : FileDiskOp.(operation) T) :=
   match o with
-  | SetOwner _ _ => False
+  | ChangeOwner _ _ => False
   | _ => True
   end.
 
 Theorem ss_FD_not_change_owner:
   forall T (o : FileDiskOp.(operation) T) n u u',
-    not_set_owner o ->
+    not_change_owner o ->
     SelfSimulation u (FileDiskOp.(Op) o) (FileDiskOp.(Op) o) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   intros; destruct o; eauto.
@@ -2316,8 +2316,8 @@ Qed.
 Theorem two_user_exec:
   forall T1 T2 (o1: FileDiskOp.(operation) T1) (o2: FileDiskOp.(operation) T2)
     s1 ret1 s2 ret2 l_o1 n l_o2 m user adversary,
-    not_set_owner o1 ->
-    not_set_owner o2 ->
+    not_change_owner o1 ->
+    not_change_owner o2 ->
     FD_related_states adversary None s1 s2 ->
     recovery_exec FileDisk user l_o1 s1 (repeat (fun s => s) n) (FileDiskOp.(Op) o1) (FileDiskOp.(Op) Recover) ret1 ->
     recovery_exec FileDisk adversary l_o2 (extract_state_r ret1) (repeat (fun s => s) m) (FileDiskOp.(Op) o2) (FileDiskOp.(Op) Recover) ret2 ->

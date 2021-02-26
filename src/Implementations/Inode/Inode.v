@@ -1,4 +1,5 @@
 Require Import Framework FSParameters TransactionalDiskLayer BlockAllocator.
+Require Import FunctionalExtensionality.
 Import IfNotations.
 
 Definition Inum := addr.
@@ -108,6 +109,21 @@ Definition get_owner inum :=
     Ret (Some inode.(owner))
   else
     Ret None.
+
+Definition init := InodeAllocator.init.
+
+Theorem inode_rep_eq:
+  forall im1 im2 d,
+    inode_rep im1 d ->
+    inode_rep im2 d ->
+    im1 = im2.
+Proof.
+  unfold inode_rep; intros; extensionality inum.
+  cleanup.
+  eapply block_allocator_rep_eq in H; eauto; subst.
+  unfold inode_map_rep in *; cleanup.
+  rewrite H2, H; eauto.
+Qed.
 
 (*
 Theorem get_inode_ok:

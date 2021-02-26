@@ -17,7 +17,8 @@ Section LoggedDisk.
   Inductive logged_disk_prog : Type -> Type :=
   | Read : addr -> logged_disk_prog value
   | Write : list addr -> list value -> logged_disk_prog unit
-  | Recover : logged_disk_prog unit.
+  | Recover : logged_disk_prog unit
+  | Init : logged_disk_prog unit.
    
   Inductive exec' :
     forall T, user -> token' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
@@ -49,6 +50,10 @@ Section LoggedDisk.
   | ExecRecover : 
       forall d u,
         exec' u Cont d Recover (Finished d tt)
+
+  | ExecInit : 
+      forall d u,
+        exec' u Cont d Init (Finished d tt)
 
   | ExecCrashBefore :
       forall d T (p: logged_disk_prog T) u,
@@ -89,5 +94,3 @@ Section LoggedDisk.
   Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
 End LoggedDisk.
 
-Notation "| p |" := (Op LoggedDiskOperation p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op LoggedDiskOperation p1) (fun x => p2))(right associativity, at level 60). 

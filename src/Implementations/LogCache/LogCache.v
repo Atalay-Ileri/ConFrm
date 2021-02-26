@@ -80,6 +80,10 @@ Definition recover :=
   log <- |CDDP| recover;
   write_lists_to_cache log.
 
+Definition init :=
+  _ <- |CDCO| (Flush _ _);
+  |CDDP| init.
+
 (** Representation Invariants **) 
 Inductive Cached_Log_Crash_State:=
 | During_Commit (old_merged_disk new_merged_disk : @total_mem addr addr_dec value) : Cached_Log_Crash_State
@@ -236,6 +240,27 @@ Proof.
   apply write_batch_to_cache_finished in H0; eauto.
   apply IHl_la_lv in H1; eauto.
   cleanup; repeat cleanup_pairs; eauto.
+Qed.
+
+Global Opaque Log.init.
+
+Theorem init_finished:
+  forall s o s' t u,
+    exec CachedDiskLang u o s init (Finished s' t) ->
+    cached_log_rep (total_mem_map fst ( shift (Init.Nat.add data_start) (snd (snd s')))) s'.
+Proof.
+  unfold init; simpl; intros; repeat invert_exec; eauto.
+  eapply init_finished in H1.  
+  unfold cached_log_rep; simpl.
+  exists []; simpl; intuition eauto.
+Qed.
+
+Theorem init_crashed:
+  forall s o s' u,
+    exec CachedDiskLang u o s init (Crashed s') ->
+    True.
+Proof.
+  eauto.
 Qed.
 
 Theorem read_finished:

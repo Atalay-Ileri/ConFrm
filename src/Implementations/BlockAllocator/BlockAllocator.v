@@ -1,7 +1,6 @@
 Require Import Framework FSParameters TransactionalDiskLayer.
-Require Import Arith Lia.
+Require Import Arith Lia FunctionalExtensionality.
 Import IfNotations.
-Close Scope predicate_scope.
 
 Set Nested Proofs Allowed.
 
@@ -32,6 +31,14 @@ Proof.
   intros.
   rewrite length_updN; intuition.
 Qed.
+
+Lemma zero_bitlist_length_valid:
+  length (repeat false block_size) = block_size.
+Proof.
+  apply repeat_length.
+Qed.
+
+Definition zero_bitlist := Build_bitlist (repeat false block_size) zero_bitlist_length_valid.
 
 Axiom value_to_bits: value -> bitlist.
 Axiom bits_to_value: bitlist -> value.
@@ -106,7 +113,8 @@ Definition write a b :=
   else
     Ret None.
 
-Open Scope predicate_scope.
+Definition init :=
+  |Write bitmap_addr (bits_to_value zero_bitlist)|.
   
 Fixpoint valid_bits' (dh: disk value) values bits n (d: @total_mem addr addr_dec value) :=
   match values, bits with
@@ -223,6 +231,23 @@ Lemma bitlist_length:
     length (bits bitlist) = block_size.
 Proof.
   intros; destruct bitlist0; simpl ;eauto.
+Qed.
+
+Lemma block_allocator_rep_eq:
+  forall dh1 dh2 s,
+    block_allocator_rep dh1 s ->
+    block_allocator_rep dh2 s ->
+    dh1 = dh2.
+Proof.
+  unfold block_allocator_rep; intros; extensionality x.
+  cleanup.
+  destruct (le_dec num_of_blocks x); eauto.
+  rewrite H6, H3; eauto.
+  eapply (valid_bits_extract _ _ _ x) in H4; try lia; cleanup.
+  2: rewrite bitlist_length;  pose proof num_of_blocks_in_bounds; lia.
+  eapply (valid_bits_extract _ _ _ x) in H1; try lia; cleanup.
+  2: rewrite bitlist_length;  pose proof num_of_blocks_in_bounds; lia.
+  repeat split_ors; cleanup; eauto; try congruence.
 Qed.
 
 (*** Specs ***)
