@@ -1,7 +1,5 @@
 Require Import Framework Lia.
 
-Axiom block_size: nat. (** in bits **)
-
 Definition super_block_num := 0.
 Definition hdr_block_num := 1.
 Definition log_start := 2.

@@ -13,6 +13,7 @@ Definition compile T (p2: Core.operation abs_core T) : prog impl T.
  exact (read a).
  exact (write l l0).
  exact recover.
+ exact init.
 Defined.
 
 Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T) get_reboot_state o1 o2 : Prop :=
@@ -74,11 +75,19 @@ Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T)
            (cached_log_reboot_rep merged_disk d1' \/
            cached_log_crash_rep (During_Recovery merged_disk) d1' \/
            cached_log_crash_rep (After_Commit merged_disk) d1')))
+
+   | Init =>
+     (exists d1',
+        exec impl u o1 d1 init (Finished d1' tt) /\
+        o2 = Cont /\
+        cached_log_rep (total_mem_map fst (shift (Nat.add data_start) (snd (snd d1')))) d1') \/
+     (exists d1',
+        exec impl u o1 d1 init (Crashed d1') /\
+        o2 = CrashBefore)
    end.
 
   Definition refines_to (d1: state impl) (d2: state abs) :=
       cached_log_rep d2 d1.
-
   
   Definition refines_to_reboot (d1: state impl) (d2: state abs) :=
       cached_log_reboot_rep d2 d1 /\ (forall a vs, snd (snd d1) a = vs -> snd vs = nil).
@@ -118,27 +127,10 @@ Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T)
       eexists; intuition eauto.      
       eapply log_rep_to_reboot_rep_same; eauto.
     }
+    {
+      eapply init_finished in H0; eauto.
+    }
   Qed.
-
-  (*
-  Lemma exec_compiled_preserves_refinement_crashed_core:
-    forall T (p2: abs_core.(Core.operation) T) o1 s1 s1',
-        (exists s2, refines_to s1 s2) ->
-        impl.(exec) o1 s1 (compile T p2) (Crashed s1') ->
-        (exists s2', refines_to_crash s1' s2').
-  Proof. Admitted.
-
-  Lemma refines_to_then_refiines_to_crash_core:
-    forall s1,
-        (exists s2, refines_to s1 s2) ->
-        (exists s2, refines_to_crash s1 s2).
-  Proof.
-    unfold refines_to, refines_to_crash,
-    cached_log_rep, cached_log_crash_rep,
-    log_rep, log_crash_rep; intros; cleanup.
-    repeat (eexists; intuition eauto).
-  Qed.
-*)
 
   Definition LoggedDiskCoreRefinement := Build_CoreRefinement compile refines_to token_refines_to exec_compiled_preserves_refinement_finished_core.
   Definition LoggedDiskRefinement := LiftRefinement (LoggedDiskLang log_length data_length) LoggedDiskCoreRefinement.

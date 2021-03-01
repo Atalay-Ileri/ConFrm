@@ -196,8 +196,9 @@ Definition recover :=
   _ <- |DO| Sync;
   decrypt_txns txn_records log.
 
-Definition init :=
+Definition init l_a l_v :=
   _ <- write_header header0;
+  _ <- write_batch l_a l_v;
   |DO| Sync.
 
 

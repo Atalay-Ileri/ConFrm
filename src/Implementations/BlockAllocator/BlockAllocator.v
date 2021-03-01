@@ -7,44 +7,6 @@ Set Nested Proofs Allowed.
 Notation "| p |" := (Op (TransactionalDiskOperation data_length) p)(at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op (TransactionalDiskOperation data_length) p1) (fun x => p2))(right associativity, at level 60). 
 
-Record bitlist :=
-  {
-   bits : list bool;                
-   valid : length bits = block_size
-  }.
-
-Fixpoint get_first_zero_index l :=
-  match l with
-  | nil => 0
-  | hd::tl =>
-    match hd with
-    | false => 0
-    | true => S (get_first_zero_index tl)
-    end
-  end.
-
-Theorem upd_valid_length:
-  forall i l (b: bool),
-    length l = block_size ->
-    length (updN l i b) = block_size.
-Proof.
-  intros.
-  rewrite length_updN; intuition.
-Qed.
-
-Lemma zero_bitlist_length_valid:
-  length (repeat false block_size) = block_size.
-Proof.
-  apply repeat_length.
-Qed.
-
-Definition zero_bitlist := Build_bitlist (repeat false block_size) zero_bitlist_length_valid.
-
-Axiom value_to_bits: value -> bitlist.
-Axiom bits_to_value: bitlist -> value.
-Axiom value_to_bits_to_value : forall v, bits_to_value (value_to_bits v) = v.
-Axiom bits_to_value_to_bits : forall l, value_to_bits (bits_to_value l) = l.   
-
 Module Type BlockAllocatorParameters.
   Parameter bitmap_addr: addr.
   Parameter num_of_blocks: nat.
@@ -52,11 +14,13 @@ Module Type BlockAllocatorParameters.
   Parameter blocks_fit_in_disk: bitmap_addr + num_of_blocks < data_length.
 End BlockAllocatorParameters.
   
-(* This is a generic block allocator which has a 1 block bitmap and num_of_blocks blocks following it *)  
+(** This is a generic block allocator which has a 1 block bitmap and num_of_blocks blocks following it *)  
 Module BlockAllocator (Params : BlockAllocatorParameters).
 
 Import Params.
-  
+
+
+(*** Functions ***)
 Definition alloc (v': value) :=
   v <-| Read bitmap_addr;
   let bits := bits (value_to_bits v) in
@@ -93,7 +57,7 @@ Definition read a :=
   let bits := bits (value_to_bits v) in
   let valid := valid (value_to_bits v) in
   if nth_error bits a is Some true then
-      v <-| Read (S a);
+      v <-| Read (bitmap_addr + S a);
       Ret (Some v)
     else
       Ret None
@@ -106,20 +70,19 @@ Definition write a b :=
   let bits := bits (value_to_bits v) in
   let valid := valid (value_to_bits v) in
   if nth_error bits a is Some true then
-      _ <-| Write (S a) b;
+      _ <-| Write (bitmap_addr + S a) b;
       Ret (Some tt)
     else
       Ret None
   else
     Ret None.
 
-Definition init :=
-  |Write bitmap_addr (bits_to_value zero_bitlist)|.
-  
+
+(*** Rep Invariants ***)
 Fixpoint valid_bits' (dh: disk value) values bits n (d: @total_mem addr addr_dec value) :=
   match values, bits with
   | v::values', b::bits' =>
-    d (S n) = v /\
+    d (bitmap_addr + S n) = v /\
     ((b = false /\ dh n = None) \/
     (b = true /\  dh n = Some v)) /\
     valid_bits' dh values' bits' (S n) d
@@ -137,6 +100,8 @@ Definition block_allocator_rep (dh: disk value) (d: @total_mem addr addr_dec val
      length values = num_of_blocks /\
      (forall i, i >= num_of_blocks -> dh i = None).
 
+
+(*** Lemmas ***)
 Lemma valid_bits'_split:
   forall dh d a l1 l2 n,
     a < length l1 ->
@@ -149,9 +114,9 @@ Proof.
   destruct l1; simpl in *; try lia.
   destruct l2; simpl in *; try lia.
   cleanup.
-  edestruct (IHa l1 l2 (S n)); eauto; try lia. 
-  rewrite <- Nat.add_succ_comm.
- repeat split; eauto.
+  edestruct (IHa l1 l2 (S n)); eauto; try lia.   
+  repeat split; eauto.
+  rewrite <- Nat.add_succ_comm; eauto.
 Qed.
 
 Lemma valid_bits'_merge:
@@ -177,7 +142,7 @@ Lemma valid_bits_extract :
     n < length values ->
     length values <= length bits ->
     valid_bits dh values bits d ->
-    d (S n) = selN values n value0 /\
+    d (bitmap_addr + S n) = selN values n value0 /\
     ((selN bits n false = false /\ dh n = None) \/
     (selN bits n false = true /\  dh n = Some (selN values n value0))).
 Proof.
@@ -204,33 +169,6 @@ Proof.
     repeat rewrite firstn_length_l by lia.
     repeat rewrite Nat.sub_diag; simpl; eauto.
     rewrite firstn_length_l; lia.
-Qed.
-
-Lemma get_first_zero_index_false:
-  forall l_b,
-    selN l_b (get_first_zero_index l_b) false = false.
-Proof.
-  induction l_b; simpl; intros; eauto.
-  destruct a; eauto.
-Qed.
-
-Lemma get_first_zero_index_firstn:
-  forall l_b n,
-    get_first_zero_index (firstn n l_b) < n ->
-    get_first_zero_index (firstn n l_b) = get_first_zero_index l_b.
-Proof.
-  induction l_b; simpl; intros; eauto.
-  rewrite firstn_nil; simpl; eauto.
-  destruct a, n; simpl in *; eauto.
-  lia.
-  rewrite IHl_b; eauto; lia.
-Qed.
-
-Lemma bitlist_length:
-  forall bitlist, 
-    length (bits bitlist) = block_size.
-Proof.
-  intros; destruct bitlist0; simpl ;eauto.
 Qed.
 
 Lemma block_allocator_rep_eq:
@@ -383,10 +321,67 @@ Proof.
   {
     left; split; eauto.
     right.
-    (** rep delete goal **)
+    unfold block_allocator_rep in *; cleanup.
+    simpl; do 2 eexists; intuition eauto.
+    (** valid bits delete lemma **)
     admit.
+    rewrite delete_ne; eauto; lia.
   }
-Admitted.    
+Admitted.
+
+Theorem read_finished:
+  forall dh u o s a t s',
+    block_allocator_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (read a) (Finished s' t) ->
+    ((exists v, t = Some v /\ dh a = Some v) \/
+     t = None) /\
+    block_allocator_rep dh (fst s') /\
+    snd s' = snd s.
+Proof.
+  unfold read; intros; simpl in *.
+  cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
+  {
+    left; eexists; intuition eauto.
+    unfold block_allocator_rep in *; cleanup.
+    eapply (valid_bits_extract _ _ _ a) in H0; try lia.
+    cleanup.
+    eapply nth_error_nth in D0.
+    rewrite <- nth_selN_eq in D0.
+    split_ors; cleanup; eauto.
+    rewrite e in D0; congruence.
+    rewrite bitlist_length; eauto.
+    pose proof num_of_blocks_in_bounds; lia.
+  }
+  {
+    pose proof blocks_fit_in_disk; lia.
+  }
+  {
+    pose proof blocks_fit_in_disk; lia.
+  }
+Qed.
+
+Theorem write_finished:
+  forall dh u o s a v t s',
+    block_allocator_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (write a v) (Finished s' t) ->
+    ((t = Some tt /\
+      (block_allocator_rep dh (fst s') \/
+      block_allocator_rep (Mem.upd dh a v) (fst s'))) \/
+    (t = None /\ block_allocator_rep dh (fst s'))) /\
+     snd s' = snd s.
+Proof.
+  unfold write; intros; simpl in *.
+  cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
+  {
+    left; split; eauto.
+    right.
+    unfold block_allocator_rep in *; cleanup.
+    simpl; do 2 eexists; intuition eauto.
+    (** valid bits upd lemma **)
+    admit.
+    rewrite Mem.upd_ne; eauto; lia.
+  }
+Admitted.
 
 
 (*

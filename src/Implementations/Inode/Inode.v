@@ -28,7 +28,7 @@ End InodeAllocatorParams.
 
 Module InodeAllocator := BlockAllocator InodeAllocatorParams.
 
-Import InodeAllocator.
+Export InodeAllocator.
 
 Definition free_block_number (inode_map: disk Inode) bn :=
   forall i inode, inode_map i = Some inode -> ~ In bn inode.(block_numbers).
@@ -109,8 +109,6 @@ Definition get_owner inum :=
     Ret (Some inode.(owner))
   else
     Ret None.
-
-Definition init := InodeAllocator.init.
 
 Theorem inode_rep_eq:
   forall im1 im2 d,

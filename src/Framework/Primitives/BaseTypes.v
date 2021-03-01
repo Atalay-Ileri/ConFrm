@@ -1,6 +1,4 @@
-Require Import EquivDec Lia.
-(* For disk *)
-(* Axiom addr : Type. *)
+Require Import EquivDec List Lia.
 
 Class EqDec (T : Type) := eqdec : forall (a b : T), {a = b} + {a <> b}.
 
@@ -8,6 +6,7 @@ Definition option_dec {T} (TEQ: forall (t t': T), {t=t'}+{t<>t'}) : forall (o1 o
   decide equality.
 Defined.
 
+(** Disk **)
 Definition addr := nat.
 Axiom addr_eq_dec : EqDec addr.
 
@@ -15,6 +14,7 @@ Axiom value : Type.
 Axiom value0 : value.
 Axiom value_eq_dec: EqDec value.
 
+Axiom block_size: nat. (** in bits **)
 Axiom disk_size: addr. (** In blocks **)
 
 Axiom addr_list_to_blocks : list addr -> list value.
@@ -46,7 +46,64 @@ Proof.
   eapply addr_list_to_blocks_length_le_preserve; lia.
 Qed.
 
-(* For Crypto *)
+Record bitlist :=
+  {
+   bits : list bool;                
+   valid : length bits = block_size
+  }.
+
+Fixpoint get_first_zero_index l :=
+  match l with
+  | nil => 0
+  | cons hd tl =>
+    match hd with
+    | false => 0
+    | true => S (get_first_zero_index tl)
+    end
+  end.
+
+Lemma zero_bitlist_length_valid:
+  length (List.repeat false block_size) = block_size.
+Proof.
+  apply repeat_length.
+Qed.
+
+Definition zero_bitlist := Build_bitlist (repeat false block_size) zero_bitlist_length_valid.
+
+Axiom value_to_bits: value -> bitlist.
+Axiom bits_to_value: bitlist -> value.
+Axiom value_to_bits_to_value : forall v, bits_to_value (value_to_bits v) = v.
+Axiom bits_to_value_to_bits : forall l, value_to_bits (bits_to_value l) = l.   
+
+Lemma get_first_zero_index_false:
+  forall l_b,
+    nth (get_first_zero_index l_b) l_b false = false.
+Proof.
+  induction l_b; simpl; intros; eauto.
+  destruct a; eauto.
+Qed.
+
+Lemma get_first_zero_index_firstn:
+  forall l_b n,
+    get_first_zero_index (firstn n l_b) < n ->
+    get_first_zero_index (firstn n l_b) = get_first_zero_index l_b.
+Proof.
+  induction l_b; simpl; intros; eauto.
+  rewrite firstn_nil; simpl; eauto.
+  destruct a, n; simpl in *; eauto.
+  lia.
+  rewrite IHl_b; eauto; lia.
+Qed.
+
+Lemma bitlist_length:
+  forall bitlist, 
+    length (bits bitlist) = block_size.
+Proof.
+  intros; destruct bitlist0; simpl ;eauto.
+Qed.
+
+
+(** Crypto **)
 Axiom hash : Type.
 Axiom hash_eq_dec: EqDec hash.
 Axiom hash_function: hash -> value -> hash.
@@ -92,10 +149,12 @@ Axiom decrypt_ext: forall k v v', decrypt k v = decrypt k v' -> v = v'.
 Axiom encrypt_decrypt: forall k v, decrypt k (encrypt k v) = v.
 Axiom decrypt_encrypt: forall k ev, encrypt k (decrypt k ev) = ev.
 
-(* For access control *) 
+(** Access control **) 
 Axiom user : Type.
 Axiom user0: user.
 
+
+(** Execution Semantics **)
 Inductive Result {State T: Type} :=
 | Finished : State -> T -> @Result State T
 | Crashed : State -> @Result State T.

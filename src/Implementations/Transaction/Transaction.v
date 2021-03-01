@@ -59,9 +59,11 @@ Definition recover :=
   _ <- |TCDO| Recover;
 Ret tt.
 
-Definition init :=
+Definition init l_a l_v :=
   _ <- |TCCO| Delete _;
-  |TCDO| Init.
+  |TCDO| Init l_a l_v.
+
+
 
 Definition transaction_rep (tcd: TransactionCacheLang.(state)) (td: (@total_mem addr addr_dec value) * (@total_mem addr addr_dec value)):=
   let al := map fst (fst tcd) in
@@ -157,7 +159,7 @@ Qed.
 
 
 (*** Specs ***)
-
+(*
 Theorem init_finished:
   forall u s o s' r,
     exec TransactionCacheLang u o s init (Finished s' r) ->
@@ -176,6 +178,7 @@ Proof.
   split_ors; cleanup; repeat invert_exec; eauto.
   repeat cleanup_pairs; eauto.
 Qed.
+ *)
 
 Theorem abort_finished:
   forall u s o s' r,

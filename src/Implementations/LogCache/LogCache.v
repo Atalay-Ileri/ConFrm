@@ -80,9 +80,10 @@ Definition recover :=
   log <- |CDDP| recover;
   write_lists_to_cache log.
 
-Definition init :=
+(** Convert l_a to data adress **)
+Definition init l_a l_v :=
   _ <- |CDCO| (Flush _ _);
-  |CDDP| init.
+  |CDDP| init (map (plus data_start) l_a) l_v.
 
 (** Representation Invariants **) 
 Inductive Cached_Log_Crash_State:=

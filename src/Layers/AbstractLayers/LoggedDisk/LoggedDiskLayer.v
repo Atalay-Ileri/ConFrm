@@ -18,7 +18,7 @@ Section LoggedDisk.
   | Read : addr -> logged_disk_prog value
   | Write : list addr -> list value -> logged_disk_prog unit
   | Recover : logged_disk_prog unit
-  | Init : logged_disk_prog unit.
+  | Init : list addr -> list value -> logged_disk_prog unit.
    
   Inductive exec' :
     forall T, user -> token' ->  state' -> logged_disk_prog T -> @Result state' T -> Prop :=
@@ -52,8 +52,8 @@ Section LoggedDisk.
         exec' u Cont d Recover (Finished d tt)
 
   | ExecInit : 
-      forall d u,
-        exec' u Cont d Init (Finished d tt)
+      forall d u l_a l_v,
+        exec' u Cont d (Init l_a l_v) (Finished (upd_batch d l_a l_v) tt)
 
   | ExecCrashBefore :
       forall d T (p: logged_disk_prog T) u,

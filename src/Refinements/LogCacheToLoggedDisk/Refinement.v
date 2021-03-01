@@ -571,15 +571,28 @@ Section LoggedDiskBisimulation.
       }
     }
   Admitted.
+
+  Fixpoint not_init {T} (p_abs: abs.(prog) T) :=
+    match p_abs with
+    |Op _ o =>
+     match o with
+     | Init => False
+     | _ => True
+     end
+    |Ret _ => True
+    |Bind p1 p2 =>
+     not_init p1 /\ (forall r, not_init (p2 r))
+    end.
     
   Theorem abstract_oracles_exists_logged_disk:
-    forall T (p_abs: abs.(prog) T) l_selector u, 
+    forall T (p_abs: abs.(prog) T) l_selector u,
+      not_init p_abs ->
       abstract_oracles_exist_wrt refinement refines_to u p_abs (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt; induction p_abs;
-    simpl; intros; cleanup.
+    simpl; intros; cleanup_no_match.
     {(** OPS **)
-      destruct o.
+      destruct o; intuition.
       eapply abstract_oracles_exist_wrt_read; eauto.
       eapply abstract_oracles_exist_wrt_write; eauto.
       eapply abstract_oracles_exist_wrt_recover'; eauto.
@@ -587,7 +600,7 @@ Section LoggedDiskBisimulation.
     {
       repeat invert_exec; cleanup.
       {
-        rewrite <- H1; simpl.
+        rewrite <- H2; simpl.
         exists [[Language.Cont (LoggedDiskOperation log_length data_length)]]; simpl; intuition.
         right; intuition eauto.
         unify_execs; cleanup.
@@ -595,81 +608,83 @@ Section LoggedDiskBisimulation.
       {
         destruct l_selector; simpl in *; try congruence; cleanup.
         repeat invert_exec.
-        invert_exec'' H8.
-        eapply abstract_oracles_exist_wrt_recover in H10; eauto.
+        invert_exec'' H9.
+        eapply abstract_oracles_exist_wrt_recover in H11; eauto.
         cleanup.
         exists ([Language.Crash (LoggedDiskOperation log_length data_length)]::x0);
         simpl; intuition eauto.
-        apply recovery_oracles_refine_to_length in H0; eauto.
+        apply recovery_oracles_refine_to_length in H1; eauto.
         left; eexists; intuition eauto.
         econstructor.
-        invert_exec'' H1; eauto.
+        invert_exec'' H2; eauto.
         unfold refines_to, cached_log_rep in *.
         cleanup.
-        eapply log_rep_to_reboot_rep in H0.
+        eapply log_rep_to_reboot_rep in H1.
         unfold refines_to_reboot, cached_log_reboot_rep.
         do 2 eexists; intuition eauto.
-        eapply select_total_mem_synced in H1; eauto.
+        eapply select_total_mem_synced in H2; eauto.
       }
     }
     {
       repeat invert_exec.
       {
-        invert_exec'' H10.
+        invert_exec'' H12.
         edestruct IHp_abs; eauto.
         instantiate (2:= []); simpl.
         eapply ExecFinished; eauto.
         edestruct H.
+        eauto.
         2: {
           instantiate (3:= []); simpl.
           eapply ExecFinished; eauto.
         }
-        eapply exec_compiled_preserves_refinement_finished in H8; eauto.
+        eapply exec_compiled_preserves_refinement_finished in H10; eauto.
         simpl in *; cleanup; try tauto.
         simpl in *.
         exists ([o0 ++ o]); intuition eauto.
         do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
         invert_exec; split_ors; cleanup; repeat (unify_execs; cleanup).        
-        eapply finished_not_crashed_oracle_prefix in H8; eauto.
-        eapply exec_finished_deterministic_prefix in H8; eauto; cleanup.
+        eapply finished_not_crashed_oracle_prefix in H10; eauto.
+        eapply exec_finished_deterministic_prefix in H10; eauto; cleanup.
         unify_execs; cleanup.
       }
       {
         destruct l_selector; simpl in *; try congruence; cleanup.
-        invert_exec'' H9.
+        invert_exec'' H11.
         {
           edestruct IHp_abs; eauto.
           instantiate (2:= []); simpl.
           instantiate (1:= RFinished d1' r).
           eapply ExecFinished; eauto.
           edestruct H.
+          eauto.
           2: {
             instantiate (3:= t::l_selector); simpl.
             instantiate (1:= Recovered (extract_state_r ret)).
             econstructor; eauto.
           }
-          eapply exec_compiled_preserves_refinement_finished in H7; eauto.
+          eapply exec_compiled_preserves_refinement_finished in H9; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
           exists ((o0 ++ o)::l); intuition eauto.
           - invert_exec; try split_ors; repeat (unify_execs; cleanup).
-            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            eapply exec_finished_deterministic_prefix in H9; eauto; cleanup.
             unify_execs; cleanup.
           - invert_exec; cleanup; try split_ors; try cleanup;
             repeat (unify_execs; cleanup).
-            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
-            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            exfalso; eapply finished_not_crashed_oracle_prefix in H9; eauto.
+            eapply exec_finished_deterministic_prefix in H9; eauto; cleanup.
             unify_execs; cleanup; eauto.
-            specialize H4 with (1:= H12); cleanup.
+            specialize H6 with (1:= H14); cleanup.
             do 4 eexists; intuition eauto.
             right; simpl; repeat eexists; intuition eauto.
           - invert_exec; cleanup; try split_ors; try cleanup;
             repeat (unify_execs; cleanup).
-            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
-            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
+            exfalso; eapply finished_not_crashed_oracle_prefix in H9; eauto.
+            eapply exec_finished_deterministic_prefix in H9; eauto; cleanup.
             unify_execs; cleanup; eauto.
-            specialize H4 with (1:= H12); cleanup; eauto.
+            specialize H6 with (1:= H14); cleanup; eauto.
         }
         {
           edestruct IHp_abs; eauto.
@@ -681,12 +696,12 @@ Section LoggedDiskBisimulation.
           exists (o::l); intuition eauto.
           - invert_exec; cleanup; try split_ors;
             cleanup; repeat (unify_execs; cleanup).            
-            exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto.
+            exfalso; eapply finished_not_crashed_oracle_prefix in H6; eauto.
           - invert_exec; cleanup; try split_ors;
             cleanup; repeat (unify_execs; cleanup).
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
-            specialize H3 with (1:= H6).
-            clear H5.
+            eapply_fresh exec_deterministic_wrt_oracle_prefix in H8; eauto; cleanup.
+            specialize H5 with (1:= H8).
+            clear H7.
             logic_clean; eauto.
             exists o1, o2, o, nil; intuition eauto.
             rewrite app_nil_r; eauto.
@@ -695,8 +710,8 @@ Section LoggedDiskBisimulation.
           - invert_exec; cleanup; try split_ors;
             cleanup; repeat (unify_execs; cleanup).
             eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
-            specialize H3 with (1:= H6).
-            clear H5.
+            specialize H5 with (1:= H8).
+            clear H7.
             logic_clean; eauto.
             eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
             eauto; cleanup.

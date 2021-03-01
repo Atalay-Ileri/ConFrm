@@ -11,6 +11,7 @@ End DiskAllocatorParams.
 
 Module DiskAllocator := BlockAllocator DiskAllocatorParams.
 
+(*** Rep Invariants ***)
 Definition file_rep (file: File) (inode: Inode) (file_block_map: disk value) :=
   file.(BaseTypes.owner) = inode.(Inode.owner) /\
   length file.(blocks) = length inode.(block_numbers) /\
@@ -42,6 +43,8 @@ Definition files_crash_rep (file_disk: disk File) (d: AuthenticatedDiskLang.(sta
 
 Definition files_reboot_rep := files_crash_rep.
 
+
+(*** Functions ***)
 Local Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) :=
   mo <- |ADDP| get_owner inum;
   if mo is Some owner then
@@ -145,20 +148,18 @@ Definition create owner :=
     _ <- |ADDO| Abort;
     Ret None.
 
-Definition recover :=
-  _ <- |ADDO| Recover;
-  Ret tt.
+Definition recover := |ADDO| Recover.
 
 Definition init :=
-  _ <- |ADDO| Init;
-  _ <- |ADDP| Inode.init;
-  |ADDP| DiskAllocator.init.
+  |ADDO| Init [Inode.InodeAllocatorParams.bitmap_addr; DiskAllocatorParams.bitmap_addr]
+              [bits_to_value zero_bitlist; bits_to_value zero_bitlist].
 
 Definition update_file f off v := Build_File f.(BaseTypes.owner) (updN f.(blocks) off v).
 Definition extend_file f v := Build_File f.(BaseTypes.owner) (f.(blocks) ++ [v]).
 Definition new_file o := Build_File o [].
 Definition change_file_owner f o := Build_File o f.(blocks).
 
+(*** Lemmas ***)
 Set Nested Proofs Allowed.
 Lemma Some_injective:
   forall A (a1 a2: A),
@@ -247,7 +248,7 @@ Proof.
   eapply files_inner_rep_eq in H; eauto.
 Qed.
 
-
+(*** Specs ***)
 Lemma read_finished:
   forall u o s s' r inum off fd,
     files_rep fd s ->
