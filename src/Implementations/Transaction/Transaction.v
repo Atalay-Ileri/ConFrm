@@ -59,9 +59,9 @@ Definition recover :=
   _ <- |TCDO| Recover;
 Ret tt.
 
-Definition init l_a l_v :=
+Definition init l_av :=
   _ <- |TCCO| Delete _;
-  |TCDO| Init l_a l_v.
+  |TCDO| Init l_av.
 
 
 
@@ -159,26 +159,17 @@ Qed.
 
 
 (*** Specs ***)
-(*
 Theorem init_finished:
-  forall u s o s' r,
-    exec TransactionCacheLang u o s init (Finished s' r) ->
-    fst s' = [] /\ snd s' = snd s.
+  forall u s o s' r l_av,
+    let l_a := map fst l_av in
+    let l_v := map snd l_av in
+    exec TransactionCacheLang u o s (init l_av) (Finished s' r) ->
+    fst s' = [] /\ snd s' = upd_batch (snd s) l_a l_v.
 Proof.
   unfold init; intros; repeat invert_exec; eauto.
   repeat cleanup_pairs; eauto.
 Qed.
 
-Theorem init_crashed:
-  forall u s o s',
-    exec TransactionCacheLang u o s init (Crashed s') ->
-    snd s' = snd s.
-Proof.
-  unfold init; intros; repeat invert_exec; eauto.
-  split_ors; cleanup; repeat invert_exec; eauto.
-  repeat cleanup_pairs; eauto.
-Qed.
- *)
 
 Theorem abort_finished:
   forall u s o s' r,

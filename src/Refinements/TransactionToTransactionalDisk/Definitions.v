@@ -14,7 +14,7 @@ Definition compile  T (p2: abs_op.(operation) T) : prog imp T.
   exact commit.
   exact abort.
   exact recover.
-  exact init.
+  exact (init l).
 Defined.
 
 Definition token_refines_to  T u (d1: state imp) (p: Core.operation abs_op T) (get_reboot_state: imp.(state) -> imp.(state)) o1 o2 : Prop :=
@@ -99,14 +99,16 @@ Definition token_refines_to  T u (d1: state imp) (p: Core.operation abs_op T) (g
           exec imp u o1 d1 recover (Crashed d1') /\
           o2 = CrashBefore /\
           snd d1' = snd d1)
-      | Init =>
+      | Init l_av =>
+        let l_a := map fst l_av in
+        let l_v := map snd l_av in
        (exists d1' r,
-          exec imp u o1 d1 init (Finished d1' r) /\
+          exec imp u o1 d1 (init l_av) (Finished d1' r) /\
           o2 = Cont /\
-          d1' = ([], snd d1)) \/
+          d1' = ([], upd_batch (snd d1) l_a l_v)) \/
        
        (exists d1',
-          exec imp u o1 d1 init (Crashed d1') /\
+          exec imp u o1 d1 (init l_av) (Crashed d1') /\
           o2 = CrashBefore)
      end.
 
@@ -151,7 +153,7 @@ Definition refines_to_reboot := transaction_reboot_rep.
       eapply init_finished in H0; eauto.
       cleanup; eauto.
       unfold transaction_rep in *; cleanup; eauto.
-      exists (snd x, snd x); repeat cleanup_pairs; eauto.
+      exists (upd_batch (snd x) (map fst l) (map snd l), upd_batch (snd x) (map fst l) (map snd l)); repeat cleanup_pairs; eauto.
       intuition eauto.
       pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
     }

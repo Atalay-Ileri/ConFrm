@@ -13,7 +13,7 @@ Definition compile T (p2: Core.operation abs_core T) : prog impl T.
  exact (read a).
  exact (write l l0).
  exact recover.
- exact init.
+ exact (init l).
 Defined.
 
 Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T) get_reboot_state o1 o2 : Prop :=
@@ -76,13 +76,16 @@ Definition token_refines_to  T u (d1: state impl) (p: Core.operation abs_core T)
            cached_log_crash_rep (During_Recovery merged_disk) d1' \/
            cached_log_crash_rep (After_Commit merged_disk) d1')))
 
-   | Init =>
+   | Init l_av =>
+     let l_a := map fst l_av in
+     let l_v := map snd l_av in
      (exists d1',
-        exec impl u o1 d1 init (Finished d1' tt) /\
+        exec impl u o1 d1 (init l_av) (Finished d1' tt) /\
         o2 = Cont /\
-        cached_log_rep (total_mem_map fst (shift (Nat.add data_start) (snd (snd d1')))) d1') \/
+        length l_a = length l_v /\
+        cached_log_rep (total_mem_map fst (shift (Nat.add data_start) (upd_batch_set (snd (snd d1)) l_a l_v))) d1') \/
      (exists d1',
-        exec impl u o1 d1 init (Crashed d1') /\
+        exec impl u o1 d1 (init l_av) (Crashed d1') /\
         o2 = CrashBefore)
    end.
 

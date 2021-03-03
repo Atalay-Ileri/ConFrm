@@ -81,9 +81,11 @@ Definition recover :=
   write_lists_to_cache log.
 
 (** Convert l_a to data adress **)
-Definition init l_a l_v :=
+Definition init l_av :=
+  let l_a := map fst l_av in
+  let l_v := map snd l_av in
   _ <- |CDCO| (Flush _ _);
-  |CDDP| init (map (plus data_start) l_a) l_v.
+  |CDDP| init (combine (map (Nat.add data_start) l_a) l_v).
 
 (** Representation Invariants **) 
 Inductive Cached_Log_Crash_State:=
@@ -246,22 +248,56 @@ Qed.
 Global Opaque Log.init.
 
 Theorem init_finished:
-  forall s o s' t u,
-    exec CachedDiskLang u o s init (Finished s' t) ->
-    cached_log_rep (total_mem_map fst ( shift (Init.Nat.add data_start) (snd (snd s')))) s'.
+  forall s o s' t u l_av,
+    let l_a := map fst l_av in
+    let l_v := map snd l_av in
+    exec CachedDiskLang u o s (init l_av) (Finished s' t) ->
+    cached_log_rep (total_mem_map fst (shift (Init.Nat.add data_start) (upd_batch_set (snd (snd s)) (map (Nat.add data_start) l_a) l_v))) s'.
 Proof.
   unfold init; simpl; intros; repeat invert_exec; eauto.
-  eapply init_finished in H1.  
+  eapply init_finished in H1; eauto; cleanup. 
   unfold cached_log_rep; simpl.
   exists []; simpl; intuition eauto.
-Qed.
-
-Theorem init_crashed:
-  forall s o s' u,
-    exec CachedDiskLang u o s init (Crashed s') ->
-    True.
-Proof.
-  eauto.
+  {
+    setoid_rewrite H1.
+    rewrite map_fst_combine, map_snd_combine; simpl.
+    repeat rewrite total_mem_map_shift_comm.
+    rewrite total_mem_map_fst_sync_noop.
+    repeat rewrite total_mem_map_fst_upd_batch_set.
+    repeat rewrite <- shift_upd_batch_comm.
+    rewrite total_mem_map_fst_upd_set.
+    rewrite shift_upd_noop; simpl; eauto.
+    intros.
+    pose proof hdr_before_log.
+    pose proof data_start_where_log_ends.
+    lia.
+    {
+      unfold sumbool_agree; intros.
+      destruct (addr_dec x0 y);
+      destruct (addr_dec (data_start + x0) (data_start + y)); eauto.
+      lia.
+    }
+    {
+      unfold sumbool_agree; intros.
+      destruct (addr_dec x0 y);
+      destruct (addr_dec (data_start + x0) (data_start + y)); eauto.
+      lia.
+    }
+    all: repeat rewrite map_length; eauto.
+  }
+  {
+    eapply equal_f in H1.
+    setoid_rewrite H1; simpl; eauto.
+  }
+  {
+    intros a Hx.
+    apply in_map_iff in Hx; cleanup.
+    destruct x0; simpl in *.
+    apply in_combine_l in H2.
+    apply in_map_iff in H2; cleanup.
+    apply in_map_iff in H2; cleanup.
+    lia.
+  }
 Qed.
 
 Theorem read_finished:

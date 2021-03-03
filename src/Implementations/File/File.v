@@ -151,8 +151,8 @@ Definition create owner :=
 Definition recover := |ADDO| Recover.
 
 Definition init :=
-  |ADDO| Init [Inode.InodeAllocatorParams.bitmap_addr; DiskAllocatorParams.bitmap_addr]
-              [bits_to_value zero_bitlist; bits_to_value zero_bitlist].
+ |ADDO| Init [(Inode.InodeAllocatorParams.bitmap_addr, bits_to_value zero_bitlist);
+             (DiskAllocatorParams.bitmap_addr, bits_to_value zero_bitlist)].
 
 Definition update_file f off v := Build_File f.(BaseTypes.owner) (updN f.(blocks) off v).
 Definition extend_file f v := Build_File f.(BaseTypes.owner) (f.(blocks) ++ [v]).

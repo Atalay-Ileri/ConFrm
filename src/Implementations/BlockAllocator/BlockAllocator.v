@@ -5,7 +5,15 @@ Import IfNotations.
 Set Nested Proofs Allowed.
 
 Notation "| p |" := (Op (TransactionalDiskOperation data_length) p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op (TransactionalDiskOperation data_length) p1) (fun x => p2))(right associativity, at level 60). 
+Notation "x <-| p1 ; p2" := (Bind (Op (TransactionalDiskOperation data_length) p1) (fun x => p2))(right associativity, at level 60).
+
+Lemma upd_valid_length:
+  forall T (l: list T) n v m,
+    length l = m ->
+    length (updN l n v) = m.
+Proof.
+  intros; rewrite length_updN; eauto.
+Qed.
 
 Module Type BlockAllocatorParameters.
   Parameter bitmap_addr: addr.
@@ -31,7 +39,7 @@ Definition alloc (v': value) :=
     _ <-| Write (S index) v';
     _ <-| Write bitmap_addr
       (bits_to_value (Build_bitlist (updN bits index true)
-                     (upd_valid_length index bits true valid)));
+                     (upd_valid_length _ bits index true _ valid)));
     Ret (Some index)
   else
     Ret None.
@@ -44,7 +52,7 @@ Definition free a :=
   if nth_error bits a is Some true then
       _ <-| Write bitmap_addr
           (bits_to_value (Build_bitlist (updN bits a false)
-          (upd_valid_length a bits false valid)));
+          (upd_valid_length _ bits a false _ valid)));
       Ret (Some tt)
     else
       Ret None
@@ -152,7 +160,7 @@ Proof.
   - apply length_zero_iff_nil in D.
     rewrite skipn_length in D.
     lia.
-  - destruct_fresh (skipn n bits0).
+  - destruct_fresh (skipn n bits).
     apply length_zero_iff_nil in D0.
     rewrite skipn_length in D0.
     lia.
@@ -229,8 +237,8 @@ Proof.
          (** valid bits upd lemma **)
          admit.
          clear D.
-         rewrite get_first_zero_index_firstn in l; eauto.
-         rewrite Mem.upd_ne; eauto; lia.
+         rewrite Mem.upd_ne; eauto.  
+         lia.
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.

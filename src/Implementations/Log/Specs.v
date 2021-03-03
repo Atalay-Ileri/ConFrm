@@ -10,11 +10,28 @@ Set Nested Proofs Allowed.
 (*** Lemmas ***)
 
 Lemma subset_consistent_upd:
-  forall A AEQ V (m m' : @mem A AEQ V) l_a l_v,
+  forall A AEQ V l_a l_v (m m' : @mem A AEQ V) ,
     consistent_with_upds m l_a l_v ->
     subset (Mem.upd_batch m l_a l_v) m' ->
     subset m m'.
-Proof. Admitted.
+Proof.
+  induction l_a; simpl; intros; cleanup; eauto.
+  unfold consistent in *.
+  eapply IHl_a in H0; eauto.
+  unfold subset in *; intros.
+  specialize (H0 a0); cleanup.
+  split; intros.
+
+  apply H0 in H3.
+  destruct (AEQ a a0); subst.
+  rewrite Mem.upd_eq in H3; eauto; congruence.
+  rewrite Mem.upd_ne in H3; eauto.
+  apply H2.
+  destruct (AEQ a a0); subst.
+  rewrite Mem.upd_eq; eauto;
+  split_ors; congruence.
+  rewrite Mem.upd_ne; eauto.
+Qed.
 
 Lemma selN_seq:
   forall len start n def,
@@ -32,21 +49,34 @@ Lemma upd_batch_consistent_some:
     consistent_with_upds m l_a l_v ->
     m a = Some v ->
     Mem.upd_batch m l_a l_v a = Some v.
-Proof. Admitted.
-
+Proof.
+  induction l_a; simpl; intros; cleanup; eauto.
+  unfold consistent in *.
+  eapply IHl_a; eauto.
+  
+  destruct (AEQ a a0); subst.
+  rewrite Mem.upd_eq; eauto;
+  split_ors; congruence.
+  rewrite Mem.upd_ne; eauto.
+Qed.
 
 
 (*** Specs **)
 Theorem init_finished:
-  forall s' s o t u,
-    exec CryptoDiskLang u o s init (Finished s' t) ->
+  forall s' s o t u l_av,
+    let l_a := map fst l_av in
+    let l_v := map snd l_av in
+    (forall a, In a l_a -> a >= data_start) ->
+    exec CryptoDiskLang u o s (init l_av) (Finished s' t) ->
     log_rep [] s' /\
+    snd s' = sync (upd_batch_set (upd_set (snd s) hdr_block_num (encode_header header0)) l_a l_v) /\
     (forall a, snd (snd s' a) = []).
 Proof.
   unfold init, write_header; simpl; intros.
   repeat invert_exec; simpl in *; repeat cleanup.
+  eapply write_batch_finished in H0; simpl in *; eauto; cleanup.
+  unfold upd_set; intuition eauto.
   unfold log_rep, log_rep_general, log_rep_explicit.
-  split; eauto;
   do 3 eexists; intuition eauto.
   {
     unfold log_header_block_rep; simpl; eauto.
@@ -54,46 +84,67 @@ Proof.
   {
     unfold log_data_blocks_rep; simpl; intuition eauto.
     instantiate (1:= map (fun a => (fst (snd s a), [])) (seq log_start log_length)).
+    rewrite sync_upd_batch_set_comm.
+    rewrite upd_batch_ne.
     unfold sync; simpl.
     rewrite upd_ne; eauto.
     erewrite selN_map; eauto.
     erewrite selN_seq; eauto.
     all: try rewrite map_length, seq_length in *; eauto.
     pose proof hdr_before_log; lia.
-    apply in_map_iff in H; cleanup; eauto.
+    intros Hx.
+    apply H in Hx.
+    pose proof data_start_where_log_ends.
+    lia.
+    apply in_map_iff in H3; cleanup; eauto.
   }
   {
     try rewrite map_length, seq_length in *; eauto.
   }
   {
+    rewrite sync_upd_batch_set_comm.
+    rewrite upd_batch_ne.
     unfold sync; simpl.
     rewrite upd_eq; simpl; eauto.
     rewrite encode_decode_header; simpl; eauto.
     lia.
+    intros Hx.
+    apply H in Hx.
+    pose proof hdr_before_log.
+    pose proof data_start_where_log_ends.
+    lia.
   }
   {
+    rewrite sync_upd_batch_set_comm.
+    rewrite upd_batch_ne.
     unfold sync; simpl.
     rewrite upd_eq; simpl; eauto.
     rewrite encode_decode_header; simpl; eauto.
     lia.
+    intros Hx.
+    apply H in Hx.
+    pose proof hdr_before_log.
+    pose proof data_start_where_log_ends.
+    lia.
   }
   {
+    rewrite sync_upd_batch_set_comm.
+    rewrite upd_batch_ne.
     unfold sync; simpl.
     rewrite upd_eq; simpl; eauto.
     rewrite encode_decode_header; simpl; eauto.
     unfold log_rep_inner; simpl; split.
     apply header_part0_valid.
     apply txns_valid_nil.
+    intros Hx.
+    apply H in Hx.
+    pose proof hdr_before_log.
+    pose proof data_start_where_log_ends.
+    lia.
   }
+  repeat rewrite map_length; eauto.
+  
   Unshelve.
-  eauto.
-Qed.
-
-Theorem init_crashed:
-  forall s' s o u,
-    exec CryptoDiskLang u o s init (Crashed s') ->
-    True.
-Proof.
   eauto.
 Qed.
 
