@@ -45,7 +45,7 @@ Definition files_reboot_rep := files_crash_rep.
 
 
 (*** Functions ***)
-Local Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) :=
+Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) :=
   mo <- |ADDP| get_owner inum;
   if mo is Some owner then
     ok <- |ADAO| Auth owner;
@@ -64,7 +64,7 @@ Local Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (Transactional
     _ <- |ADDO| Abort;
     Ret None.
         
-Local Definition read_inner off inum :=
+Definition read_inner off inum :=
   r <- get_block_number inum off;
   if r is Some block_number then
     r <- DiskAllocator.read block_number;
@@ -75,7 +75,7 @@ Local Definition read_inner off inum :=
   else
     Ret None.
 
-Local Definition write_inner off v inum :=
+Definition write_inner off v inum :=
   r <- get_block_number inum off;
   if r is Some block_number then
     r <- DiskAllocator.write block_number v;
@@ -86,14 +86,14 @@ Local Definition write_inner off v inum :=
   else
     Ret None.
 
-Local Definition change_owner_inner owner inum :=
+Definition change_owner_inner owner inum :=
   r <- change_owner inum owner;
   if r is Some tt then
      Ret (Some tt)
   else
     Ret None.
 
-Local Fixpoint free_all_blocks block_nums :=
+Fixpoint free_all_blocks block_nums :=
   match block_nums with
   | nil =>
     Ret (Some tt)
@@ -106,7 +106,7 @@ Local Fixpoint free_all_blocks block_nums :=
       Ret None
 end.
 
-Local Definition delete_inner inum :=
+Definition delete_inner inum :=
   mbl <- get_all_block_numbers inum;
   if mbl is Some block_numbers then
     ok <- free_all_blocks block_numbers;
@@ -121,7 +121,7 @@ Local Definition delete_inner inum :=
   else
     Ret None.
 
-Local Definition extend_inner v inum :=
+Definition extend_inner v inum :=
   mbn <- DiskAllocator.alloc v;
   if mbn is Some block_num then
     r <- extend inum block_num;

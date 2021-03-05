@@ -196,7 +196,7 @@ Proof.
   repeat split_ors; cleanup; eauto; try congruence.
 Qed.
 
-(*** Specs ***)
+(*** Specs ***
 Theorem alloc_finished:
   forall dh u o s v t s',
     block_allocator_rep dh (fst s) ->
@@ -511,7 +511,7 @@ Proof.
 *)
   
 *)
-
+***)
 End BlockAllocator.
 
 

@@ -2,7 +2,8 @@ From Coq Require Extraction.
 Require Import ExtrHaskellBasic.
 (* Require Import ExtrHaskellNatInteger. *)
 (** This is dangerous since Int is bounded, unlike Integer.
-    Leaves the code open to overflows. Until I find a better alternative,
+    Leaves the code open to overflows. 
+    Until I find a better alternative,
     this is the hacky way to go. **)
 Require Import ExtrHaskellNatInt. 
 Require Import ExtrHaskellZInteger.

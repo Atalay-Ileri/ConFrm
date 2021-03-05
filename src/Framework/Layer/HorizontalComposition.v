@@ -55,15 +55,6 @@ Section HorizontalComposition.
   Definition HorizontalComposition :=
     Build_Core
       horizontal_composition_prog exec'
-
-      (* weakest_precondition'
-      weakest_crash_precondition'
-      
-        strongest_postcondition'
-      strongest_crash_postcondition'
-      wp_complete' wcp_complete'
-      sp_complete' scp_complete'
-       *)
       exec_deterministic_wrt_token'.
 
 Import Language.

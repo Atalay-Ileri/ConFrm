@@ -508,7 +508,7 @@ Qed.
 
 (** Top Layer *)
 (* File Disk *)
-(* Definition FD_valid_state := fun (s: state FileDisk) => exists fmap, files_rep fmap (snd s). *)
+Definition FD_valid_state := fun (s: state FileDisk) => True.
 Definition FD_related_states u ex := same_for_user_except u ex.
 
 Theorem ss_FD_Recover:

@@ -1,2 +1,2 @@
-Require Export FileToFileDisk.Definitions.
-(* FileToFileDisk.Refinement. *)
+Require Export FileToFileDisk.Definitions
+        FileToFileDisk.Refinement.
