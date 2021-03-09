@@ -19,7 +19,7 @@ Extract Constant addr => "Prelude.Int".
 Extract Inlined Constant addr_eq_dec => "(Prelude.==)".
 
 Extract Constant user => "System.Posix.Types.UserID".
-Extract Constant value => "Prelude.Int". (** We need to change this but to what? **)
+Extract Constant value => "SizedByteArray ". (** We need to change this but to what? **)
 Extract Constant block_size => "8 Prelude.* 4096". (** 4KB blocks **) 
 Extract Constant file_blocks_count => "4096". (** 4K data blocks *)
 Extract Constant log_length => "500". (** 500 log blocks *)
@@ -63,7 +63,8 @@ Extract Inductive CacheLayer.cache_prog => "Prelude.IO" [ "CACHE_READ" "CACHE_WR
 Extract Inductive ListLayer.list_prog => "Prelude.IO" [ "GET" "PUT" "DELETE" ].
 *)
 
-Extract Inductive AuthenticationLayer.authentication_prog => "Prelude.IO" [ "(\u -> do uid <- System.Posix.User.getEffectiveUserID; Prelude.return (u Prelude.== uid))" ].
+Extract Inductive AuthenticationLayer.authentication_prog =>
+"Prelude.IO" [ "(\u -> do uid <- System.Posix.User.getEffectiveUserID; Prelude.return (u Prelude.== uid))" ].
 
 Extract Inductive LoggedDiskLayer.logged_disk_prog => "Prelude.IO" [ "LogCache.read" "LogCache.write" "LogCache.recover" "LogCache.init" ].
 Extract Inductive TransactionalDiskLayer.transactional_disk_prog => "Prelude.IO" [ "Transaction.read" "Transaction.write" "Transaction.commit" "Transaction.abort" "Transaction.recover" "Transaction.init" ].

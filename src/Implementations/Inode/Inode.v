@@ -2,6 +2,7 @@ Require Import Framework FSParameters TransactionalDiskLayer BlockAllocator.
 Require Import FunctionalExtensionality.
 Import IfNotations.
 
+(*** Definitions ***)
 Definition Inum := addr.
 
 Record Inode :=
@@ -30,6 +31,8 @@ Module InodeAllocator := BlockAllocator InodeAllocatorParams.
 
 Export InodeAllocator.
 
+
+(*** Rep Invariants ***)
 Definition free_block_number (inode_map: disk Inode) bn :=
   forall i inode, inode_map i = Some inode -> ~ In bn inode.(block_numbers).
 
@@ -54,6 +57,8 @@ Definition inode_rep (inode_map: disk Inode) (d: @total_mem addr addr_dec value)
     block_allocator_rep inode_block_map d /\
     inode_map_rep inode_block_map inode_map.
 
+
+(*** Functions ***)
 Local Definition get_inode inum :=
   r <- read inum;
   if r is Some i then
@@ -61,31 +66,23 @@ Local Definition get_inode inum :=
   else
     Ret None.
 
-Local Definition set_inode inum inode:=
-  r <- write inum (encode_inode inode);
-  Ret r.
+Local Definition set_inode inum inode:= write inum (encode_inode inode).
 
-Definition alloc user :=
-  r <- alloc (encode_inode (Build_Inode user []));
-  Ret r.
+Definition alloc user := alloc (encode_inode (Build_Inode user [])).
 
-Definition free inum :=
-  r <- free inum;
-  Ret r.
+Definition free inum := free inum.
 
 Definition extend inum block_num :=
   r <- get_inode inum;
   if r is Some inode then
-    r <- set_inode inum (Build_Inode inode.(owner) (inode.(block_numbers)++[block_num]));
-      Ret r
+    set_inode inum (Build_Inode inode.(owner) (inode.(block_numbers)++[block_num]))
   else
     Ret None.
 
 Definition change_owner inum user :=
   r <- get_inode inum;
   if r is Some inode then
-    r <- set_inode inum (Build_Inode user inode.(block_numbers));
-      Ret r
+    set_inode inum (Build_Inode user inode.(block_numbers))
   else
     Ret None.
 
@@ -110,6 +107,8 @@ Definition get_owner inum :=
   else
     Ret None.
 
+
+(*** Lemmas ***)
 Theorem inode_rep_eq:
   forall im1 im2 d,
     inode_rep im1 d ->
@@ -121,6 +120,343 @@ Proof.
   eapply block_allocator_rep_eq in H; eauto; subst.
   unfold inode_map_rep in *; cleanup.
   rewrite H2, H; eauto.
+Qed.
+
+
+(*** Specs ***)
+Theorem alloc_finished:
+  forall dh u o s user t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (alloc user) (Finished s' t) ->
+    ((exists a, t = Some a /\
+          dh a = None /\
+          inode_rep (Mem.upd dh a (Build_Inode user [])) (fst s')) \/
+    (t = None /\ inode_rep dh (fst s'))) /\
+     snd s' = snd s.
+Proof.
+  unfold alloc, inode_rep; intros; cleanup.
+  eapply alloc_finished in H0; eauto.
+  cleanup; split_ors; cleanup; eauto;
+  split; eauto.
+  {
+    left; eexists; intuition eauto.
+    {
+      unfold inode_map_rep in *; cleanup.
+      rewrite H0, H3; simpl; eauto.
+    }
+    {
+      eexists; intuition eauto.
+      unfold inode_map_rep in *; cleanup.
+      split; eauto.
+      {
+        intros.
+        destruct (addr_dec x0 i); subst.
+        - repeat rewrite Mem.upd_eq; simpl; eauto.
+          rewrite inode_encode_decode; eauto.
+        - repeat rewrite Mem.upd_ne; simpl; eauto.
+      }
+      {
+        unfold inode_map_valid in *; cleanup.
+        split; intros.
+        {
+          destruct (addr_dec x0 i); subst.
+          - rewrite Mem.upd_eq in H6; simpl; eauto.
+            cleanup.
+            unfold inode_valid; simpl; eauto.
+            split; constructor.
+          - rewrite Mem.upd_ne in H6; simpl; eauto.
+        }
+        {
+          destruct (addr_dec x0 i); subst.
+          - rewrite Mem.upd_eq in H7; simpl; eauto.
+            cleanup; simpl.
+            rewrite Mem.upd_ne in H8; simpl; eauto.
+            apply H1 in H8.
+            unfold inode_valid in *;
+            cleanup; eauto.
+            
+          - rewrite Mem.upd_ne in H7; simpl; eauto.
+            destruct (addr_dec x0 j); subst.
+            rewrite Mem.upd_eq in H8; simpl; eauto.
+            cleanup; simpl.
+            rewrite app_nil_r.
+            apply H1 in H7.
+            unfold inode_valid in *;
+            cleanup; eauto.
+            rewrite Mem.upd_ne in H8; simpl; eauto.
+        }
+      }
+    }
+  }
+Qed.
+
+Theorem free_finished:
+  forall dh u o s inum t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (free inum) (Finished s' t) ->
+    ((t = Some tt /\
+      (inode_rep dh (fst s') \/ inode_rep (Mem.delete dh inum) (fst s'))) \/
+    (t = None /\ inode_rep dh (fst s'))) /\
+     snd s' = snd s.
+Proof.
+  unfold free, inode_rep; intros; cleanup.
+  eapply free_finished in H0; eauto.
+  cleanup; split_ors; cleanup; eauto;
+  split; eauto.
+  {
+    left; split; eauto.
+    split_ors.
+    {
+      left; eexists; intuition eauto.
+    }
+    {
+      right; eexists; intuition eauto.
+      {
+        unfold inode_map_rep in *; cleanup.
+        split; intros.
+        {
+          destruct (addr_dec inum i); subst.
+          repeat rewrite delete_eq; simpl; eauto.
+          repeat rewrite delete_ne; simpl; eauto.
+        }
+         {
+           unfold inode_map_valid in *; cleanup.
+           split; intros.
+           {
+             destruct (addr_dec inum i); subst.
+             - rewrite Mem.delete_eq in H5; simpl; eauto; congruence.
+             - rewrite Mem.delete_ne in H5; simpl; eauto.
+           }
+           {
+             destruct (addr_dec inum i); subst.
+             - rewrite Mem.delete_eq in H6; simpl; eauto; congruence.
+               
+             - rewrite Mem.delete_ne in H6; simpl; eauto.
+               destruct (addr_dec inum j); subst.
+               rewrite Mem.delete_eq in H7; simpl; eauto; congruence.
+               rewrite Mem.delete_ne in H7; simpl; eauto.
+           }
+         }
+      }
+    }
+  }
+Qed.
+
+
+
+Theorem get_inode_finished:
+  forall dh u o s inum t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_inode inum) (Finished s' t) ->
+    ((exists inode, t = Some inode /\ dh inum = Some inode) \/ t = None) /\
+    inode_rep dh (fst s') /\
+    snd s' = snd s.
+Proof.
+  unfold get_inode, inode_rep; intros; cleanup.
+  repeat invert_exec;
+  eapply read_finished in H0; eauto;
+  cleanup; split_ors; cleanup; eauto;
+  split; eauto.
+  {
+    unfold inode_map_rep in *; cleanup.
+    left; rewrite H0; cleanup; simpl; eauto.
+  }
+Qed.
+
+
+Theorem set_inode_finished:
+  forall dh u o s inum inode t s',
+    inode_rep dh (fst s) ->
+    inode_valid inode ->
+    (forall i inode_i,
+     i <> inum ->
+     dh i = Some inode_i ->
+     NoDup (inode.(block_numbers) ++ inode_i.(block_numbers))) ->
+    exec (TransactionalDiskLang data_length) u o s (set_inode inum inode) (Finished s' t) ->
+    ((t = Some tt /\
+      (inode_rep dh (fst s') \/ inode_rep (Mem.upd dh inum inode) (fst s'))) \/
+     (t = None /\ inode_rep dh (fst s'))) /\
+    snd s' = snd s.
+Proof.
+  unfold set_inode, inode_rep; intros; cleanup.
+  repeat invert_exec;
+  eapply write_finished in H2; eauto;
+  cleanup; split_ors; cleanup; eauto;
+  split; eauto.
+  {
+    unfold inode_map_rep in *; cleanup.
+    left; split; eauto.
+    intuition eauto.
+    right; eexists; intuition eauto.
+     {
+        intros.
+        destruct (addr_dec inum i); subst.
+        - repeat rewrite Mem.upd_eq; simpl; eauto.
+          rewrite inode_encode_decode; eauto.
+        - repeat rewrite Mem.upd_ne; simpl; eauto.
+      }
+      {
+        unfold inode_map_valid in *; cleanup.
+        split; intros.
+        {
+          destruct (addr_dec inum i); subst.
+          - rewrite Mem.upd_eq in H7; simpl; eauto.
+            cleanup.
+            unfold inode_valid; simpl; eauto.
+          - rewrite Mem.upd_ne in H7; simpl; eauto.
+        }
+        {
+          destruct (addr_dec inum i); subst.
+          - rewrite Mem.upd_eq in H8; simpl; eauto.
+            cleanup; simpl.
+            rewrite Mem.upd_ne in H9; simpl; eauto.
+            
+          - rewrite Mem.upd_ne in H8; simpl; eauto.
+            destruct (addr_dec inum j); subst.
+            rewrite Mem.upd_eq in H9; simpl; eauto.
+            cleanup; simpl.
+            apply NoDup_app_comm; eauto.
+            rewrite Mem.upd_ne in H9; simpl; eauto.
+        }
+      }
+  }
+Qed.
+
+Theorem extend_finished:
+  forall dh u o s inum block_num t s',
+    inode_rep dh (fst s) ->
+    (forall i inode_i,
+     dh i = Some inode_i ->
+     ~In block_num inode_i.(block_numbers)) ->
+    block_num < data_length ->
+    exec (TransactionalDiskLang data_length) u o s (extend inum block_num) (Finished s' t) ->
+    ((exists inode,
+        t = Some tt /\
+        dh inum = Some inode /\
+        (inode_rep dh (fst s') \/
+         inode_rep (Mem.upd dh inum (Build_Inode inode.(owner) (inode.(block_numbers) ++ [block_num]))) (fst s'))) \/
+     (t = None /\ inode_rep dh (fst s'))) /\
+    snd s' = snd s.
+Proof.
+  unfold extend; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished in H2; eauto;
+  cleanup; eauto.
+  split_ors; cleanup;
+  eapply set_inode_finished in H3; simpl; eauto; cleanup.
+  split_ors; cleanup;
+  split; eauto.
+  {
+    unfold inode_valid; simpl.
+    unfold inode_rep, inode_map_rep,
+    inode_map_valid in *; cleanup.
+    eapply_fresh H10 in H6;
+    unfold inode_valid in Hx; cleanup; eauto.    
+    split; eauto.
+    - apply NoDup_app_comm; simpl.
+      constructor; eauto.
+    - apply Forall_app; eauto.
+  }
+  {
+    intros.
+    apply NoDup_app_comm.
+    rewrite app_assoc.
+    apply NoDup_app_comm.
+    simpl; constructor; eauto.
+    intros Hx.
+    apply in_app_iff in Hx; split_ors;
+    solve [eapply H0; [| eauto]; eauto ].
+
+    unfold inode_rep, inode_map_rep,
+    inode_map_valid in *; cleanup; eauto.
+  }
+Qed.
+
+
+Theorem change_owner_finished:
+  forall dh u o s inum new_owner t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (change_owner inum  new_owner) (Finished s' t) ->
+    ((exists inode,
+        t = Some tt /\
+        dh inum = Some inode /\
+        (inode_rep dh (fst s') \/
+         inode_rep (Mem.upd dh inum (Build_Inode new_owner inode.(block_numbers))) (fst s'))) \/
+     (t = None /\ inode_rep dh (fst s'))) /\
+    snd s' = snd s.
+Proof.
+  unfold change_owner; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished in H0; eauto;
+  cleanup; eauto.
+  split_ors; cleanup;
+  eapply set_inode_finished in H1; simpl; eauto; cleanup.
+  split_ors; cleanup;
+  split; eauto.
+  {
+    unfold inode_valid; simpl.
+    unfold inode_rep, inode_map_rep,
+    inode_map_valid in *; cleanup.
+    eapply_fresh H8 in H4;
+    unfold inode_valid in Hx; cleanup; eauto.
+  }
+  {
+    intros.
+    unfold inode_rep, inode_map_rep,
+    inode_map_valid in *; cleanup; eauto.
+  }
+Qed.
+
+Theorem get_block_number_finished:
+  forall dh u o s inum off t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
+    ((exists inode, t = Some (selN (inode.(block_numbers)) off 0) /\ dh inum = Some inode) \/ t = None) /\
+    inode_rep dh (fst s') /\
+    snd s' = snd s.
+Proof.
+  unfold get_block_number; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished in H0; eauto;
+  cleanup; eauto;
+  split; eauto.
+  destruct_fresh (nth_error (block_numbers i) off); eauto.
+  split_ors; cleanup.
+  left; eexists; split; eauto.
+  rewrite nth_selN_eq.
+  erewrite nth_error_nth; eauto.
+Qed.
+
+Theorem get_all_block_numbers_finished:
+  forall dh u o s inum t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_all_block_numbers inum) (Finished s' t) ->
+    ((exists inode, t = Some (inode.(block_numbers)) /\ dh inum = Some inode) \/ t = None) /\
+    inode_rep dh (fst s') /\
+    snd s' = snd s.
+Proof.
+  unfold get_all_block_numbers; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished in H0; eauto;
+  cleanup; eauto;
+  split; eauto.
+  split_ors; cleanup; eauto.
+Qed.
+
+Theorem get_owner_finished:
+  forall dh u o s inum t s',
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_owner inum) (Finished s' t) ->
+    ((exists inode, t = Some inode.(owner) /\ dh inum = Some inode) \/ t = None) /\
+    inode_rep dh (fst s') /\
+    snd s' = snd s.
+Proof.
+  unfold get_owner; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished in H0; eauto;
+  cleanup; eauto;
+  split; eauto.
+  split_ors; cleanup; eauto.
 Qed.
 
 (*
@@ -612,6 +948,6 @@ Proof.
     eapply get_inode_ok in H0; eauto.
     cleanup; eauto.
 Qed.
-
-Global Opaque alloc free extend change_owner get_block_number get_block_numbers get_owner.
 *)
+Global Opaque alloc free extend change_owner get_block_number get_block_numbers get_owner.
+

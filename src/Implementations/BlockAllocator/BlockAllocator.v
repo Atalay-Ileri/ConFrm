@@ -196,7 +196,7 @@ Proof.
   repeat split_ors; cleanup; eauto; try congruence.
 Qed.
 
-(*** Specs ***
+(*** Specs ***)
 Theorem alloc_finished:
   forall dh u o s v t s',
     block_allocator_rep dh (fst s) ->
@@ -229,16 +229,18 @@ Proof.
        instantiate (1:= (get_first_zero_index (firstn num_of_blocks (bits (value_to_bits (fst x1 bitmap_addr)))))) in Hx.
        logic_clean.      
        {
-         repeat (rewrite get_first_zero_index_firstn,
-                 get_first_zero_index_false in *; eauto).
+         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
+         rewrite nth_selN_eq in *.
+         setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
+         rewrite get_first_zero_index_firstn; eauto.
          do 2 eexists; intuition eauto.
          (** valid bits upd lemma **)
          admit.
          clear D.
          rewrite Mem.upd_ne; eauto.  
-         lia.
+         lia.         
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.
@@ -250,16 +252,18 @@ Proof.
        instantiate (1:= (get_first_zero_index (firstn num_of_blocks (bits (value_to_bits (fst x1 bitmap_addr)))))) in Hx.
        logic_clean.      
        {
-         repeat (rewrite get_first_zero_index_firstn,
-                 get_first_zero_index_false in *; eauto).
+         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
+         rewrite nth_selN_eq in *.
+         setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
+         
+         rewrite get_first_zero_index_firstn; eauto.
          do 2 eexists; intuition eauto.
          (** valid bits upd lemma **)
          admit.
          clear D.
-         rewrite get_first_zero_index_firstn in l; eauto.
-         rewrite Mem.upd_ne; eauto; lia.
+         rewrite Mem.upd_ne; eauto; try lia.
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.
@@ -275,15 +279,16 @@ Proof.
        instantiate (1:= (get_first_zero_index (firstn num_of_blocks (bits (value_to_bits (fst x3 bitmap_addr)))))) in Hx.
        logic_clean.      
        {
-         repeat (rewrite get_first_zero_index_firstn,
-                 get_first_zero_index_false in *; eauto).
+         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
+         rewrite nth_selN_eq in *.
+         setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
+         rewrite get_first_zero_index_firstn; eauto.
          do 2 eexists; intuition eauto.
          (** valid bits upd lemma **)
          admit.
          clear D.
-         rewrite get_first_zero_index_firstn in l; eauto.
          rewrite Mem.upd_ne; eauto; lia.
        }
        rewrite H3; eauto.
@@ -296,15 +301,16 @@ Proof.
        instantiate (1:= (get_first_zero_index (firstn num_of_blocks (bits (value_to_bits (fst s' bitmap_addr)))))) in Hx.
        logic_clean.      
        {
-         repeat (rewrite get_first_zero_index_firstn,
-                 get_first_zero_index_false in *; eauto).
+         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
+         rewrite nth_selN_eq in *.
+         setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
+         rewrite get_first_zero_index_firstn; eauto.
          do 2 eexists; intuition eauto.
          (** valid bits upd lemma **)
          admit.
          clear D.
-         rewrite get_first_zero_index_firstn in l; eauto.
          rewrite Mem.upd_ne; eauto; lia.
        }
        rewrite H3; eauto.
@@ -341,8 +347,7 @@ Theorem read_finished:
   forall dh u o s a t s',
     block_allocator_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (read a) (Finished s' t) ->
-    ((exists v, t = Some v /\ dh a = Some v) \/
-     t = None) /\
+    dh a = t /\
     block_allocator_rep dh (fst s') /\
     snd s' = snd s.
 Proof.
@@ -391,127 +396,6 @@ Proof.
   }
 Admitted.
 
-
-(*
-Theorem read_ok:
-  forall dh a t s' F,
-    strongest_postcondition (TransactionalDiskLang data_length) (read a)
-                            (fun o s => (F * block_allocator_rep dh)%predicate (mem_union (fst s) (snd s))) t s' ->
-    (t = dh a /\ (F * block_allocator_rep dh)%predicate (mem_union (fst s') (snd s'))).
-Proof. (*
-  unfold block_allocator_rep; simpl; intros.
-  pose proof num_of_blocks_in_bounds.
-  pose proof blocks_fit_in_disk.
-  unfold read in *.
-  repeat (cleanup; simpl in * ); try lia;
-  repeat (split_ors; cleanup; simpl in * ); eauto; try lia.
-*)
-Admitted.
-
-
-Theorem write_ok:
-  forall dh a v t s' F,
-    strongest_postcondition (TransactionalDiskLang data_length) (write a v)
-                            (fun o s => (F * block_allocator_rep dh)%predicate (mem_union (fst s) (snd s)) /\
-                                     (forall tok, In tok o -> tok <> OpOracle (TransactionalDiskOperation data_length) [TxnFull])%list ) t s' ->
-    (exists v', dh a = Some v' /\ t = Some tt /\ (F * block_allocator_rep (upd dh a v))%predicate (mem_union (fst s') (snd s'))) \/
-    (t = None /\ (F * block_allocator_rep dh)%predicate (mem_union (fst s') (snd s'))).
-Proof. (*
-  unfold block_allocator_rep; simpl; intros.
-  pose proof num_of_blocks_in_bounds.
-  pose proof blocks_fit_in_disk.
-  unfold write in *.
-  repeat (cleanup; simpl in * ); try lia;
-  repeat (split_ors; cleanup; simpl in * ); try lia;
-  try solve [ unfold not in *; exfalso; eapply H8; [| eauto]; eauto];
-  try solve [ unfold not in *; exfalso; eapply H9; [| eauto]; eauto];
-  try solve [right; intuition eauto].
-          
-  - left; eexists; intuition eauto.
-    destruct_lifts.
-    repeat rewrite mem_union_upd.
-    do 2 destruct H.
-    destruct_lifts.
-    do 2 eexists.
-      eapply pimpl_trans; [| eauto | eapply ptsto_upd].
-    2: {
-      eapply sep_star_assoc.
-      apply sep_star_comm.
-      pred_apply; cancel.
-      instantiate (3:= bitmap_addr|-> x).
-      cancel.
-      intros m Hm.
-     
-      apply sep_star_comm.
-      pred_apply. apply ptsto_bits_extract.
-      lia.
-      destruct (value_to_bits x); simpl in *.
-      unfold valid_bitlist in *; cleanup.
-      apply num_of_blocks_in_bounds.
-    }
-    cancel.
-    instantiate (1:= updN x1 a v).
-    admit. (* Separation logic goal *)
-    rewrite length_updN; eauto. 
-    rewrite upd_ne; eauto.
-    lia.
-
-  - left; eexists; intuition eauto.
-    destruct_lifts.
-    repeat rewrite mem_union_upd.
-    do 2 destruct H.
-    destruct_lifts.
-    do 2 eexists.
-      eapply pimpl_trans; [| eauto | eapply ptsto_upd].
-    2: {
-      eapply sep_star_assoc.
-      apply sep_star_comm.
-      pred_apply; cancel.
-      instantiate (3:= bitmap_addr|-> x).
-      cancel.
-      intros m Hm.
-     
-      apply sep_star_comm.
-      pred_apply. apply ptsto_bits_extract.
-      lia.
-      destruct (value_to_bits x); simpl in *.
-      unfold valid_bitlist in *; cleanup.
-      apply num_of_blocks_in_bounds.
-    }
-    cancel.
-    instantiate (1:= updN x1 a v).
-    admit. (* Separation logic goal *)
-    rewrite length_updN; eauto. 
-    rewrite upd_ne; eauto.
-    lia.
-*)
-Admitted.
-
-Global Opaque alloc free read write.
-
-(*
-Theorem block_allocator_rep_upd:
-  forall m F dh a v,
-    (F * block_allocator_rep dh)%predicate m ->
-    (F * block_allocator_rep (upd dh a v))%predicate (upd m (S a) v).
-Proof.
-  unfold block_allocator_rep;
-  intros.
-  apply pimpl_exists_l_star_r in H.
-  destruct H.
-  apply pimpl_exists_l_star_r in H.
-  destruct H.
-  destruct_lifts.
-  Search ptsto_bits.
-  rewrite ptsto_bits_extract in H.
-  apply sep_star_assoc in H.
-  eapply ptsto_upd' in H.
-  pred_apply' H.
-  cancel.
-*)
-  
-*)
-***)
 End BlockAllocator.
 
 
