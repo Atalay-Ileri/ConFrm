@@ -36,11 +36,17 @@ Definition alloc (v': value) :=
   let index := get_first_zero_index (firstn num_of_blocks bits) in
   
   if lt_dec index num_of_blocks then
-    _ <-| Write (bitmap_addr + S index) v';
-    _ <-| Write bitmap_addr
-      (bits_to_value (Build_bitlist (updN bits index true)
+    r <-| Write (bitmap_addr + S index) v';
+    if r is Some tt then
+      r <-| Write bitmap_addr
+        (bits_to_value (Build_bitlist (updN bits index true)
                      (upd_valid_length _ bits index true _ valid)));
-    Ret (Some index)
+      if r is Some tt then
+        Ret (Some index)
+      else
+        Ret None
+    else
+      Ret None
   else
     Ret None.
 
@@ -50,10 +56,9 @@ Definition free a :=
   let bits := bits (value_to_bits v) in
   let valid := valid (value_to_bits v) in
   if nth_error bits a is Some true then
-      _ <-| Write bitmap_addr
+      | Write bitmap_addr
           (bits_to_value (Build_bitlist (updN bits a false)
-          (upd_valid_length _ bits a false _ valid)));
-      Ret (Some tt)
+          (upd_valid_length _ bits a false _ valid)))|
     else
       Ret None
   else
@@ -78,8 +83,7 @@ Definition write a b :=
   let bits := bits (value_to_bits v) in
   let valid := valid (value_to_bits v) in
   if nth_error bits a is Some true then
-      _ <-| Write (bitmap_addr + S a) b;
-      Ret (Some tt)
+      | Write (bitmap_addr + S a) b|
     else
       Ret None
   else
@@ -282,6 +286,7 @@ Proof.
          repeat rewrite upd_ne; try lia; eauto.
        }
      }
+     do 2 invert_exec; simpl in *; cleanup.
      {
        split; eauto.
        unfold block_allocator_rep in *; cleanup.
@@ -293,14 +298,12 @@ Proof.
          rewrite nth_selN_eq in *.
          setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
-         left; eexists; intuition eauto.
+         right; eexists; intuition eauto.
          
          rewrite get_first_zero_index_firstn; eauto.
          do 2 eexists; intuition eauto.
          (** valid bits upd lemma **)
          admit.
-         clear D.
-         rewrite Mem.upd_ne; eauto; try lia.
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.
@@ -312,58 +315,8 @@ Proof.
      }
      lia.
   }
-  do 2 invert_exec; simpl in *; cleanup.
-  do 2 invert_exec; simpl in *; cleanup.
-   {
-       split; eauto.
-       unfold block_allocator_rep in *; cleanup.
-       eapply_fresh valid_bits_extract in H0; eauto; try lia.
-       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (bits (value_to_bits (fst x3 bitmap_addr)))))) in Hx.
-       logic_clean.      
-       {
-         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
-         rewrite nth_selN_eq in *.
-         setoid_rewrite get_first_zero_index_false in H5; eauto.
-         split_ors; cleanup; try congruence.
-         left; eexists; intuition eauto.
-         rewrite get_first_zero_index_firstn; eauto.
-         do 2 eexists; intuition eauto.
-         (** valid bits upd lemma **)
-         admit.
-         clear D.
-         rewrite Mem.upd_ne; eauto; lia.
-       }
-       rewrite H3; eauto.
-       rewrite bitlist_length; lia.
-       {
-         split; eauto.
-         intros.
-         repeat rewrite upd_ne; try lia; eauto.
-       }
-   }
-   {
-       split; eauto.
-       unfold block_allocator_rep in *; cleanup.
-       eapply_fresh valid_bits_extract in H0; eauto; try lia.
-       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (bits (value_to_bits (fst s' bitmap_addr)))))) in Hx.
-       logic_clean.      
-       {
-         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
-         rewrite nth_selN_eq in *.
-         setoid_rewrite get_first_zero_index_false in H5; eauto.
-         split_ors; cleanup; try congruence.
-         left; eexists; intuition eauto.
-         rewrite get_first_zero_index_firstn; eauto.
-         do 2 eexists; intuition eauto.
-         (** valid bits upd lemma **)
-         admit.
-         clear D.
-         rewrite Mem.upd_ne; eauto; lia.
-       }
-       rewrite H3; eauto.
-       rewrite bitlist_length; lia.
-   }
-   lia.
+  do 2 invert_exec; simpl in *; cleanup;
+  eauto.
 Admitted.
    
        
@@ -372,8 +325,7 @@ Theorem free_finished:
     block_allocator_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (free a) (Finished s' t) ->
     ((t = Some tt /\
-      (block_allocator_rep dh (fst s') \/
-       block_allocator_rep (Mem.delete dh a) (fst s'))) \/
+       block_allocator_rep (Mem.delete dh a) (fst s')) \/
     (t = None /\ block_allocator_rep dh (fst s'))) /\
     (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
      snd s' = snd s.
@@ -382,13 +334,13 @@ Proof.
   cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
   {
     left; split; eauto.
-    right.
     unfold block_allocator_rep in *; cleanup.
     simpl; do 2 eexists; intuition eauto.
     (** valid bits delete lemma **)
     admit.
     rewrite delete_ne; eauto; lia.
   }
+  all: simpl; rewrite upd_ne; eauto; lia.
 Admitted.
 
 Theorem read_finished:
@@ -444,8 +396,7 @@ Theorem write_finished:
     block_allocator_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (write a v) (Finished s' t) ->
     ((t = Some tt /\
-      (block_allocator_rep dh (fst s') \/
-      block_allocator_rep (Mem.upd dh a v) (fst s'))) \/
+      block_allocator_rep (Mem.upd dh a v) (fst s')) \/
     (t = None /\ block_allocator_rep dh (fst s'))) /\
     (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
      snd s' = snd s.
@@ -454,13 +405,12 @@ Proof.
   cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
   {
     left; split; eauto.
-    right.
     unfold block_allocator_rep in *; cleanup.
     simpl; do 2 eexists; intuition eauto.
     (** valid bits upd lemma **)
     admit.
     rewrite Mem.upd_ne; eauto; lia.
-  }
+  }  
   all: simpl; rewrite upd_ne; eauto; lia.
 Admitted.
 

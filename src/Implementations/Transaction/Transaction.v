@@ -48,11 +48,11 @@ Definition write a v :=
   if le_dec (length (addr_list_to_blocks (map fst txn ++ [a])) +
              length ((map snd txn) ++ [v])) log_length then
       _ <- |TCCO| Put (a, v);
-      Ret tt
+      Ret (Some tt)
     else
-      Ret tt
+      Ret None
   else
-    Ret tt.
+    Ret None.
 
 Definition recover :=
   _ <- |TCCO| Delete _;
@@ -323,9 +323,11 @@ Definition write_finished :
   forall u s o s' r td a v,
     transaction_rep s td ->
     exec TransactionCacheLang u o s (write a v) (Finished s' r) ->
-    (transaction_rep s' (upd (fst td) a v, snd td) /\
+    (r = Some tt /\
+     transaction_rep s' (upd (fst td) a v, snd td) /\
      s' = ((a, v):: fst s, snd s)) \/
-    ((a >= data_length \/
+    (r = None /\
+     (a >= data_length \/
       (a < data_length /\
        length (addr_list_to_blocks (map fst (fst s) ++ [a])) +
              length ((map snd (fst s)) ++ [v]) > log_length)) /\
@@ -345,10 +347,12 @@ Proof.
     repeat rewrite rev_length, map_length; eauto.
   }
   {
-    right; split; eauto; lia.
+    right; split; eauto.
+    split; eauto; lia.
   }
   {
-    right; split; eauto; lia.
+    right; split; eauto.
+    split; eauto; lia.
   }
 Qed.
 

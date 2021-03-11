@@ -207,8 +207,7 @@ Theorem free_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (free inum) (Finished s' t) ->
-    ((t = Some tt /\
-      (inode_rep dh (fst s') \/ inode_rep (Mem.delete dh inum) (fst s'))) \/
+    ((t = Some tt /\ inode_rep (Mem.delete dh inum) (fst s')) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
@@ -221,41 +220,35 @@ Proof.
   split; eauto.
   {
     left; split; eauto.
-    split_ors.
+    eexists; intuition eauto.
     {
-      left; eexists; intuition eauto.
-    }
-    {
-      right; eexists; intuition eauto.
+      unfold inode_map_rep in *; cleanup.
+      split; intros.
       {
-        unfold inode_map_rep in *; cleanup.
+        destruct (addr_dec inum i); subst.
+        repeat rewrite delete_eq; simpl; eauto.
+        repeat rewrite delete_ne; simpl; eauto.
+      }
+      {
+        unfold inode_map_valid in *; cleanup.
         split; intros.
         {
           destruct (addr_dec inum i); subst.
-          repeat rewrite delete_eq; simpl; eauto.
-          repeat rewrite delete_ne; simpl; eauto.
+          - rewrite Mem.delete_eq in H6; simpl; eauto; congruence.
+          - rewrite Mem.delete_ne in H6; simpl; eauto.
         }
-         {
-           unfold inode_map_valid in *; cleanup.
-           split; intros.
-           {
-             destruct (addr_dec inum i); subst.
-             - rewrite Mem.delete_eq in H6; simpl; eauto; congruence.
-             - rewrite Mem.delete_ne in H6; simpl; eauto.
-           }
-           {
-             destruct (addr_dec inum i); subst.
-             - rewrite Mem.delete_eq in H7; simpl; eauto; congruence.
-               
-             - rewrite Mem.delete_ne in H7; simpl; eauto.
-               destruct (addr_dec inum j); subst.
-               rewrite Mem.delete_eq in H8; simpl; eauto; congruence.
-               rewrite Mem.delete_ne in H8; simpl; eauto.
-           }
-         }
+        {
+          destruct (addr_dec inum i); subst.
+          - rewrite Mem.delete_eq in H7; simpl; eauto; congruence.
+            
+          - rewrite Mem.delete_ne in H7; simpl; eauto.
+            destruct (addr_dec inum j); subst.
+            rewrite Mem.delete_eq in H8; simpl; eauto; congruence.
+            rewrite Mem.delete_ne in H8; simpl; eauto.
+        }
       }
     }
-  }
+  }  
 Qed.
 
 
@@ -298,8 +291,7 @@ Theorem set_inode_finished:
      dh i = Some inode_i ->
      NoDup (inode.(block_numbers) ++ inode_i.(block_numbers))) ->
     exec (TransactionalDiskLang data_length) u o s (set_inode inum inode) (Finished s' t) ->
-    ((t = Some tt /\
-      (inode_rep dh (fst s') \/ inode_rep (Mem.upd dh inum inode) (fst s'))) \/
+    ((t = Some tt /\ inode_rep (Mem.upd dh inum inode) (fst s')) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
@@ -315,7 +307,7 @@ Proof.
     unfold inode_map_rep in *; cleanup.
     left; split; eauto.
     intuition eauto.
-    right; eexists; intuition eauto.
+    eexists; intuition eauto.
      {
         intros.
         destruct (addr_dec inum i); subst.
@@ -361,8 +353,7 @@ Theorem extend_finished:
     ((exists inode,
         t = Some tt /\
         dh inum = Some inode /\
-        (inode_rep dh (fst s') \/
-         inode_rep (Mem.upd dh inum (Build_Inode inode.(owner) (inode.(block_numbers) ++ [block_num]))) (fst s'))) \/
+        (inode_rep (Mem.upd dh inum (Build_Inode inode.(owner) (inode.(block_numbers) ++ [block_num]))) (fst s'))) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
@@ -419,8 +410,7 @@ Theorem change_owner_finished:
     ((exists inode,
         t = Some tt /\
         dh inum = Some inode /\
-        (inode_rep dh (fst s') \/
-         inode_rep (Mem.upd dh inum (Build_Inode new_owner inode.(block_numbers))) (fst s'))) \/
+        (inode_rep (Mem.upd dh inum (Build_Inode new_owner inode.(block_numbers))) (fst s'))) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->

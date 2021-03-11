@@ -1,4 +1,5 @@
-Require Import Framework FSParameters AuthenticatedDiskLayer BlockAllocator Inode.
+Require Import Framework FSParameters AuthenticatedDiskLayer.
+Require Import BlockAllocator Inode.
 Require Import Compare_dec FunctionalExtensionality Lia.
 Import IfNotations.
 
@@ -80,20 +81,13 @@ Definition read_inner off inum :=
 Definition write_inner off v inum :=
   r <- get_block_number inum off;
   if r is Some block_number then
-    r <- DiskAllocator.write block_number v;
-    if r is Some tt then
-      Ret (Some tt)
-    else
-      Ret None
+    DiskAllocator.write block_number v
   else
     Ret None.
 
 Definition change_owner_inner owner inum :=
-  r <- change_owner inum owner;
-  if r is Some tt then
-     Ret (Some tt)
-  else
-    Ret None.
+  change_owner inum owner.
+
 
 Fixpoint free_all_blocks block_nums :=
   match block_nums with
@@ -102,8 +96,7 @@ Fixpoint free_all_blocks block_nums :=
   | bn :: block_nums' =>
     ok <- DiskAllocator.free bn;
     if ok is Some tt then
-      r <- free_all_blocks block_nums';
-      Ret r
+      free_all_blocks block_nums'
     else
       Ret None
 end.
@@ -113,11 +106,7 @@ Definition delete_inner inum :=
   if mbl is Some block_numbers then
     ok <- free_all_blocks block_numbers;
     if ok is Some tt then
-      r <- free inum;
-      if r is Some tt then
-        Ret (Some tt)
-      else
-        Ret None
+      free inum
     else
       Ret None
   else
@@ -126,11 +115,7 @@ Definition delete_inner inum :=
 Definition extend_inner v inum :=
   mbn <- DiskAllocator.alloc v;
   if mbn is Some block_num then
-    r <- extend inum block_num;
-    if r is Some tt then
-      Ret (Some tt)
-    else
-      Ret None
+    extend inum block_num
   else
     Ret None.
 
@@ -251,55 +236,7 @@ Proof.
   eapply files_inner_rep_eq in H; eauto.
 Qed.
 
-(*** Specs ***)
-(*
-Lemma auth_then_exec_finished:
-    forall u T (p: Inum -> prog _ (option T)) o s s' r inum fd (pred_s_r: _ -> _ -> _ -> Prop),
-    files_rep fd s ->
-    (forall sx o_p fdp sp rp,
-       files_inner_rep fdp (fst sx) ->
-       exec (TransactionalDiskLang data_length) u o_p sx (p inum) (Finished sp rp) ->
-       pred_s_r sx sp rp) ->  
-    exec AuthenticatedDiskLang u o s (auth_then_exec inum p) (Finished s' r) ->
-    files_rep fd s' /\
-    ((r = None /\
-      (inum >= inode_count \/
-       fd inum = None \/
-       (exists file,
-          fd inum = Some file /\
-          file.(BaseTypes.owner) <> u))
-      /\ files_rep fd s') \/
-     (exists f v,
-        r = Some v /\
-        fd inum = Some f /\
-        inum < inode_count /\
-        f.(BaseTypes.owner) = u /\
-        pred_s_r (snd s) (snd s') r)).
-Proof.
-  unfold auth_then_exec; intros; simpl.
-  repeat invert_exec.
-  simpl in *; repeat cleanup_pairs.
-  
-  unfold files_rep, files_inner_rep in H; simpl in *; cleanup. 
-  eapply get_owner_finished in H4; eauto.
-  2: rewrite H; eauto.
-
-  cleanup; split_ors; cleanup.
-  {
-    repeat cleanup_pairs.
-    eapply H0 in H8.
-    2: {
-      unfold files_inner_rep.
-      eexists; intuition eauto.
-      simpl.
-      eexists; intuition eauto.
-      
-    
-    Search lift_L2.
-    econstructor; eauto.
-    intuition eauto.
-    eexists; intuition eauto.
- *)
+(*** Finish Specs ***)
   
 Lemma read_finished:
   forall u o s s' r inum off fd,
@@ -598,12 +535,6 @@ Proof.
 Qed.    
      
   
-Lemma read_crashed:
-  forall u o s s' inum off fm,
-    files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (read inum off) (Crashed s') ->
-    files_crash_rep fm s'.
-Admitted.
 
 Lemma write_finished:
   forall u o s s' r inum off v fm,
@@ -622,19 +553,286 @@ Lemma write_finished:
           f.(BaseTypes.owner) = u /\
           off < length f.(blocks) /\
           files_rep (Mem.upd fm inum (update_file f off v)) s').
-Admitted.
+Proof.
+  unfold write, auth_then_exec, write_inner;
+  intros; simpl.
+  repeat invert_exec;
+  simpl in *; repeat cleanup_pairs; eauto.
+  { (** Success **)
+    unfold files_rep, files_inner_rep in H; simpl in *; cleanup.
+    repeat cleanup_pairs.
+    eapply get_owner_finished in H3; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    eapply get_block_number_finished in H7; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    repeat cleanup_pairs.
+    eapply DiskAllocator.block_allocator_rep_inbounds_eq with (s2:= t1) in H1.    
+    eapply DiskAllocator.write_finished in H8; eauto.
+    simpl in *.
+    cleanup; split_ors; cleanup.
+    unfold inode_rep in *; cleanup.
+    eapply InodeAllocator.block_allocator_rep_inbounds_eq with (s2:= t) in H6.
+    
+    {
+      unfold files_inner_rep, inode_rep; simpl.
+      eexists; intuition eauto.
+    }
+    {
+      destruct_fresh (fd inum).
+      {
+        unfold file_map_rep in *; cleanup.
+        eapply_fresh H1 in H5; eauto.
+        unfold file_rep in *; cleanup; eauto.
+                
+        right; eexists; intuition eauto.
+        edestruct H4; eauto; cleanup.
+        apply nth_error_nth'; eauto.
+        rewrite nth_selN_eq in H11;
+        erewrite H10 in H11; cleanup; eauto.
+        {
+          unfold block_allocator_rep,
+          inode_map_rep in *; cleanup.
+          rewrite H7 in H5; simpl in *.
+          unfold InodeAllocatorParams.num_of_blocks in *.
+          destruct (lt_dec inum inode_count); eauto.
+          rewrite H15 in H5; simpl in *; try congruence; try lia.
+        }
+      }
+      {
+        unfold file_map_rep, addrs_match_exactly in *; cleanup.
+        edestruct H0; exfalso.
+        eapply H3; eauto; congruence.
+      }
+    }
+    {
+      intros.
+      pose proof inodes_before_data.
+      apply H10;
+      unfold DiskAllocatorParams.bitmap_addr,
+      DiskAllocatorParams.num_of_blocks,
+      InodeAllocatorParams.bitmap_addr,
+      InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+    {
+      intros.
+      pose proof inodes_before_data.
+      rewrite H7. apply H4.
+      all:
+        unfold DiskAllocatorParams.bitmap_addr,
+        DiskAllocatorParams.num_of_blocks,
+        InodeAllocatorParams.bitmap_addr,
+        InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+  }
+  { (** Read Failed **)
+    unfold files_rep, files_inner_rep in H; simpl in *; cleanup.
+    repeat cleanup_pairs.
+    eapply get_owner_finished in H3; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    eapply get_block_number_finished in H7; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    repeat cleanup_pairs.
+    eapply_fresh (DiskAllocator.block_allocator_rep_inbounds_eq x1 t1 t) in H1.    
+    eapply DiskAllocator.read_finished in H8; eauto.
+    simpl in *.
+    cleanup; split_ors; cleanup.
+    unfold inode_rep in *; cleanup.
+    eapply (InodeAllocator.block_allocator_rep_inbounds_eq x2 t (fst s0)) in H6.
+    repeat (split; eauto).
+    {
+      unfold files_inner_rep, inode_rep; simpl.
+      eexists; intuition eauto.
+    }
+    {
+      left.
+      unfold inode_map_rep, inode_map_valid in *; cleanup.
+      eapply_fresh H18 in H5; unfold inode_valid in *.
+      cleanup.
+      eapply Forall_forall in H15; [| apply in_selN; eauto].
+      unfold file_map_rep in *; cleanup.
+      destruct_fresh (fd inum).
+      eapply_fresh f in H5; eauto.
+      unfold file_rep in *; cleanup.
+      unfold DiskAllocator.block_allocator_rep in *; cleanup.
+      eapply_fresh (DiskAllocator.valid_bits_extract x1 x7
+       (bits (value_to_bits (fst s0 DiskAllocatorParams.bitmap_addr)))
+       (selN (block_numbers x) off 0)) in v; eauto.
+      cleanup; try congruence.
 
-Lemma write_crashed:
-  forall u o s s' inum off v fm,
-    files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (write inum off v) (Crashed s') ->
-    files_crash_rep fm s' \/
-    (exists f, fm inum = Some f /\
-          inum < inode_count /\
-          f.(BaseTypes.owner) = u /\
-          off < length f.(blocks) /\
-          files_crash_rep (Mem.upd fm inum (update_file f off v)) s').
-Admitted.
+      split_ors; cleanup.
+      edestruct H17; eauto; cleanup.
+      apply nth_error_nth'; eauto.
+      rewrite nth_selN_eq in H11; cleanup.
+      rewrite H21 in H11; cleanup.
+
+      {
+        edestruct H17; eauto; cleanup.
+        apply nth_error_nth'; eauto.
+        destruct (lt_dec (selN (block_numbers x) off 0) DiskAllocatorParams.num_of_blocks); eauto.
+        rewrite e7 in H9; cleanup.
+        instantiate (1:= 0);
+        rewrite <- nth_selN_eq; lia.
+      }
+      rewrite bitlist_length.      
+      pose proof DiskAllocatorParams.num_of_blocks_in_bounds.
+      unfold DiskAllocatorParams.num_of_blocks in *;
+      lia.
+
+      - edestruct a.
+        exfalso; apply H16; eauto; congruence.
+    }
+    {
+      intros.
+      pose proof inodes_before_data.
+      apply H10;
+      unfold DiskAllocatorParams.bitmap_addr,
+      DiskAllocatorParams.num_of_blocks,
+      InodeAllocatorParams.bitmap_addr,
+      InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+    {
+      intros.
+      pose proof inodes_before_data.
+      rewrite H7. apply H4.
+      all:
+        unfold DiskAllocatorParams.bitmap_addr,
+        DiskAllocatorParams.num_of_blocks,
+        InodeAllocatorParams.bitmap_addr,
+        InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+  }
+  { (** off is out-of-bounds **)
+    unfold files_rep, files_inner_rep in H; simpl in *; cleanup.
+    repeat cleanup_pairs.
+    eapply get_owner_finished in H3; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    eapply get_block_number_finished in H7; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    repeat cleanup_pairs.
+    eapply_fresh (DiskAllocator.block_allocator_rep_inbounds_eq x1 t1 t) in H1.  
+    repeat (split; eauto).
+    {
+      unfold files_inner_rep, inode_rep; simpl.
+      eexists; intuition eauto.
+    }
+    {
+      split_ors; cleanup.
+      destruct_fresh (fd inum).
+      {
+        unfold file_map_rep in *; cleanup.
+        eapply_fresh H2 in H5; eauto.
+        unfold file_rep in *; cleanup; eauto.
+        
+        right; eexists; intuition eauto.        
+        symmetry; apply nth_error_None; lia.
+        
+        {
+          unfold inode_rep, block_allocator_rep,
+          inode_map_rep in *; cleanup.
+          rewrite H12 in H5; simpl in *.
+          unfold InodeAllocatorParams.num_of_blocks in *.
+          destruct (lt_dec inum inode_count); eauto.
+          rewrite H16 in H5; simpl in *; try congruence; try lia.
+        }
+      }
+      {
+        unfold file_map_rep, addrs_match_exactly in *; cleanup.
+        edestruct H; exfalso.
+        eapply H10; eauto; congruence.
+      }
+    }
+    {
+      intros.
+      pose proof inodes_before_data.
+      rewrite H7. apply H4.
+      all:
+        unfold DiskAllocatorParams.bitmap_addr,
+        DiskAllocatorParams.num_of_blocks,
+        InodeAllocatorParams.bitmap_addr,
+        InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+  }
+  { (** Auth failed **) 
+    unfold files_rep, files_inner_rep in H; simpl in *; cleanup.
+    repeat cleanup_pairs.
+    eapply get_owner_finished in H3; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    eapply_fresh (DiskAllocator.block_allocator_rep_inbounds_eq x0 (snd s0) (fst s0)) in H1.  
+    repeat (split; eauto).
+    {
+      unfold files_inner_rep, inode_rep; simpl.
+      eexists; intuition eauto.
+    }
+    {
+      destruct_fresh (fd inum).
+      {
+        unfold file_map_rep in *; cleanup.
+        eapply_fresh H2 in H5; eauto.
+        unfold file_rep in *; cleanup; eauto.
+        
+        left; intuition eauto.
+        right; right; eexists; intuition eauto.
+        congruence.
+      }
+      {
+        unfold file_map_rep, addrs_match_exactly in *; cleanup.
+        edestruct H; exfalso.
+        eapply H7; eauto; congruence.
+      }
+    }
+    {
+      intros.
+      pose proof inodes_before_data.
+      apply H4.
+      all:
+        unfold DiskAllocatorParams.bitmap_addr,
+        DiskAllocatorParams.num_of_blocks,
+        InodeAllocatorParams.bitmap_addr,
+        InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+  }
+  { (** inum doesn't exists **)
+    unfold files_rep, files_inner_rep in H; simpl in *; cleanup.
+    repeat cleanup_pairs.
+    eapply get_owner_finished in H3; eauto.
+    simpl in *; cleanup; split_ors; cleanup.
+    eapply_fresh (DiskAllocator.block_allocator_rep_inbounds_eq x0 (snd s1) (fst s1)) in H1.  
+    repeat (split; eauto).
+    {
+      unfold files_inner_rep, inode_rep; simpl.
+      eexists; intuition eauto.
+    }
+    left; intuition eauto.
+    destruct_fresh (fd inum).
+    {
+      unfold file_map_rep, addrs_match_exactly in *; cleanup.
+      edestruct H; exfalso.
+      eapply H6; eauto; congruence.
+    }
+    intuition.
+    {
+      intros.
+      pose proof inodes_before_data.
+      apply H4.
+      all:
+        unfold DiskAllocatorParams.bitmap_addr,
+        DiskAllocatorParams.num_of_blocks,
+        InodeAllocatorParams.bitmap_addr,
+        InodeAllocatorParams.num_of_blocks in *;
+      try lia.
+    }
+  }
+  Unshelve.
+  eauto.
+Qed.  
+
+
 
 Lemma extend_finished:
   forall u o s s' r inum v fm,
@@ -651,16 +849,7 @@ Lemma extend_finished:
           files_rep (Mem.upd fm inum (extend_file f v)) s').
 Admitted.
 
-Lemma extend_crashed:
-  forall u o s s' inum v fm,
-    files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (extend inum v) (Crashed s') ->
-    files_crash_rep fm s' \/
-    (exists f, fm inum = Some f /\
-          inum < inode_count /\
-          f.(BaseTypes.owner) = u /\
-          files_crash_rep (Mem.upd fm inum (extend_file f v)) s').
-Admitted.
+
 
 Lemma delete_finished:
   forall u o s s' r inum fm,
@@ -677,17 +866,6 @@ Lemma delete_finished:
           files_rep (Mem.delete fm inum) s').
 Admitted.
 
-Lemma delete_crashed:
-  forall u o s s' inum fm,
-    files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (delete inum) (Crashed s') ->
-    files_crash_rep fm s' \/
-    (exists f, fm inum = Some f /\
-          inum < inode_count /\
-          f.(BaseTypes.owner) = u /\
-          files_crash_rep (Mem.delete fm inum) s').
-Admitted.
-
 Lemma create_finished:
   forall u o s s' r own fm,
     files_rep fm s ->
@@ -701,15 +879,9 @@ Lemma create_finished:
              files_rep (Mem.upd fm inum (new_file own)) s').
 Admitted.
 
-Lemma create_crashed:
-  forall u o s s' own fm,
-    files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (create own) (Crashed s') ->
-    files_crash_rep fm s' \/
-    (exists inum, fm inum = None /\
-             inum < inode_count /\
-             files_crash_rep (Mem.upd fm inum (new_file own)) s').
-Admitted.
+
+
+
 
 Lemma change_owner_finished:
   forall u o s s' r inum own fm,
@@ -728,6 +900,72 @@ Lemma change_owner_finished:
        files_rep (Mem.upd fm inum (change_file_owner f own)) s').
 Admitted.
 
+
+
+
+
+Lemma recover_finished:
+  forall u o s s' r fm,
+    files_reboot_rep fm s ->
+    exec AuthenticatedDiskLang u o s (recover) (Finished s' r) ->
+    files_rep fm s'.
+Admitted.
+
+
+
+(*** Crash Specs ***)
+
+Lemma read_crashed:
+  forall u o s s' inum off fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (read inum off) (Crashed s') ->
+    files_crash_rep fm s'.
+Admitted.
+
+Lemma write_crashed:
+  forall u o s s' inum off v fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (write inum off v) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          off < length f.(blocks) /\
+          files_crash_rep (Mem.upd fm inum (update_file f off v)) s').
+Admitted.
+
+Lemma extend_crashed:
+  forall u o s s' inum v fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (extend inum v) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          files_crash_rep (Mem.upd fm inum (extend_file f v)) s').
+Admitted.
+
+Lemma delete_crashed:
+  forall u o s s' inum fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (delete inum) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          files_crash_rep (Mem.delete fm inum) s').
+Admitted.
+
+Lemma create_crashed:
+  forall u o s s' own fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (create own) (Crashed s') ->
+    files_crash_rep fm s' \/
+    (exists inum, fm inum = None /\
+             inum < inode_count /\
+             files_crash_rep (Mem.upd fm inum (new_file own)) s').
+Admitted.
+
 Lemma change_owner_crashed:
   forall u o s s' inum own fm,
     files_rep fm s ->
@@ -738,14 +976,6 @@ Lemma change_owner_crashed:
        inum < inode_count /\
        f.(BaseTypes.owner) = u /\
        files_crash_rep (Mem.upd fm inum (change_file_owner f own)) s').
-Admitted.
-
-
-Lemma recover_finished:
-  forall u o s s' r fm,
-    files_reboot_rep fm s ->
-    exec AuthenticatedDiskLang u o s (recover) (Finished s' r) ->
-    files_rep fm s'.
 Admitted.
 
 Lemma recover_crashed:

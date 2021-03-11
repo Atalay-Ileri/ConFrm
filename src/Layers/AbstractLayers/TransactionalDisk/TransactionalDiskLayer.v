@@ -19,7 +19,7 @@ Section TransactionalDisk.
   Inductive transactional_disk_prog : Type -> Type :=
   (* | Start : transactional_disk_prog unit *)
   | Read : addr -> transactional_disk_prog value
-  | Write : addr -> value -> transactional_disk_prog unit
+  | Write : addr -> value -> transactional_disk_prog (option unit)
   | Commit : transactional_disk_prog unit
   | Abort : transactional_disk_prog unit
   | Recover : transactional_disk_prog unit
@@ -50,19 +50,19 @@ Section TransactionalDisk.
         let c := fst s in
         let d := snd s in
         a < disk_size ->
-        exec' u Cont s (Write a v) (Finished ((upd c a v), d) tt)
+        exec' u Cont s (Write a v) (Finished ((upd c a v), d) (Some tt))
 
   | ExecWriteInboundFull :
       forall s a v u,
         let c := fst s in
         let d := snd s in
         a < disk_size ->
-        exec' u TxnFull s (Write a v) (Finished s tt)
+        exec' u TxnFull s (Write a v) (Finished s None)
               
   | ExecWriteOutbound :
       forall s a v u,
         a >= disk_size ->
-        exec' u Cont s (Write a v) (Finished s tt)
+        exec' u Cont s (Write a v) (Finished s None)
 
   | ExecCommit : 
       forall s u,
