@@ -36,7 +36,7 @@ Definition alloc (v': value) :=
   let index := get_first_zero_index (firstn num_of_blocks bits) in
   
   if lt_dec index num_of_blocks then
-    _ <-| Write (S index) v';
+    _ <-| Write (bitmap_addr + S index) v';
     _ <-| Write bitmap_addr
       (bits_to_value (Build_bitlist (updN bits index true)
                      (upd_valid_length _ bits index true _ valid)));
@@ -179,6 +179,22 @@ Proof.
     rewrite firstn_length_l; lia.
 Qed.
 
+Lemma valid_bits'_inbound_same:
+  forall values l_b n dh s1 s2,
+    valid_bits' dh values l_b n s1 ->      
+    (forall a, bitmap_addr + n + length values >= a
+          /\ a >= bitmap_addr + n -> s2 a = s1 a) ->
+    valid_bits' dh values l_b n s2.
+Proof.
+  induction values; simpl; intros; eauto.
+  cleanup; eauto.
+  repeat (split; eauto).
+  eapply H0; lia.
+  eapply IHvalues; eauto.
+  intros.
+  eapply H0; lia.
+Qed.
+
 Lemma block_allocator_rep_eq:
   forall dh1 dh2 s,
     block_allocator_rep dh1 s ->
@@ -196,6 +212,21 @@ Proof.
   repeat split_ors; cleanup; eauto; try congruence.
 Qed.
 
+Lemma block_allocator_rep_inbounds_eq:
+  forall dh s1 s2,
+    block_allocator_rep dh s1 ->
+    (forall a, bitmap_addr + num_of_blocks >= a /\ a >= bitmap_addr -> s2 a = s1 a) ->
+    block_allocator_rep dh s2.
+Proof.
+  unfold block_allocator_rep; intros.
+  cleanup.
+  do 2 eexists; intuition eauto.
+  rewrite H0; eauto; try lia.
+  eapply valid_bits'_inbound_same; eauto.
+  rewrite Nat.add_0_r.
+  rewrite H2; eauto.
+Qed.
+
 (*** Specs ***)
 Theorem alloc_finished:
   forall dh u o s v t s',
@@ -204,7 +235,8 @@ Theorem alloc_finished:
     ((exists a, t = Some a /\
           dh a = None /\
           block_allocator_rep (Mem.upd dh a v) (fst s')) \/
-    (t = None /\ block_allocator_rep dh (fst s'))) /\
+     (t = None /\ block_allocator_rep dh (fst s'))) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
      snd s' = snd s.
 Proof. 
   unfold alloc; simpl; intros.
@@ -244,6 +276,11 @@ Proof.
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.
+       {
+         split; eauto.
+         intros.
+         repeat rewrite upd_ne; try lia; eauto.
+       }
      }
      {
        split; eauto.
@@ -267,6 +304,11 @@ Proof.
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.
+       {
+         split; eauto.
+         intros.
+         repeat rewrite upd_ne; try lia; eauto.
+       }
      }
      lia.
   }
@@ -293,6 +335,11 @@ Proof.
        }
        rewrite H3; eauto.
        rewrite bitlist_length; lia.
+       {
+         split; eauto.
+         intros.
+         repeat rewrite upd_ne; try lia; eauto.
+       }
    }
    {
        split; eauto.
@@ -328,6 +375,7 @@ Theorem free_finished:
       (block_allocator_rep dh (fst s') \/
        block_allocator_rep (Mem.delete dh a) (fst s'))) \/
     (t = None /\ block_allocator_rep dh (fst s'))) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
      snd s' = snd s.
 Proof.
   unfold free; intros; simpl in *.
@@ -347,12 +395,15 @@ Theorem read_finished:
   forall dh u o s a t s',
     block_allocator_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (read a) (Finished s' t) ->
-    dh a = t /\
+    ((exists v, t = Some v /\ dh a = Some v) \/
+     (t = None /\ dh a = None)) /\
     block_allocator_rep dh (fst s') /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
     snd s' = snd s.
 Proof.
   unfold read; intros; simpl in *.
-  cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
+  cleanup; repeat invert_exec; cleanup; intuition eauto; try lia;
+  try solve [ pose proof blocks_fit_in_disk; lia ].
   {
     left; eexists; intuition eauto.
     unfold block_allocator_rep in *; cleanup.
@@ -366,10 +417,25 @@ Proof.
     pose proof num_of_blocks_in_bounds; lia.
   }
   {
-    pose proof blocks_fit_in_disk; lia.
+    unfold block_allocator_rep in *; cleanup.    
+    eapply (valid_bits_extract _ _ _ a) in H0; try lia.
+    cleanup.
+    eapply nth_error_nth in D0.
+    rewrite <- nth_selN_eq in D0.
+    split_ors; cleanup; eauto.
+    rewrite e in D0; congruence.
+    rewrite bitlist_length; eauto.
+    pose proof num_of_blocks_in_bounds; lia.
   }
   {
-    pose proof blocks_fit_in_disk; lia.
+    apply nth_error_None in D0.
+    rewrite bitlist_length in D0.
+    pose proof num_of_blocks_in_bounds; lia.
+  }
+  {
+    unfold block_allocator_rep in *; cleanup.
+    right; split; eauto.
+    eapply H2; lia.
   }
 Qed.
 
@@ -381,6 +447,7 @@ Theorem write_finished:
       (block_allocator_rep dh (fst s') \/
       block_allocator_rep (Mem.upd dh a v) (fst s'))) \/
     (t = None /\ block_allocator_rep dh (fst s'))) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
      snd s' = snd s.
 Proof.
   unfold write; intros; simpl in *.
@@ -394,6 +461,7 @@ Proof.
     admit.
     rewrite Mem.upd_ne; eauto; lia.
   }
+  all: simpl; rewrite upd_ne; eauto; lia.
 Admitted.
 
 End BlockAllocator.

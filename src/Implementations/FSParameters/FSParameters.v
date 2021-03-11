@@ -39,6 +39,12 @@ Axiom file_blocks_count_in_bounds: file_blocks_count <= block_size.
 
 Axiom all_fits_to_data_region : 2 + inode_count + file_blocks_count <= data_length.
 
+Theorem inodes_before_data:
+  inode_blocks_start + inode_count < file_blocks_start.
+Proof.
+  unfold inode_blocks_start, file_blocks_start; lia.
+Qed.
+
 Theorem inodes_fit_in_disk:
   inode_blocks_start + inode_count < data_length.
 Proof.
