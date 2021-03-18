@@ -29,6 +29,9 @@ Import Params.
 
 
 (*** Functions ***)
+(** Returns index instead of data address.
+If you want data address, make sure to convert to data address 
+by adding (S bitmap_addr)  **) 
 Definition alloc (v': value) :=
   v <-| Read bitmap_addr;
   let bits := bits (value_to_bits v) in
@@ -50,6 +53,7 @@ Definition alloc (v': value) :=
   else
     Ret None.
 
+(** Takes index instead of data address. **) 
 Definition free a :=
   if lt_dec a num_of_blocks then
   v <-| Read bitmap_addr;
@@ -64,6 +68,7 @@ Definition free a :=
   else
     Ret None.
 
+(** Takes index instead of data address. **) 
 Definition read a :=
   if lt_dec a num_of_blocks then
   v <-| Read bitmap_addr;
@@ -77,6 +82,7 @@ Definition read a :=
   else
     Ret None.
 
+(** Takes index instead of data address. **) 
 Definition write a b :=
   if lt_dec a num_of_blocks then
   v <-| Read bitmap_addr;
@@ -199,6 +205,18 @@ Proof.
   eapply H0; lia.
 Qed.
 
+Lemma valid_bits'_zeroes:
+  forall s count count2 n,
+  count <= count2 ->
+    valid_bits' empty_mem (map s (seq (bitmap_addr + S n) count)) (repeat false count2) n s.
+Proof.
+  induction count; simpl; intros; eauto.
+  destruct count2; try lia; simpl.
+  intuition eauto.
+  rewrite <- Nat.add_succ_r; eauto.
+  eapply IHcount; lia.
+Qed.
+
 Lemma block_allocator_rep_eq:
   forall dh1 dh2 s,
     block_allocator_rep dh1 s ->
@@ -237,7 +255,8 @@ Theorem alloc_finished:
     block_allocator_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (alloc v) (Finished s' t) ->
     ((exists a, t = Some a /\
-          dh a = None /\
+           dh a = None /\
+           a < num_of_blocks /\
           block_allocator_rep (Mem.upd dh a v) (fst s')) \/
      (t = None /\ block_allocator_rep dh (fst s'))) /\
     (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
@@ -270,7 +289,7 @@ Proof.
          setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
-         rewrite get_first_zero_index_firstn; eauto.
+         rewrite get_first_zero_index_firstn; eauto.         
          do 2 eexists; intuition eauto.
          (** valid bits upd lemma **)
          admit.
@@ -413,6 +432,48 @@ Proof.
   }  
   all: simpl; rewrite upd_ne; eauto; lia.
 Admitted.
+
+
+(*** Crashed ***)
+Theorem alloc_crashed:
+  forall u o s s' own,
+    exec (TransactionalDiskLang data_length) u o s (alloc own) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold alloc; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+  try split_ors).
+Qed.
+
+Theorem free_crashed:
+  forall u o s s' a,
+    exec (TransactionalDiskLang data_length) u o s (free a) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold free; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+  try split_ors).
+Qed.
+
+Theorem read_crashed:
+  forall u o s s' a,
+    exec (TransactionalDiskLang data_length) u o s (read a) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold read; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+  try split_ors).
+Qed.
+
+Theorem write_crashed:
+  forall u o s s' a v,
+    exec (TransactionalDiskLang data_length) u o s (write a v) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold write; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+  try split_ors).
+Qed.
 
 End BlockAllocator.
 

@@ -4,8 +4,43 @@ Require Import List ListUtils.
 Require Import Eqdep.
 Import ListNotations.
 
-Tactic Notation "eapply_fresh" constr(thm) "in" hyp(H) :=
+Tactic Notation "eapply_fresh" uconstr(thm) "in" hyp(H) :=
   let Hx := fresh "Hx" in eapply thm in H as Hx.
+
+(** Hack **)
+
+Tactic Notation "eapply_fresh" uconstr(thm) "with"
+       "(" ident(name) ":=" ident(assig) ")" "in" hyp(H) :=
+  let Hx := fresh "Hx" in eapply thm with
+    (name := assig) in H as Hx.
+
+Tactic Notation "eapply_fresh" uconstr(thm) "with"
+       "(" ident(name) ":=" ident(assignee) ")"
+       "(" ident(name2) ":=" ident(assignee2) ")" "in" hyp(H) :=
+  let Hx := fresh "Hx" in eapply thm with
+    (name := assignee)
+    (name2 := assignee2) in H as Hx.
+
+Tactic Notation "eapply_fresh" uconstr(thm) "with"
+       "(" ident(name) ":=" ident(assignee) ")"
+       "(" ident(name2) ":=" ident(assignee2) ")"
+       "(" ident(name3) ":=" ident(assignee3) ")" "in" hyp(H) :=
+  let Hx := fresh "Hx" in eapply thm with
+    (name := assignee)
+    (name2 := assignee2)
+    (name3 := assignee3) in H as Hx.
+
+Tactic Notation "eapply_fresh" uconstr(thm) "with"
+       "(" ident(name) ":=" ident(assignee) ")"
+       "(" ident(name2) ":=" ident(assignee2) ")"
+       "(" ident(name3) ":=" ident(assignee3) ")"
+       "(" ident(name4) ":=" ident(assignee4) ")" "in" hyp(H) :=
+  let Hx := fresh "Hx" in eapply thm with
+    (name := assignee)
+    (name2 := assignee2)
+    (name3 := assignee3)
+    (name4 := assignee4) in H as Hx.
+
 
 Tactic Notation "destruct_fresh" constr(term) :=
   let D := fresh "D" in destruct term eqn:D.
@@ -15,6 +50,16 @@ Tactic Notation "assert_fresh" constr(ass) :=
 
 Tactic Notation "assume" "(" ident(label) ":" constr(type) ")" :=
   assert (label: type); [shelve|].
+
+Lemma eapply_fresh_with_test:
+  forall Q R,
+    (forall P, Q -> P) ->
+    Q ->
+    R.
+Proof.
+  intros; 
+  eapply_fresh X with (P := R) in X0.
+Abort.
 
 Lemma app_cons_nil:
   forall T (l: list T) a,

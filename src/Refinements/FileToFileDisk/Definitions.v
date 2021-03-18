@@ -45,6 +45,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
            (
              exec low u o1 d1 (write inum off v) (Finished d' r) /\
              o2 = Cont /\
+             r = Some tt /\
              inum < inode_count /\
              fd inum = Some file /\
              file.(owner) = u /\
@@ -54,11 +55,23 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
            (
              exec low u o1 d1 (write inum off v) (Finished d' r) /\
              o2 = Cont /\
+             r = None /\
              (inum >= inode_count \/
-               fd inum = None \/
-               (fd inum = Some file /\ file.(owner) <> u)) /\
+              fd inum = None \/
+              (fd inum = Some file /\
+               (file.(owner) <> u \/ off >= length file.(blocks)))) /\
              files_rep fd d'
-           ) 
+           ) \/
+             (
+             exec low u o1 d1 (write inum off v) (Finished d' r) /\
+             o2 = TxnFull /\
+             r = None /\
+             inum < inode_count /\
+             fd inum = Some file /\
+             file.(owner) = u /\
+             off < length file.(blocks) /\
+             files_rep fd d'
+           )
         ) \/
         
         (exists d',

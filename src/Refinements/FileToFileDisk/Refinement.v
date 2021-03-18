@@ -1,7 +1,7 @@
 Require Import Framework FSParameters.
 Require Import AuthenticatedDiskLayer FileDiskLayer.
 Require Import File FileToFileDisk.Definitions.
-Require Import ClassicalFacts FunctionalExtensionality Lia.
+Require Import ClassicalFacts Compare_dec FunctionalExtensionality Lia.
 
 Set Nested Proofs Allowed.
 
@@ -170,7 +170,11 @@ Section FileDiskSimulation.
     unfold abstract_oracles_exist_wrt, refines_to,
     refines_to_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
-    {      
+    {
+      
+      eapply_fresh write_finished in H7; eauto.
+      split_ors; cleanup.
+      split_ors; cleanup.
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         split; eauto.
@@ -179,16 +183,50 @@ Section FileDiskSimulation.
         intros.
         eexists; repeat split; eauto.
         intros.
-        eapply_fresh write_finished in H7; eauto.
-        split_ors; cleanup;        
+        eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto);
         unify_execs; cleanup;
 
         repeat split_ors; cleanup;
         do 2 eexists;
-        try solve [right; eauto;
+        try solve [right; left; eauto;
                    repeat (split; eauto) ].
-        left; repeat (split; eauto).
+        intros; unify_execs; cleanup.
+      }
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eapply files_rep_eq in H; eauto; subst.
+        left; eexists; repeat (split; eauto);
+        unify_execs; cleanup;
+        
+        repeat split_ors; cleanup;
+        do 2 eexists;
+        try solve [right; right; eauto;
+                   repeat (split; eauto) ].
+        intros; unify_execs; cleanup.
+      }
+      {
+        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eexists; repeat split; eauto.
+        intros.
+        eapply files_rep_eq in H; eauto; subst.
+        left; eexists; repeat (split; eauto);
+        unify_execs; cleanup;
+
+        repeat split_ors; cleanup;
+        do 2 eexists;
+        try solve [left; eauto;
+                   repeat (split; eauto) ].
         intros; unify_execs; cleanup.
       }
     }
@@ -928,6 +966,15 @@ Proof.
         eapply ExecFinished;
         repeat split_ors; cleanup;
         do 2 econstructor; eauto ].
+        eapply files_rep_eq in H8; eauto.
+        (** Impossible **)
+        admit.
+        
+        exists (RFinished s_abs None);
+        simpl; repeat (split; eauto);
+        eapply ExecFinished;
+        repeat split_ors; cleanup;
+        do 2 econstructor; eauto.
     }
     {
       clear H1.

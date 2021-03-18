@@ -8,7 +8,7 @@ Definition Inum := addr.
 Record Inode :=
   {
     owner: user;
-    block_numbers : list addr;
+    block_numbers : list addr; (** Stores block allocator index instead of data addresses **)
   }.
 
 Variable encode_inode : Inode -> value.
@@ -38,7 +38,7 @@ Definition free_block_number (inode_map: disk Inode) bn :=
 
 Definition inode_valid inode :=
   NoDup inode.(block_numbers) /\
-  Forall (fun bn => bn < data_length) inode.(block_numbers).
+  Forall (fun bn =>  bn < file_blocks_count) inode.(block_numbers).
 
 Definition inode_map_valid (inode_map: disk Inode) :=
   (forall i inode_i, inode_map i = Some inode_i -> inode_valid inode_i) /\
@@ -139,7 +139,8 @@ Theorem alloc_finished:
     inode_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (alloc user) (Finished s' t) ->
     ((exists a, t = Some a /\
-          dh a = None /\
+           dh a = None /\
+           a < InodeAllocatorParams.num_of_blocks /\
           inode_rep (Mem.upd dh a (Build_Inode user [])) (fst s')) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
@@ -173,30 +174,30 @@ Proof.
         split; intros.
         {
           destruct (addr_dec x0 i); subst.
-          - rewrite Mem.upd_eq in H7; simpl; eauto.
+          - rewrite Mem.upd_eq in H8; simpl; eauto.
             cleanup.
             unfold inode_valid; simpl; eauto.
             split; constructor.
-          - rewrite Mem.upd_ne in H7; simpl; eauto.
+          - rewrite Mem.upd_ne in H8; simpl; eauto.
         }
         {
           destruct (addr_dec x0 i); subst.
-          - rewrite Mem.upd_eq in H8; simpl; eauto.
+          - rewrite Mem.upd_eq in H9; simpl; eauto.
             cleanup; simpl.
-            rewrite Mem.upd_ne in H9; simpl; eauto.
-            apply H1 in H9.
+            rewrite Mem.upd_ne in H10; simpl; eauto.
+            apply H1 in H10.
             unfold inode_valid in *;
             cleanup; eauto.
             
-          - rewrite Mem.upd_ne in H8; simpl; eauto.
+          - rewrite Mem.upd_ne in H9; simpl; eauto.
             destruct (addr_dec x0 j); subst.
-            rewrite Mem.upd_eq in H9; simpl; eauto.
+            rewrite Mem.upd_eq in H10; simpl; eauto.
             cleanup; simpl.
             rewrite app_nil_r.
-            apply H1 in H8.
+            apply H1 in H9.
             unfold inode_valid in *;
             cleanup; eauto.
-            rewrite Mem.upd_ne in H9; simpl; eauto.
+            rewrite Mem.upd_ne in H10; simpl; eauto.
         }
       }
     }
@@ -348,7 +349,7 @@ Theorem extend_finished:
     (forall i inode_i,
      dh i = Some inode_i ->
      ~In block_num inode_i.(block_numbers)) ->
-    block_num < data_length ->
+    block_num < file_blocks_count ->
     exec (TransactionalDiskLang data_length) u o s (extend inum block_num) (Finished s' t) ->
     ((exists inode,
         t = Some tt /\
@@ -386,6 +387,7 @@ Proof.
     - apply NoDup_app_comm; simpl.
       constructor; eauto.
     - apply Forall_app; eauto.
+      
   }
   {
     intros.
@@ -446,9 +448,11 @@ Theorem get_block_number_finished:
     inode_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
     ((exists inode, off < length (inode.(block_numbers)) /\
-               t = Some (selN (inode.(block_numbers)) off 0) /\ dh inum = Some inode) \/
+               t = Some (selN (inode.(block_numbers)) off 0) /\
+               dh inum = Some inode) \/
      (t = None /\ (dh inum = None \/
-                  (exists inode, dh inum = Some inode /\ off >= length (inode.(block_numbers)))))) /\
+                  (exists inode, dh inum = Some inode /\
+                            off >= length (inode.(block_numbers)))))) /\
     inode_rep dh (fst s') /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
@@ -482,7 +486,9 @@ Theorem get_all_block_numbers_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (get_all_block_numbers inum) (Finished s' t) ->
-    ((exists inode, t = Some (inode.(block_numbers)) /\ dh inum = Some inode) \/ t = None) /\
+    ((exists inode, t = Some (inode.(block_numbers)) /\
+               dh inum = Some inode) \/
+     t = None) /\
     inode_rep dh (fst s') /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
@@ -516,6 +522,152 @@ Proof.
   split; eauto.
   split_ors; cleanup; eauto.
   split_ors; cleanup; intuition eauto.
+Qed.
+
+
+(*** Crashed ***)
+Theorem alloc_crashed:
+  forall u o s s' own,
+    exec (TransactionalDiskLang data_length) u o s (alloc own) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold alloc; intros;
+  eapply InodeAllocator.alloc_crashed; eauto.
+Qed.
+
+Theorem free_crashed:
+  forall u o s s' inum,
+    exec (TransactionalDiskLang data_length) u o s (free inum) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold free; intros;
+  eapply InodeAllocator.free_crashed; eauto.
+Qed.
+
+
+Theorem get_inode_crashed:
+  forall u o s s' inum dh,
+    block_allocator_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_inode inum) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold get_inode; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).
+  eapply read_crashed; eauto.
+  eapply read_finished in H; cleanup; eauto.
+  eapply read_finished in H; cleanup; eauto.
+Qed.
+
+Theorem set_inode_crashed:
+  forall u o s s' inum inode,
+    exec (TransactionalDiskLang data_length) u o s (set_inode inum inode) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold set_inode; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).
+  eapply write_crashed; eauto.
+Qed.
+
+
+Theorem extend_crashed:
+  forall u o s s' dh inum v,
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (extend inum v) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold extend; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).  
+  - unfold inode_rep in *; cleanup; eauto.
+    eapply get_inode_crashed; eauto.
+    
+  - eapply get_inode_finished in H0; eauto.
+    cleanup.
+    eapply set_inode_crashed in H1; eauto;
+    cleanup; eauto.
+
+  - eapply get_inode_finished in H0; eauto;
+    cleanup; eauto.
+Qed.
+
+Theorem change_owner_crashed:
+  forall u o s s' dh inum own,
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (change_owner inum own) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold change_owner; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).  
+  - unfold inode_rep in *; cleanup; eauto.
+    eapply get_inode_crashed; eauto.
+    
+  - eapply get_inode_finished in H0; eauto.
+    cleanup.
+    eapply set_inode_crashed in H1; eauto;
+    cleanup; eauto.
+
+  - eapply get_inode_finished in H0; eauto;
+    cleanup; eauto.
+Qed.
+
+Theorem get_block_number_crashed:
+  forall u o s s' dh inum off,
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_block_number inum off) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold get_block_number; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).  
+  - unfold inode_rep in *; cleanup; eauto.
+    eapply get_inode_crashed; eauto.
+    
+  - eapply get_inode_finished in H0; eauto.
+    cleanup; eauto.
+
+  - eapply get_inode_finished in H0; eauto;
+    cleanup; eauto.
+Qed.
+
+Theorem get_all_block_numbers_crashed:
+  forall u o s s' dh inum,
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_all_block_numbers inum) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold get_all_block_numbers; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).  
+  - unfold inode_rep in *; cleanup; eauto.
+    eapply get_inode_crashed; eauto.
+    
+  - eapply get_inode_finished in H0; eauto.
+    cleanup; eauto.
+
+  - eapply get_inode_finished in H0; eauto;
+    cleanup; eauto.
+Qed.
+
+Theorem get_owner_crashed:
+  forall u o s s' dh inum,
+    inode_rep dh (fst s) ->
+    exec (TransactionalDiskLang data_length) u o s (get_owner inum) (Crashed s') ->
+     snd s' = snd s.
+Proof.
+  unfold get_owner; intros;
+  repeat (cleanup; repeat invert_exec; eauto;
+          try split_ors).  
+  - unfold inode_rep in *; cleanup; eauto.
+    eapply get_inode_crashed; eauto.
+    
+  - eapply get_inode_finished in H0; eauto.
+    cleanup; eauto.
+
+  - eapply get_inode_finished in H0; eauto;
+    cleanup; eauto.
 Qed.
 
 Global Opaque alloc free extend change_owner get_block_number get_all_block_numbers get_owner.

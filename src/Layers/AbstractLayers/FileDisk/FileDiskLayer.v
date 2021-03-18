@@ -16,6 +16,7 @@ Section FileDisk.
   | NewInum : Inum -> token'
   | InodesFull : token'
   | DiskFull : token'
+  | TxnFull: token'
   | Cont : token'.
 
   Definition state' := (disk File)%type.
@@ -65,6 +66,14 @@ Section FileDisk.
          (file.(owner) <> u \/ off >= length (file.(blocks)))) ->
         exec' u Cont d (Write inum off v) (Finished d None)
 
+  | ExecWriteFailTxnFull :
+      forall d u inum file off v,
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        off < length (file.(blocks)) ->
+        exec' u TxnFull d (Write inum off v) (Finished d None)
+
   | ExecExtendSuccess :
       forall d u inum file v,
         inum < disk_size ->
@@ -87,6 +96,13 @@ Section FileDisk.
         file.(owner) = u ->
         exec' u DiskFull d (Extend inum v) (Finished d None)
 
+  | ExecExtendFailTxnFull :
+      forall d u inum file v,
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        exec' u TxnFull d (Extend inum v) (Finished d None)
+
   | ExecChangeOwnerSuccess :
       forall d u inum file o,
         inum < disk_size ->
@@ -102,6 +118,13 @@ Section FileDisk.
          (d inum = Some file /\ file.(owner) <> u)) ->
         exec' u Cont d (ChangeOwner inum o) (Finished d None)
 
+  | ExecChangeOwnerFailTxnFull :
+      forall d u inum file o,
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        exec' u TxnFull d (ChangeOwner inum o) (Finished d None)
+
   | ExecCreateSuccess :
       forall d u inum owner,
         inum < disk_size ->
@@ -113,6 +136,10 @@ Section FileDisk.
       forall d u owner,
         (forall inum, inum < disk_size -> d inum <> None) ->
         exec' u InodesFull d (Create owner) (Finished d None)
+
+  | ExecCreateFailTxnFull :
+      forall d u owner,
+        exec' u TxnFull d (Create owner) (Finished d None)
               
   | ExecDeleteSuccess :
       forall d u inum file,
@@ -127,6 +154,13 @@ Section FileDisk.
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
         exec' u Cont d (Delete inum) (Finished d None)
+              
+  | ExecDeleteFailTxnFull :
+      forall d u inum file,
+        inum < disk_size ->
+        d inum = Some file ->
+        file.(owner) = u ->
+        exec' u TxnFull d (Delete inum) (Finished d None)
 
   | ExecRecover : 
       forall d u,
