@@ -1,186 +1,7 @@
 Require Import Framework FSParameters AuthenticatedDiskLayer.
-Require Import BlockAllocator Inode File.
+Require Import BlockAllocator Inode File FileInnerSpecs.
 Require Import Compare_dec FunctionalExtensionality Lia.
 Import IfNotations.
-
-
-(*** Lemmas ***)
-
-Ltac solve_bounds:=
-  match goal with
-  |[H: forall _: nat , _ -> ?x _ = _ |- ?x _ = _ ] =>
-   pose proof inodes_before_data;
-   rewrite H;
-   unfold DiskAllocatorParams.bitmap_addr,
-   DiskAllocatorParams.num_of_blocks,
-   InodeAllocatorParams.bitmap_addr,
-   InodeAllocatorParams.num_of_blocks in *;
-   try lia; eauto
-  end.
-
-
-Set Nested Proofs Allowed.
-
-Lemma inode_exists_then_file_exists:
-  forall fm im s inum inode,
-  file_map_rep fm im s ->
-  im inum = Some inode ->
-  exists f, fm inum = Some f.
-Proof.
-  unfold file_map_rep; intros; cleanup.
-  destruct_fresh (fm inum); eauto.
-  edestruct H; exfalso.
-  apply H3; eauto; congruence.
-Qed.
-
-Lemma Some_injective:
-  forall A (a1 a2: A),
-    Some a1 = Some a2 ->
-    a1 = a2.
-Proof.
-  intros; congruence.
-Qed.
-
-Lemma nth_error_updN_eq:
-  forall T (l: list T) n m v,
-    n = m ->
-    n < length l ->
-    nth_error (updN l n v) m = Some v.
-Proof.
-  induction l; simpl; intros; eauto.
-  lia.
-  destruct n; simpl in *; 
-  cleanup; simpl in *; eauto.
-  rewrite IHl; eauto; lia.
-Qed.
-
-Lemma nth_error_updN_ne:
-  forall T (l: list T) n m v,
-    n <> m \/ n >= length l ->
-    nth_error (updN l n v) m = nth_error l m.
-Proof.
-  induction l; simpl; intros; eauto.
-  destruct n; simpl in *;
-  cleanup; simpl in *; eauto.
-  split_ors; cleanup; try lia.
-  destruct m; simpl in *; eauto; lia.
-  destruct m; simpl; eauto.
-  rewrite IHl; eauto; lia.
-Qed.
-
-Lemma selN_not_In_ne:
-  forall T (l: list T) a t def,
-  ~In t l ->
-  a < length l ->
-  t <> selN l a def.
-  Proof.
-  induction l; simpl; intros; eauto.
-  lia.
-  destruct a0; eauto.
-  eapply IHl; eauto; lia.
-  Qed.
-
-
-Lemma NoDup_selN_ne:
-  forall T (l: list T) a b def1 def2,
-    NoDup l ->
-    a < length l ->
-    b < length l ->
-    a <> b ->
-    selN l a def1 <> selN l b def2.
-Proof.
-  induction l; simpl; intros; eauto.
-  lia.
-  inversion H; cleanup; clear H.
-  destruct a0, b; simpl in *;
-  cleanup; simpl in *; eauto; try lia.
-  eapply selN_not_In_ne; eauto; lia.
-  intros Hnot; 
-  symmetry in Hnot; 
-  eapply selN_not_In_ne; 
-  eauto; lia.
-  eapply IHl; eauto; lia.
-Qed.
-
-Lemma files_inner_rep_eq:
-  forall fd1 fd2 s,
-    files_inner_rep fd1 s ->
-    files_inner_rep fd2 s ->
-    fd1 = fd2.
-Proof.
-  unfold files_rep, files_inner_rep;
-  intros; extensionality inum.
-  cleanup.
-  eapply DiskAllocator.block_allocator_rep_eq in H3; eauto; subst.
-  eapply inode_rep_eq in H; eauto; subst.
-  unfold file_map_rep in *; cleanup.
-  unfold addrs_match_exactly in *.
-  specialize (H inum); specialize (H3 inum);
-  destruct_fresh (fd1 inum); cleanup;
-  destruct_fresh (x0 inum).
-  {
-    destruct_fresh (fd2 inum).
-    {
-      eapply_fresh H2 in D0; eauto.
-      eapply_fresh H4 in D0; eauto.
-      unfold file_rep in *; cleanup.
-      destruct f, f0; simpl in *; cleanup.
-      assert_fresh (blocks = blocks0). {
-        eapply list_selN_ext'; eauto.
-        intros.
-        repeat rewrite nth_selN_eq.
-        apply Some_injective.
-        repeat rewrite <- nth_error_nth'; try lia.
-        destruct_fresh (nth_error (block_numbers i) pos).
-        eapply_fresh H7 in D2; eauto; cleanup.
-        eapply_fresh H10 in D2; eauto; cleanup; eauto.
-        apply nth_error_None in D2; lia.
-      }
-      rewrite A; eauto.
-    }
-    {
-      edestruct H; eauto.
-      exfalso; eapply H6; congruence.
-    }
-  }
-  {
-    edestruct H3; eauto.
-    exfalso; eapply H5; congruence.
-  }
-  {
-    edestruct H3; eauto.
-    exfalso; eapply H6; congruence.
-  }
-  {
-    destruct_fresh (fd2 inum); eauto.
-    {
-      edestruct H; eauto.
-      exfalso; eapply H5; congruence.
-    }
-  }
-  Unshelve.
-  exact value0.
-Qed.
-
-Lemma files_rep_eq:
-  forall fd1 fd2 s,
-    files_rep fd1 s ->
-    files_rep fd2 s ->
-    fd1 = fd2.
-Proof.
-  unfold files_rep; intros; cleanup.
-  eapply files_inner_rep_eq in H2; eauto.
-Qed.
-
-Lemma files_crash_rep_eq:
-  forall fd1 fd2 s,
-    files_crash_rep fd1 s ->
-    files_crash_rep fd2 s ->
-    fd1 = fd2.
-Proof.
-  unfold files_crash_rep; intros; cleanup.
-  eapply files_inner_rep_eq in H; eauto.
-Qed.
 
 (*** Finish Specs ***)
 
@@ -354,7 +175,7 @@ Proof.
         destruct (lt_dec (selN (block_numbers x) off 0)
                          DiskAllocatorParams.num_of_blocks); eauto.
       }
-      rewrite bitlist_length.      
+      rewrite bitlist_length.
       pose proof DiskAllocatorParams.num_of_blocks_in_bounds.
       unfold DiskAllocatorParams.num_of_blocks in *;
       lia.
@@ -1068,62 +889,6 @@ Proof.
 Qed.  
 
 
-Lemma free_all_blocks_finished:
-  forall u l_a o s s' r block_map,
-    DiskAllocator.block_allocator_rep block_map (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (free_all_blocks l_a) (Finished s' r) ->
-    exists new_block_map,
-    ((r = None /\
-     DiskAllocator.block_allocator_rep new_block_map (fst s')) \/
-    (r = Some tt /\
-     DiskAllocator.block_allocator_rep new_block_map (fst s') /\
-     (forall a, In a l_a -> new_block_map a = None))) /\
-    (forall a,
-       a < DiskAllocatorParams.bitmap_addr \/
-       a > DiskAllocatorParams.bitmap_addr + DiskAllocatorParams.num_of_blocks -> 
-       fst s' a = fst s a) /\
-    (forall a, ~In a l_a -> new_block_map a = block_map a) /\
-    snd s' = snd s.
-Proof.
-  induction l_a; simpl; intros; eauto.
-  invert_exec; eexists; intuition eauto.
-
-  cleanup; repeat invert_exec.
-  {
-    eapply DiskAllocator.free_finished in H0; eauto.
-    cleanup; split_ors; cleanup.
-    eapply IHl_a in H1; eauto.
-    cleanup; split_ors; cleanup.
-    {
-      eexists; intuition eauto.
-      rewrite H1; eauto.
-      rewrite H1; eauto.
-      rewrite H5; eauto.
-      rewrite Mem.delete_ne; eauto.
-    }
-    {
-      exists x.
-      intuition eauto.      
-      right; intuition eauto.
-      subst.
-      destruct (in_dec addr_dec a0 l_a); eauto.
-      rewrite H5; eauto.
-      rewrite Mem.delete_eq; eauto.
-      rewrite H1; eauto.
-      rewrite H1; eauto.
-      rewrite H5; eauto.
-      rewrite Mem.delete_ne; eauto.
-    }
-  }
-  {
-    eapply DiskAllocator.free_finished in H0; eauto.
-    cleanup; split_ors; cleanup.
-    eexists; intuition eauto.
-  }
-Qed.
-
-
-      
 Lemma delete_finished:
   forall u o s s' r inum fm,
     files_rep fm s ->
@@ -1753,253 +1518,9 @@ Proof.
   unfold files_reboot_rep, files_rep; eauto.
 Qed.
 
-Lemma write_inner_finished:
-  forall u s s' o t inum off v fm,
-    files_inner_rep fm (fst s) ->
-    
-    exec (TransactionalDiskLang data_length) u o s (write_inner off v inum) (Finished s' t) ->
-    (t = None \/
-      (exists f, 
-      fm inum = Some f /\
-      files_inner_rep (Mem.upd fm inum (update_file f off v)) (fst s'))) /\
-      snd s' = snd s.
-Proof.
-  unfold write_inner; intros; repeat invert_exec_no_match.
-  unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-  repeat cleanup_pairs.
-  eapply get_block_number_finished in H0; eauto.
-  simpl in *; cleanup_no_match; split_ors; cleanup_no_match;
-  repeat cleanup_pairs; repeat invert_exec_no_match;
-  eapply_fresh DiskAllocator.block_allocator_rep_inbounds_eq with (s2 := t1) in H2.
-  all: try solve [intros; repeat solve_bounds].
-  {
-    eapply DiskAllocator.write_finished in H1; eauto.
-  simpl in *; cleanup_no_match; split_ors; cleanup_no_match;
-  repeat cleanup_pairs; repeat invert_exec_no_match; intuition eauto.
-
-  simpl; repeat (split; eauto).  
-  eapply_fresh inode_exists_then_file_exists in H7; eauto; cleanup.
-  unfold inode_rep in *; cleanup_no_match;
-  right; eexists; intuition eauto; cleanup; eauto.
-  eexists; intuition eauto.
-  eexists; intuition eauto.
-  eapply InodeAllocator.block_allocator_rep_inbounds_eq; [eauto | intros; repeat solve_bounds].
-  eexists; split; [ |eauto]; eauto.
-  unfold file_map_rep in *; cleanup.
-  intuition eauto.  
-  {
-    unfold addrs_match_exactly in *; intros.
-    destruct (addr_dec inum a); subst.
-    rewrite Mem.upd_eq; eauto.
-    split; intros; congruence.
-    rewrite Mem.upd_ne; eauto.
-  }
-  {
-    destruct (addr_dec inum inum0); subst;
-    [rewrite Mem.upd_eq in H13; eauto |
-      rewrite Mem.upd_ne in H13; eauto].
-    {
-      cleanup.
-      unfold update_file, file_rep in *; simpl in *; cleanup.
-      eapply_fresh H11 in H7; eauto; cleanup.
-      intuition eauto.
-      rewrite length_updN; eauto.
-      eapply_fresh H14 in H15; cleanup.
-
-      destruct (addr_dec off i); subst.
-      {
-        eexists.
-        rewrite nth_error_updN_eq,
-        Mem.upd_eq; eauto.
-        eapply nth_error_nth in H15.
-        rewrite nth_selN_eq; eauto.
-        rewrite H13.
-        eapply nth_error_some_lt; eauto.
-      }
-      {
-        eexists.
-        rewrite nth_error_updN_ne,
-        Mem.upd_ne; eauto.
-        unfold inode_map_rep, inode_map_valid in *; cleanup.
-        apply H20 in H7; unfold inode_valid in *; cleanup.
-        eapply nth_error_nth in H15; rewrite <- H15.
-        rewrite <- nth_selN_eq; eauto.
-        eapply NoDup_selN_ne; eauto.
-        rewrite <- H13.
-        eapply nth_error_some_lt; eauto.
-      }
-    }
-    {
-      cleanup.
-      unfold update_file, file_rep in *; simpl in *; cleanup.
-      eapply_fresh H11 in H12; eauto; cleanup.
-      unfold file_rep; intuition eauto.
-      eapply_fresh H16 in H17; cleanup.
-      eexists; split; eauto.
-      rewrite Mem.upd_ne; eauto.
-
-      unfold inode_map_rep, inode_map_valid in *; cleanup.
-      eapply_fresh H23 in H12; eauto.           
-      apply nth_error_In in H17.
-      eapply not_In_NoDup_app in H17; eauto.
-      intros Hnot.
-      eapply selN_not_In_ne; eauto.
-    }
-  }
-}
-{
-  unfold file_map_rep; intuition eauto.
-}
-
-Unshelve.
-eauto. 
-Qed.
-  
-Lemma read_inner_finished:
-  forall u s s' o t inum off fm,
-    files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (read_inner off inum) (Finished s' t) ->
-    files_inner_rep fm (fst s')
-    /\ snd s' = snd s.
-Proof.
-  unfold read_inner; intros; repeat invert_exec_no_match.
-  unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-  repeat cleanup_pairs.
-  eapply get_block_number_finished in H0; eauto.
-  simpl in *; cleanup_no_match; split_ors; cleanup_no_match;
-  repeat cleanup_pairs; repeat invert_exec_no_match;
-  eapply DiskAllocator.block_allocator_rep_inbounds_eq with (s2:= t1) in H2.
-  
-  eapply DiskAllocator.read_finished in H1; eauto.
-  simpl in *; cleanup_no_match; split_ors; cleanup_no_match;
-  repeat cleanup_pairs; repeat invert_exec_no_match;
-  
-  unfold inode_rep in *; cleanup_no_match;
-  eapply InodeAllocator.block_allocator_rep_inbounds_eq with (s2:= t2) in H1.
-
-  all: intros; repeat solve_bounds.
-  all: try solve [
-             simpl; repeat (split; eauto);
-             try eexists; intuition eauto ].
-Qed.
-
-(*** Crash Specs ***)
-
-Lemma auth_then_exec_crashed:
-  forall u o s s' inum T (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) fm,
-    files_rep fm s -> 
-    exec AuthenticatedDiskLang u o s (auth_then_exec inum p) (Crashed s') ->
-    (forall s s' o, 
-    files_inner_rep fm (fst s) ->
-    files_inner_rep fm (snd s) ->
-    exec (TransactionalDiskLang data_length) u o s (p inum) (Crashed s') ->
-    files_inner_rep fm (snd s')) ->
-    forall fm',
-    (forall s s' o t, files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (p inum) (Finished s' t) ->
-    ( t <> None -> 
-    files_inner_rep fm' (fst s')) /\ snd s' = snd s) ->    
-    files_crash_rep fm s' \/ files_crash_rep fm' s'.
-Proof.
-  unfold auth_then_exec,
-  files_rep, files_crash_rep; intros;
-  repeat (cleanup; repeat invert_exec; eauto;
-          try split_ors);
-  unfold files_inner_rep in *; cleanup; eauto;
-    repeat cleanup_pairs; simpl in *;
-    try eapply get_owner_crashed in H5; eauto;
-    try eapply get_owner_finished in H6; eauto;
-    try eapply H1 in H9; eauto;
-    try eapply H2 in H10; simpl in *; cleanup; eauto;
-    repeat cleanup_pairs; simpl in *; eauto;
-    try solve [left; eauto];
-    try solve [right; eauto];
-    try solve[
-    eexists; split; eauto;
-    eexists; split; eauto;
-    eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-    intros; solve_bounds];
-    try solve [right; apply H6; congruence].
-Qed.
-
-Lemma read_inner_crashed:
-  forall u s s' o inum off fm,
-    files_inner_rep fm (fst s) ->
-    files_inner_rep fm (snd s) ->
-    exec (TransactionalDiskLang data_length) u o s (read_inner off inum) (Crashed s') ->
-    files_inner_rep fm (snd s').
-Proof.
-  unfold read_inner; intros; repeat invert_exec_no_match.
-  split_ors; cleanup; repeat invert_exec.
-  {
-    unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_block_number_crashed in H1; cleanup; eauto.
-  }
-
-  {
-    unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_block_number_finished in H1; cleanup; eauto;
-    repeat invert_exec; eauto.
-    {
-      repeat split_ors; cleanup.
-      {
-        eapply DiskAllocator.read_crashed in H2; eauto;
-        repeat cleanup_pairs; eauto.
-      }
-      {
-        eapply DiskAllocator.read_finished in H2; eauto; cleanup_no_match.
-        repeat cleanup_pairs; eauto.
-        2: {
-          clear H3.
-          eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-          intros; solve_bounds. 
-        }
-        cleanup; repeat invert_exec; eauto.
-      }
-    }
-    {
-      unfold inode_rep in *; cleanup; 
-      eexists; split; eauto;
-      eexists; split; eauto.
-    }
-  }
-Qed.
-
-Lemma write_inner_crashed:
-  forall u s s' o inum off v fm,
-    files_inner_rep fm (fst s) ->
-    files_inner_rep fm (snd s) ->
-    exec (TransactionalDiskLang data_length) u o s (write_inner off v inum) (Crashed s') ->
-    files_inner_rep fm (snd s').
-Proof.
-  unfold write_inner; intros; repeat invert_exec_no_match.
-  split_ors; cleanup; repeat invert_exec.
-  {
-    unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_block_number_crashed in H1; cleanup; eauto.
-  }
-
-  {
-    unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_block_number_finished in H1; cleanup; eauto;
-    repeat invert_exec; eauto.
-    {
-      repeat split_ors; cleanup.
-      {
-        eapply DiskAllocator.write_crashed in H2; eauto;
-        repeat cleanup_pairs; eauto.
-      }
-    } 
-    {
-      unfold inode_rep in *; cleanup; 
-      eexists; split; eauto;
-      eexists; split; eauto.
-    }
-  }
-Qed.
 
 
-
+(*** Crash specs ***)
 
 Lemma read_crashed:
   forall u o s s' inum off fm,
@@ -2011,17 +1532,15 @@ Proof.
   eapply auth_then_exec_crashed in H0; cleanup; eauto.
   2: {
     intros. 
-    eapply read_inner_crashed in H3; eauto.
+    eapply read_inner_crashed in H2; eauto.
   }
   2: {
     intros.
     eapply read_inner_finished in H2; eauto.
     cleanup; intuition eauto.
   }
-  split_ors; eauto.
+  split_ors; cleanup; eauto.
 Qed.
-
-  
 
 Lemma write_crashed:
   forall u o s s' inum off v fm,
@@ -2038,12 +1557,16 @@ Proof.
   destruct_fresh (fm inum);
   eapply auth_then_exec_crashed in H0; cleanup; eauto;
   try solve [ intros; eapply write_inner_crashed; eauto];
-  try solve [ intros;
-  eapply write_inner_finished in H2; eauto;
-  cleanup; split_ors; cleanup; intuition eauto];
-  split_ors; intuition eauto.
-  right; eexists; intuition eauto.
-  XXX
+  try solve [
+   intros;
+    eapply write_inner_finished in H2; eauto;
+    cleanup; split_ors; cleanup; intuition eauto];
+  try solve [
+      cleanup; split_ors; cleanup; intuition eauto;
+    right; eexists; intuition eauto].
+  Unshelve.
+  all: eauto.
+  exact True.
 Qed.
 
 Lemma extend_crashed:
@@ -2051,11 +1574,27 @@ Lemma extend_crashed:
     files_rep fm s ->
     exec AuthenticatedDiskLang u o s (extend inum v) (Crashed s') ->
     files_crash_rep fm s' \/
-    (exists f, fm inum = Some f /\
-          inum < inode_count /\
-          f.(BaseTypes.owner) = u /\
-          files_crash_rep (Mem.upd fm inum (extend_file f v)) s').
-Admitted.
+    (exists f, 
+    fm inum = Some f /\
+    inum < inode_count /\
+    f.(BaseTypes.owner) = u /\
+    files_crash_rep (Mem.upd fm inum (extend_file f v)) s').
+Proof.
+  unfold extend; intros; cleanup.
+  destruct_fresh (fm inum);
+  eapply auth_then_exec_crashed in H0; cleanup; eauto;
+  try solve [ intros; eapply extend_inner_crashed; eauto];
+  try solve [
+    intros;
+    eapply extend_inner_finished in H2; eauto;
+    cleanup; split_ors; cleanup; intuition eauto];
+  try solve [
+      cleanup; split_ors; cleanup; intuition eauto;
+    right; eexists; intuition eauto].
+  Unshelve.
+  all: eauto.
+  exact True.
+Qed.
 
 Lemma delete_crashed:
   forall u o s s' inum fm,
@@ -2066,36 +1605,165 @@ Lemma delete_crashed:
           inum < inode_count /\
           f.(BaseTypes.owner) = u /\
           files_crash_rep (Mem.delete fm inum) s').
-Admitted.
+Proof.
+unfold delete; intros; cleanup.
+destruct_fresh (fm inum);
+eapply auth_then_exec_crashed in H0; cleanup; eauto;
+try solve [ intros; eapply delete_inner_crashed; eauto];
+try solve [
+  intros;
+  eapply delete_inner_finished in H2; eauto;
+  cleanup; split_ors; cleanup; intuition eauto];
+try solve [
+    cleanup; split_ors; cleanup; intuition eauto;
+  right; eexists; intuition eauto].
+Qed.
+
+Lemma change_owner_crashed:
+  forall u o s s' inum own fm,
+    files_rep fm s ->
+    exec AuthenticatedDiskLang u o s (change_owner inum own) (Crashed s') -> 
+    files_crash_rep fm s' \/
+    (exists f,
+       fm inum = Some f /\
+       inum < inode_count /\
+       f.(BaseTypes.owner) = u /\ 
+       files_crash_rep (Mem.upd fm inum (change_file_owner f own)) s').
+Proof. 
+  unfold change_owner; intros; cleanup.
+  destruct_fresh (fm inum);
+  eapply auth_then_exec_crashed in H0; cleanup; eauto;
+  try solve [ intros; eapply change_owner_inner_crashed; eauto];
+  try solve [
+  intros;
+  eapply change_owner_inner_finished in H2; eauto;
+  cleanup; split_ors; cleanup; intuition eauto];
+  try solve [
+    cleanup; split_ors; cleanup; intuition eauto;
+  right; eexists; intuition eauto].
+  Unshelve.
+  eauto.
+  exact True.
+Qed.
+
 
 Lemma create_crashed:
   forall u o s s' own fm,
     files_rep fm s ->
     exec AuthenticatedDiskLang u o s (create own) (Crashed s') ->
     files_crash_rep fm s' \/
-    (exists inum, fm inum = None /\
-             inum < inode_count /\
-             files_crash_rep (Mem.upd fm inum (new_file own)) s').
-Admitted.
-
-Lemma change_owner_crashed:
-  forall u o s s' inum own fm,
-    files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (change_owner inum own) (Crashed s') ->
-    files_crash_rep fm s' \/
-    (exists f,
-       fm inum = Some f /\
-       inum < inode_count /\
-       f.(BaseTypes.owner) = u /\
-       files_crash_rep (Mem.upd fm inum (change_file_owner f own)) s').
-Admitted.
+    (exists inum, 
+    fm inum = None /\
+    inum < inode_count /\
+    files_crash_rep (Mem.upd fm inum (new_file own)) s').
+Proof.
+  unfold create, files_rep, files_crash_rep; intros; 
+  cleanup; repeat invert_exec_no_match.
+  split_ors; cleanup_no_match; repeat invert_exec_no_match.
+  {
+    eapply alloc_crashed in H3; cleanup; eauto.
+  }
+  {
+    unfold files_inner_rep in *; cleanup_no_match.
+    eapply alloc_finished in H4; cleanup_no_match; eauto.
+    split_ors; cleanup_no_match; repeat cleanup_pairs;
+    repeat invert_exec.
+    {
+      split_ors; cleanup_no_match; repeat cleanup_pairs;
+      repeat invert_exec_no_match; simpl; eauto.
+      {
+        simpl; left; eauto.
+      }
+      {
+        simpl in *; cleanup.
+        right.
+        eapply inode_missing_then_file_missing in H8; eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+        intros; repeat solve_bounds.
+        
+        {
+          unfold file_map_rep; intuition eauto.
+          {
+            unfold file_map_rep,
+            addrs_match_exactly in *; intros; cleanup.
+            destruct (addr_dec x a); subst.
+            repeat rewrite Mem.upd_eq; eauto.
+            split; intros; congruence.
+            repeat rewrite Mem.upd_ne; eauto.            
+          }
+          {
+            destruct (addr_dec inum x); subst;
+            [rewrite Mem.upd_eq in H;
+             rewrite Mem.upd_eq in H0; eauto |
+             rewrite Mem.upd_ne in H;
+             rewrite Mem.upd_ne in H0; eauto];
+            try congruence; cleanup; eauto.
+            {
+              unfold file_rep; simpl;
+              intuition eauto.
+              destruct i; simpl in *; congruence.
+            }
+            {
+              unfold file_map_rep in *; cleanup; eauto.
+            }
+          }
+      }
+      } 
+      {
+        simpl in *; cleanup.
+        right.
+        eapply inode_missing_then_file_missing in H8; eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
+        eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+        intros; repeat solve_bounds.
+        
+        {
+          unfold file_map_rep; intuition eauto.
+          {
+            unfold file_map_rep,
+            addrs_match_exactly in *; intros; cleanup.
+            destruct (addr_dec x a); subst.
+            repeat rewrite Mem.upd_eq; eauto.
+            split; intros; congruence.
+            repeat rewrite Mem.upd_ne; eauto.            
+          }
+          {
+            destruct (addr_dec inum x); subst;
+            [rewrite Mem.upd_eq in H;
+             rewrite Mem.upd_eq in H0; eauto |
+             rewrite Mem.upd_ne in H;
+             rewrite Mem.upd_ne in H0; eauto];
+            try congruence; cleanup; eauto.
+            {
+              unfold file_rep; simpl;
+              intuition eauto.
+              destruct i; simpl in *; congruence.
+            }
+            {
+              unfold file_map_rep in *; cleanup; eauto.
+            }
+          }
+      }
+    }
+  }
+  {
+    split_ors; cleanup_no_match; repeat cleanup_pairs;
+      repeat invert_exec_no_match; simpl; left; eauto.
+  }
+  }
+Qed.
 
 Lemma recover_crashed:
   forall u o s s' fm,
     files_reboot_rep fm s ->
     exec AuthenticatedDiskLang u o s (recover) (Crashed s') ->
     files_crash_rep fm s'.
-Admitted.
-
-
-
+Proof.
+  unfold recover, files_reboot_rep; intros; repeat invert_exec; 
+  repeat cleanup_pairs; eauto.
+Qed.
