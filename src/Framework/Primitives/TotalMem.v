@@ -64,7 +64,7 @@ Section GenTotal_Mem.
     map m al.
 
   Definition select_for_addr {A AEQ V} (selection: @total_mem A AEQ nat) (a: A) (vs: V * list V) : V :=
-    selN (fst vs :: snd vs) (selection a) (fst vs).
+    seln (fst vs :: snd vs) (selection a) (fst vs).
 
   Definition select_total_mem {A AEQ V} (selection: @total_mem A AEQ nat) (m: @total_mem A AEQ (V * list V)) : @total_mem A AEQ (V * list V) :=
     fun a => (select_for_addr selection a (m a), nil).
@@ -268,11 +268,11 @@ Proof.
   induction l; simpl; eauto.
 Qed.
 
-Lemma select_list_shifted_selN:
+Lemma select_list_shifted_seln:
   forall V (l: list (V * list V)) i n selection def1 def2,
     i < length l ->
-    selN (select_list_shifted n selection l) i def1 =
-    select_for_addr selection (n + i) (selN l i def2).
+    seln (select_list_shifted n selection l) i def1 =
+    select_for_addr selection (n + i) (seln l i def2).
 Proof.
   induction l; simpl; intros; eauto.
   lia.
@@ -382,10 +382,10 @@ Qed.
   (*
   Lemma upd_batch_eq:
   forall A AEQ V l1 l2 (m: @total_mem A AEQ V) a i,
-    selNopt l1 i = Some a ->
+    nth_error l1 i = Some a ->
     ~In a (skipn (S i) l1) ->
     length l1 = length l2 ->
-    upd_batch m l1 l2 a = selNopt l2 i.
+    upd_batch m l1 l2 a = nth_error l2 i.
 Proof.
   induction l1; simpl in *; intros; eauto.
   congruence.
@@ -418,7 +418,7 @@ Lemma upd_batch_set_seq_in:
     j = start + i ->
     i < n ->
     length l = n ->
-    upd_batch_set m (seq start n) l j = (selN l i def, fst vs :: snd vs).
+    upd_batch_set m (seq start n) l j = (seln l i def, fst vs :: snd vs).
 Proof.
   induction n; simpl; intros; eauto; try lia.
   destruct l; simpl in *; subst; try lia.
@@ -1009,7 +1009,7 @@ Qed.
 Lemma list_upd_batch_firstn_noop:
   forall A AEQ V l_l_a l_l_v (s: @total_mem A AEQ V) n m,
     Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
-    list_upd_batch (list_upd_batch s (firstn n l_l_a ++ (firstn m (selN l_l_a n nil)::nil)) (firstn n l_l_v ++ (firstn m (selN l_l_v n nil)::nil))) l_l_a l_l_v =
+    list_upd_batch (list_upd_batch s (firstn n l_l_a ++ (firstn m (seln l_l_a n nil)::nil)) (firstn n l_l_v ++ (firstn m (seln l_l_v n nil)::nil))) l_l_a l_l_v =
     list_upd_batch s l_l_a l_l_v.
 Proof.
   
@@ -1018,12 +1018,12 @@ Proof.
       (P:= fun l_l_a =>
              forall (l_l_v : list (list V)) (s : total_mem) (n m : nat),
                Forall2 (fun (l_a : list A) (l_v : list V) => length l_a = length l_v) l_l_a l_l_v ->
-               list_upd_batch (list_upd_batch s (firstn n l_l_a ++ (firstn m (selN l_l_a n nil)::nil)) (firstn n l_l_v ++ (firstn m (selN l_l_v n nil)::nil))) l_l_a l_l_v =
+               list_upd_batch (list_upd_batch s (firstn n l_l_a ++ (firstn m (seln l_l_a n nil)::nil)) (firstn n l_l_v ++ (firstn m (seln l_l_v n nil)::nil))) l_l_a l_l_v =
     list_upd_batch s l_l_a l_l_v).
   {
     simpl; intros; eauto.
     repeat rewrite firstn_nil; simpl; eauto.
-    destruct (firstn n l_l_v ++ (firstn m (selN l_l_v n nil)::nil));
+    destruct (firstn n l_l_v ++ (firstn m (seln l_l_v n nil)::nil));
     eauto.
   }
   {
@@ -1045,7 +1045,7 @@ Proof.
         inversion l0; subst.
         {
           rewrite firstn_oob.
-          repeat rewrite selN_last by (simpl in *; lia).
+          repeat rewrite seln_last by (simpl in *; lia).
           setoid_rewrite firstn_oob at 2.
           repeat rewrite list_upd_batch_app by lia; eauto; simpl.
           rewrite upd_batch_list_upd_batch_upd_batch_firstn_noop; eauto.
@@ -1054,7 +1054,7 @@ Proof.
           eauto.
         }
         {
-          repeat rewrite selN_app by lia.
+          repeat rewrite seln_app by lia.
           rewrite H; eauto.
           rewrite list_upd_batch_app; eauto.
           lia.
@@ -1062,7 +1062,7 @@ Proof.
         lia.
       }
       {
-        repeat rewrite selN_oob.
+        repeat rewrite seln_oob.
         repeat rewrite firstn_nil.
         repeat rewrite firstn_oob.
         rewrite list_upd_batch_app; simpl; eauto.
@@ -1097,7 +1097,7 @@ Proof.
     rewrite <- firstn_skipn with (n:= S x)(l:= l_l_v) in H.
     rewrite list_upd_batch_app in H.
     rewrite list_upd_batch_not_in in H; eauto.
-    setoid_rewrite firstn_S_selN in H; eauto.
+    setoid_rewrite firstn_S_seln in H; eauto.
     rewrite list_upd_batch_app in H.
     simpl in *.
 
@@ -1105,7 +1105,7 @@ Proof.
     rewrite <- firstn_skipn with (n:= S x)(l:= l_l_v).
     rewrite list_upd_batch_app.
     rewrite list_upd_batch_not_in; eauto.
-    setoid_rewrite firstn_S_selN; eauto.
+    setoid_rewrite firstn_S_seln; eauto.
     rewrite list_upd_batch_app.
     simpl in *.
     
@@ -1114,15 +1114,15 @@ Proof.
     rewrite H4 in *.
     instantiate (1:= nil) in H.
     instantiate (1:= nil).
-    rewrite <- firstn_skipn with (n:= length x0)(l:= (selN l_l_v x nil)) in *.
+    rewrite <- firstn_skipn with (n:= length x0)(l:= (seln l_l_v x nil)) in *.
     rewrite upd_batch_app in *; eauto.
     simpl in *.
-    destruct (skipn (length x0) (selN l_l_v x nil)) eqn:D.
+    destruct (skipn (length x0) (seln l_l_v x nil)) eqn:D.
     eapply (f_equal (@length A)) in H4.
     eapply (f_equal (@length V)) in D.
     rewrite skipn_length in D; simpl in *.
     rewrite app_length in *; simpl in *.
-    eapply forall2_selN in H1.
+    eapply forall2_seln in H1.
     rewrite <- H1, H4 in D; lia.
     lia.
     
@@ -1131,7 +1131,7 @@ Proof.
 
     all: try solve [ 
                try repeat rewrite firstn_length_l; eauto; try lia].
-    all: try solve [eapply forall2_selN in H1;
+    all: try solve [eapply forall2_seln in H1;
                     [>  try repeat rewrite firstn_length_l; eauto;
                      try rewrite <- H1, H4, app_length; simpl; lia | lia] ].
   }
@@ -1143,11 +1143,11 @@ Qed.
 
 Lemma upd_batch_eq:
   forall A AEQ V l1 l2 (m: @total_mem A AEQ V) a i def1 def2,
-    selN l1 i def1 = a ->
+    seln l1 i def1 = a ->
     ~In a (skipn (S i) l1) ->
     length l1 = length l2 ->
     i < length l1 ->
-    upd_batch m l1 l2 a = selN l2 i def2.
+    upd_batch m l1 l2 a = seln l2 i def2.
 Proof.
   induction l1; simpl in *; intros; eauto.
   lia.

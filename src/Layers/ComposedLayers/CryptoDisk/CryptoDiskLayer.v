@@ -19,8 +19,8 @@ Definition non_colliding_selector selector (s: CryptoDiskLang.(state)) :=
     length old_log_blocksets = length new_log_blocks ->
     length old_log_blocksets <= log_length ->
     (forall i, i < length old_log_blocksets ->
-          (snd s) (log_start + i) = selN old_log_blocksets i (value0, [])) ->
+          (snd s) (log_start + i) = seln old_log_blocksets i (value0, [])) ->
     (forall i, i < length new_log_blocks ->
-          (select_total_mem selector (snd s)) (log_start + i) = selN (map (fun v => (v, [])) new_log_blocks) i (value0, [])) ->
+          (select_total_mem selector (snd s)) (log_start + i) = seln (map (fun v => (v, [])) new_log_blocks) i (value0, [])) ->
     rolling_hash hash0 (map fst old_log_blocksets) = rolling_hash hash0 new_log_blocks ->
     map fst old_log_blocksets = new_log_blocks.

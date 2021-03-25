@@ -66,11 +66,11 @@ Proof.
   intros; congruence.
 Qed.
 
-Lemma nth_error_updN_eq:
+Lemma nth_error_updn_eq:
   forall T (l: list T) n m v,
     n = m ->
     n < length l ->
-    nth_error (updN l n v) m = Some v.
+    nth_error (updn l n v) m = Some v.
 Proof.
   induction l; simpl; intros; eauto.
   lia.
@@ -79,10 +79,10 @@ Proof.
   rewrite IHl; eauto; lia.
 Qed.
 
-Lemma nth_error_updN_ne:
+Lemma nth_error_updn_ne:
   forall T (l: list T) n m v,
     n <> m \/ n >= length l ->
-    nth_error (updN l n v) m = nth_error l m.
+    nth_error (updn l n v) m = nth_error l m.
 Proof.
   induction l; simpl; intros; eauto.
   destruct n; simpl in *;
@@ -93,11 +93,11 @@ Proof.
   rewrite IHl; eauto; lia.
 Qed.
 
-Lemma selN_not_In_ne:
+Lemma seln_not_In_ne:
   forall T (l: list T) a t def,
   ~In t l ->
   a < length l ->
-  t <> selN l a def.
+  t <> seln l a def.
   Proof.
   induction l; simpl; intros; eauto.
   lia.
@@ -106,23 +106,23 @@ Lemma selN_not_In_ne:
   Qed.
 
 
-Lemma NoDup_selN_ne:
+Lemma NoDup_seln_ne:
   forall T (l: list T) a b def1 def2,
     NoDup l ->
     a < length l ->
     b < length l ->
     a <> b ->
-    selN l a def1 <> selN l b def2.
+    seln l a def1 <> seln l b def2.
 Proof.
   induction l; simpl; intros; eauto.
   lia.
   inversion H; cleanup; clear H.
   destruct a0, b; simpl in *;
   cleanup; simpl in *; eauto; try lia.
-  eapply selN_not_In_ne; eauto; lia.
+  eapply seln_not_In_ne; eauto; lia.
   intros Hnot; 
   symmetry in Hnot; 
-  eapply selN_not_In_ne; 
+  eapply seln_not_In_ne; 
   eauto; lia.
   eapply IHl; eauto; lia.
 Qed.
@@ -151,9 +151,9 @@ Proof.
       unfold file_rep in *; cleanup.
       destruct f, f0; simpl in *; cleanup.
       assert_fresh (blocks = blocks0). {
-        eapply list_selN_ext'; eauto.
+        eapply list_seln_ext'; eauto.
         intros.
-        repeat rewrite nth_selN_eq.
+        repeat rewrite nth_seln_eq.
         apply Some_injective.
         repeat rewrite <- nth_error_nth'; try lia.
         destruct_fresh (nth_error (block_numbers i) pos).
@@ -580,28 +580,28 @@ Proof.
       unfold update_file, file_rep in *; simpl in *; cleanup.
       eapply_fresh H11 in H7; eauto; cleanup.
       intuition eauto.
-      rewrite length_updN; eauto.
+      rewrite updn_length; eauto.
       eapply_fresh H14 in H15; cleanup.
 
       destruct (addr_dec off i); subst.
       {
         eexists.
-        rewrite nth_error_updN_eq,
+        rewrite nth_error_updn_eq,
         Mem.upd_eq; eauto.
         eapply nth_error_nth in H15.
-        rewrite nth_selN_eq; eauto.
+        rewrite nth_seln_eq; eauto.
         rewrite H13.
         eapply nth_error_some_lt; eauto.
       }
       {
         eexists.
-        rewrite nth_error_updN_ne,
+        rewrite nth_error_updn_ne,
         Mem.upd_ne; eauto.
         unfold inode_map_rep, inode_map_valid in *; cleanup.
         apply H20 in H7; unfold inode_valid in *; cleanup.
         eapply nth_error_nth in H15; rewrite <- H15.
-        rewrite <- nth_selN_eq; eauto.
-        eapply NoDup_selN_ne; eauto.
+        rewrite <- nth_seln_eq; eauto.
+        eapply NoDup_seln_ne; eauto.
         rewrite <- H13.
         eapply nth_error_some_lt; eauto.
       }
@@ -620,7 +620,7 @@ Proof.
       apply nth_error_In in H17.
       eapply not_In_NoDup_app in H17; eauto.
       intros Hnot.
-      eapply selN_not_In_ne; eauto.
+      eapply seln_not_In_ne; eauto.
     }
   }
 }

@@ -1,6 +1,6 @@
 Require Import Framework FSParameters.
 Require Import AuthenticatedDiskLayer FileDiskLayer.
-Require Import File FileToFileDisk.Definitions.
+Require Import File FileInnerSpecs FileSpecs FileToFileDisk.Definitions.
 Require Import ClassicalFacts Compare_dec FunctionalExtensionality Lia.
 
 Set Nested Proofs Allowed.
@@ -295,7 +295,8 @@ Section FileDiskSimulation.
 
         repeat split_ors; cleanup;
         do 2 eexists; right; eauto;
-        left; repeat (split; eauto).        
+        left; repeat (split; eauto).
+                
         intros; unify_execs; cleanup.
       }
       {

@@ -109,20 +109,20 @@ Proof.
   
   {
     unfold plain_addr_blocks_valid, get_addr_blocks.
-    eapply selN_Forall2; intros.
+    eapply seln_Forall2; intros.
     repeat rewrite map_length; auto.
     {
       rewrite map_length in H12.
-      repeat erewrite selN_map; eauto.
+      repeat erewrite seln_map; eauto.
       rewrite firstn_firstn, min_l by lia.
       rewrite <- skipn_firstn_comm.
       rewrite firstn_firstn, min_l.
       rewrite skipn_firstn_comm.
-      eapply_fresh in_selN in H12.
+      eapply_fresh in_seln in H12.
       eapply Forall_forall in H7; eauto.
       unfold txn_well_formed in *; logic_clean; eauto.
 
-      eapply_fresh in_selN in H12.
+      eapply_fresh in_seln in H12.
       eapply Forall_forall in H7; eauto.
       unfold txn_well_formed, record_is_valid in *; logic_clean; eauto.
       eapply Nat.le_trans.
@@ -133,21 +133,21 @@ Proof.
 
   {
     unfold plain_data_blocks_valid, get_data_blocks.
-    eapply selN_Forall2; intros.
+    eapply seln_Forall2; intros.
     repeat rewrite map_length; auto.
 
     {
       rewrite map_length in H12.
-      repeat erewrite selN_map; eauto.
+      repeat erewrite seln_map; eauto.
       rewrite <- skipn_firstn_comm.
       rewrite firstn_firstn, min_l.
       repeat rewrite skipn_firstn_comm.
       rewrite skipn_skipn.
-      eapply_fresh in_selN in H12.
+      eapply_fresh in_seln in H12.
       eapply Forall_forall in H7; eauto.
       unfold txn_well_formed in *; logic_clean; eauto.
 
-      eapply_fresh in_selN in H12.
+      eapply_fresh in_seln in H12.
       eapply Forall_forall in H7; eauto.
       unfold txn_well_formed, record_is_valid in *; logic_clean; eauto.
       rewrite Nat.add_assoc; eauto.
@@ -157,7 +157,7 @@ Proof.
   {
     unfold get_addr_list.
     
-    eapply selN_Forall2; intros.
+    eapply seln_Forall2; intros.
     rewrite bimap_length.
     repeat rewrite map_length; auto.
     rewrite min_l; eauto.
@@ -165,12 +165,12 @@ Proof.
     {
       rewrite bimap_length, map_length, min_l in H12; eauto.
       rewrite bimap_combine_map.
-      repeat erewrite selN_map; eauto.
+      repeat erewrite seln_map; eauto.
       rewrite firstn_length.
-      rewrite selN_combine; eauto; simpl.      
-      repeat erewrite selN_map; eauto.
+      rewrite seln_combine; eauto; simpl.      
+      repeat erewrite seln_map; eauto.
       
-      eapply_fresh in_selN in H12.
+      eapply_fresh in_seln in H12.
       eapply Forall_forall in H7; eauto.
       unfold txn_well_formed in *; logic_clean; eauto.
       rewrite min_l; eauto.
@@ -253,8 +253,8 @@ Proof.
   eapply Forall_impl; [| eauto].
   unfold txn_well_formed; intros.
   cleanup; intuition eauto.
-  specialize (H0 (encrypt (key (record a)) (selN (addr_blocks a) i value0))); cleanup; eauto.
-  specialize (H0 (encrypt (key (record a)) (selN (data_blocks a) i value0))); cleanup; eauto.
+  specialize (H0 (encrypt (key (record a)) (seln (addr_blocks a) i value0))); cleanup; eauto.
+  specialize (H0 (encrypt (key (record a)) (seln (data_blocks a) i value0))); cleanup; eauto.
 Qed.
 
 Lemma log_rep_explicit_hash_map_subset:
@@ -324,7 +324,7 @@ Proof.
     destruct (snd s (log_start + i)) eqn:D.
     setoid_rewrite D; simpl.
     rewrite e in D; eauto.
-    eapply in_selN in H; eauto.
+    eapply in_seln in H; eauto.
     apply e0 in H.
     rewrite D in H; simpl in *; cleanup; eauto.
     all: try lia.
@@ -342,8 +342,8 @@ Lemma log_rep_update_disk_preserves:
       (list_upd_batch_set (snd s)
                           (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
                           (firstn n (map data_blocks txns)))
-      (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
-      (firstn m (selN (map data_blocks txns) n [])) ->
+      (firstn m (seln (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+      (firstn m (seln (map data_blocks txns) n [])) ->
     log_rep txns s'.
 Proof.
   
@@ -378,15 +378,15 @@ Proof.
       apply in_firstn_in in H.
 
       destruct (lt_dec n (length txns)).        
-      erewrite selN_map in H; eauto.
+      erewrite seln_map in H; eauto.
       eapply Forall_forall in H9; eauto.
-      2: eapply in_selN; eauto.
+      2: eapply in_seln; eauto.
       unfold txn_well_formed in H9; logic_clean.
       eapply Forall_forall in H14; eauto.
       pose proof data_start_where_log_ends.
       pose proof hdr_before_log.
       lia.
-      rewrite selN_oob in H.
+      rewrite seln_oob in H.
       intuition.
       rewrite map_length; lia.
       rewrite map_length; eauto.
@@ -424,15 +424,15 @@ Proof.
       apply in_firstn_in in H10.
 
       destruct (lt_dec n (length txns)).        
-      erewrite selN_map in H10; eauto.
+      erewrite seln_map in H10; eauto.
       eapply Forall_forall in H12; eauto.
-      2: eapply in_selN; eauto.
+      2: eapply in_seln; eauto.
       unfold txn_well_formed in H12; logic_clean.
       eapply Forall_forall in H17; eauto.
       pose proof data_start_where_log_ends.
       pose proof hdr_before_log.
       lia.
-      rewrite selN_oob in H10.
+      rewrite seln_oob in H10.
       intuition.
       rewrite map_length; lia.
       apply H5.
@@ -466,8 +466,8 @@ Lemma log_rep_update_disk_subset:
       (list_upd_batch_set (snd s)
                           (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
                           (firstn n (map data_blocks txns)))
-      (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
-      (firstn m (selN (map data_blocks txns) n [])) ->
+      (firstn m (seln (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+      (firstn m (seln (map data_blocks txns) n [])) ->
     log_rep txns s'.
 Proof.
   intros.
@@ -519,7 +519,7 @@ Proof.
         | [H: _ < length (map _ _) |- _] =>
           rewrite map_length in H
         end.
-        erewrite selN_map; eauto.
+        erewrite seln_map; eauto.
         
         match goal with
         | [H: _ < length (select_list_shifted _ _ _) |- _] =>
@@ -527,10 +527,10 @@ Proof.
         end.
         
         match goal with
-        | [H: forall _, _ -> snd _ (_ + _) = selN _ _ _ |- _] =>
+        | [H: forall _, _ -> snd _ (_ + _) = seln _ _ _ |- _] =>
           rewrite H
         end.   
-        erewrite select_list_shifted_selN; eauto.
+        erewrite select_list_shifted_seln; eauto.
         all: repeat constructor; eauto.
         match goal with
         | [H: length _ = log_length |- _] =>
@@ -677,8 +677,8 @@ Proof.
           intros.
           unfold log_data_blocks_rep in H3; logic_clean.
           rewrite H3.
-          repeat erewrite selN_selNopt; eauto.
-          rewrite selN_firstn; eauto.
+          repeat erewrite seln_nth_error; eauto.
+          rewrite seln_firstn; eauto.
           lia.
           setoid_rewrite H4.
           eauto.
@@ -689,10 +689,10 @@ Proof.
           unfold select_total_mem.
           unfold log_data_blocks_rep in H3; logic_clean.
           rewrite H3.
-          repeat erewrite selN_selNopt; eauto.
-          erewrite selN_map.
-          rewrite selN_firstn; eauto.
-          erewrite select_list_shifted_selN; eauto.
+          repeat erewrite seln_nth_error; eauto.
+          erewrite seln_map.
+          rewrite seln_firstn; eauto.
+          erewrite select_list_shifted_seln; eauto.
           setoid_rewrite H4; lia.
           repeat rewrite firstn_length_l; eauto.
           rewrite select_list_shifted_length.
@@ -724,10 +724,10 @@ Proof.
         intuition eauto.
         {
           rewrite map_length in H15.
-          erewrite selN_map; eauto.
+          erewrite seln_map; eauto.
           rewrite select_list_shifted_length in H15.
           rewrite H3.    
-          erewrite select_list_shifted_selN; eauto.
+          erewrite select_list_shifted_seln; eauto.
           all: repeat constructor; eauto.
           setoid_rewrite <- H4; eauto.
         }
@@ -798,10 +798,10 @@ Proof.
         intuition eauto.
         {
           rewrite map_length in H15.
-          erewrite selN_map; eauto.
+          erewrite seln_map; eauto.
           rewrite select_list_shifted_length in H15.
           rewrite H3.    
-          erewrite select_list_shifted_selN; eauto.
+          erewrite select_list_shifted_seln; eauto.
           all: repeat constructor; eauto.
           setoid_rewrite <- H4; eauto.
         }
@@ -926,7 +926,7 @@ Proof.
         | [H: _ < length (map _ _) |- _] =>
           rewrite map_length in H
         end.
-        erewrite selN_map; eauto.
+        erewrite seln_map; eauto.
         
         match goal with
         | [H: _ < length (select_list_shifted _ _ _) |- _] =>
@@ -934,10 +934,10 @@ Proof.
         end.
         
         match goal with
-        | [H: forall _, _ -> snd _ (_ + _) = selN _ _ _ |- _] =>
+        | [H: forall _, _ -> snd _ (_ + _) = seln _ _ _ |- _] =>
           rewrite H
         end.   
-        erewrite select_list_shifted_selN; eauto.
+        erewrite select_list_shifted_seln; eauto.
         all: repeat constructor; eauto.
         all: try exact value0.
         match goal with
@@ -1068,13 +1068,13 @@ Proof.
         rewrite H0; eauto.
         rewrite select_for_addr_synced.
         rewrite <- H5 in H10.
-        eapply in_selN in H10.
+        eapply in_seln in H10.
         apply H4 in H10.
         instantiate (1:= (value0, nil)) in H10.
-        destruct_fresh (selN x1 i (value0,[])).        
+        destruct_fresh (seln x1 i (value0,[])).        
         simpl in *; subst; eauto.
         eapply H4.
-        eapply in_selN; lia.
+        eapply in_seln; lia.
       }
     }
     {
@@ -1110,13 +1110,13 @@ Proof.
         rewrite H0; eauto.
         rewrite select_for_addr_synced.
         rewrite <- H5 in H10.
-        eapply in_selN in H10.
+        eapply in_seln in H10.
         apply H4 in H10.
         instantiate (1:= (value0, nil)) in H10.
-        destruct_fresh (selN x1 i (value0,[])).
+        destruct_fresh (seln x1 i (value0,[])).
         simpl in *; subst; eauto.
         eapply H4.
-        eapply in_selN; lia.
+        eapply in_seln; lia.
       }
     } 
     { congruence. }
@@ -1181,13 +1181,13 @@ Proof.
           rewrite H0; eauto.
           rewrite select_for_addr_synced.
           rewrite <- H1 in H10.
-          eapply in_selN in H10.
+          eapply in_seln in H10.
           apply H8 in H10.
           instantiate (1:= (value0, nil)) in H10.
-          destruct_fresh (selN x1 i (value0,[])).
+          destruct_fresh (seln x1 i (value0,[])).
           simpl in *; subst; eauto.
           eapply H8.
-          eapply in_selN; lia.
+          eapply in_seln; lia.
         }
       }
       {
@@ -1222,13 +1222,13 @@ Proof.
           rewrite H0; eauto.
           rewrite select_for_addr_synced.
           rewrite <- H1 in H11.
-          eapply in_selN in H11.
+          eapply in_seln in H11.
           apply H9 in H11.
           instantiate (1:= (value0, nil)) in H11.
-          destruct_fresh (selN x1 i (value0,[])).
+          destruct_fresh (seln x1 i (value0,[])).
           simpl in *; subst; eauto.
           eapply H9.
-          eapply in_selN; lia.
+          eapply in_seln; lia.
         }
       }
       {
@@ -1261,13 +1261,13 @@ Proof.
         rewrite H0; eauto.
         rewrite select_for_addr_synced.
         rewrite <- H1 in H9.
-        eapply in_selN in H9.
+        eapply in_seln in H9.
         apply H7 in H9.
         instantiate (1:= (value0, nil)) in H9.
-        destruct_fresh (selN x1 i (value0,[])).
+        destruct_fresh (seln x1 i (value0,[])).
         simpl in *; subst; eauto.
         eapply H7.
-        eapply in_selN; lia.
+        eapply in_seln; lia.
       }
     }
     { congruence. }
@@ -1303,20 +1303,20 @@ Proof.
       intuition eauto.
       { 
         match goal with
-        | [H: forall _, _ -> snd _ _ = selN _ _ _ |- _] =>
+        | [H: forall _, _ -> snd _ _ = seln _ _ _ |- _] =>
           rewrite H
         end.   
         rewrite select_for_addr_synced.
         all: repeat constructor; eauto.
         all: try exact value0.
         rewrite <- H2 in H7.
-        eapply in_selN in H7.
+        eapply in_seln in H7.
         apply H1 in H7.
         instantiate (1:= (value0, [])) in H7.
-        destruct_fresh (selN x1 i (value0, [])).
+        destruct_fresh (seln x1 i (value0, [])).
         simpl in *; subst; eauto.
         eapply H1.
-        eapply in_selN; lia.       
+        eapply in_seln; lia.       
       }
     }
     { congruence. }
@@ -1362,20 +1362,20 @@ Proof.
       intuition eauto.
       { 
         match goal with
-        | [H: forall _, _ -> snd _ _ = selN _ _ _ |- _] =>
+        | [H: forall _, _ -> snd _ _ = seln _ _ _ |- _] =>
           rewrite H
         end.   
         rewrite select_for_addr_synced.
         all: repeat constructor; eauto.
         all: try exact value0.
         rewrite <- H3 in H8.
-        eapply in_selN in H8.
+        eapply in_seln in H8.
         apply H2 in H8.
         instantiate (1:= (value0, [])) in H8.
-        destruct_fresh (selN x2 i (value0, [])).
+        destruct_fresh (seln x2 i (value0, [])).
         simpl in *; subst; eauto.
         eapply H2.
-        eapply in_selN; lia.        
+        eapply in_seln; lia.        
       }
     }
     all: simpl in *; try rewrite select_for_addr_synced in *; eauto.

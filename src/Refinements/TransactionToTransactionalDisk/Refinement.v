@@ -334,7 +334,7 @@ Section TransactionalDiskSimulation.
     }
   Qed.
     
-    
+    (*
   Theorem abstract_oracles_exists_transactional_disk:
     forall T (p_abs: abs.(prog) T) n u, 
       abstract_oracles_exist_wrt refinement refines_to u p_abs (|Recover|) (transaction_cache_reboot_list n).
@@ -468,8 +468,9 @@ Section TransactionalDiskSimulation.
         }
       }
     }
+    
   Qed.
-
+*)
   Lemma addrs_match_upd:
     forall A AEQ V1 V2 (m1: @mem A AEQ V1) (m2: @mem A AEQ V2) a v,
       addrs_match m1 m2 ->
@@ -657,33 +658,42 @@ Proof.
       destruct n; simpl in *; try congruence; cleanup.
       destruct l; simpl in *; try lia.
       split_ors; cleanup.
-      {
-        exists (RFinished (upd (fst s_abs) a v, snd s_abs) tt);
-        simpl; intuition eauto.
-        eapply ExecFinished.
-        repeat econstructor; eauto.
-        unfold refines_to, transaction_rep in *; simpl in *; cleanup.
-        intuition eauto.
-        (** change spec and oracle refinement **)
-        admit.
-        rewrite upd_batch_app; simpl; eauto.
-        repeat rewrite rev_length, map_length; eauto.
-        destruct x1; eauto.
-      }
+      eapply write_finished in H10; eauto; 
       split_ors; cleanup.
       {
-        exists (RFinished s_abs tt);
+        exists (RFinished (upd (fst s_abs) a v, snd s_abs) (Some tt));
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
-        destruct x1; eauto.
       }
+      repeat cleanup_pairs.
+      exfalso; eapply cons_l_neq; eauto.
+      apply H6.
+      split_ors; cleanup; try lia.
+      eapply write_finished in H10; eauto. 
+      split_ors; logic_clean; try lia.
+      destruct s_imp; simpl in *; inversion H5.
+      exfalso; eapply cons_l_neq; eauto.
+      symmetry in H7; apply H7.
+      split_ors; cleanup; try lia.
       {
-        exists (RFinished s_abs tt);
+        cleanup.
+        exists (RFinished s_abs None);
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
-        destruct x1; eauto.
+      }
+      eapply write_finished in H10; eauto.
+      split_ors; logic_clean; try lia.
+      destruct s_imp; simpl in *; inversion H6.
+      exfalso; eapply cons_l_neq; eauto.
+      symmetry in H8; apply H8.
+      split_ors; cleanup; try lia. 
+      {
+        exists (RFinished s_abs None);
+        simpl; intuition eauto.
+        eapply ExecFinished.
+        repeat econstructor; eauto.
       }
     }
     {
@@ -702,7 +712,7 @@ Proof.
       eapply ExecRecovered; eauto.
       repeat econstructor.
     }
-Admitted.
+Qed.
 
 
 Lemma abort_simulation :

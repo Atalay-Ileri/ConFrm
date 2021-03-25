@@ -54,7 +54,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         off < length (file.(blocks)) ->
-        let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
+        let new_file := Build_File file.(owner) (updn file.(blocks) off v) in
         exec' u Cont d (Write inum off v) (Finished (upd d inum new_file) (Some tt))
 
   (** Check log fitting condition **)
@@ -184,7 +184,7 @@ Section FileDisk.
         d inum = Some file ->
         file.(owner) = u ->
         off < length (file.(blocks)) ->
-        let new_file := Build_File file.(owner) (updN file.(blocks) off v) in
+        let new_file := Build_File file.(owner) (updn file.(blocks) off v) in
         exec' u CrashAfter d (Write inum off v) (Crashed (upd d inum new_file))
 
   | ExecExtendCrashAfter :

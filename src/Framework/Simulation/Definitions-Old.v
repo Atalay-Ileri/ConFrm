@@ -718,8 +718,8 @@ Theorem Simulation_from_wp_prog :
     (** TODO: turn this into definition **)
     (forall i,
        i < length l_get_reboot_state_imp ->
-       let get_reboot_state_imp := selN l_get_reboot_state_imp i id in
-       let get_reboot_state_abs := selN l_get_reboot_state_abs i id in
+       let get_reboot_state_imp := seln l_get_reboot_state_imp i id in
+       let get_reboot_state_abs := seln l_get_reboot_state_abs i id in
        forall s s',
          refines_to_crash R s s' ->
          refines_to R (get_reboot_state_imp s) (get_reboot_state_abs s')) ->

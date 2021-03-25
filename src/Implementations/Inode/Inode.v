@@ -448,7 +448,7 @@ Theorem get_block_number_finished:
     inode_rep dh (fst s) ->
     exec (TransactionalDiskLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
     ((exists inode, off < length (inode.(block_numbers)) /\
-               t = Some (selN (inode.(block_numbers)) off 0) /\
+               t = Some (seln (inode.(block_numbers)) off 0) /\
                dh inum = Some inode) \/
      (t = None /\ (dh inum = None \/
                   (exists inode, dh inum = Some inode /\
@@ -470,7 +470,7 @@ Proof.
     {
       left; eexists; split; eauto.
       eapply nth_error_some_lt; eauto.
-      rewrite nth_selN_eq.
+      rewrite nth_seln_eq.
       erewrite nth_error_nth; eauto.
     }
     {

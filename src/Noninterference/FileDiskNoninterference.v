@@ -628,7 +628,9 @@ Qed.
 
 Theorem ss_FD_write:
   forall n inum off v u u',
-    SelfSimulation u (FileDiskOp.(Op) (Write inum off v)) (FileDiskOp.(Op) (Write inum off v)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FileDiskOp.(Op) (Write inum off v)) 
+    (FileDiskOp.(Op) (Write inum off v)) (FileDiskOp.(Op) Recover) (fun _ => True) 
+    (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -645,7 +647,7 @@ Proof.
       eapply_fresh H2 in H11; eauto.
       logic_clean; subst.
       
-      exists (RFinished (upd s2 inum (Build_File (owner f) (updN (blocks f) off v))) (Some tt)); simpl; intuition eauto.
+      exists (RFinished (upd s2 inum (Build_File (owner f) (updn (blocks f) off v))) (Some tt)); simpl; intuition eauto.
       repeat econstructor; eauto.
       rewrite <- H4; eauto.
       {
@@ -707,7 +709,7 @@ Proof.
           rewrite upd_eq in *; eauto.
           cleanup.
           simpl in *; eauto.
-          repeat rewrite length_updN; eauto.
+          repeat rewrite updn_length; eauto.
         }
         {
           rewrite upd_ne in *; eauto.
@@ -725,6 +727,38 @@ Proof.
       }
     }
     {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+      {
+        do 3 econstructor; eauto.
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        destruct (i inum).
+        exfalso; apply H2; congruence.
+      }
+      {
+        cleanup.        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H4 in H; eauto; try congruence; cleanup.
+        do 3 econstructor; intuition eauto.
+        cleanup; eauto.
+        destruct (H2 inum).
+        exfalso; apply H5; congruence.
+      }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    {(** Txn Full **)
+      invert_exec; cleanup.
       exists (RFinished s2 None); simpl.
       repeat (split; eauto).
       repeat split_ors;
@@ -775,7 +809,7 @@ Proof.
       eapply_fresh H2 in H10; eauto; try congruence; cleanup.
       
       edestruct ss_FD_Recover; eauto.
-      instantiate (1:= upd s2 inum (Build_File (owner f) (updN (blocks f) off v))).
+      instantiate (1:= upd s2 inum (Build_File (owner f) (updn (blocks f) off v))).
       instantiate (2:= u').
       instantiate (1:= None).
       {
@@ -841,7 +875,7 @@ Proof.
           rewrite upd_eq in *; eauto.
           cleanup.
           simpl in *; eauto.
-          repeat rewrite length_updN; eauto.
+          repeat rewrite updn_length; eauto.
         }
         {
           rewrite upd_ne in *; eauto.
@@ -1819,7 +1853,7 @@ Proof.
       eapply_fresh H2 in H11; eauto.
       logic_clean; subst.
       
-      exists (RFinished (upd s2 inum (Build_File (owner f) (updN (blocks f) off v2))) (Some tt)); simpl; intuition eauto.
+      exists (RFinished (upd s2 inum (Build_File (owner f) (updn (blocks f) off v2))) (Some tt)); simpl; intuition eauto.
       repeat econstructor; eauto.
       rewrite <- H4; eauto.
       {
@@ -1881,7 +1915,7 @@ Proof.
           rewrite upd_eq in *; eauto.
           cleanup.
           simpl in *; eauto.
-          repeat rewrite length_updN; eauto.
+          repeat rewrite updn_length; eauto.
         }
         {
           rewrite upd_ne in *; eauto.
@@ -1949,7 +1983,7 @@ Proof.
       eapply_fresh H2 in H10; eauto; try congruence; cleanup.
       
       edestruct ss_FD_Recover; eauto.
-      instantiate (1:= upd s2 inum (Build_File (owner f) (updN (blocks f) off v2))).
+      instantiate (1:= upd s2 inum (Build_File (owner f) (updn (blocks f) off v2))).
       instantiate (2:= u').
       instantiate (1:= Some inum).
       {
@@ -2015,7 +2049,7 @@ Proof.
           rewrite upd_eq in *; eauto.
           cleanup.
           simpl in *; eauto.
-          repeat rewrite length_updN; eauto.
+          repeat rewrite updn_length; eauto.
         }
         {
           rewrite upd_ne in *; eauto.

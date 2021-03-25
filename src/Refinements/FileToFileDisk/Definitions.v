@@ -1,15 +1,15 @@
 Require Import Framework FSParameters.
-Require Import AuthenticatedDiskLayer FileDiskLayer File.
-Close Scope predicate_scope.
+Require Import AuthenticatedDiskLayer FileDiskLayer.
+Require Import File FileSpecs.
 Import ListNotations.
 
-Local Definition low_op := (AuthenticatedDiskOperation).
-Local Definition high_op := (FileDiskOperation inode_count).
-Local Definition low := (AuthenticatedDiskLang).
-Local Definition high := (FileDiskLang inode_count).
+Local Definition impl_core := (AuthenticatedDiskOperation).
+Local Definition abs_core := (FileDiskOperation inode_count).
+Local Definition impl := (AuthenticatedDiskLang).
+Local Definition abs := (FileDiskLang inode_count).
 
 
-Fixpoint compile T (p2: Core.operation high_op T) : prog low T.
+Fixpoint compile T (p2: Core.operation abs_core T) : prog impl T.
   destruct p2.
   exact (read a a0).
   exact (write a a0 v).
@@ -20,19 +20,19 @@ Fixpoint compile T (p2: Core.operation high_op T) : prog low T.
   exact recover.
 Defined.
 
-Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (get_reboot_state: state low -> state low) o1 o2 : Prop :=
+Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) (get_reboot_state: state impl -> state impl) o1 o2 : Prop :=
     match p with
     | Read inum a =>
       forall fd,
       files_rep fd d1 ->
       (
         (exists d' r,
-           exec low u o1 d1 (read inum a) (Finished d' r) /\
+           exec impl u o1 d1 (read inum a) (Finished d' r) /\
            o2 = Cont /\
            files_rep fd d') \/
         
         (exists d',
-           exec low u o1 d1 (read inum a) (Crashed d') /\
+           exec impl u o1 d1 (read inum a) (Crashed d') /\
            o2 = CrashBefore /\
            files_crash_rep fd d')
       )
@@ -43,7 +43,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
       (
         (exists d' r file,
            (
-             exec low u o1 d1 (write inum off v) (Finished d' r) /\
+             exec impl u o1 d1 (write inum off v) (Finished d' r) /\
              o2 = Cont /\
              r = Some tt /\
              inum < inode_count /\
@@ -53,7 +53,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
              files_rep (Mem.upd fd inum new_file) d'
            ) \/
            (
-             exec low u o1 d1 (write inum off v) (Finished d' r) /\
+             exec impl u o1 d1 (write inum off v) (Finished d' r) /\
              o2 = Cont /\
              r = None /\
              (inum >= inode_count \/
@@ -63,7 +63,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
              files_rep fd d'
            ) \/
              (
-             exec low u o1 d1 (write inum off v) (Finished d' r) /\
+             exec impl u o1 d1 (write inum off v) (Finished d' r) /\
              o2 = TxnFull /\
              r = None /\
              inum < inode_count /\
@@ -76,12 +76,12 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
         
         (exists d',
            (
-             exec low u o1 d1 (write inum off v) (Crashed d') /\
+             exec impl u o1 d1 (write inum off v) (Crashed d') /\
              o2 = CrashBefore /\
              files_crash_rep fd d'
            ) \/
            (exists file,
-              exec low u o1 d1 (write inum off v) (Crashed d') /\
+              exec impl u o1 d1 (write inum off v) (Crashed d') /\
               o2 = CrashAfter /\ 
               inum < inode_count /\
               fd inum = Some file /\
@@ -99,7 +99,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
       (
        (exists d' r file,
           (
-            exec low u o1 d1 (extend inum v) (Finished d' r) /\
+            exec impl u o1 d1 (extend inum v) (Finished d' r) /\
             o2 = Cont /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -108,7 +108,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
             files_rep (Mem.upd fd inum new_file) d'
           ) \/
           (
-            exec low u o1 d1 (extend inum v) (Finished d' r) /\
+            exec impl u o1 d1 (extend inum v) (Finished d' r) /\
             o2 = Cont /\
             (inum >= inode_count \/
              fd inum = None \/
@@ -116,7 +116,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
             files_rep fd d'
           ) \/
           (
-            exec low u o1 d1 (extend inum v) (Finished d' r) /\
+            exec impl u o1 d1 (extend inum v) (Finished d' r) /\
             o2 = DiskFull /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -127,12 +127,12 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
   
        (exists d',
           (
-            exec low u o1 d1 (extend inum v) (Crashed d') /\
+            exec impl u o1 d1 (extend inum v) (Crashed d') /\
             o2 = CrashBefore /\
             files_crash_rep fd d'
           ) \/
           (exists file,
-            exec low u o1 d1 (extend inum v) (Crashed d') /\
+            exec impl u o1 d1 (extend inum v) (Crashed d') /\
             o2 = CrashAfter /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -149,7 +149,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
       (
        (exists d' r file,
           (
-            exec low u o1 d1 (change_owner inum own) (Finished d' r) /\
+            exec impl u o1 d1 (change_owner inum own) (Finished d' r) /\
             o2 = Cont /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -158,7 +158,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
             files_rep (Mem.upd fd inum new_file) d'
           ) \/
           (
-            exec low u o1 d1 (change_owner inum own) (Finished d' r) /\
+            exec impl u o1 d1 (change_owner inum own) (Finished d' r) /\
             o2 = Cont /\
             (
               inum >= inode_count \/
@@ -170,12 +170,12 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
        ) \/
        (exists d',
           (
-            exec low u o1 d1 (change_owner inum own) (Crashed d') /\
+            exec impl u o1 d1 (change_owner inum own) (Crashed d') /\
             o2 = CrashBefore /\
             files_crash_rep fd d'
           ) \/
           (exists file,
-            exec low u o1 d1 (change_owner inum own) (Crashed d') /\
+            exec impl u o1 d1 (change_owner inum own) (Crashed d') /\
             o2 = CrashAfter /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -191,7 +191,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
       (
        (exists d',
           (exists inum,
-            exec low u o1 d1 (create own) (Finished d' (Some inum)) /\
+            exec impl u o1 d1 (create own) (Finished d' (Some inum)) /\
             o2 = NewInum inum /\
             inum < inode_count /\
             fd inum = None /\
@@ -199,7 +199,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
             files_rep (Mem.upd fd inum new_file) d'
           ) \/
           (
-            exec low u o1 d1 (create own) (Finished d' None) /\
+            exec impl u o1 d1 (create own) (Finished d' None) /\
             o2 = InodesFull /\
             (forall inum, inum < inode_count -> fd inum <> None) /\
             files_rep fd d'
@@ -207,12 +207,12 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
        ) \/
        (exists d',
           (
-            exec low u o1 d1 (create own) (Crashed d') /\
+            exec impl u o1 d1 (create own) (Crashed d') /\
             o2 = CrashBefore /\
             files_crash_rep fd d'
           ) \/
           (exists inum,
-            exec low u o1 d1 (create own) (Crashed d') /\
+            exec impl u o1 d1 (create own) (Crashed d') /\
             o2 = CrashAfterCreate inum /\
             inum < inode_count /\
             fd inum = None /\
@@ -227,7 +227,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
       (
        (exists d' r file,
           (
-            exec low u o1 d1 (delete inum) (Finished d' r) /\
+            exec impl u o1 d1 (delete inum) (Finished d' r) /\
             o2 = Cont /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -235,7 +235,7 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
             files_rep (Mem.delete fd inum) d'
           ) \/
           (
-            exec low u o1 d1 (delete inum) (Finished d' r) /\
+            exec impl u o1 d1 (delete inum) (Finished d' r) /\
             o2 = Cont /\
             (
               inum >= inode_count \/
@@ -247,12 +247,12 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
        ) \/
        (exists d',
           (
-            exec low u o1 d1 (delete inum) (Crashed d') /\
+            exec impl u o1 d1 (delete inum) (Crashed d') /\
             o2 = CrashBefore /\
             files_crash_rep fd d'
           ) \/
           (exists file,
-            exec low u o1 d1 (delete inum) (Crashed d') /\
+            exec impl u o1 d1 (delete inum) (Crashed d') /\
             o2 = CrashAfter /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -266,27 +266,27 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
          files_reboot_rep fd d1 ->
        (
          (exists d',
-            exec low u o1 d1 recover (Finished d' tt) /\
+            exec impl u o1 d1 recover (Finished d' tt) /\
             o2 = Cont /\
             files_rep fd d') \/
          
          (exists d',
-            exec low u o1 d1 recover (Crashed d') /\
+            exec impl u o1 d1 recover (Crashed d') /\
             o2 = CrashBefore /\
             files_crash_rep fd d')
        )
     end.
 
-   Definition refines_to (d1: state low) (d2: state high) :=
+   Definition refines_to (d1: state impl) (d2: state abs) :=
      files_rep d2 d1.
 
-   Definition refines_to_reboot (d1: state low) (d2: state high) :=
+   Definition refines_to_reboot (d1: state impl) (d2: state abs) :=
      files_reboot_rep d2 d1.
 
    Lemma exec_compiled_preserves_refinement_finished_core:
-    forall T (p2: high_op.(Core.operation) T) o1 s1 s1' r u,
+    forall T (p2: abs_core.(Core.operation) T) o1 s1 s1' r u,
         (exists s2, refines_to s1 s2) ->
-        low.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
+        impl.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
         (exists s2', refines_to s1' s2').
   Proof.
     intros; destruct p2; simpl in *; cleanup.
@@ -327,6 +327,6 @@ Definition token_refines_to T u (d1: state low) (p: Core.operation high_op T) (g
   Qed.
 
   Definition FileDiskOperationRefinement := Build_CoreRefinement compile refines_to token_refines_to exec_compiled_preserves_refinement_finished_core.
-  Definition FileDiskRefinement := LiftRefinement high FileDiskOperationRefinement.
+  Definition FileDiskRefinement := LiftRefinement abs FileDiskOperationRefinement.
 
-  Notation "| p |" := (Op high_op p)(at level 60).
+  Notation "| p |" := (Op abs_core p)(at level 60).

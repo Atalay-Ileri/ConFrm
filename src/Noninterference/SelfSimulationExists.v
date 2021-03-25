@@ -198,7 +198,7 @@ Proof.
      try lia.          
      cleanup.
      eapply nth_error_nth with (d:= false) in D0; eauto.
-     rewrite <- nth_selN_eq in D0.
+     rewrite <- nth_seln_eq in D0.
      setoid_rewrite equal_f with (x5 :=  Inode.InodeAllocatorParams.bitmap_addr) in D0; eauto.
      split_ors; cleanup; try congruence.
      setoid_rewrite H0 in D0; congruence.

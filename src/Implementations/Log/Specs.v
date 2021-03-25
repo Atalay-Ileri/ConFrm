@@ -33,10 +33,10 @@ Proof.
   rewrite Mem.upd_ne; eauto.
 Qed.
 
-Lemma selN_seq:
+Lemma seln_seq:
   forall len start n def,
     n < len ->
-    selN (seq start len) n def = (start + n).
+    seln (seq start len) n def = (start + n).
 Proof.
   induction len; simpl; intuition eauto.
   lia.
@@ -88,8 +88,8 @@ Proof.
     rewrite upd_batch_ne.
     unfold sync; simpl.
     rewrite upd_ne; eauto.
-    erewrite selN_map; eauto.
-    erewrite selN_seq; eauto.
+    erewrite seln_map; eauto.
+    erewrite seln_seq; eauto.
     all: try rewrite map_length, seq_length in *; eauto.
     pose proof hdr_before_log; lia.
     intros Hx.
@@ -459,14 +459,14 @@ Theorem apply_txns_crashed:
                     (map key txn_records) l_plain_blocks))
           (firstn a (bimap (fun key lv => map (fun v => (key, v)) lv)
                     (map key txn_records) l_plain_blocks)))
-          (firstn b (selN (bimap (fun key lv => map (encrypt key) lv)
+          (firstn b (seln (bimap (fun key lv => map (encrypt key) lv)
                           (map key txn_records) l_plain_blocks) a []))
-          (firstn b (selN (bimap (fun key lv => map (fun v => (key, v)) lv)
+          (firstn b (seln (bimap (fun key lv => map (fun v => (key, v)) lv)
                           (map key txn_records) l_plain_blocks) a [])) /\
       snd s' = upd_batch_set (list_upd_batch_set (snd s)
                    (firstn n l_addr_list) (firstn n l_plain_data_blocks))
-                   (firstn m (selN l_addr_list n []))
-                   (firstn m (selN l_plain_data_blocks n [])) /\
+                   (firstn m (seln l_addr_list n []))
+                   (firstn m (seln l_plain_data_blocks n [])) /\
       n <= a /\ a <= S a /\
       subset (snd (fst s)) (snd (fst s')).
 Proof.
@@ -779,9 +779,9 @@ Theorem decrypt_txns_crashed:
                     (map key txn_records) l_plain_blocks))
           (firstn a (bimap (fun key lv => map (fun v => (key, v)) lv)
                     (map key txn_records) l_plain_blocks)))
-          (firstn b (selN (bimap (fun key lv => map (encrypt key) lv)
+          (firstn b (seln (bimap (fun key lv => map (encrypt key) lv)
                           (map key txn_records) l_plain_blocks) a []))
-          (firstn b (selN (bimap (fun key lv => map (fun v => (key, v)) lv)
+          (firstn b (seln (bimap (fun key lv => map (fun v => (key, v)) lv)
                           (map key txn_records) l_plain_blocks) a [])) /\
       snd s' = snd s /\
       subset (snd (fst s)) (snd (fst s')).
@@ -960,7 +960,7 @@ Proof.
     eapply read_consecutive_finished in H1; cleanup.
     assert (x3 = firstn (count (current_part hdr)) (map fst log_blocksets)).
     {
-      eapply list_selN_ext.
+      eapply list_seln_ext.
       rewrite firstn_length_l; eauto.
       unfold log_rep_explicit, log_header_block_rep in *;
       cleanup_no_match; eauto.
@@ -974,8 +974,8 @@ Proof.
       rewrite <- H1; eauto.
       cleanup_no_match.
       rewrite <- H6.
-      rewrite selN_firstn; eauto.
-      erewrite selN_map.
+      rewrite seln_firstn; eauto.
+      erewrite seln_map.
       unfold log_rep_explicit, log_data_blocks_rep in *;
       cleanup_no_match; eauto.
       destruct s; simpl in *.
@@ -1017,7 +1017,7 @@ Proof.
     eapply read_consecutive_finished in H1; cleanup.
     assert (x3 = firstn (count (current_part hdr)) (map fst log_blocksets)).
     {
-      eapply list_selN_ext.
+      eapply list_seln_ext.
       rewrite firstn_length_l; eauto.
       unfold log_rep_explicit, log_header_block_rep in *;
       cleanup_no_match; eauto.
@@ -1031,8 +1031,8 @@ Proof.
       rewrite <- H1; eauto.
       cleanup_no_match.
       rewrite <- H6.
-      rewrite selN_firstn; eauto.
-      erewrite selN_map.
+      rewrite seln_firstn; eauto.
+      erewrite seln_map.
       unfold log_rep_explicit, log_data_blocks_rep in *;
       cleanup_no_match; eauto.
       destruct s; simpl in *.
@@ -1057,7 +1057,7 @@ Proof.
       apply read_consecutive_finished in H4; cleanup.
       assert (x5= firstn (count (old_part hdr)) (map fst log_blocksets)).
       {
-        eapply list_selN_ext.
+        eapply list_seln_ext.
         rewrite firstn_length_l; eauto.
         unfold log_rep_explicit, log_header_block_rep in *;
         cleanup_no_match; eauto.
@@ -1071,8 +1071,8 @@ Proof.
         rewrite <- H2; eauto.
         cleanup_no_match.
         rewrite <- H13.
-        rewrite selN_firstn; eauto.
-        erewrite selN_map.
+        rewrite seln_firstn; eauto.
+        erewrite seln_map.
         unfold log_rep_explicit, log_data_blocks_rep in *;
         cleanup_no_match; eauto.
         destruct s; simpl in *.
@@ -1230,7 +1230,7 @@ Proof.
       rewrite list_upd_batch_not_in.
       unfold sync.
       rewrite H.
-      erewrite selN_map; eauto.
+      erewrite seln_map; eauto.
       rewrite <- H6; eauto.
       {
         intros.
@@ -1346,8 +1346,8 @@ Theorem flush_txns_crashed:
                              (list_upd_batch_set (snd s)
                                                  (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
                                                  (firstn n (map data_blocks txns)))
-                             (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
-                             (firstn m (selN (map data_blocks txns) n [])))) \/
+                             (firstn m (seln (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+                             (firstn m (seln (map data_blocks txns) n [])))) \/
      (log_rep txns s' /\ 
       snd s' =
       sync (list_upd_batch_set (snd s)
@@ -1625,8 +1625,8 @@ Theorem apply_log_crashed:
            (list_upd_batch_set (snd s)
             (firstn n (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)))
             (firstn n (map data_blocks txns)))
-           (firstn m (selN (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
-           (firstn m (selN (map data_blocks txns) n [])))) \/
+           (firstn m (seln (bimap get_addr_list (records (current_part hdr)) (map addr_blocks txns)) n []))
+           (firstn m (seln (map data_blocks txns) n [])))) \/
      (log_rep txns s' /\ 
       snd s' =
       sync (list_upd_batch_set (snd s)
@@ -1727,11 +1727,11 @@ Proof.
       clear A.
       destruct (lt_dec i (count (current_part (decode_header v0)))).
       {
-        rewrite selN_app; eauto.
+        rewrite seln_app; eauto.
         rewrite upd_batch_ne.
-        rewrite selN_firstn; eauto.
+        rewrite seln_firstn; eauto.
         unfold sync; rewrite e0.
-        erewrite selN_map; eauto.
+        erewrite seln_map; eauto.
         lia.
         intros Hx; apply in_seq in Hx.
         simpl in *.
@@ -1743,12 +1743,12 @@ Proof.
       }
       destruct (lt_dec i (count (current_part (decode_header v0)) + length (l_addr++l_data))).
       {
-        rewrite selN_app2.
+        rewrite seln_app2.
         rewrite firstn_length_l.
-        rewrite selN_app1.
+        rewrite seln_app1.
         erewrite upd_batch_eq; eauto.
         
-        rewrite selN_seq.
+        rewrite seln_seq.
         rewrite log_start_eq; simpl.
         replace (S (S (count (current_part (decode_header v0)) + (i - count (current_part (decode_header v0)))))) with (S (S i)) by lia; eauto.
         lia.
@@ -1773,15 +1773,15 @@ Proof.
         setoid_rewrite e1; eauto.
       }
       {
-        repeat rewrite selN_app2.
+        repeat rewrite seln_app2.
         rewrite firstn_length_l.
         repeat rewrite map_length.
         rewrite upd_batch_ne.
-        rewrite skipn_selN.
+        rewrite skipn_seln.
         unfold sync.
         replace (length (l_addr ++ l_data) + count (current_part (decode_header v0)) +
                  (i - count (current_part (decode_header v0)) - length (l_addr ++ l_data))) with i by lia; eauto.
-        erewrite e0, selN_map; eauto.
+        erewrite e0, seln_map; eauto.
         lia.
 
         intros Hx; apply in_seq in Hx.
@@ -2177,7 +2177,7 @@ Proof.
         intuition eauto.
         rewrite firstn_length_l in H.
         rewrite upd_batch_set_ne; eauto.
-        rewrite selN_firstn; eauto.
+        rewrite seln_firstn; eauto.
         apply H9; eauto.
         all: try lia.
         
@@ -2208,8 +2208,8 @@ Proof.
         destruct (lt_dec i (count (current_part (decode_header v)))).
         {(** first_part of log **) 
           rewrite upd_batch_set_ne; eauto.
-          rewrite selN_app; eauto.
-          rewrite selN_firstn; eauto.
+          rewrite seln_app; eauto.
+          rewrite seln_firstn; eauto.
           apply H9; eauto.
           all: try lia.
           repeat constructor; eauto.
@@ -2222,10 +2222,10 @@ Proof.
         {(** overwritten part of the log **)
           rewrite firstn_seq, min_l.
           erewrite upd_batch_set_seq_in.
-          rewrite selN_app2.
-          rewrite selN_app.
+          rewrite seln_app2.
+          rewrite seln_app.
 
-          erewrite selN_bimap; simpl; auto.
+          erewrite seln_bimap; simpl; auto.
           repeat rewrite firstn_length_l; eauto.
           rewrite skipn_length; lia.
           rewrite map_length, app_length; lia.
@@ -2239,8 +2239,8 @@ Proof.
           rewrite map_length, app_length; lia.
           repeat rewrite firstn_length_l; lia.
           
-          rewrite selN_firstn.
-          rewrite skipn_selN.
+          rewrite seln_firstn.
+          rewrite skipn_seln.
           rewrite firstn_length_l.
           replace (count (current_part (decode_header v)) + (i - count (current_part (decode_header v)))) with i by lia.
           apply H9; eauto.
@@ -2255,10 +2255,10 @@ Proof.
         }
         {(** last part of log **) 
           rewrite upd_batch_set_ne; eauto.
-          repeat rewrite selN_app2; eauto.
+          repeat rewrite seln_app2; eauto.
           rewrite bimap_length, min_l.
           repeat rewrite firstn_length_l.
-          rewrite skipn_selN; eauto.
+          rewrite skipn_seln; eauto.
           replace (x + count (current_part (decode_header v)) + (i - count (current_part (decode_header v)) - x)) with i by lia.          
           apply H9; eauto.
           all: try lia.
@@ -2447,7 +2447,7 @@ Proof.
             intuition eauto.
             rewrite firstn_length_l in H.
             rewrite upd_batch_set_ne; eauto.
-            rewrite selN_firstn; eauto.
+            rewrite seln_firstn; eauto.
             apply H8; eauto.
             all: try lia.
             intros Hx; apply in_seq in Hx.
@@ -2475,8 +2475,8 @@ Proof.
             destruct (lt_dec i (count (current_part (decode_header v)))).
             {(** first_part of log **) 
               rewrite upd_batch_set_ne; eauto.
-              rewrite selN_app; eauto.
-              rewrite selN_firstn; eauto.
+              rewrite seln_app; eauto.
+              rewrite seln_firstn; eauto.
               apply H8; eauto.
               all: try lia.
               repeat constructor; eauto.
@@ -2488,10 +2488,10 @@ Proof.
             destruct (lt_dec i (length (l_addr++l_data) + count (current_part (decode_header v)))).
             {(** overwritten part of the log **)
               erewrite upd_batch_set_seq_in.
-              rewrite selN_app2.
-              rewrite selN_app.
+              rewrite seln_app2.
+              rewrite seln_app.
 
-              erewrite selN_bimap; simpl; auto.
+              erewrite seln_bimap; simpl; auto.
               repeat rewrite firstn_length_l; eauto.
               rewrite map_length, app_length; lia.
               rewrite skipn_length; lia.
@@ -2506,8 +2506,8 @@ Proof.
               rewrite skipn_length; lia.
               repeat rewrite firstn_length_l; lia.
               
-              rewrite selN_firstn.
-              rewrite skipn_selN.
+              rewrite seln_firstn.
+              rewrite skipn_seln.
               rewrite firstn_length_l.
               replace (count (current_part (decode_header v)) + (i - count (current_part (decode_header v)))) with i by lia.
               apply H8; eauto.
@@ -2523,10 +2523,10 @@ Proof.
             }
             {(** last part of log **) 
               rewrite upd_batch_set_ne; eauto.
-              repeat rewrite selN_app2; eauto.
+              repeat rewrite seln_app2; eauto.
               rewrite bimap_length, min_l.
               repeat rewrite firstn_length_l.
-              rewrite skipn_selN; eauto.
+              rewrite skipn_seln; eauto.
               rewrite map_length, app_length in *.
               replace (length l_addr + length l_data + count (current_part (decode_header v)) +
         (i - count (current_part (decode_header v)) - (length l_addr + length l_data)))  with i by lia.          
@@ -2733,7 +2733,7 @@ Proof.
             rewrite firstn_length_l in H16.
             rewrite upd_ne.
             rewrite upd_batch_set_ne; eauto.
-            rewrite selN_firstn; eauto.
+            rewrite seln_firstn; eauto.
             apply H; eauto.
             all: try lia.
             
@@ -2766,8 +2766,8 @@ Proof.
             destruct (lt_dec i (count (current_part (decode_header v0)))).
             {(** first_part of log **) 
               rewrite upd_batch_set_ne; eauto.
-              rewrite selN_app; eauto.
-              rewrite selN_firstn; eauto.
+              rewrite seln_app; eauto.
+              rewrite seln_firstn; eauto.
               apply H; eauto.
               all: try lia.
               repeat constructor; eauto.
@@ -2779,10 +2779,10 @@ Proof.
             destruct (lt_dec i (length (l_addr++l_data) + count (current_part (decode_header v0)))).
             {(** overwritten part of the log **)
               erewrite upd_batch_set_seq_in.
-              rewrite selN_app2.
-              rewrite selN_app.
+              rewrite seln_app2.
+              rewrite seln_app.
 
-              erewrite selN_bimap; simpl; auto.
+              erewrite seln_bimap; simpl; auto.
               repeat rewrite firstn_length_l; eauto.
               rewrite map_length, app_length; lia.
               rewrite skipn_length; lia.
@@ -2797,8 +2797,8 @@ Proof.
               rewrite skipn_length; lia.
               repeat rewrite firstn_length_l; lia.
 
-              rewrite selN_firstn.
-              rewrite skipn_selN.
+              rewrite seln_firstn.
+              rewrite skipn_seln.
               rewrite firstn_length_l.
               replace (count (current_part (decode_header v0)) + (i - count (current_part (decode_header v0)))) with i by lia.
               apply H; eauto.
@@ -2814,10 +2814,10 @@ Proof.
             }
             {(** last part of log **) 
               rewrite upd_batch_set_ne; eauto.
-              repeat rewrite selN_app2; eauto.
+              repeat rewrite seln_app2; eauto.
               rewrite bimap_length, min_l.
               repeat rewrite firstn_length_l.
-              rewrite skipn_selN; eauto.
+              rewrite skipn_seln; eauto.
               rewrite map_length, app_length in *.
               replace (length l_addr + length l_data + count (current_part (decode_header v0)) +
         (i - count (current_part (decode_header v0)) - (length l_addr + length l_data)))  with i by lia.          
@@ -3320,7 +3320,7 @@ Proof.
           rewrite map_length in H11.
           rewrite sync_upd_comm; simpl.
           rewrite upd_ne.
-          unfold sync; erewrite selN_map. 
+          unfold sync; erewrite seln_map. 
           rewrite H; eauto.
           rewrite <- H3; eauto.
           lia.
@@ -3391,7 +3391,7 @@ Proof.
             rewrite map_length in H11.
             rewrite sync_upd_comm; simpl.
             rewrite upd_ne.
-            unfold sync; erewrite selN_map. 
+            unfold sync; erewrite seln_map. 
             rewrite H1; eauto.
             rewrite <- H3; eauto.
             lia.
@@ -3608,7 +3608,7 @@ Proof.
             rewrite map_length in H6.
             rewrite sync_upd_comm; simpl in *.
             rewrite upd_ne; eauto.
-            unfold sync; erewrite selN_map;
+            unfold sync; erewrite seln_map;
             simpl; eauto.
             rewrite H; eauto.            
             rewrite <- H8; eauto.

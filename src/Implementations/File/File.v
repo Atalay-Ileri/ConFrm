@@ -146,7 +146,7 @@ Definition init :=
             (DiskAllocatorParams.bitmap_addr,
              bits_to_value zero_bitlist)].
 
-Definition update_file f off v := Build_File f.(BaseTypes.owner) (updN f.(blocks) off v).
+Definition update_file f off v := Build_File f.(BaseTypes.owner) (updn f.(blocks) off v).
 Definition extend_file f v := Build_File f.(BaseTypes.owner) (f.(blocks) ++ [v]).
 Definition new_file o := Build_File o [].
 Definition change_file_owner f o := Build_File o f.(blocks).

@@ -272,8 +272,8 @@ Definition txn_well_formed header_part (log_blocks: list value) key_list encrypt
   addr_count = length (addr_blocks txn) /\
   data_count = length (data_blocks txn) /\
   data_count <= length (blocks_to_addr_list (addr_blocks txn)) /\
-  (forall i, i < addr_count -> encryption_map (encrypt key (selN (addr_blocks txn) i value0)) = Some (key, selN (addr_blocks txn) i value0)) /\
-  (forall i, i < data_count -> encryption_map (encrypt key (selN (data_blocks txn) i value0)) = Some (key, selN (data_blocks txn) i value0)).
+  (forall i, i < addr_count -> encryption_map (encrypt key (seln (addr_blocks txn) i value0)) = Some (key, seln (addr_blocks txn) i value0)) /\
+  (forall i, i < data_count -> encryption_map (encrypt key (seln (data_blocks txn) i value0)) = Some (key, seln (data_blocks txn) i value0)).
 
 
 Definition txns_valid header_part (log_blocks: list value) key_list encryption_map disk (txns: list txn) :=
@@ -303,7 +303,7 @@ Definition log_data_blocks_rep
   let crypto_maps := fst state in
   let disk := snd state in
     (** Log Blocks *)
-    (forall i, i < length log_blocksets -> disk (log_start + i) = selN log_blocksets i (value0, [])) /\
+    (forall i, i < length log_blocksets -> disk (log_start + i) = seln log_blocksets i (value0, [])) /\
     (** Sync status **)
     match log_state with
     | Synced =>

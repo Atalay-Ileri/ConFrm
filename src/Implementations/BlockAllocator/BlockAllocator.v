@@ -10,9 +10,9 @@ Notation "x <-| p1 ; p2" := (Bind (Op (TransactionalDiskOperation data_length) p
 Lemma upd_valid_length:
   forall T (l: list T) n v m,
     length l = m ->
-    length (updN l n v) = m.
+    length (updn l n v) = m.
 Proof.
-  intros; rewrite length_updN; eauto.
+  intros; rewrite updn_length; eauto.
 Qed.
 
 Module Type BlockAllocatorParameters.
@@ -42,7 +42,7 @@ Definition alloc (v': value) :=
     r <-| Write (bitmap_addr + S index) v';
     if r is Some tt then
       r <-| Write bitmap_addr
-        (bits_to_value (Build_bitlist (updN bits index true)
+        (bits_to_value (Build_bitlist (updn bits index true)
                      (upd_valid_length _ bits index true _ valid)));
       if r is Some tt then
         Ret (Some index)
@@ -61,7 +61,7 @@ Definition free a :=
   let valid := valid (value_to_bits v) in
   if nth_error bits a is Some true then
       | Write bitmap_addr
-          (bits_to_value (Build_bitlist (updN bits a false)
+          (bits_to_value (Build_bitlist (updn bits a false)
           (upd_valid_length _ bits a false _ valid)))|
     else
       Ret None
@@ -160,9 +160,9 @@ Lemma valid_bits_extract :
     n < length values ->
     length values <= length bits ->
     valid_bits dh values bits d ->
-    d (bitmap_addr + S n) = selN values n value0 /\
-    ((selN bits n false = false /\ dh n = None) \/
-    (selN bits n false = true /\  dh n = Some (selN values n value0))).
+    d (bitmap_addr + S n) = seln values n value0 /\
+    ((seln bits n false = false /\ dh n = None) \/
+    (seln bits n false = true /\  dh n = Some (seln values n value0))).
 Proof.
   intros.
   eapply valid_bits'_split in H1; eauto; simpl in *.
@@ -177,12 +177,12 @@ Proof.
     simpl in *.
     cleanup.
     rewrite <- Nat.add_0_r with (n:= n).
-    rewrite <- skipn_selN.
+    rewrite <- skipn_seln.
     rewrite Nat.add_0_r with (n:= n).
     rewrite D; simpl; eauto.
     split; eauto.
     setoid_rewrite <- (firstn_skipn n).
-    repeat rewrite selN_app2.
+    repeat rewrite seln_app2.
     repeat rewrite D0.
     repeat rewrite firstn_length_l by lia.
     repeat rewrite Nat.sub_diag; simpl; eauto.
@@ -285,7 +285,7 @@ Proof.
        logic_clean.      
        {
          setoid_rewrite get_first_zero_index_firstn in H5; eauto.
-         rewrite nth_selN_eq in *.
+         rewrite nth_seln_eq in *.
          setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
@@ -314,7 +314,7 @@ Proof.
        logic_clean.      
        {
          setoid_rewrite get_first_zero_index_firstn in H5; eauto.
-         rewrite nth_selN_eq in *.
+         rewrite nth_seln_eq in *.
          setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          right; eexists; intuition eauto.
@@ -381,7 +381,7 @@ Proof.
     eapply (valid_bits_extract _ _ _ a) in H0; try lia.
     cleanup.
     eapply nth_error_nth in D0.
-    rewrite <- nth_selN_eq in D0.
+    rewrite <- nth_seln_eq in D0.
     split_ors; cleanup; eauto.
     rewrite e in D0; congruence.
     rewrite bitlist_length; eauto.
@@ -392,7 +392,7 @@ Proof.
     eapply (valid_bits_extract _ _ _ a) in H0; try lia.
     cleanup.
     eapply nth_error_nth in D0.
-    rewrite <- nth_selN_eq in D0.
+    rewrite <- nth_seln_eq in D0.
     split_ors; cleanup; eauto.
     rewrite e in D0; congruence.
     rewrite bitlist_length; eauto.

@@ -289,7 +289,7 @@ Theorem read_consecutive_finished:
        i < count ->
        exists vs,
          (snd s) (a + i) = vs /\
-         fst vs = selN t i value0) /\
+         fst vs = seln t i value0) /\
     s' = s.
 Proof.
   induction count; simpl; intros;

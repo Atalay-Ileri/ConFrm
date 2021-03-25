@@ -10,33 +10,24 @@ Fixpoint bimap {A B C} (f: A -> B -> C) (la: list A) (lb: list B): list C :=
   | _, _ => nil
   end.
 
-Fixpoint selN (V : Type) (vs : list V) (n : nat) (default : V) : V :=
+
+Fixpoint seln (V : Type) (vs : list V) (n : nat) (default : V) : V :=
   match vs with
     | nil => default
     | v :: vs' =>
       match n with
         | O => v
-        | S n' => selN vs' n' default
+        | S n' => seln vs' n' default
       end
   end.
 
-Fixpoint selNopt (V : Type) (vs : list V) (n : nat) : option V :=
-  match vs with
-    | nil => None
-    | v :: vs' =>
-      match n with
-        | O => Some v
-        | S n' => selNopt vs' n'
-      end
-  end.
-
-Fixpoint updN T (vs : list T) (n : nat) (v : T) : list T :=
+Fixpoint updn T (vs : list T) (n : nat) (v : T) : list T :=
   match vs with
     | nil => nil
     | v' :: vs' =>
       match n with
         | O => v :: vs'
-        | S n' => v' :: updN vs' n' v
+        | S n' => v' :: updn vs' n' v
       end
   end.
 
@@ -50,7 +41,7 @@ Fixpoint updN T (vs : list T) (n : nat) (v : T) : list T :=
 (** prevent eauto from unifying length ?a = length ?b *)
 Definition eqlen A B (a : list A) (b : list B) := length a = length b.
 
-Definition removeN {V} (l : list V) i :=
+Definition removen {V} (l : list V) i :=
    (firstn i l) ++ (skipn (S i) l).
 
 (** Deduplicates by leaving last occurences **)
@@ -126,33 +117,33 @@ Proof.
  intros; subst; firstorder.
 Qed.
 
-Lemma repeat_selN : forall T i n (v def : T),
-  i < n -> selN (repeat v n) i def = v.
+Lemma repeat_seln : forall T i n (v def : T),
+  i < n -> seln (repeat v n) i def = v.
 Proof.
   induction i; destruct n; firstorder; inversion H.
 Qed.
 
-Lemma repeat_selN' : forall T i n (v : T),
-  selN (repeat v n) i v = v.
+Lemma repeat_seln' : forall T i n (v : T),
+  seln (repeat v n) i v = v.
 Proof.
   induction i; destruct n; firstorder; inversion H.
 Qed.
 
-Lemma selNopt_selN : forall T i l (v def : T),
-  selNopt l i = Some v -> selN l i def = v.
+Lemma nth_error_seln : forall T i l (v def : T),
+  nth_error l i = Some v -> seln l i def = v.
 Proof.
   induction i; destruct l; intros; inversion H; firstorder.
 Qed.
 
-Lemma selN_selNopt : forall T i l (v def : T),
-  i < length l -> selNopt l i = Some (selN l i def).
+Lemma seln_nth_error : forall T i l (v def : T),
+  i < length l -> nth_error l i = Some (seln l i def).
 Proof.
   induction i; destruct l; simpl; intros; try lia; auto.
   apply IHi; auto; lia.
 Qed.
 
-Lemma selNopt_length : forall T i l (v : T),
-  selNopt l i = Some v -> i < length l.
+Lemma nth_error_length : forall T i l (v : T),
+  nth_error l i = Some v -> i < length l.
 Proof.
   induction i; destruct l; simpl; intros; inversion H; try lia.
   specialize (IHi _ _ H); lia.
@@ -216,28 +207,28 @@ Qed.
 
 
 (** TODO: use [nth] everywhere *)
-Lemma nth_selN_eq : forall t n l (z:t), selN l n z = nth n l z.
+Lemma nth_seln_eq : forall t n l (z:t), seln l n z = nth n l z.
 Proof.
   induction n; intros; destruct l; simpl; auto.
 Qed.
 
-Lemma length_updN : forall T vs n (v : T), length (updN vs n v) = length vs.
+Lemma updn_length : forall T vs n (v : T), length (updn vs n v) = length vs.
 Proof.
   induction vs; destruct n; simpl; intuition.
 Qed.
 
-Hint Rewrite length_updN : lists.
+Hint Rewrite updn_length : lists.
 
-Lemma selN_updN_eq : forall V vs n v (default : V),
+Lemma seln_updn_eq : forall V vs n v (default : V),
   n < length vs
-  -> selN (updN vs n v) n default = v.
+  -> seln (updn vs n v) n default = v.
 Proof.
   induction vs; destruct n; simpl; intuition; lia.
 Qed.
 
-Lemma selN_selN_def_eq : forall V vs n (def1 def2 : V),
+Lemma seln_seln_def_eq : forall V vs n (def1 def2 : V),
   n < length vs
-  -> selN vs n def1 = selN vs n def2.
+  -> seln vs n def1 = seln vs n def2.
 Proof.
   induction vs; simpl; intros; try lia.
   destruct n; auto.
@@ -245,31 +236,31 @@ Proof.
   lia.
 Qed.
 
-Lemma selN_updN_eq_default : forall V vs n (v : V),
-  selN (updN vs n v) n v = v.
+Lemma seln_updn_eq_default : forall V vs n (v : V),
+  seln (updn vs n v) n v = v.
 Proof.
   induction vs; destruct n; simpl; intuition; lia.
 Qed.
 
-Lemma selN_updN_ne : forall V vs n n' v (default : V),
+Lemma seln_updn_ne : forall V vs n n' v (default : V),
   n <> n'
-  -> selN (updN vs n v) n' default = selN vs n' default.
+  -> seln (updn vs n v) n' default = seln vs n' default.
 Proof.
   induction vs; destruct n; destruct n'; simpl; intuition.
 Qed.
 
-Lemma selN_eq_updN_eq : forall A (l : list A) i a def,
-  a = selN l i def
-  -> updN l i a = l.
+Lemma seln_eq_updn_eq : forall A (l : list A) i a def,
+  a = seln l i def
+  -> updn l i a = l.
 Proof.
   induction l; destruct i; simpl; firstorder.
   f_equal; auto.
   erewrite IHl; eauto.
 Qed.
 
-Lemma repeat_eq_updN : forall T i n (v x : T) l,
+Lemma repeat_eq_updn : forall T i n (v x : T) l,
   i < n ->
-  repeat v n = updN l i x -> x = v.
+  repeat v n = updn l i x -> x = v.
 Proof.
   induction i; intros.
   - destruct n. lia.
@@ -279,10 +270,10 @@ Proof.
     eapply IHi; [> | eauto]. lia.
 Qed.
 
-Hint Rewrite selN_updN_eq using (simpl; lia) : lists.
+Hint Rewrite seln_updn_eq using (simpl; lia) : lists.
 
 Lemma in_skipn_S : forall A l n (a : A) def,
-  selN l n def <> a
+  seln l n def <> a
   -> In a (skipn n l)
   -> In a (skipn (S n) l).
 Proof.
@@ -316,23 +307,23 @@ Proof.
   induction l1; simpl; auto.
 Qed.
 
-Lemma firstn_updN : forall T (v : T) vs i j,
+Lemma firstn_updn : forall T (v : T) vs i j,
   i <= j
-  -> firstn i (updN vs j v) = firstn i vs.
+  -> firstn i (updn vs j v) = firstn i vs.
 Proof.
   induction vs; destruct i, j; simpl; intuition.
   rewrite IHvs; auto; lia.
 Qed.
 
-Theorem updN_firstn_comm : forall T (v : T) vs i j,
-  firstn i (updN vs j v) = updN (firstn i vs) j v.
+Theorem updn_firstn_comm : forall T (v : T) vs i j,
+  firstn i (updn vs j v) = updn (firstn i vs) j v.
 Proof.
   induction vs; destruct i, j; simpl; intuition.
   rewrite IHvs by lia.
   reflexivity.
 Qed.
 
-Hint Rewrite firstn_updN using lia : lists.
+Hint Rewrite firstn_updn using lia : lists.
 
 Lemma skipn_skipn': forall A n m (l: list A),
   skipn n (skipn m l) = skipn (m + n) l.
@@ -352,14 +343,14 @@ Proof.
   apply skipn_skipn'.
 Qed.
 
-Lemma skipn_selN : forall T i j vs (def: T),
-  selN (skipn i vs) j def = selN vs (i + j) def.
+Lemma skipn_seln : forall T i j vs (def: T),
+  seln (skipn i vs) j def = seln vs (i + j) def.
 Proof.
   induction i; intros; auto.
   destruct vs; simpl; auto.
 Qed.
 
-Hint Rewrite skipn_selN using lia : lists.
+Hint Rewrite skipn_seln using lia : lists.
 
 Lemma skipn_seq : forall n a b, skipn n (seq a b) = seq (a + n) (b - n).
 Proof.
@@ -373,16 +364,16 @@ Qed.
 
 Hint Rewrite skipn_seq : lists.
 
-Lemma skipN_updN' : forall T (v : T) vs i j,
+Lemma skipN_updn' : forall T (v : T) vs i j,
   i > j
-  -> skipn i (updN vs j v) = skipn i vs.
+  -> skipn i (updn vs j v) = skipn i vs.
 Proof.
   induction vs; destruct i, j; simpl; intuition; lia.
 Qed.
 
-Lemma skipn_updN : forall T (v : T) vs i j,
+Lemma skipn_updn : forall T (v : T) vs i j,
   i >= j
-  -> match updN vs j v with
+  -> match updn vs j v with
        | nil => nil
        | _ :: vs' => skipn i vs'
      end
@@ -391,13 +382,13 @@ Lemma skipn_updN : forall T (v : T) vs i j,
          | _ :: vs' => skipn i vs'
        end.
 Proof.
-  destruct vs, j; simpl; eauto using skipN_updN'.
+  destruct vs, j; simpl; eauto using skipN_updn'.
 Qed.
 
 
-Lemma skipn_selN_skipn : forall off A (l : list A) def,
+Lemma skipn_seln_skipn : forall off A (l : list A) def,
   off < length l ->
-  skipn off l = selN l off def :: skipn (S off) l.
+  skipn off l = seln l off def :: skipn (S off) l.
 Proof.
   induction off; simpl; intros.
   destruct l; simpl in *; try lia; auto.
@@ -406,20 +397,20 @@ Proof.
   lia.
 Qed.
 
-Lemma skipn_sub_S_selN_cons : forall A (l : list A) n def,
+Lemma skipn_sub_S_seln_cons : forall A (l : list A) n def,
   n < length l ->
-  skipn (length l - S n) l = selN l (length l - n - 1) def :: (skipn (length l - n) l).
+  skipn (length l - S n) l = seln l (length l - n - 1) def :: (skipn (length l - n) l).
 Proof.
   intros.
   replace (length l - n) with (S (length l - n - 1)) at 2 by lia.
-  rewrite <- skipn_selN_skipn by lia.
+  rewrite <- skipn_seln_skipn by lia.
   f_equal; lia.
 Qed.
 
-Hint Rewrite skipn_updN using lia : lists.
+Hint Rewrite skipn_updn using lia : lists.
 
-Lemma updN_twice : forall T (l : list T) a v v',
-  updN (updN l a v') a v = updN l a v.
+Lemma updn_twice : forall T (l : list T) a v v',
+  updn (updn l a v') a v = updn l a v.
 Proof.
   induction l; simpl; intros; auto.
   destruct a0; auto; simpl.
@@ -427,20 +418,20 @@ Proof.
 Qed.
 
 
-Hint Rewrite updN_twice : lists.
+Hint Rewrite updn_twice : lists.
 
-Lemma updN_comm : forall T (l : list T) a0 v0 a1 v1,
+Lemma updn_comm : forall T (l : list T) a0 v0 a1 v1,
   a0 <> a1 ->
-  updN (updN l a0 v0) a1 v1 = updN (updN l a1 v1) a0 v0.
+  updn (updn l a0 v0) a1 v1 = updn (updn l a1 v1) a0 v0.
 Proof.
   induction l; simpl; intros; auto.
   destruct a0; destruct a1; simpl in *; try congruence.
   rewrite IHl by lia. auto.
 Qed.
 
-Lemma updN_firstn_skipn : forall T (l:list T) n v,
+Lemma updn_firstn_skipn : forall T (l:list T) n v,
   n < length l ->
-  updN l n v = firstn n l ++ v::nil ++ skipn (n+1) l.
+  updn l n v = firstn n l ++ v::nil ++ skipn (n+1) l.
 Proof.
   intros.
   generalize dependent n.
@@ -454,10 +445,10 @@ Proof.
   lia.
 Qed.
 
-Theorem list_selN_ext' : forall len T (a b : list T) default,
+Theorem list_seln_ext' : forall len T (a b : list T) default,
   length a = len
   -> length b = len
-  -> (forall pos, pos < len -> selN a pos default = selN b pos default)
+  -> (forall pos, pos < len -> seln a pos default = seln b pos default)
   -> a = b.
 Proof.
   induction len; intros; destruct a; destruct b; simpl in *; try congruence.
@@ -470,24 +461,24 @@ Proof.
   lia.
 Qed.
 
-Theorem list_selN_ext : forall T (a b : list T) default,
+Theorem list_seln_ext : forall T (a b : list T) default,
   length a = length b
-  -> (forall pos, pos < length a -> selN a pos default = selN b pos default)
+  -> (forall pos, pos < length a -> seln a pos default = seln b pos default)
   -> a = b.
 Proof.
-  intros. apply list_selN_ext' with (len:=length a) (default:=default); auto.
+  intros. apply list_seln_ext' with (len:=length a) (default:=default); auto.
 Qed.
 
 
-Ltac nth_selN H := intros; repeat rewrite nth_selN_eq; apply H; assumption.
+Ltac nth_seln H := intros; repeat rewrite nth_seln_eq; apply H; assumption.
 
-Lemma in_selN : forall t n l (z:t), n < length l -> In (selN l n z) l.
+Lemma in_seln : forall t n l (z:t), n < length l -> In (seln l n z) l.
 Proof.
-  nth_selN nth_In.
+  nth_seln nth_In.
 Qed.
 
-Lemma in_selN_exists : forall A l (a : A) def,
-  In a l -> exists i, i < length l /\ selN l i def = a.
+Lemma in_seln_exists : forall A l (a : A) def,
+  In a l -> exists i, i < length l /\ seln l i def = a.
 Proof.
   induction l; try easy; intros.
   inversion H; subst.
@@ -497,8 +488,8 @@ Proof.
   exists (S x); simpl; split; auto; lia.
 Qed.
 
-Lemma selN_split_r: forall A B (l : list (A * B)) i d,
-  selN (snd (split l)) i (snd d) = snd (selN l i d).
+Lemma seln_split_r: forall A B (l : list (A * B)) i d,
+  seln (snd (split l)) i (snd d) = snd (seln l i d).
 Proof.
   induction l; cbn; intros.
   auto.
@@ -506,8 +497,8 @@ Proof.
   destruct i; cbn; auto.
 Qed.
 
-Lemma selN_split_l: forall A B (l : list (A * B)) i d,
-  selN (fst (split l)) i (fst d) = fst (selN l i d).
+Lemma seln_split_l: forall A B (l : list (A * B)) i d,
+  seln (fst (split l)) i (fst d) = fst (seln l i d).
 Proof.
   induction l; cbn; intros.
   auto.
@@ -531,7 +522,7 @@ Proof.
   congruence.
 Qed.
 
-Lemma in_updN : forall t n l x (xn:t), In x (updN l n xn) ->
+Lemma in_updn : forall t n l x (xn:t), In x (updn l n xn) ->
   In x l \/ x = xn.
 Proof.
   induction n; intros; destruct l; intuition; simpl in *; destruct H; auto.
@@ -603,9 +594,9 @@ Proof.
   congruence.
 Qed.
 
-Lemma Forall_updN : forall A (l : list A) a i P,
+Lemma Forall_updn : forall A (l : list A) a i P,
   Forall P l -> P a ->
-  Forall P (updN l i a).
+  Forall P (updn l i a).
 Proof.
   induction l; intros; auto.
   inversion H; subst; auto.
@@ -667,15 +658,15 @@ Proof.
   apply Forall_cons; auto.
 Qed.
 
-Lemma updN_selN_eq : forall T (l : list T) ix default,
-  updN l ix (selN l ix default) = l.
+Lemma updn_seln_eq : forall T (l : list T) ix default,
+  updn l ix (seln l ix default) = l.
 Proof.
   induction l; auto.
   intros. destruct ix. auto. simpl. rewrite IHl. trivial.
 Qed.
 
-Lemma updN_app1 : forall t l l' (v:t) n,
-  n < length l -> updN (l ++ l') n v = updN l n v ++ l'.
+Lemma updn_app1 : forall t l l' (v:t) n,
+  n < length l -> updn (l ++ l') n v = updn l n v ++ l'.
 Proof.
   (* copied from proof of app_nth1 *)
   induction l.
@@ -686,8 +677,8 @@ Proof.
   intros; rewrite IHl; auto with arith.
 Qed.
 
-Lemma updN_app2 : forall t l l' (v:t) n,
-  n >= length l -> updN (l ++ l') n v = l ++ updN l' (n - length l) v.
+Lemma updn_app2 : forall t l l' (v:t) n,
+  n >= length l -> updn (l ++ l') n v = l ++ updn l' (n - length l) v.
 Proof.
   (* copied from proof of app_nth2 *)
   induction l.
@@ -702,47 +693,47 @@ Proof.
   rewrite IHl; auto with arith.
 Qed.
 
-Lemma updN_app_tail : forall T (l : list T) a v,
-  updN (l ++ (a :: nil)) (length l) v = l ++ (v :: nil).
+Lemma updn_app_tail : forall T (l : list T) a v,
+  updn (l ++ (a :: nil)) (length l) v = l ++ (v :: nil).
 Proof.
   induction l; simpl; firstorder.
   rewrite IHl; auto.
 Qed.
 
-Lemma updN_concat : forall t a b m l (v:t), b < m ->
+Lemma updn_concat : forall t a b m l (v:t), b < m ->
   Forall (fun sl => length sl = m) l ->
-  updN (concat l) (b + a * m) v =
-    concat (updN l a (updN (selN l a nil) b v)).
+  updn (concat l) (b + a * m) v =
+    concat (updn l a (updn (seln l a nil) b v)).
 Proof.
-  (* XXX this is almost exactly the same as selN_concat *)
+  (* XXX this is almost exactly the same as seln_concat *)
   induction a; intros; destruct l; simpl; inversion H0.
   trivial.
   replace (b + 0) with b by lia. subst.
-  rewrite updN_app1; auto.
+  rewrite updn_app1; auto.
   trivial.
-  subst. remember (a * length l) as al. rewrite updN_app2 by lia.
+  subst. remember (a * length l) as al. rewrite updn_app2 by lia.
   replace (b + (length l + al) - length l) with (b + al) by lia. subst.
   rewrite IHa; auto.
 Qed.
 
-Lemma selN_app1 : forall t l l' (d:t) n,
-  n < length l -> selN (l ++ l') n d = selN l n d.
+Lemma seln_app1 : forall t l l' (d:t) n,
+  n < length l -> seln (l ++ l') n d = seln l n d.
 Proof.
-  nth_selN app_nth1.
+  nth_seln app_nth1.
 Qed.
 
-Lemma selN_app2 : forall t l l' (d:t) n,
-  n >= length l -> selN (l ++ l') n d = selN l' (n - length l) d.
+Lemma seln_app2 : forall t l l' (d:t) n,
+  n >= length l -> seln (l ++ l') n d = seln l' (n - length l) d.
 Proof.
-  nth_selN app_nth2.
+  nth_seln app_nth2.
 Qed.
 
-Lemma selN_cons : forall A (a : A) l i def,
-  i > 0 -> selN (a :: l) i def = selN l (i - 1) def.
+Lemma seln_cons : forall A (a : A) l i def,
+  i > 0 -> seln (a :: l) i def = seln l (i - 1) def.
 Proof.
   intros.
   replace (a :: l) with ([a] ++ l) by (simpl; auto).
-  rewrite selN_app2; simpl; auto.
+  rewrite seln_app2; simpl; auto.
 Qed.
 
 Theorem seq_right : forall b a, seq a (S b) = seq a b ++ (a + b :: nil).
@@ -760,8 +751,8 @@ Proof.
   intros; rewrite seq_right; f_equal.
 Qed.
 
-Lemma selN_map_some_range : forall A (l : list A) idx a,
-  selN (map (@Some _) l) idx None = Some a ->
+Lemma seln_map_some_range : forall A (l : list A) idx a,
+  seln (map (@Some _) l) idx None = Some a ->
   idx < length l.
 Proof.
   induction l; simpl; intros.
@@ -770,35 +761,35 @@ Proof.
     apply IHl in H; lia.
 Qed.
 
-Lemma map_updN : forall T U (v : T) (f : T -> U) vs i,
-  map f (updN vs i v) = updN (map f vs) i (f v).
+Lemma map_updn : forall T U (v : T) (f : T -> U) vs i,
+  map f (updn vs i v) = updn (map f vs) i (f v).
 Proof.
   induction vs; auto; destruct i; simpl; f_equal; auto.
 Qed.
 
-Hint Rewrite map_updN : lists.
+Hint Rewrite map_updn : lists.
 
-Theorem selN_map_seq' : forall T i n f base (default : T), i < n
-  -> selN (map f (seq base n)) i default = f (i + base).
+Theorem seln_map_seq' : forall T i n f base (default : T), i < n
+  -> seln (map f (seq base n)) i default = f (i + base).
 Proof.
   induction i; destruct n; simpl; intros; try lia; auto.
   replace (S (i + base)) with (i + (S base)) by lia.
   apply IHi; lia.
 Qed.
 
-Theorem selN_map_seq : forall T i n f (default : T), i < n
-  -> selN (map f (seq 0 n)) i default = f i.
+Theorem seln_map_seq : forall T i n f (default : T), i < n
+  -> seln (map f (seq 0 n)) i default = f i.
 Proof.
   intros.
   replace i with (i + 0) at 2 by lia.
-  apply selN_map_seq'; auto.
+  apply seln_map_seq'; auto.
 Qed.
 
-Hint Rewrite selN_map_seq using ( solve [ auto ] ) : lists.
+Hint Rewrite seln_map_seq using ( solve [ auto ] ) : lists.
 
-Lemma map_selN_seq: forall T (l : list T) n d,
+Lemma map_seln_seq: forall T (l : list T) n d,
   n = length l ->
-  map (fun i => selN l i d) (seq 0 n) = l.
+  map (fun i => seln l i d) (seq 0 n) = l.
 Proof.
   induction l; intros; subst; cbn in *.
   auto.
@@ -807,33 +798,33 @@ Proof.
   rewrite map_map. auto.
 Qed.
 
-Theorem selN_map : forall T T' l i f (default : T) (default' : T'), i < length l
-  -> selN (map f l) i default = f (selN l i default').
+Theorem seln_map : forall T T' l i f (default : T) (default' : T'), i < length l
+  -> seln (map f l) i default = f (seln l i default').
 Proof.
   induction l; simpl; intros; try lia.
   destruct i; auto.
   apply IHl; lia.
 Qed.
 
-Lemma in_selN_map : forall A B (l : list (A*B)) i def1 def2,
+Lemma in_seln_map : forall A B (l : list (A*B)) i def1 def2,
   i < length l
-  -> In (selN (map fst l) i def1, selN (map snd l) i def2) l.
+  -> In (seln (map fst l) i def1, seln (map snd l) i def2) l.
 Proof.
   induction l; destruct i; simpl; firstorder; try lia.
   left; destruct a; auto.
 Qed.
 
-Theorem updN_map_seq_app_eq : forall T (f : nat -> T) len start (v : T) x,
-  updN (map f (seq start len) ++ (x :: nil)) len v =
+Theorem updn_map_seq_app_eq : forall T (f : nat -> T) len start (v : T) x,
+  updn (map f (seq start len) ++ (x :: nil)) len v =
   map f (seq start len) ++ (v :: nil).
 Proof.
   induction len; auto; simpl; intros.
   f_equal; auto.
 Qed.
 
-Theorem updN_map_seq_app_ne : forall T (f : nat -> T) len start (v : T) x pos, pos < len
-  -> updN (map f (seq start len) ++ (x :: nil)) pos v =
-     updN (map f (seq start len)) pos v ++ (x :: nil).
+Theorem updn_map_seq_app_ne : forall T (f : nat -> T) len start (v : T) x pos, pos < len
+  -> updn (map f (seq start len) ++ (x :: nil)) pos v =
+     updn (map f (seq start len)) pos v ++ (x :: nil).
 Proof.
   induction len; intros; try lia.
   simpl; destruct pos; auto.
@@ -841,8 +832,8 @@ Proof.
   auto.
 Qed.
 
-Theorem updN_map_seq : forall T f len start pos (v : T), pos < len
-  -> updN (map f (seq start len)) pos v =
+Theorem updn_map_seq : forall T f len start pos (v : T), pos < len
+  -> updn (map f (seq start len)) pos v =
      map (fun i => if Nat.eq_dec i (start + pos) then v else f i) (seq start len).
 Proof.
   induction len; intros; try lia.
@@ -914,39 +905,39 @@ Proof.
   rewrite skipn_combine_comm'; auto.
 Qed.
 
-Lemma selN_last: forall A l n def (a : A),
-  n = length l -> selN (l ++ a :: nil) n def = a.
+Lemma seln_last: forall A l n def (a : A),
+  n = length l -> seln (l ++ a :: nil) n def = a.
 Proof.
-  unfold selN; induction l; destruct n; intros;
+  unfold seln; induction l; destruct n; intros;
   firstorder; inversion H.
 Qed.
 
 
-Lemma selN_firstn: forall {A} (l:list A) i n d,
-  i < n -> selN (firstn n l) i d = selN l i d.
+Lemma seln_firstn: forall {A} (l:list A) i n d,
+  i < n -> seln (firstn n l) i d = seln l i d.
 Proof.
   induction l; destruct i, n; intros; try lia; auto.
   apply IHl; lia.
 Qed.
 
 
-Lemma selN_oob: forall A n l (def : A),
+Lemma seln_oob: forall A n l (def : A),
   length l <= n
-  -> selN l n def = def.
+  -> seln l n def = def.
 Proof.
   induction n; destruct l; simpl; firstorder; lia.
 Qed.
 
-Lemma selN_inb : forall A (l : list A) n d1 d2,
+Lemma seln_inb : forall A (l : list A) n d1 d2,
   n < length l ->
-  selN l n d1 = selN l n d2.
+  seln l n d1 = seln l n d2.
 Proof.
   induction l; destruct n; intros; simpl; firstorder; inversion H.
 Qed.
 
-Lemma selN_app: forall A n l l' (def : A),
+Lemma seln_app: forall A n l l' (def : A),
   n < length l
-  -> selN (l ++ l') n def = selN l n def.
+  -> seln (l ++ l') n def = seln l n def.
 Proof.
   induction n; destruct l; simpl; firstorder; inversion H.
 Qed.
@@ -969,10 +960,10 @@ Proof.
   apply IHn; firstorder.
 Qed.
 
-Lemma updN_oob: forall T l i (v : T),
-  i >= length l -> updN l i v = l.
+Lemma updn_oob: forall T l i (v : T),
+  i >= length l -> updn l i v = l.
 Proof.
-  unfold updN; induction l; destruct i; intros; auto.
+  unfold updn; induction l; destruct i; intros; auto.
   inversion H.
   rewrite IHl; firstorder.
 Qed.
@@ -1002,62 +993,62 @@ Qed.
 Lemma firstn_all : forall A (l : list A), firstn (length l) l = l.
 Proof. induction l as [| ? ? H]; simpl; [reflexivity | now rewrite H]. Qed.
 
-Lemma firstn_plusone_selN : forall A n (l : list A) def,
+Lemma firstn_plusone_seln : forall A n (l : list A) def,
   n < length l
-  -> firstn (n + 1) l = firstn n l ++ (selN l n def :: nil).
+  -> firstn (n + 1) l = firstn n l ++ (seln l n def :: nil).
 Proof.
   induction n; destruct l; intros; simpl in *; firstorder; try lia.
   rewrite IHn with (def:=def) by lia; auto.
 Qed.
 
-Definition firstn_plusone_selN' : forall A n l (x: A) def,
-  x = selN l n def ->
+Definition firstn_plusone_seln' : forall A n l (x: A) def,
+  x = seln l n def ->
   n < length l ->
   firstn (n + 1) l = firstn n l ++ x::nil.
 Proof.
   intros.
   rewrite H.
-  apply firstn_plusone_selN; auto.
+  apply firstn_plusone_seln; auto.
 Qed.
 
-Lemma firstn_S_selN : forall A n l (def : A),
+Lemma firstn_S_seln : forall A n l (def : A),
   n < length l ->
-  firstn (S n) l = firstn n l ++ [ (selN l n def) ].
+  firstn (S n) l = firstn n l ++ [ (seln l n def) ].
 Proof.
   intros.
   replace (S n) with (n + 1) by lia.
-  apply firstn_plusone_selN; auto.
+  apply firstn_plusone_seln; auto.
 Qed.
 
-Lemma firstn_S_selN_expand : forall A n l (def : A),
+Lemma firstn_S_seln_expand : forall A n l (def : A),
   n < length l ->
   match l with
   | nil => nil
   | a :: l => a :: firstn n l
-  end = firstn n l ++ [ (selN l n def) ].
+  end = firstn n l ++ [ (seln l n def) ].
 Proof.
   intros.
-  rewrite <- firstn_S_selN by auto.
+  rewrite <- firstn_S_seln by auto.
   simpl; auto.
 Qed.
 
-Lemma firstn_updN_oob: forall A (l : list A) n i def,
-  n <= i -> firstn n (updN l i def) = firstn n l.
+Lemma firstn_updn_oob: forall A (l : list A) n i def,
+  n <= i -> firstn n (updn l i def) = firstn n l.
 Proof.
   induction l; destruct n; destruct i; intros; simpl; auto.
   inversion H.
   rewrite IHl by lia; auto.
 Qed.
 
-Lemma firstn_app_updN_eq : forall A l n (x : A),
+Lemma firstn_app_updn_eq : forall A l n (x : A),
   n < length l
-  -> (firstn n l) ++ x :: nil = firstn (n + 1) (updN l n x).
+  -> (firstn n l) ++ x :: nil = firstn (n + 1) (updn l n x).
 Proof.
   intros.
-  rewrite firstn_plusone_selN with (def := x).
-  rewrite selN_updN_eq by lia.
-  rewrite firstn_updN_oob; auto.
-  rewrite length_updN; auto.
+  rewrite firstn_plusone_seln with (def := x).
+  rewrite seln_updn_eq by lia.
+  rewrite firstn_updn_oob; auto.
+  rewrite updn_length; auto.
 Qed.
 
 
@@ -1146,8 +1137,8 @@ Proof.
   induction n; firstorder.
 Qed.
 
-Lemma removeN_nil : forall A n,
-  removeN nil n = (@nil A).
+Lemma removen_nil : forall A n,
+  removen nil n = (@nil A).
 Proof.
   induction n; firstorder.
 Qed.
@@ -1160,7 +1151,7 @@ Proof.
   simpl; auto.
 Qed.
 
-Local Hint Resolve cons_nil_app.
+Local Hint Resolve cons_nil_app : core.
 
 Lemma firstn_app_r : forall T i (b a : list T),
   firstn (length a + i) (a ++ b) = a ++ (firstn i b).
@@ -1244,10 +1235,10 @@ Proof.
   auto.
 Qed.
 
-Lemma removeN_app_r : forall T (b a : list T) i,
-  removeN (a ++ b) (length a + i) = a ++ (removeN b i).
+Lemma removen_app_r : forall T (b a : list T) i,
+  removen (a ++ b) (length a + i) = a ++ (removen b i).
 Proof.
-  unfold removeN; intros.
+  unfold removen; intros.
   rewrite firstn_app_r.
   replace (S (length a + i)) with (length a + (S i)) by lia.
   rewrite skipn_app_r.
@@ -1308,12 +1299,12 @@ Proof.
   auto.
 Qed.
 
-Lemma removeN_repeat : forall T n i (e : T),
+Lemma removen_repeat : forall T n i (e : T),
    n > 0 -> i < n
-   -> removeN (repeat e n) i = repeat e (n - 1).
+   -> removen (repeat e n) i = repeat e (n - 1).
 Proof.
   intros.
-  unfold removeN.
+  unfold removen.
   rewrite firstn_repeat by lia.
   rewrite skipn_repeat by lia.
   rewrite app_repeat.
@@ -1506,14 +1497,14 @@ Proof.
      eassumption.
 Qed.
 
-Lemma concat_hom_updN_first_skip : forall A n k (lists: list (list A)) (l: list A),
+Lemma concat_hom_updn_first_skip : forall A n k (lists: list (list A)) (l: list A),
   Forall (fun sublist => length sublist = k) lists ->
   n < length lists ->
   firstn (n * k) (concat lists) ++ l ++
-  skipn (n * k + k) (concat lists) = concat (updN lists n l).
+  skipn (n * k + k) (concat lists) = concat (updn lists n l).
 Proof.
   intros.
-  rewrite updN_firstn_skipn by assumption.
+  rewrite updn_firstn_skipn by assumption.
   rewrite concat_app.
   rewrite concat_cons.
   rewrite concat_app.
@@ -1533,7 +1524,7 @@ Lemma concat_hom_subselect_firstn : forall A n off k (l: list (list A)) (def: li
   Forall (fun sublist => length sublist = k) l ->
   off <= k ->
   n < length l ->
-  firstn off (selN l n def) = firstn off (concat (skipn n l)).
+  firstn off (seln l n def) = firstn off (concat (skipn n l)).
 Proof.
   intros.
   generalize dependent off.
@@ -1557,7 +1548,7 @@ Lemma concat_hom_subselect_skipn : forall A n off k (l: list (list A)) (def: lis
   Forall (fun sublist => length sublist = k) l ->
   off <= k ->
   n < length l ->
-  skipn off (selN l n def) =
+  skipn off (seln l n def) =
     firstn (k - off) (skipn off (concat (skipn n l))).
  Proof.
   intros.
@@ -1603,10 +1594,10 @@ Proof.
   auto.
 Qed.
 
-Lemma selN_selN_firstn_hom : forall T (l : list (list T)) k nvalid off d1 d2 d3,
+Lemma seln_seln_firstn_hom : forall T (l : list (list T)) k nvalid off d1 d2 d3,
   Forall (fun sublist : list T => length sublist = k) (firstn nvalid l) ->
   off < nvalid * k ->
-  off < k * length l -> selN (selN l (off / k) d1) (off mod k) d2 = selN (concat l) off d3.
+  off < k * length l -> seln (seln l (off / k) d1) (off mod k) d2 = seln (concat l) off d3.
 Proof.
   induction l; intros;
     assert (k > 0) by (destruct (Nat.eq_dec k 0); intuition; subst; intuition).
@@ -1614,12 +1605,12 @@ Proof.
   destruct nvalid; [> lia | ].
   match goal with [H : Forall _ _ |- _] => inversion H end; subst.
   destruct (lt_dec off (length a)).
-  - simpl; rewrite selN_app, Nat.div_small, Nat.mod_small; auto.
-    apply selN_inb; auto.
+  - simpl; rewrite seln_app, Nat.div_small, Nat.mod_small; auto.
+    apply seln_inb; auto.
   - rewrite Nat.nlt_ge in *.
-    rewrite selN_cons.
+    rewrite seln_cons.
     simpl in *; rewrite mult_comm in *; simpl in *; rewrite mult_comm in *.
-    simpl; rewrite selN_app2 by auto.
+    simpl; rewrite seln_app2 by auto.
     erewrite <- IHl by (eauto; lia).
     rewrite mod_subt; auto.
     rewrite <- div_ge_subt by lia.
@@ -1631,7 +1622,7 @@ Qed.
 Lemma skipn_hom_concat: forall T k (l : list (list T)) n,
   Forall (fun x => length x = k) l ->
   k <> 0 ->
-  skipn n (concat l) = skipn (n mod k) (selN l (n / k) nil) ++ concat (skipn (S (n / k)) l).
+  skipn n (concat l) = skipn (n mod k) (seln l (n / k) nil) ++ concat (skipn (S (n / k)) l).
 Proof.
   induction l; cbn; intros.
   repeat rewrite skipn_nil; auto.
@@ -1657,7 +1648,7 @@ Qed.
 Lemma firstn_hom_concat: forall T k (l : list (list T)) n,
   Forall (fun x => length x = k) l ->
   k <> 0 ->
-  firstn n (concat l) = concat (firstn (n / k) l) ++ firstn (n mod k) (selN l (n / k) nil).
+  firstn n (concat l) = concat (firstn (n / k) l) ++ firstn (n mod k) (seln l (n / k) nil).
 Proof.
   induction l; cbn; intros.
   repeat rewrite firstn_nil; auto.
@@ -1680,43 +1671,43 @@ Proof.
   auto using app_assoc.
 Qed.
 
-Lemma selN_selN_hom : forall T (l : list (list T)) k off def,
+Lemma seln_seln_hom : forall T (l : list (list T)) k off def,
   Forall (fun sublist => length sublist = k) l ->
   off < k * length l ->
-  selN (selN l (off / k) nil) (Nat.modulo off k) def = selN (concat l) off def.
+  seln (seln l (off / k) nil) (Nat.modulo off k) def = seln (concat l) off def.
 Proof.
   intros.
-  eapply selN_selN_firstn_hom; auto.
+  eapply seln_seln_firstn_hom; auto.
   apply forall_firstn; auto.
   rewrite mult_comm; eauto.
 Qed.
 
-Definition combine_updN : forall A B i a b (va:A) (vb:B),
-  List.combine (updN a i va) (updN b i vb) = updN (List.combine a b) i (va, vb).
+Definition combine_updn : forall A B i a b (va:A) (vb:B),
+  List.combine (updn a i va) (updn b i vb) = updn (List.combine a b) i (va, vb).
 Proof.
   induction i; intros; destruct a, b; simpl; auto.
   rewrite IHi; auto.
 Qed.
 
-Lemma combine_updN_l: forall A B (a : list A) (b : list B) i x d,
-  combine (updN a i x) b = updN (combine a b) i (x, selN b i d).
+Lemma combine_updn_l: forall A B (a : list A) (b : list B) i x d,
+  combine (updn a i x) b = updn (combine a b) i (x, seln b i d).
 Proof.
   intros.
-  erewrite <- updN_selN_eq with (l := b) at 1.
-  eauto using combine_updN.
+  erewrite <- updn_seln_eq with (l := b) at 1.
+  eauto using combine_updn.
 Qed.
 
-Lemma combine_updN_r: forall A B (a : list A) (b : list B) i x d,
-  combine a (updN b i x) = updN (combine a b) i (selN a i d, x).
+Lemma combine_updn_r: forall A B (a : list A) (b : list B) i x d,
+  combine a (updn b i x) = updn (combine a b) i (seln a i d, x).
 Proof.
   intros.
-  erewrite <- updN_selN_eq with (l := a) at 1.
-  eauto using combine_updN.
+  erewrite <- updn_seln_eq with (l := a) at 1.
+  eauto using combine_updn.
 Qed.
 
-Lemma selN_combine : forall Ta Tb i a b (a0:Ta) (b0:Tb),
+Lemma seln_combine : forall Ta Tb i a b (a0:Ta) (b0:Tb),
   length a = length b
-  -> selN (List.combine a b) i (a0, b0) = pair (selN a i a0) (selN b i b0).
+  -> seln (List.combine a b) i (a0, b0) = pair (seln a i a0) (seln b i b0).
 Proof.
   induction i; destruct a, b; intros; inversion H; auto.
   simpl; apply IHi; assumption.
@@ -1751,45 +1742,45 @@ Proof.
   apply IHal; lia.
 Qed.
 
-Theorem removeN_updN : forall V l i (v : V),
-   removeN (updN l i v) i = removeN l i.
+Theorem removen_updn : forall V l i (v : V),
+   removen (updn l i v) i = removen l i.
 Proof.
-   unfold removeN; intros.
-   rewrite firstn_updN; auto.
-   simpl; rewrite skipn_updN; auto.
+   unfold removen; intros.
+   rewrite firstn_updn; auto.
+   simpl; rewrite skipn_updn; auto.
 Qed.
 
-Theorem removeN_oob: forall A (l : list A) i,
-  i >= length l -> removeN l i = l.
+Theorem removen_oob: forall A (l : list A) i,
+  i >= length l -> removen l i = l.
 Proof.
-  intros; unfold removeN.
+  intros; unfold removen.
   rewrite firstn_oob by auto.
   rewrite skipn_oob by auto.
   firstorder.
 Qed.
 
-Lemma removeN_head: forall A l i (a : A),
-  removeN (a :: l) (S i) = a :: (removeN l i).
+Lemma removen_head: forall A l i (a : A),
+  removen (a :: l) (S i) = a :: (removen l i).
 Proof.
-  unfold removeN; firstorder.
+  unfold removen; firstorder.
 Qed.
 
-Theorem removeN_combine: forall A B i (a : list A) (b : list B),
-  removeN (List.combine a b) i = List.combine (removeN a i) (removeN b i).
+Theorem removen_combine: forall A B i (a : list A) (b : list B),
+  removen (List.combine a b) i = List.combine (removen a i) (removen b i).
 Proof.
   induction i; destruct a, b; intros; simpl; auto.
-  - unfold removeN at 2; simpl.
-    repeat rewrite removeN_oob by auto.
+  - unfold removen at 2; simpl.
+    repeat rewrite removen_oob by auto.
     induction a0; firstorder.
-  - rewrite removeN_head.
+  - rewrite removen_head.
     rewrite IHi.
-    unfold removeN; firstorder.
+    unfold removen; firstorder.
 Qed.
 
-Lemma removeN_length: forall A (l : list A) i,
-  i < length l -> length (removeN l i) = length l - 1.
+Lemma removen_length: forall A (l : list A) i,
+  i < length l -> length (removen l i) = length l - 1.
 Proof.
-  unfold removeN; induction l; intros; simpl.
+  unfold removen; induction l; intros; simpl.
   unfold length in H; lia.
   rewrite app_length.
   rewrite firstn_length; rewrite Nat.min_l; simpl in *; try lia.
@@ -1797,37 +1788,37 @@ Proof.
 Qed.
 
 
-Lemma removeN_length_eq: forall A B (a : list A) (b : list B) i,
+Lemma removen_length_eq: forall A B (a : list A) (b : list B) i,
   i < length a -> i < length b
-  -> length (removeN a i) = length (removeN b i)
+  -> length (removen a i) = length (removen b i)
   -> length a = length b.
 Proof.
   intros; destruct (Nat.eq_dec (length a) 0); try lia.
-  rewrite removeN_length in H1; auto.
-  rewrite removeN_length in H1; auto.
+  rewrite removen_length in H1; auto.
+  rewrite removen_length in H1; auto.
   lia.
 Qed.
 
 
-Lemma removeN_tail: forall A (l : list A) a,
-  removeN (l ++ a :: nil) (length l) = l.
+Lemma removen_tail: forall A (l : list A) a,
+  removen (l ++ a :: nil) (length l) = l.
 Proof.
-  intros; unfold removeN.
+  intros; unfold removen.
   rewrite skipn_oob.
   rewrite firstn_app2; firstorder.
   rewrite app_length; simpl; lia.
 Qed.
 
 
-Lemma selN_removelast : forall A n l (def : A),
+Lemma seln_removelast : forall A n l (def : A),
   n < length l - 1
-  -> selN (removelast l) n def = selN l n def.
+  -> seln (removelast l) n def = seln l n def.
 Proof.
   induction l using rev_ind; destruct n;
   intros; simpl; intuition;
   rewrite removelast_app; try congruence;
   simpl; rewrite app_nil_r;
-  rewrite selN_app; auto;
+  rewrite seln_app; auto;
   rewrite app_length in H; simpl in H; lia.
 Qed.
 
@@ -1842,23 +1833,23 @@ Proof.
   lia.
 Qed.
 
-Lemma removeN_removelast : forall A (l : list A),
+Lemma removen_removelast : forall A (l : list A),
   length l > 0
-  -> removeN l (length l - 1) = removelast l.
+  -> removen l (length l - 1) = removelast l.
 Proof.
   induction l using rev_ind; intros; simpl; firstorder.
   rewrite removelast_app; simpl.
   rewrite app_nil_r.
   rewrite app_length; simpl.
   replace (length l + 1 - 1) with (length l) by lia.
-  rewrite removeN_tail; auto.
+  rewrite removen_tail; auto.
   congruence.
 Qed.
 
-Lemma in_removeN : forall T (l : list T) i x,
-  In x (removeN l i) -> In x l.
+Lemma in_removen : forall T (l : list T) i x,
+  In x (removen l i) -> In x l.
 Proof.
-  unfold removeN.
+  unfold removen.
   intros.
   rewrite <- firstn_skipn with (n := i).
   rewrite in_app_iff in *.
@@ -1869,12 +1860,12 @@ Proof.
   auto.
 Qed.
 
-Lemma in_removeN_neq: forall T (l : list T) x d i,
+Lemma in_removen_neq: forall T (l : list T) x d i,
   In x l ->
-  selN l i d <> x ->
-  In x (removeN l i).
+  seln l i d <> x ->
+  In x (removen l i).
 Proof.
-  unfold removeN.
+  unfold removen.
   intros.
   erewrite <- firstn_skipn with (n := i) in H.
   rewrite in_app_iff in *.
@@ -1953,13 +1944,13 @@ Proof.
     f_equal. rewrite firstn_oob by lia. auto.
 Qed.
 
-Lemma selN_skip_first : forall T (l:list T) n m p def,
+Lemma seln_skip_first : forall T (l:list T) n m p def,
   n + m < p ->
-    selN l (n + m) def = selN (skipn n (firstn p l)) m def.
+    seln l (n + m) def = seln (skipn n (firstn p l)) m def.
 Proof.
   intros.
-  rewrite skipn_selN.
-  rewrite selN_firstn.
+  rewrite skipn_seln.
+  rewrite seln_firstn.
   reflexivity.
   assumption.
 Qed.
@@ -2000,8 +1991,8 @@ Proof.
   induction tl; intros; simpl; autorewrite with lists; simpl; auto.
 Qed.
 
-Lemma updN_0_skip_1: forall A l (a: A),
-  length l > 0 -> updN l 0 a = a :: skipn 1 l .
+Lemma updn_0_skip_1: forall A l (a: A),
+  length l > 0 -> updn l 0 a = a :: skipn 1 l .
 Proof.
   intros; destruct l.
   simpl in H. lia.
@@ -2023,10 +2014,10 @@ Proof.
   rewrite IHn; auto.
 Qed.
 
-Lemma removeN_map_comm: forall T T' (f : T -> T') i l,
-  removeN (map f l) i = map f (removeN l i).
+Lemma removen_map_comm: forall T T' (f : T -> T') i l,
+  removen (map f l) i = map f (removen l i).
 Proof.
-  unfold removeN.
+  unfold removen.
   intros.
   rewrite firstn_map_comm, skipn_map_comm, map_app.
   auto.
@@ -2145,8 +2136,8 @@ Proof.
   intros; rewrite IHa; eauto.
 Qed.
 
-Lemma map_snd_updN : forall A B (l : list (A*B)) a v,
-  map snd (updN l a v) = updN (map snd l) a (snd v).
+Lemma map_snd_updn : forall A B (l : list (A*B)) a v,
+  map snd (updn l a v) = updn (map snd l) a (snd v).
 Proof.
   induction l; intros; simpl; auto.
   destruct a0; simpl; auto.
@@ -2203,8 +2194,8 @@ Proof.
   eapply IHb. rewrite <- app_assoc in H. eauto.
 Qed.
 
-Hint Resolve in_app_or.
-Hint Resolve in_or_app.
+Hint Resolve in_app_or : core.
+Hint Resolve in_or_app : core.
 
 Lemma not_In_NoDup_app : forall T (a : T) l1 l2,
   In a l1 -> NoDup (l1 ++ l2) -> ~ In a l2.
@@ -2289,42 +2280,42 @@ Proof.
   left. eapply repeat_spec; eauto.
 Qed.
 
-Lemma updN_skipn : forall A l i n (v : A),
-  updN (skipn n l) i v = skipn n (updN l (i + n) v).
+Lemma updn_skipn : forall A l i n (v : A),
+  updn (skipn n l) i v = skipn n (updn l (i + n) v).
 Proof.
   induction l using rev_ind; intros; simpl.
-  rewrite updN_oob; auto.
+  rewrite updn_oob; auto.
   rewrite skipn_nil; simpl; lia.
 
   destruct (lt_dec i (length l - n)).
   destruct (le_dec n (length l)).
   rewrite skipn_app_l by auto.
-  repeat rewrite updN_app1 by (try rewrite skipn_length; lia).
+  repeat rewrite updn_app1 by (try rewrite skipn_length; lia).
   setoid_rewrite skipn_app_l; autorewrite with lists; auto.
   f_equal; eauto.
-  rewrite updN_app1 by lia.
+  rewrite updn_app1 by lia.
   repeat rewrite skipn_app_r_ge by lia.
-  rewrite length_updN, skipn_oob; simpl; auto; lia.
+  rewrite updn_length, skipn_oob; simpl; auto; lia.
 
   destruct (le_dec n (length l)).
   rewrite skipn_app_l by auto.
-  repeat rewrite updN_app2 by (try rewrite skipn_length; lia).
+  repeat rewrite updn_app2 by (try rewrite skipn_length; lia).
   setoid_rewrite skipn_app_l; autorewrite with lists; auto; f_equal.
   rewrite skipn_length; f_equal; lia.
   repeat rewrite skipn_oob; autorewrite with lists; simpl; auto; lia.
 Qed.
 
-Lemma setlen_skipn_updN_absorb : forall A (l : list A) m n i v def,
+Lemma setlen_skipn_updn_absorb : forall A (l : list A) m n i v def,
   i < n \/ i >= m + n ->
-  setlen (skipn n (updN l i v)) m def = setlen (skipn n l) m def.
+  setlen (skipn n (updn l i v)) m def = setlen (skipn n l) m def.
 Proof.
   intros; destruct H.
-  rewrite skipN_updN'; auto.
+  rewrite skipN_updn'; auto.
   unfold setlen.
   repeat rewrite <- skipn_firstn_comm.
-  rewrite firstn_updN_oob by lia.
+  rewrite firstn_updn_oob by lia.
   repeat rewrite skipn_length.
-  rewrite length_updN; auto.
+  rewrite updn_length; auto.
 Qed.
 
 Lemma setlen_inbound : forall A n (l : list A) def,
@@ -2354,8 +2345,8 @@ Proof.
   rewrite app_nil_r; auto.
 Qed.
 
-Lemma selN_map_eq: forall T T' (f : T -> T') (l l' : list T) d,
-  (forall i, f (selN l i d) = f (selN l' i d)) ->
+Lemma seln_map_eq: forall T T' (f : T -> T') (l l' : list T) d,
+  (forall i, f (seln l i d) = f (seln l' i d)) ->
   length l = length l' ->
   map f l = map f l'.
 Proof.
@@ -2377,17 +2368,17 @@ Proof.
   f_equal; auto.
 Qed.
 
-Lemma Forall_selN : forall A (l : list A) P i def,
-  Forall P l -> i < length l -> P (selN l i def).
+Lemma Forall_seln : forall A (l : list A) P i def,
+  Forall P l -> i < length l -> P (seln l i def).
 Proof.
   intros.
   rewrite Forall_forall in H.
   apply H.
-  apply in_selN; auto.
+  apply in_seln; auto.
 Qed.
 
-Lemma selN_Forall : forall A (l : list A) (P : A -> Prop) def,
-  (forall i, i < length l -> P (selN l i def)) ->
+Lemma seln_Forall : forall A (l : list A) (P : A -> Prop) def,
+  (forall i, i < length l -> P (seln l i def)) ->
   Forall P l.
 Proof.
   induction l; intros; eauto.
@@ -2511,14 +2502,14 @@ Proof.
 Qed.
 
 
-Lemma selN_cons_fold : forall A (a : A) l i def,
-  match i with | O => a | S n' => selN l n' def end = selN (a :: l) i def.
+Lemma seln_cons_fold : forall A (a : A) l i def,
+  match i with | O => a | S n' => seln l n' def end = seln (a :: l) i def.
 Proof.
   intros; simpl; auto.
 Qed.
 
-Lemma removeN_0_skipn : forall A n (l : list A),
-  removeN (skipn n l) 0 = skipn (S n) l.
+Lemma removen_0_skipn : forall A n (l : list A),
+  removen (skipn n l) 0 = skipn (S n) l.
 Proof.
   induction n; destruct l; simpl; eauto.
 Qed.
@@ -2687,36 +2678,36 @@ Proof.
   constructor; eauto.
 Qed.
 
-Lemma forall2_selN : forall A B (a : list A) (b : list B) P n ad bd,
+Lemma forall2_seln : forall A B (a : list A) (b : list B) P n ad bd,
   Forall2 P a b ->
   n < length a ->
-  P (selN a n ad) (selN b n bd).
+  P (seln a n ad) (seln b n bd).
 Proof.
   intros.
   pose proof (forall2_length H).
   apply forall2_forall in H.
-  eapply Forall_selN with (i := n) in H.
-  erewrite selN_combine in H; eauto.
+  eapply Forall_seln with (i := n) in H.
+  erewrite seln_combine in H; eauto.
   rewrite combine_length_eq; auto.
 Qed.
 
-Lemma forall2_updN : forall A B P (a : list A) (b : list B) xa xb i,
+Lemma forall2_updn : forall A B P (a : list A) (b : list B) xa xb i,
   Forall2 P a b ->
   P xa xb ->
-  Forall2 P (updN a i xa) (updN b i xb).
+  Forall2 P (updn a i xa) (updn b i xb).
 Proof.
   intros.
   apply forall_forall2.
-  rewrite combine_updN.
-  apply Forall_updN; auto.
+  rewrite combine_updn.
+  apply Forall_updn; auto.
   apply forall2_forall; auto.
-  repeat rewrite length_updN.
+  repeat rewrite updn_length.
   eapply forall2_length; eauto.
 Qed.
 
-Lemma selN_Forall2 : forall A B (a : list A) (b : list B) (P : A -> B -> Prop) da db,
+Lemma seln_Forall2 : forall A B (a : list A) (b : list B) (P : A -> B -> Prop) da db,
   length a = length b ->
-  (forall i, i < length a -> P (selN a i da) (selN b i db)) ->
+  (forall i, i < length a -> P (seln a i da) (seln b i db)) ->
   Forall2 P a b.
 Proof.
   induction a; destruct b; intros; eauto.
@@ -2752,8 +2743,8 @@ Proof.
     eapply in_cons; eauto.
 Qed.
 
-Lemma forall2_map2_selN: forall  A (l1 : list A) B l2 T1 T2 (p : T1 -> T2 -> Prop) ( q : A -> B -> Prop) (f1 : A -> T1) (f2 : B -> T2) def1 def2,
-    (forall a b n, n < Datatypes.length l1 -> selN l1 n def1 = a -> selN l2 n def2 = b -> q a b -> p (f1 a) (f2 b)) ->
+Lemma forall2_map2_seln: forall  A (l1 : list A) B l2 T1 T2 (p : T1 -> T2 -> Prop) ( q : A -> B -> Prop) (f1 : A -> T1) (f2 : B -> T2) def1 def2,
+    (forall a b n, n < Datatypes.length l1 -> seln l1 n def1 = a -> seln l2 n def2 = b -> q a b -> p (f1 a) (f2 b)) ->
     Forall2 q l1 l2 ->
     Forall2 p (map f1 l1) (map f2 l2).
 Proof.
@@ -2768,10 +2759,10 @@ Proof.
     eapply H; eauto.
     instantiate (1 := (S n)).
     simpl; lia.
-    rewrite selN_cons; eauto.
+    rewrite seln_cons; eauto.
     replace (S n - 1) with n by lia; eauto.
     lia.
-    rewrite selN_cons; eauto.
+    rewrite seln_cons; eauto.
     replace (S n - 1) with n by lia; eauto.
     lia.
 Qed.
@@ -2821,8 +2812,8 @@ Proof.
   simpl; auto.
 Qed.
 
-Lemma last_selN : forall A (l : list A) def,
-  last l def = selN l (length l - 1) def.
+Lemma last_seln : forall A (l : list A) def,
+  last l def = seln l (length l - 1) def.
 Proof.
   induction l; intuition; simpl.
   rewrite Nat.sub_0_r, IHl.
@@ -2833,13 +2824,13 @@ Proof.
   replace (S n - 1) with n by lia; auto.
 Qed.
 
-Lemma last_cuttail_selN : forall A n (l : list A) def,
+Lemma last_cuttail_seln : forall A n (l : list A) def,
   n < length l ->
-  last (cuttail n l) def = selN l (length l - n - 1) def.
+  last (cuttail n l) def = seln l (length l - n - 1) def.
 Proof.
   unfold cuttail; intros.
-  rewrite last_selN.
-  rewrite selN_firstn.
+  rewrite last_seln.
+  rewrite seln_firstn.
   rewrite firstn_length_l by lia; auto.
   rewrite firstn_length_l by lia; lia.
 Qed.
@@ -2864,16 +2855,16 @@ Proof.
   rewrite firstn_app_l; auto; lia.
 Qed.
 
-Lemma selN_cuttail : forall A n (l : list A) idx def,
+Lemma seln_cuttail : forall A n (l : list A) idx def,
   idx < length (cuttail n l) ->
-  selN (cuttail n l) idx def = selN l idx def.
+  seln (cuttail n l) idx def = seln l idx def.
 Proof.
   induction n; simpl; intros.
   rewrite cuttail_0. auto.
   destruct l using rev_ind; simpl; auto.
   rewrite cuttail_tail in *.
   rewrite IHn by auto.
-  rewrite selN_app; auto.
+  rewrite seln_app; auto.
   rewrite cuttail_length in *; lia.
 Qed.
 
@@ -2892,13 +2883,13 @@ Qed.
 Lemma cuttail_app_one: forall T (l : list T) n i d,
   n < length l ->
   i = length l - S n ->
-  cuttail (S n) l ++ [selN l i d] = cuttail n l.
+  cuttail (S n) l ++ [seln l i d] = cuttail n l.
 Proof.
   unfold cuttail.
   intros; subst.
   destruct (length l) eqn:?. lia.
   rewrite Nat.sub_succ, Nat.sub_succ_l by lia.
-  erewrite firstn_S_selN; auto.
+  erewrite firstn_S_seln; auto.
   lia.
 Qed.
 
@@ -2946,7 +2937,7 @@ Qed.
 Fixpoint upd_range {T} l start len (v : T) :=
   match len with
   | 0 => l
-  | S len' => updN (upd_range l (S start) len' v) start v
+  | S len' => updn (upd_range l (S start) len' v) start v
   end.
 
 Fixpoint upd_range_fast {T} vs start len (v : T) :=
@@ -2977,22 +2968,22 @@ Proof.
   generalize dependent start.
   induction len; intros; auto.
   unfold upd_range in *. simpl.
-  rewrite length_updN. auto.
+  rewrite updn_length. auto.
 Qed.
 
-Lemma upd_range_selN : forall T l start len (v : T) n d,
+Lemma upd_range_seln : forall T l start len (v : T) n d,
   start <= n < start + len ->
   n < length l ->
-  selN (upd_range l start len v) n d = v.
+  seln (upd_range l start len v) n d = v.
 Proof.
   intros T l start len.
   generalize dependent l.
   generalize dependent start.
   induction len; intros. lia.
   simpl.
-  destruct (Nat.eq_dec start n). subst. rewrite selN_updN_eq. auto.
+  destruct (Nat.eq_dec start n). subst. rewrite seln_updn_eq. auto.
   rewrite upd_range_length. auto.
-  rewrite selN_updN_ne by auto.
+  rewrite seln_updn_ne by auto.
   rewrite IHlen. auto. lia. auto.
 Qed.
 
@@ -3011,9 +3002,9 @@ Proof.
     rewrite firstn_skipn. auto.
   - simpl. rewrite IHlen by lia.
     unfold upd_range'. simpl repeat.
-    erewrite firstn_S_selN by lia.
+    erewrite firstn_S_seln by lia.
     repeat rewrite <- app_assoc.
-    rewrite updN_app2. rewrite updN_app1.
+    rewrite updn_app2. rewrite updn_app1.
     all : rewrite firstn_length_l by lia.
     rewrite plus_Snm_nSm.
     rewrite Nat.sub_diag. simpl. auto.
@@ -3044,14 +3035,14 @@ Lemma upd_range_concat_hom_small : forall T l start len (v : T) k d,
   start mod k + len <= k ->
   0 < k -> 0 < len ->
   upd_range (concat l) start len v =
-  concat (updN l (start / k) (upd_range (selN l (start / k) d) (start mod k) len v)).
+  concat (updn l (start / k) (upd_range (seln l (start / k) d) (start mod k) len v)).
 Proof.
   intros. assert (k <> 0) by lia.
   match goal with [H : context [length (concat _)]|- _ ] =>
     pose proof H; erewrite concat_hom_length in H by eauto end.
   repeat rewrite upd_range_eq_upd_range'.
   unfold upd_range'.
-  erewrite <- concat_hom_updN_first_skip; eauto.
+  erewrite <- concat_hom_updn_first_skip; eauto.
   erewrite concat_hom_subselect_firstn; eauto.
   erewrite <- concat_hom_skipn; eauto.
   rewrite <- skipn_firstn_comm. rewrite mult_comm. rewrite <- Nat.div_mod by auto.
@@ -3076,7 +3067,7 @@ Proof.
   all : try apply Nat.mul_div_le; auto.
   - lia.
   - eapply le_trans; eauto. apply Nat.eq_le_incl.
-    symmetry. apply Forall_selN; auto.
+    symmetry. apply Forall_seln; auto.
     apply Nat.div_lt_upper_bound; auto. rewrite mult_comm; lia.
 Qed.
 
@@ -3086,7 +3077,7 @@ Lemma upd_range_concat_hom_start_aligned : forall T l start len (v : T) k d,
   Forall (fun l' => length l' = k) l ->
   0 < len <= k -> 0 < k ->
   upd_range (concat l) start len v =
-  concat (updN l (start / k) (upd_range (selN l (start / k) d) 0 len v)).
+  concat (updn l (start / k) (upd_range (seln l (start / k) d) 0 len v)).
 Proof.
   intros.
   rewrite <- Nat.mod_divide in * by lia.
@@ -3111,14 +3102,14 @@ Proof.
   induction len; intros. auto.
   simpl. rewrite IHlen.
   destruct (lt_dec start n).
-  erewrite selN_eq_updN_eq. auto.
-  rewrite repeat_selN; auto.
-  rewrite updN_oob. auto.
+  erewrite seln_eq_updn_eq. auto.
+  rewrite repeat_seln; auto.
+  rewrite updn_oob. auto.
   rewrite repeat_length. lia.
   Unshelve. eauto.
 Qed.
 
-Hint Rewrite upd_range_0 upd_range_length upd_range_selN upd_range_nil upd_range_same : lists.
+Hint Rewrite upd_range_0 upd_range_length upd_range_seln upd_range_nil upd_range_same : lists.
 
 Lemma forall_upd_range : forall T l start len (v : T) f,
   Forall f l -> f v -> Forall f (upd_range l start len v).
@@ -3127,7 +3118,7 @@ Proof.
   generalize dependent start. generalize dependent l.
   induction len; intros.
   rewrite upd_range_0. auto.
-  simpl. apply Forall_updN; auto.
+  simpl. apply Forall_updn; auto.
 Qed.
 
 Lemma firstn_upd_range : forall T l n n' len (v : T),
@@ -3137,17 +3128,17 @@ Proof.
   generalize dependent n. generalize dependent l.
   generalize dependent n'. induction len; intros.
   rewrite upd_range_0. auto.
-  simpl. rewrite firstn_updN_oob by lia. auto.
+  simpl. rewrite firstn_updn_oob by lia. auto.
 Qed.
 
-Lemma upd_range_updN_oob : forall T l start len (v v2 : T) i,
+Lemma upd_range_updn_oob : forall T l start len (v v2 : T) i,
   i < start \/ i >= start + len ->
-  upd_range (updN l i v2) start len v = updN (upd_range l start len v) i v2.
+  upd_range (updn l i v2) start len v = updn (upd_range l start len v) i v2.
 Proof.
   intros T l start len.
   generalize dependent start. generalize dependent l.
   induction len; intros; simpl; auto.
-  rewrite updN_comm by lia.
+  rewrite updn_comm by lia.
   rewrite IHlen by lia. auto.
 Qed.
 
@@ -3158,7 +3149,7 @@ Proof.
   generalize dependent l. generalize dependent start.
   induction len1; intros; simpl.
   rewrite plus_0_r. auto.
-  rewrite upd_range_updN_oob by lia.
+  rewrite upd_range_updn_oob by lia.
   rewrite <- plus_Snm_nSm. rewrite IHlen1. auto.
 Qed.
 
@@ -3202,7 +3193,7 @@ Proof.
   generalize dependent l1. generalize dependent l2.
   induction len; intros; simpl; auto.
   rewrite IHlen by lia.
-  rewrite updN_app1. auto.
+  rewrite updn_app1. auto.
   rewrite upd_range_length. lia.
 Qed.
 
@@ -3214,49 +3205,49 @@ Proof.
   generalize dependent l1. generalize dependent l2.
   induction len; intros; simpl; auto.
   rewrite IHlen by lia.
-  rewrite updN_app2 by lia. repeat f_equal. lia.
+  rewrite updn_app2 by lia. repeat f_equal. lia.
 Qed.
 
-Lemma upd_range_selN_oob : forall T (l : list T) start len v i d,
+Lemma upd_range_seln_oob : forall T (l : list T) start len v i d,
   i < start \/ i >= start + len ->
-  selN (upd_range l start len v) i d = selN l i d.
+  seln (upd_range l start len v) i d = seln l i d.
 Proof.
   intros T l start len.
   generalize dependent start. generalize dependent l.
   induction len; intros; simpl; auto.
-  rewrite selN_updN_ne by lia. apply IHlen.
+  rewrite seln_updn_ne by lia. apply IHlen.
   lia.
 Qed.
 
-Lemma removeN_upd_range_l : forall T (l : list T) start len v,
-  removeN (upd_range l (S start) len v) start = removeN (upd_range l start (S len) v) start.
+Lemma removen_upd_range_l : forall T (l : list T) start len v,
+  removen (upd_range l (S start) len v) start = removen (upd_range l start (S len) v) start.
 Proof.
   destruct len; intros; simpl;
-    rewrite removeN_updN; auto.
+    rewrite removen_updn; auto.
 Qed.
 
-Lemma removeN_updN_lt : forall T (l : list T) i i' v,
+Lemma removen_updn_lt : forall T (l : list T) i i' v,
   i < i' ->
-  removeN (updN l i v) i' = updN (removeN l i') i v.
+  removen (updn l i v) i' = updn (removen l i') i v.
 Proof.
   intros T l i.
   generalize dependent l.
   induction i; intros.
-  - destruct l; simpl in *. rewrite removeN_nil. auto.
-    destruct i'; try lia. repeat rewrite removeN_head. auto.
-  - destruct l; simpl in *. rewrite removeN_nil. auto.
-    destruct i'; try lia. repeat rewrite removeN_head.
+  - destruct l; simpl in *. rewrite removen_nil. auto.
+    destruct i'; try lia. repeat rewrite removen_head. auto.
+  - destruct l; simpl in *. rewrite removen_nil. auto.
+    destruct i'; try lia. repeat rewrite removen_head.
     simpl. f_equal. apply IHi. lia.
 Qed.
 
-Lemma removeN_upd_range_r : forall T (l : list T) start len v,
-  removeN (upd_range l start len v) (start + len) = removeN (upd_range l start (S len) v) (start + len).
+Lemma removen_upd_range_r : forall T (l : list T) start len v,
+  removen (upd_range l start len v) (start + len) = removen (upd_range l start (S len) v) (start + len).
 Proof.
   intros T l start len. generalize dependent start.
   generalize dependent l.
   induction len; intros; simpl.
-  - rewrite plus_0_r. rewrite removeN_updN. auto.
-  - repeat rewrite removeN_updN_lt by lia. f_equal.
+  - rewrite plus_0_r. rewrite removen_updn. auto.
+  - repeat rewrite removen_updn_lt by lia. f_equal.
     rewrite <- plus_Snm_nSm. apply IHlen.
 Qed.
 
@@ -3273,10 +3264,10 @@ Proof.
     destruct (le_lt_dec (length l) start).
     - repeat rewrite firstn_oob by lia.
       repeat replace (_ - _) with 0 by lia.
-      rewrite app_nil_r. rewrite updN_oob; auto.
+      rewrite app_nil_r. rewrite updn_oob; auto.
     - replace (S start) with (start + 1) by lia.
       rewrite firstn_sum_split.
-      rewrite updN_app1, updN_app2.
+      rewrite updn_app1, updn_app2.
       all : try rewrite app_length.
       all : repeat rewrite firstn_length_l.
       rewrite Nat.sub_diag.
@@ -3295,20 +3286,20 @@ Proof.
   intros T l start len.
   generalize dependent start. generalize dependent l.
   induction len; intros; simpl. auto.
-  rewrite updN_oob. rewrite IHlen; auto.
+  rewrite updn_oob. rewrite IHlen; auto.
   rewrite upd_range_length. auto.
 Qed.
 
-Lemma removeN_upd_range_mid : forall T (l : list T) start len v i i',
+Lemma removen_upd_range_mid : forall T (l : list T) start len v i i',
   start <= i < start + len ->
   start <= i' < start + len ->
   i <= i' < length l ->
-  removeN (upd_range l start len v) i = removeN (upd_range l start len v) i'.
+  removen (upd_range l start len v) i = removen (upd_range l start len v) i'.
 Proof.
   intros.
   destruct (le_lt_dec (length l) (start + len)).
   + rewrite upd_range_eq_app_firstn_repeat by auto.
-    unfold removeN.
+    unfold removen.
     repeat rewrite firstn_app_le by (rewrite firstn_length_l; lia).
     rewrite firstn_length_l by lia.
     repeat rewrite skipn_app_r_ge by (rewrite firstn_length_l; lia).
@@ -3319,7 +3310,7 @@ Proof.
     repeat rewrite <- Nat.sub_add_distr.
     lia.
   + repeat rewrite upd_range_eq_upd_range' by lia.
-    unfold upd_range', removeN.
+    unfold upd_range', removen.
     repeat (
       rewrite firstn_app_le; rewrite firstn_length;
       (let H := fresh in let H' := fresh in
@@ -3527,18 +3518,18 @@ Proof.
   apply NoDup_rev_2.
 Qed.
 
-Lemma selN_rev: forall T n (l : list T) d,
+Lemma seln_rev: forall T n (l : list T) d,
   n < length l ->
-  selN (rev l) n d = selN l (length l - S n) d.
+  seln (rev l) n d = seln l (length l - S n) d.
 Proof.
   induction l; cbn; auto.
   intros.
   destruct (lt_dec n (length l)).
-  rewrite selN_app1 by (rewrite rev_length; auto).
+  rewrite seln_app1 by (rewrite rev_length; auto).
   rewrite IHl by auto.
   destruct (length l - n) eqn:?; try lia.
   f_equal; lia.
-  rewrite selN_app2 by (rewrite rev_length; lia).
+  rewrite seln_app2 by (rewrite rev_length; lia).
   rewrite rev_length.
   repeat match goal with |- context [?a - ?b] =>
     destruct (a - b) eqn:?; try lia
@@ -3579,13 +3570,13 @@ Qed.
 
 Lemma list_isolate: forall T (l : list T) m n d,
   length l = m + 1 + n ->
-  l = firstn m l ++ [selN l m d] ++ rev (firstn n (rev l)).
+  l = firstn m l ++ [seln l m d] ++ rev (firstn n (rev l)).
 Proof.
   intros.
   erewrite <- firstn_skipn at 1.
   f_equal.
   cbn.
-  erewrite skipn_selN_skipn.
+  erewrite skipn_seln_skipn.
   f_equal.
   rewrite firstn_rev by auto.
   rewrite rev_involutive.
@@ -3628,14 +3619,14 @@ Qed.
 
 Definition enumerate A (l : list A) := combine (seq 0 (length l)) l.
 
-Theorem selN_enumerate : forall A (l : list A) d i,
-  i < length l -> selN (enumerate l) i d = (i, selN l i (snd d)).
+Theorem seln_enumerate : forall A (l : list A) d i,
+  i < length l -> seln (enumerate l) i d = (i, seln l i (snd d)).
 Proof.
   intros.
   unfold enumerate.
   destruct d.
-  rewrite selN_combine.
-  rewrite nth_selN_eq, seq_nth; auto.
+  rewrite seln_combine.
+  rewrite nth_seln_eq, seq_nth; auto.
   apply seq_length.
 Qed.
 
@@ -3671,7 +3662,7 @@ Proof.
   f_equal; eauto.
 Qed.
 
-Hint Rewrite length_enumerate firstn_enumerate selN_enumerate enumerate_inj : lists.
+Hint Rewrite length_enumerate firstn_enumerate seln_enumerate enumerate_inj : lists.
 
 Definition part {T} (l : list T) (k : nat) :=
   map (fun i => firstn k (skipn (i * k) l)) (seq 0 (length l / k)).
@@ -3807,7 +3798,7 @@ Section ifind_list.
 
   Lemma ifind_list_ok_item : forall cond vs start r d,
     ifind_list cond vs start = Some r ->
-    selN vs ((fst r) - start) d = (snd r).
+    seln vs ((fst r) - start) d = (snd r).
   Proof.
     induction vs; simpl; intros; try congruence.
     destruct cond.
@@ -3823,7 +3814,7 @@ Section ifind_list.
     (fst r) >= start /\
     (fst r) < start + length vs /\
     cond (snd r) (fst r) = true /\
-    selN vs ((fst r) - start) d = (snd r).
+    seln vs ((fst r) - start) d = (snd r).
   Proof.
     intros; intuition eauto using
       ifind_list_ok_mono,
@@ -3835,7 +3826,7 @@ Section ifind_list.
   Lemma ifind_list_none : forall cond l start d,
     ifind_list cond l start = None ->
     forall ix, ix < length l ->
-    cond (selN l ix d) (start + ix) = false.
+    cond (seln l ix d) (start + ix) = false.
   Proof.
     induction l; simpl; intros; try lia.
     destruct ix.
@@ -3961,8 +3952,8 @@ Proof.
   auto.
 Qed.
 
-Lemma list_same_skipn_selN : forall T (v : T) off l def,
-  off < length l -> list_same v (skipn off l) -> v = selN l off def.
+Lemma list_same_skipn_seln : forall T (v : T) off l def,
+  off < length l -> list_same v (skipn off l) -> v = seln l off def.
 Proof.
   induction off; simpl; intros.
   destruct l; simpl in *; try lia.
@@ -3972,19 +3963,19 @@ Proof.
   lia.
 Qed.
 
-Lemma updN_concat' : forall T (l : list (list T)) l' off k x ld,
+Lemma updn_concat' : forall T (l : list (list T)) l' off k x ld,
   k <> 0 ->
   off < k * length l ->
   Forall (fun y => length y = k) l ->
-  l' = updN (selN l (off / k) ld) (off mod k) x ->
-  updN (concat l) off x = concat (updN l (off / k) l').
+  l' = updn (seln l (off / k) ld) (off mod k) x ->
+  updn (concat l) off x = concat (updn l (off / k) l').
 Proof.
   intros.
   subst.
   erewrite Nat.div_mod with (x := off) at 1 by eauto.
   rewrite plus_comm, mult_comm.
-  erewrite updN_concat; auto.
-  erewrite selN_inb; eauto.
+  erewrite updn_concat; auto.
+  erewrite seln_inb; eauto.
   apply Nat.div_lt_upper_bound; auto.
   apply Nat.mod_bound_pos; lia.
 Qed.
@@ -4811,15 +4802,15 @@ Proof.
   nodupapp.
 Abort.
 
-Definition selN_each {T} (l : list (list T)) n (def : T) : list T :=
-  map (fun l => selN l n def) l.
+Definition seln_each {T} (l : list (list T)) n (def : T) : list T :=
+  map (fun l => seln l n def) l.
 
-Lemma selN_each_S: forall T (l : list (list T)) n def,
-  selN_each l (S n) def = selN_each (map (skipn 1) l) n def.
+Lemma seln_each_S: forall T (l : list (list T)) n def,
+  seln_each l (S n) def = seln_each (map (skipn 1) l) n def.
 Proof.
-  unfold selN_each.
+  unfold seln_each.
   induction l; cbn -[skipn]; intros; auto.
-  rewrite skipn_selN.
+  rewrite skipn_seln.
   f_equal.
   eauto.
 Qed.
@@ -4916,7 +4907,7 @@ Fixpoint sort_by_index {S T} (f : T -> T -> bool) (ls : list (S * T)) (lt : list
   | nil => nil
   | t :: lt =>
     let i := index_of (fun a => f t (snd a)) ls in
-    (selN ls i (s0, t0)) :: (sort_by_index f ls lt s0 t0)
+    (seln ls i (s0, t0)) :: (sort_by_index f ls lt s0 t0)
   end.
 
 Definition inb {T} {E} (l : list T) (x : T) :=
@@ -4924,7 +4915,7 @@ Definition inb {T} {E} (l : list T) (x : T) :=
 
 Lemma index_of_spec: forall T (l : list T) f d,
   let i := index_of f l in
-  i < length l -> f (selN l i d) = true.
+  i < length l -> f (seln l i d) = true.
 Proof.
   unfold index_of.
   intros.
@@ -4948,7 +4939,7 @@ Proof.
   rewrite (surjective_pairing p).
   lia.
   destruct H as [x [Ha Hb] ].
-  eapply in_selN_exists in Ha.
+  eapply in_seln_exists in Ha.
   destruct Ha as [? [? Ha] ].
   eapply ifind_list_none in H'; eauto.
   rewrite Ha in *.
@@ -4980,7 +4971,7 @@ Proof.
   induction lt; cbn.
   auto.
   intros.
-  destruct selN eqn: Hp.
+  destruct seln eqn: Hp.
   remember (split (sort_by_index _ _ _ _ _)) as r.
   rewrite (surjective_pairing r); cbn.
   subst r.
@@ -4992,17 +4983,17 @@ Proof.
   rewrite Nat.sub_0_r in *.
   intuition subst.
   eapply f_equal with (f := snd) in Hp.
-  match goal with H: selN _ _ _ = _ |- _ => rewrite H in * end.
+  match goal with H: seln _ _ _ = _ |- _ => rewrite H in * end.
   rewrite Hp in *.
   rewrite H0 in *. subst.
   auto.
   specialize (H a) as ?.
   intuition.
-  match goal with H: _ |- _ => eapply in_selN_exists in H;
+  match goal with H: _ |- _ => eapply in_seln_exists in H;
     destruct H as [i ?]; intuition end.
   rewrite split_length_r in *.
   eapply ifind_list_none with (ix := i) in Ha; eauto.
-  rewrite <- selN_split_r in *.
+  rewrite <- seln_split_r in *.
   match goal with
     Hf : context [iff],
     Hb : _ = a |- _ => symmetry in Hb; eapply Hf in Hb end.
@@ -5016,7 +5007,7 @@ Lemma index_of_in_sort_by_index: forall T V (fn : T -> V) f (l : list T) d x,
   In x l ->
   NoDup (map fn l) ->
   (forall x y, f x y = true <-> x = y) ->
-  selN l (index_of (fun a => f (fn x) (fn a)) l) d = x.
+  seln l (index_of (fun a => f (fn x) (fn a)) l) d = x.
 Proof.
   unfold index_of.
   intros.
@@ -5027,8 +5018,8 @@ Proof.
   repeat match goal with H: _ |- _ => rewrite H in * end.
   eapply NoDup_In_inj; eauto.
   match goal with H: _ |- _ => rewrite <- H end.
-  eapply in_selN; eauto.
-  eapply in_selN_exists in H.
+  eapply in_seln; eauto.
+  eapply in_seln_exists in H.
   destruct H as [i [? Hs] ].
   eapply ifind_list_none in H'; eauto.
   eapply f_equal with (f := fn) in Hs.
@@ -5041,11 +5032,11 @@ Unshelve.
   all: eauto.
 Qed.
 
-Lemma NoDup_selN_index_of_multiple: forall T V f (fn : T -> V) (l : list T) a d,
+Lemma NoDup_seln_index_of_multiple: forall T V f (fn : T -> V) (l : list T) a d,
   NoDup l ->
   In a l ->
   (forall x y, f x y = true <-> x = y) ->
-  fn (selN l (index_of (fun x => f (fn a) (fn x)) l) d) <> fn a -> False.
+  fn (seln l (index_of (fun x => f (fn a) (fn x)) l) d) <> fn a -> False.
 Proof.
   unfold index_of.
   intros.
@@ -5055,7 +5046,7 @@ Proof.
   intuition auto.
   repeat match goal with H: _ |- _ => rewrite H in * end.
   congruence.
-  match goal with H: _ |- _ => eapply in_selN_exists in H; destruct H end.
+  match goal with H: _ |- _ => eapply in_seln_exists in H; destruct H end.
   intuition.
   eapply ifind_list_none in H'; eauto.
   match goal with H: forall x y, _, H' : f ?a ?b = false |- _ =>
@@ -5096,7 +5087,7 @@ Proof.
   edestruct (H1 a).
   left; eauto.
   intuition subst.
-  eapply in_selN.
+  eapply in_seln.
   eapply index_of_inb.
   eexists.
   split; try eassumption.
@@ -5104,7 +5095,7 @@ Proof.
   match goal with |- ?a = ?b \/ _ => destruct (f a b) eqn:? end.
   left.
   rewrite <- Hf; eauto.
-  exfalso; eapply NoDup_selN_index_of_multiple with (fn := snd) (l := l); eauto.
+  exfalso; eapply NoDup_seln_index_of_multiple with (fn := snd) (l := l); eauto.
   intro Hs.
   symmetry in Hs.
   rewrite <- Hf in Hs.
@@ -5210,7 +5201,7 @@ Qed.
 
 Lemma filter_r: forall A B (f : B -> bool) (a : list A) b da db,
   length a = length b ->
-  filter (fun x => f (snd x)) (List.combine a b) = List.combine (map (fun i => selN a i da) (filter (fun i => f (selN b i db)) (seq 0 (length a)))) (filter f b).
+  filter (fun x => f (snd x)) (List.combine a b) = List.combine (map (fun i => seln a i da) (filter (fun i => f (seln b i db)) (seq 0 (length a)))) (filter f b).
 Proof.
   induction a; cbn; intros.
   auto.
@@ -5224,7 +5215,7 @@ Qed.
 
 Lemma filter_l: forall A B (f : A -> bool) a b da (db : B),
   length a = length b ->
-  filter (fun x => f (fst x)) (List.combine a b) = List.combine (filter f a) (map (fun i => selN b i db) (filter (fun i => f (selN a i da)) (seq 0 (length a)))).
+  filter (fun x => f (fst x)) (List.combine a b) = List.combine (filter f a) (map (fun i => seln b i db) (filter (fun i => f (seln a i da)) (seq 0 (length a)))).
 Proof.
   induction a; cbn; intros.
   auto.
@@ -5236,8 +5227,8 @@ Proof.
   all: eauto.
 Qed.
 
-Lemma filter_selN_length: forall T f (l : list T) d,
-  length (filter f l) = length (filter (fun i => f (selN l i d)) (seq 0 (length l))).
+Lemma filter_seln_length: forall T f (l : list T) d,
+  length (filter f l) = length (filter (fun i => f (seln l i d)) (seq 0 (length l))).
 Proof.
   induction l; cbn; intros.
   auto.
@@ -5562,25 +5553,25 @@ Lemma nil_or_app:
 Qed.
 
  
-Lemma selNopt_seq:
+Lemma nth_error_seq:
   forall m n a,
     a < m ->
-    selNopt (seq n m) a = Some (n + a).
+    nth_error (seq n m) a = Some (n + a).
 Proof.
   induction m; simpl; intros.
   lia.
   destruct a.
   rewrite Nat.add_0_r; eauto.
-  rewrite IHm.
+  simpl; rewrite IHm.
   replace (S n + a) with (n + S a) by lia; eauto.
   lia.
 Qed.
 
-Lemma selN_bimap:
+Lemma seln_bimap:
   forall A B C (f: A -> B -> C) l1 l2 n def1 def2 def3,
     length l1 = length l2 ->
     n < length l1 ->
-    selN (bimap f l1 l2) n def3 = f (selN l1 n def1) (selN l2 n def2).
+    seln (bimap f l1 l2) n def3 = f (seln l1 n def1) (seln l2 n def2).
 Proof.
   induction l1; simpl; intros; try lia.
   destruct l2; simpl in *; try lia.
@@ -5618,7 +5609,7 @@ Qed.
 Lemma list_list_in_EXM:
   forall A (AEQ: EqDec A) l_l_a (a: A),
     (exists n, n < length l_l_a /\
-          In a (selN l_l_a n []) /\
+          In a (seln l_l_a n []) /\
           (forall l_a, In l_a (skipn (S n) l_l_a) -> ~In a l_a)) \/
     (forall l_a, In l_a l_l_a -> ~In a l_a).
 Proof.

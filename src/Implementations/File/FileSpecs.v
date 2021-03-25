@@ -108,7 +108,7 @@ Proof.
         right; eexists; intuition eauto.
         edestruct H4; eauto; cleanup.
         apply nth_error_nth'; eauto.
-        rewrite nth_selN_eq in H11;
+        rewrite nth_seln_eq in H11;
         erewrite H10 in H11; cleanup; eauto.
         {
           unfold block_allocator_rep,
@@ -152,7 +152,7 @@ Proof.
       unfold inode_map_rep, inode_map_valid in *; cleanup.
       eapply_fresh H18 in H5; unfold inode_valid in *.
       cleanup.
-      eapply Forall_forall in H15; [| apply in_selN; eauto].
+      eapply Forall_forall in H15; [| apply in_seln; eauto].
       unfold file_map_rep in *; cleanup.
       destruct_fresh (fd inum).
       eapply_fresh f in H5; eauto.
@@ -160,19 +160,19 @@ Proof.
       unfold DiskAllocator.block_allocator_rep in *; cleanup.
       eapply_fresh (DiskAllocator.valid_bits_extract x1 x7
        (bits (value_to_bits (fst s0 DiskAllocatorParams.bitmap_addr)))
-       (selN (block_numbers x) off 0)) in v; eauto.
+       (seln (block_numbers x) off 0)) in v; eauto.
       cleanup; try congruence.
 
       split_ors; cleanup.
       edestruct H17; eauto; cleanup.
       apply nth_error_nth'; eauto.
-      rewrite nth_selN_eq in H11; cleanup.
+      rewrite nth_seln_eq in H11; cleanup.
       rewrite H21 in H11; cleanup.
 
       {
         edestruct H17; eauto; cleanup.
         apply nth_error_nth'; eauto.
-        destruct (lt_dec (selN (block_numbers x) off 0)
+        destruct (lt_dec (seln (block_numbers x) off 0)
                          DiskAllocatorParams.num_of_blocks); eauto.
       }
       rewrite bitlist_length.
@@ -367,7 +367,7 @@ Proof.
             cleanup.
             unfold update_file, file_rep; simpl;
             intuition eauto.
-            rewrite length_updN; eauto.
+            rewrite updn_length; eauto.
             eapply_fresh H16 in H17; cleanup.
 
             
@@ -375,25 +375,25 @@ Proof.
             destruct (addr_dec off i); subst.
             {
               eexists.
-              rewrite nth_error_updN_eq,
+              rewrite nth_error_updn_eq,
               Mem.upd_eq; eauto.
               eapply nth_error_nth in H17.
-              rewrite nth_selN_eq; eauto.
+              rewrite nth_seln_eq; eauto.
               rewrite H15.
               eapply nth_error_some_lt; eauto.
             }
             {
               eexists.
-              rewrite nth_error_updN_ne,
+              rewrite nth_error_updn_ne,
               Mem.upd_ne; eauto.
               unfold inode_map_rep, inode_map_valid in *; cleanup.
               apply H24 in H5; unfold inode_valid in *; cleanup.
               eapply nth_error_nth in H17; rewrite <- H17.
-              rewrite <- nth_selN_eq; eauto.
+              rewrite <- nth_seln_eq; eauto.
               
               
 
-              eapply NoDup_selN_ne; eauto.
+              eapply NoDup_seln_ne; eauto.
               rewrite <- H15.
               eapply nth_error_some_lt; eauto.
             }
@@ -410,7 +410,7 @@ Proof.
               eapply not_In_NoDup_app in H22; eauto.
               
               intros Hx.
-              eapply selN_not_In_ne; eauto.
+              eapply seln_not_In_ne; eauto.
             }
           }
         }

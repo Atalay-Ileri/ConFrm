@@ -463,7 +463,7 @@ Qed.
      rewrite updN_app1; try omega.
      rewrite <- ptsto_bits'_app_merge.
      simpl.
-     rewrite length_updN.
+     rewrite updN_length.
      eapply pimpl_apply.
      2: {
        eapply H; eauto.

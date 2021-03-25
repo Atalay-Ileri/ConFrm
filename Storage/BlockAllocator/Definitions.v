@@ -27,7 +27,7 @@ Theorem upd_valid_zero:
     valid_bitlist (updN l i 0).
 Proof.
   unfold valid_bitlist in *; intros; cleanup.
-  rewrite length_updN; intuition.
+  rewrite updN_length; intuition.
   apply in_updN in H1; intuition; eauto.
 Qed.
 
@@ -37,7 +37,7 @@ Theorem upd_valid_one:
     valid_bitlist (updN l i 1).
 Proof.
   unfold valid_bitlist in *; intros; cleanup.
-  rewrite length_updN; intuition.
+  rewrite updN_length; intuition.
   apply in_updN in H1; intuition; eauto.
 Qed.
 
