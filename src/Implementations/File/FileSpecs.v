@@ -24,11 +24,12 @@ Proof.
         do 2 eexists; intuition eauto.
         rewrite upd_ne.
         rewrite upd_eq; eauto.
-        rewrite bits_to_value_to_bits.
+        rewrite bits_to_value_to_bits_exact.
         simpl.  
         unfold valid_bits; simpl. 
         apply valid_bits'_zeroes.
         pose proof InodeAllocatorParams.num_of_blocks_in_bounds; eauto.
+        unfold zero_bitlist; rewrite repeat_length; eauto.
         unfold InodeAllocatorParams.bitmap_addr, DiskAllocatorParams.bitmap_addr.
         pose proof inodes_before_data; lia.
         rewrite map_length, seq_length; eauto.
@@ -42,11 +43,12 @@ Proof.
         unfold DiskAllocator.block_allocator_rep.
         do 2 eexists; intuition eauto.
         rewrite upd_eq; eauto.
-        rewrite bits_to_value_to_bits.
+        rewrite bits_to_value_to_bits_exact.
         simpl.  
         unfold DiskAllocator.valid_bits; simpl. 
         apply DiskAllocator.valid_bits'_zeroes.
         pose proof DiskAllocatorParams.num_of_blocks_in_bounds; eauto.
+        unfold zero_bitlist; rewrite repeat_length; eauto.
         rewrite map_length, seq_length; eauto.
       }
       {
@@ -159,7 +161,7 @@ Proof.
       unfold file_rep in *; cleanup.
       unfold DiskAllocator.block_allocator_rep in *; cleanup.
       eapply_fresh (DiskAllocator.valid_bits_extract x1 x7
-       (bits (value_to_bits (fst s0 DiskAllocatorParams.bitmap_addr)))
+       (value_to_bits (fst s0 DiskAllocatorParams.bitmap_addr))
        (seln (block_numbers x) off 0)) in v; eauto.
       cleanup; try congruence.
 
@@ -175,7 +177,7 @@ Proof.
         destruct (lt_dec (seln (block_numbers x) off 0)
                          DiskAllocatorParams.num_of_blocks); eauto.
       }
-      rewrite bitlist_length.
+      rewrite value_to_bits_length.
       pose proof DiskAllocatorParams.num_of_blocks_in_bounds.
       unfold DiskAllocatorParams.num_of_blocks in *;
       lia.

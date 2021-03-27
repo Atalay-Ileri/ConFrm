@@ -1,4 +1,4 @@
-Require Import EquivDec List Lia.
+Require Import EquivDec List PeanoNat Lia.
 
 Class EqDec (T : Type) := eqdec : forall (a b : T), {a = b} + {a <> b}.
 
@@ -15,6 +15,7 @@ Axiom value0 : value.
 Axiom value_eq_dec: EqDec value.
 
 Axiom block_size: nat. (** in bits **)
+
 Axiom disk_size: addr. (** In blocks **)
 
 Axiom addr_list_to_blocks : list addr -> list value.
@@ -22,6 +23,7 @@ Axiom blocks_to_addr_list : list value -> list addr.
 Axiom addr_list_to_blocks_to_addr_list:
   forall l_a,
   exists l_a', blocks_to_addr_list (addr_list_to_blocks l_a) = app l_a l_a'.
+
 Axiom blocks_to_addr_list_to_blocks:
   forall l_b,
     addr_list_to_blocks (blocks_to_addr_list l_b) = l_b.
@@ -46,11 +48,6 @@ Proof.
   eapply addr_list_to_blocks_length_le_preserve; lia.
 Qed.
 
-Record bitlist :=
-  {
-   bits : list bool;                
-   valid : length bits = block_size
-  }.
 
 Fixpoint get_first_zero_index l :=
   match l with
@@ -62,18 +59,21 @@ Fixpoint get_first_zero_index l :=
     end
   end.
 
-Lemma zero_bitlist_length_valid:
-  length (List.repeat false block_size) = block_size.
-Proof.
-  apply repeat_length.
-Qed.
 
-Definition zero_bitlist := Build_bitlist (repeat false block_size) zero_bitlist_length_valid.
+Definition zero_bitlist := (repeat false block_size).
 
-Axiom value_to_bits: value -> bitlist.
-Axiom bits_to_value: bitlist -> value.
+Axiom value_to_bits: value -> list bool.
+Axiom bits_to_value: list bool -> value.
 Axiom value_to_bits_to_value : forall v, bits_to_value (value_to_bits v) = v.
-Axiom bits_to_value_to_bits : forall l, value_to_bits (bits_to_value l) = l.   
+Axiom bits_to_value_to_bits : forall l, 
+length l <= block_size ->
+exists l', value_to_bits (bits_to_value l) = l ++ l'.
+
+Axiom bits_to_value_to_bits_exact : forall l, 
+length l = block_size ->
+value_to_bits (bits_to_value l) = l.
+
+Axiom value_to_bits_length : forall v, length (value_to_bits v) = block_size.
 
 Lemma get_first_zero_index_false:
   forall l_b,
@@ -95,12 +95,6 @@ Proof.
   rewrite IHl_b; eauto; lia.
 Qed.
 
-Lemma bitlist_length:
-  forall bitlist, 
-    length (bits bitlist) = block_size.
-Proof.
-  intros; destruct bitlist0; simpl ;eauto.
-Qed.
 
 
 (** Crypto **)
