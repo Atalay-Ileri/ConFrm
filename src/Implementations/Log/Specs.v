@@ -60,6 +60,132 @@ Proof.
   rewrite Mem.upd_ne; eauto.
 Qed.
 
+Lemma records_are_consecutive_starting_from_app_one:
+forall l1 n r,
+records_are_consecutive_starting_from n l1 ->
+start r = fold_left Nat.add 
+(map (fun rec => addr_count rec + data_count rec) l1) n ->
+records_are_consecutive_starting_from n (l1 ++ [r]). 
+Proof.
+  induction l1; simpl; intros; eauto.
+  cleanup; split; eauto.
+  eapply IHl1; eauto.
+  rewrite <- Nat.add_assoc; eauto.
+Qed.
+
+Lemma consistent_with_upds_app:
+forall A AEQ V l_a1 l_a2 l_v1 l_v2 (m: @mem A AEQ V),
+consistent_with_upds m (l_a1++l_a2) (l_v1++l_v2) ->
+length l_a1 = length l_v1 ->
+length l_a2 = length l_v2 ->
+consistent_with_upds m l_a1 l_v1 /\
+consistent_with_upds (Mem.upd_batch m l_a1 l_v1) l_a2 l_v2.
+Proof.
+induction l_a1; simpl; intros; eauto;
+destruct l_v1; simpl in *; try lia; eauto.
+cleanup.
+apply IHl_a1 in H2; cleanup.
+intuition eauto.
+all: lia.
+Qed.
+
+Lemma consistent_with_upds_upd_batch_swap:
+forall A AEQ V l_a1 l_a2 l_v1 l_v2 (m: @mem A AEQ V),
+consistent_with_upds m (l_a1++l_a2) (l_v1++l_v2) ->
+length l_a1 = length l_v1 ->
+length l_a2 = length l_v2 ->
+Mem.upd_batch (Mem.upd_batch m l_a1 l_v1) l_a2 l_v2 =
+Mem.upd_batch (Mem.upd_batch m l_a2 l_v2) l_a1 l_v1.
+Proof.
+  induction l_a1; simpl; intros; eauto.
+  destruct l_v1; simpl in *; try lia.
+  cleanup.
+  rewrite IHl_a1; eauto.
+  extensionality x.
+  destruct (in_dec AEQ x l_a1).
+  {
+    eapply_fresh (in_split_last AEQ) in i; cleanup.
+    Search length eq app cons.
+    edestruct nth_split with (l:= l_v1) (n:= length x0).
+    rewrite app_length in *; simpl in *; lia.
+    logic_clean.
+    rewrite H3 in *.
+    repeat rewrite Mem.upd_batch_app; eauto; simpl.
+    repeat rewrite Mem.upd_batch_ne; eauto.
+    repeat rewrite Mem.upd_eq; eauto.
+  }
+  {
+        
+apply consistent_with_upds_app in H2; eauto; logic_clean.
+    repeat rewrite Mem.upd_batch_ne with (l_a := l_a1); eauto.
+    destruct (in_dec AEQ x l_a2).
+    {
+      destruct (AEQ x a); subst.
+      {
+        rewrite Mem.upd_eq; eauto.
+        erewrite <- upd_batch_consistent_some.
+        2: apply H3.
+        2: rewrite Mem.upd_batch_ne; eauto;
+        apply Mem.upd_eq; eauto.
+        
+      eapply_fresh (in_split_last AEQ) in i; cleanup.
+      edestruct nth_split with (l:= l_v2) (n:= length x).
+    rewrite app_length in *; simpl in *; lia.
+    logic_clean.
+    rewrite H4 in *.
+    repeat rewrite Mem.upd_batch_app; eauto; simpl.
+    repeat rewrite Mem.upd_batch_ne; eauto.
+    repeat rewrite Mem.upd_eq; eauto.
+    }
+    {
+      rewrite Mem.upd_ne; eauto.
+      eapply_fresh (in_split_last AEQ) in i; cleanup.
+      edestruct nth_split with (l:= l_v2) (n:= length x0).
+    rewrite app_length in *; simpl in *; lia.
+    logic_clean.
+    rewrite H4 in *.
+    repeat rewrite Mem.upd_batch_app; eauto; simpl.
+    repeat rewrite Mem.upd_batch_ne; eauto.
+    repeat rewrite Mem.upd_eq; eauto.
+    }
+    }
+    {
+      repeat rewrite Mem.upd_batch_ne with (l_a := l_a2); eauto.
+      destruct (AEQ a x); subst.
+      repeat rewrite Mem.upd_eq; eauto.
+      repeat rewrite Mem.upd_ne; eauto.
+      repeat rewrite Mem.upd_batch_ne with (l_a := l_a2); eauto.
+    }
+  }  
+  Unshelve.
+  all: eauto.
+Qed.
+
+Lemma hashes_in_hashmap_app:
+forall hl1 hl2 hm h,
+hashes_in_hashmap hm h hl1 ->
+hashes_in_hashmap hm (rolling_hash h hl1) hl2 ->
+hashes_in_hashmap hm h (hl1 ++ hl2).
+Proof.
+  induction hl1; simpl; intros; eauto.
+  cleanup; split; eauto.
+Qed.
+
+Lemma hashes_in_hashmap_upd:
+forall l hm h,
+let hash_list := (rolling_hash_list h l) in
+consistent_with_upds hm hash_list (combine (h::hash_list) l) ->
+hashes_in_hashmap (Mem.upd_batch hm hash_list (combine (h::hash_list) l)) h l.
+Proof.
+  induction l.
+  intros; simpl; eauto.
+  intros.
+  simpl consistent_with_upds in *.
+  cleanup_no_match; simpl in *; eauto.
+  split; eauto.
+  eapply upd_batch_consistent_some; eauto.
+  apply Mem.upd_eq; eauto.
+Qed.
 
 (*** Specs **)
 Theorem init_finished:
@@ -69,7 +195,8 @@ Theorem init_finished:
     (forall a, In a l_a -> a >= data_start) ->
     exec CryptoDiskLang u o s (init l_av) (Finished s' t) ->
     log_rep [] s' /\
-    snd s' = sync (upd_batch_set (upd_set (snd s) hdr_block_num (encode_header header0)) l_a l_v) /\
+    snd s' = sync (upd_batch_set (upd_set (snd s) 
+    hdr_block_num (encode_header header0)) l_a l_v) /\
     (forall a, snd (snd s' a) = []).
 Proof.
   unfold init, write_header; simpl; intros.
@@ -1892,8 +2019,39 @@ Proof.
           lia.
         }
         {
-          (** Solve with lemma **)
-          admit.
+          repeat rewrite map_app in *;
+          repeat rewrite map_map in *; simpl in *.
+          rewrite <- firstn_map_comm, map_map; 
+          simpl.
+          rewrite firstn_app.
+          rewrite firstn_length_l.
+          rewrite firstn_app2.
+          rewrite firstn_oob.
+
+          remember (match
+            map (encrypt x6) l_addr ++
+            map (encrypt x6) l_data
+          with
+          | [] => []
+          | y :: tl' =>
+              (hash (current_part (decode_header v0)), y)
+              :: combine
+                   (rolling_hash_list
+                      (hash (current_part (decode_header v0)))
+                      (map (encrypt x6) l_addr ++
+                       map (encrypt x6) l_data)) tl'
+          end).
+
+          
+          eapply hashes_in_hashmap_app.
+          eapply hashes_in_hashmap_subset; eauto.
+          eapply upd_batch_consistent_subset; eauto.
+          setoid_rewrite <- H.
+          subst; eapply hashes_in_hashmap_upd; eauto.
+
+          all: try rewrite firstn_length_l; repeat rewrite app_length;
+          repeat rewrite map_length; try lia.
+          all: setoid_rewrite e1; lia.
         }
         {
           repeat rewrite app_length in *; eauto.
@@ -1903,8 +2061,7 @@ Proof.
           lia.
         }
         {
-          (** SOlve with lemma **)
-          admit.
+          apply records_are_consecutive_starting_from_app_one; eauto.          
         }
       }
       {
@@ -1990,8 +2147,10 @@ Proof.
             rewrite skipn_app_l.
             rewrite skipn_app_r_ge.
             rewrite map_length.
-            replace (length l_addr + count (current_part (decode_header v0)) - count (current_part (decode_header v0)) -
-                                     length l_addr) with 0 by lia; simpl.
+            replace (length l_addr + 
+            count (current_part (decode_header v0)) 
+            - count (current_part (decode_header v0)) 
+            - length l_addr) with 0 by lia; simpl.
             rewrite firstn_app_l.
             rewrite firstn_oob; eauto.
             rewrite map_length; eauto.
@@ -2006,22 +2165,43 @@ Proof.
             setoid_rewrite e1; lia.
           }
           {
-            (** Solve this. Mem.upd_batch new encryption
-            erewrite Mem.upd_batch_eq.
-            eapply upd_batch_consistent_some; eauto.*)
-            admit.
+            rewrite Mem.upd_batch_app.
+            rewrite consistent_with_upds_upd_batch_swap.
+            {
+              eapply in_seln in H7.
+              eapply (in_split_last value_dec) in H7; logic_clean.
+              rewrite H7 at 1 2.
+              repeat rewrite map_app; simpl.
+              rewrite Mem.upd_batch_app; simpl.
+              rewrite Mem.upd_batch_ne; eauto.
+              rewrite Mem.upd_eq; eauto.
+              intros Hx; apply in_map_iff in Hx; logic_clean.
+              apply encrypt_ext in H9; subst; eauto.
+              repeat rewrite map_length; eauto.
+            }
+            repeat rewrite map_app in *; eauto.
+            all: repeat rewrite map_length; eauto.
           }
           {
-            (** Solve this. Mem.upd_batch new encryption
-            erewrite Mem.upd_batch_eq.
-            eapply upd_batch_consistent_some; eauto.*)
-            admit.
+            rewrite Mem.upd_batch_app.
+            {
+              eapply in_seln in H7.
+              eapply (in_split_last value_dec) in H7; logic_clean.
+              rewrite H7 at 1 2.
+              repeat rewrite map_app; simpl.
+              rewrite Mem.upd_batch_app; simpl.
+              rewrite Mem.upd_batch_ne; eauto.
+              rewrite Mem.upd_eq; eauto.
+              intros Hx; apply in_map_iff in Hx; logic_clean.
+              apply encrypt_ext in H9; subst; eauto.
+              repeat rewrite map_length; eauto.
+            }
+            repeat rewrite map_length; eauto.
           }
         }
       }
     }
   }
-  
   {
     rewrite sync_upd_comm; simpl.
     rewrite upd_ne; eauto.
@@ -2047,7 +2227,7 @@ Proof.
     lia.
   }
   eauto.
-Admitted.
+Qed.
 
 
 
@@ -2131,8 +2311,8 @@ Proof.
       {
         unfold header_part_is_valid in *; simpl in *; logic_clean.
         intuition eauto.
-        (** Hashes in hashmap goal **)
-        admit.
+        eapply hashes_in_hashmap_subset; eauto.
+        eapply upd_batch_consistent_subset; eauto.
       }
       {
         unfold txns_valid in *; simpl in *; logic_clean.
@@ -2982,8 +3162,25 @@ Proof.
               repeat rewrite map_app.
               rewrite firstn_app_le.
               rewrite firstn_app2.
-              (** Hashes in hashmap goal **)
-              admit.
+              {
+                repeat rewrite <- firstn_map_comm.
+                eapply hashes_in_hashmap_app.
+                eapply hashes_in_hashmap_subset.
+                eauto.
+                eapply upd_batch_consistent_subset; eauto.
+                rewrite bimap_combine_map.
+                rewrite map_map; simpl.
+                rewrite map_fst_combine.
+                rewrite <- map_app.
+                setoid_rewrite <- H.
+                rewrite D; simpl.
+                subst; eapply hashes_in_hashmap_upd; eauto.
+      
+                all: try rewrite firstn_length_l; repeat rewrite app_length;
+                repeat rewrite map_length; try lia.
+                rewrite skipn_length. rewrite app_length in *.
+                setoid_rewrite H9; lia.
+              }
 
               repeat rewrite map_length;
               rewrite bimap_length, min_l.
@@ -2997,7 +3194,7 @@ Proof.
               rewrite skipn_length; lia.
               rewrite D in *; simpl in *.
               rewrite map_length, firstn_length_l; lia.
-              apply upd_batch_consistent_subset; eauto.
+              eauto.
               rewrite D in *; simpl in *.
               rewrite app_length in *; lia.
               {
@@ -3006,8 +3203,9 @@ Proof.
                 lia.
               }
               {
-                (** Records are consecutive goal **)
-                admit.
+                rewrite D in *; simpl in *; eauto.
+                eapply records_are_consecutive_starting_from_app_one; 
+                simpl; eauto.
               }              
             }
             {
@@ -3092,13 +3290,41 @@ Proof.
                     rewrite map_length, firstn_length_l; lia.
                   }
                   {
-                    (** New encryption **)
-                    admit.
-                  }
-                  {
-                    (** New encryption **)
-                    admit.
-                  }
+                    repeat rewrite map_app in *.
+                    rewrite Mem.upd_batch_app.
+            rewrite consistent_with_upds_upd_batch_swap.
+            {
+              eapply in_seln in H16.
+              eapply (in_split_last value_dec) in H16; logic_clean.
+              rewrite H16 at 1 2.
+              repeat rewrite map_app; simpl.
+              rewrite Mem.upd_batch_app; simpl.
+              rewrite Mem.upd_batch_ne; eauto.
+              rewrite Mem.upd_eq; eauto.
+              intros Hx; apply in_map_iff in Hx; logic_clean.
+              apply encrypt_ext in H18; subst; eauto.
+              repeat rewrite map_length; eauto.
+            }
+            repeat rewrite map_app in *; eauto.
+            all: repeat rewrite map_length; eauto.
+          }
+          {
+            repeat rewrite map_app in *.
+            rewrite Mem.upd_batch_app.
+            {
+              eapply in_seln in H16.
+              eapply (in_split_last value_dec) in H16; logic_clean.
+              rewrite H16 at 1 2.
+              repeat rewrite map_app; simpl.
+              rewrite Mem.upd_batch_app; simpl.
+              rewrite Mem.upd_batch_ne; eauto.
+              rewrite Mem.upd_eq; eauto.
+              intros Hx; apply in_map_iff in Hx; logic_clean.
+              apply encrypt_ext in H18; subst; eauto.
+              repeat rewrite map_length; eauto.
+            }
+            repeat rewrite map_length; eauto.
+          }
                 }
               }
             }
@@ -3188,7 +3414,7 @@ Proof.
       }
       Unshelve.
       all: repeat constructor; eauto.
-Admitted.
+Qed.
 
 
 

@@ -7,6 +7,46 @@ Require Import Compare_dec.
 
 Set Nested Proofs Allowed.
 
+
+Lemma select_total_mem_upd_set_ne:
+    forall (A : Type) (AEQ : EqDec A) (V : Type) (a : A)
+    (v : V) selector m a',
+    a <> a' ->
+    select_total_mem selector (upd_set m a v) a' =
+    select_total_mem selector m a'.
+    Proof.
+      unfold select_total_mem, 
+      select_for_addr, upd_set; simpl; intros.
+      destruct (AEQ a' a); try congruence.
+    Qed.  
+
+    Lemma select_total_mem_upd_batch_set_not_in:
+    forall (A : Type) (AEQ : EqDec A) (V : Type) (l_a : list A)
+    (l_v : list V) selector (m : @total_mem A AEQ (V * list V)) a,
+    ~In a l_a -> 
+    select_total_mem selector (upd_batch_set m l_a l_v) a =
+    select_total_mem selector m a.
+    Proof.
+      induction l_a; simpl; intros; eauto.
+      destruct l_v; simpl in *; cleanup; eauto.
+      erewrite IHl_a; intuition.
+      rewrite select_total_mem_upd_set_ne; eauto.
+    Qed.
+
+    Lemma select_total_mem_list_upd_batch_set_not_in:
+    forall (A : Type) (AEQ : EqDec A) (V : Type) (l_l_a : list (list A))
+    (l_l_v : list (list V)) selector m a,
+    Forall (fun l_a => ~In a l_a) l_l_a ->
+    select_total_mem selector (list_upd_batch_set m l_l_a l_l_v) a =
+    select_total_mem selector m a.
+    Proof.
+      induction l_l_a; simpl; intros; eauto.
+      destruct l_l_v; simpl in *; cleanup; eauto.
+      inversion H; cleanup; rewrite IHl_l_a; eauto.
+    rewrite select_total_mem_upd_batch_set_not_in; eauto.
+    Qed.
+
+
 Lemma header_part0_valid:
   forall log_blocksets hm,
     header_part_is_valid log_blocksets hm header_part0.
@@ -1127,6 +1167,7 @@ Qed.
 
 Lemma reboot_rep_to_reboot_rep_updated :
   forall s txns selector,
+    Forall (Forall (fun a => a >= data_start)) (map addr_list txns) ->
     log_reboot_rep [] (fst s, select_total_mem selector (snd s)) ->
     log_reboot_rep [] (fst s, select_total_mem selector (list_upd_batch_set (snd s) (map addr_list txns) (map data_blocks txns))).
 Proof. 
@@ -1134,16 +1175,24 @@ Proof.
   do 4 eexists; intuition eauto.
   {
     unfold log_header_block_rep in *; simpl in *; cleanup.
-    (** Doable **)
-    admit.
+    split; eauto.
+    eapply select_total_mem_list_upd_batch_set_not_in; eauto.
+    apply Forall_forall; intros.
+    eapply Forall_forall in H; eauto.
+    intros Hx; eapply Forall_forall in H; eauto.
+    pose proof data_start_where_log_ends;
+    pose proof hdr_before_log; lia.
   }
   {
     unfold log_data_blocks_rep in *; simpl in *; cleanup.
     intuition eauto.
-    (** Doable **)
-    admit.
+    erewrite select_total_mem_list_upd_batch_set_not_in; eauto.
+    apply Forall_forall; intros.
+    eapply Forall_forall in H; eauto.
+    intros Hx; eapply Forall_forall in H; eauto.
+    pose proof data_start_where_log_ends; lia.
   }
-Admitted.
+Qed.
 
 
 Lemma crash_rep_recover_to_reboot_rep :
