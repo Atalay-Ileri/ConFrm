@@ -105,7 +105,6 @@ Proof.
   destruct (in_dec AEQ x l_a1).
   {
     eapply_fresh (in_split_last AEQ) in i; cleanup.
-    Search length eq app cons.
     edestruct nth_split with (l:= l_v1) (n:= length x0).
     rewrite app_length in *; simpl in *; lia.
     logic_clean.
@@ -3412,8 +3411,10 @@ Proof.
         pose proof hdr_before_log.
         lia.
       }
-      Unshelve.
-      all: repeat constructor; eauto.
+    }
+  }
+  Unshelve.
+  all: repeat constructor; eauto.
 Qed.
 
 
