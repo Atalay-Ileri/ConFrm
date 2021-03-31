@@ -1075,6 +1075,79 @@ Proof.
   }
 Qed.
 
+Lemma upd_batch_in:
+forall A AEQ V l_a l_v (s1 s2: @total_mem A AEQ V) a,
+In a l_a ->
+length l_a = length l_v ->
+upd_batch s1 l_a l_v a = upd_batch s2 l_a l_v a.
+Proof.
+  induction l_a; simpl; intros; eauto.
+  intuition.
+  destruct l_v; simpl in *; try lia.
+  destruct H; subst; eauto.
+  destruct (in_dec AEQ a0 l_a); eauto.
+  repeat rewrite upd_batch_ne; eauto.
+  repeat rewrite upd_eq; eauto.
+Qed.
+
+Lemma list_upd_batch_in:
+forall A AEQ V l_l_a l_l_v (s1 s2: @total_mem A AEQ V) a,
+(exists l_a, In l_a l_l_a /\ In a l_a) ->
+Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v ->
+list_upd_batch s1 l_l_a l_l_v a = list_upd_batch s2 l_l_a l_l_v a.
+Proof.
+  induction l_l_a; simpl; intros; eauto.
+  destruct H; intuition.
+  apply forall2_length in H0 as Hx.
+  destruct l_l_v; simpl in *; try lia.
+  destruct H; intuition; subst; eauto.
+  {
+    destruct (list_list_in_EXM AEQ l_l_a a0).
+    destruct H; intuition.
+    eapply IHl_l_a; eauto.
+    eexists; intuition eauto.
+    apply in_seln; eauto.
+    inversion H0; eauto.
+    repeat rewrite list_upd_batch_not_in; eauto.
+    apply  upd_batch_in; eauto.
+    inversion H0; eauto.
+  }
+  {
+    eapply IHl_l_a; eauto.
+    inversion H0; eauto.
+  }
+Qed.
+
+Lemma list_upd_batch_upd_batch_in_noop:
+  forall A AEQ V l_l_a l_l_v l_a l_v (s: @total_mem A AEQ V),
+    Forall2 (fun l_a l_v => length l_a = length l_v) l_l_a l_l_v -> 
+    In l_a l_l_a ->
+    length l_a = length l_v  ->
+    list_upd_batch (upd_batch s l_a l_v) l_l_a l_l_v =
+    list_upd_batch s l_l_a l_l_v.
+Proof.
+  induction l_l_a; simpl; intros; eauto.
+  intuition.
+  eapply forall2_length in H as Hx.
+  destruct l_l_v; simpl in *; try lia.
+  intuition subst.
+  rewrite upd_batch_upd_batch_noop; eauto.
+  inversion H; eauto.
+  extensionality x.
+  destruct (list_list_in_EXM AEQ l_l_a x).
+  destruct H0; intuition.
+  eapply list_upd_batch_in; eauto.
+  eexists; split; [|eauto].
+  apply in_seln; eauto.
+  inversion H; eauto.
+
+  repeat rewrite list_upd_batch_not_in; eauto.
+  destruct (in_dec AEQ x a); subst.
+  apply upd_batch_in; eauto.
+  inversion H; eauto.
+  repeat rewrite upd_batch_ne; eauto.
+Qed.
+
 Lemma shift_some :
   forall A AEQ V f (m: @total_mem A AEQ V) a,
     shift f m a = m (f a).
@@ -1139,6 +1212,8 @@ Proof.
     rewrite list_upd_batch_not_in in *; eauto.
   }
 Qed.
+
+
 
 
 Lemma upd_batch_eq:

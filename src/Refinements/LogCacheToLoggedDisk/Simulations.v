@@ -306,64 +306,98 @@ Proof.
       }
         { (** During Apply Case **)
           unfold cached_log_crash_rep in *; cleanup.
-          eapply crash_rep_apply_to_reboot_rep in H1.
-          repeat split_ors; edestruct recovery_simulation; eauto;
-          try solve [eapply H3; eauto].
+          split_ors.
           {
-            unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
-            split.          
-            eexists; intuition eauto.
-            intros.
-            apply select_total_mem_synced in H3; eauto.
+            eapply crash_rep_apply_to_reboot_rep in H1.
+            repeat split_ors; edestruct recovery_simulation; eauto;
+            try solve [eapply H3; eauto].
+            {
+              unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
+              split.          
+              eexists; intuition eauto.
+              intros.
+              apply select_total_mem_synced in H3; eauto.
+            }
+            {
+              
+              exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+              unfold logged_disk_reboot_list; simpl.
+              eapply ExecRecovered.
+              repeat econstructor.
+              unfold refines_to, cached_log_rep in *; cleanup.
+              unfold log_rep, log_reboot_rep, log_rep_general in *.
+              logic_clean.
+              erewrite map_addr_list_eq_map_map; eauto.
+              rewrite shift_list_upd_batch_set_comm; eauto.
+              erewrite <- shift_select_total_mem_synced.      
+              repeat rewrite <- shift_list_upd_batch_set_comm.        
+              repeat erewrite <- map_addr_list_eq_map_map; eauto.
+              
+              all: try apply sumbool_agree_addr_dec.
+              (** Investigate this further **)
+              admit.
+            }
+            {
+              unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
+              split.
+              eexists; intuition eauto.
+              intros.
+              apply select_total_mem_synced in H3; eauto.
+            }
+            {
+              exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+              unfold logged_disk_reboot_list; simpl.
+              eapply ExecRecovered.
+              repeat econstructor.
+              unfold refines_to, cached_log_rep in *; cleanup.
+              simpl in *.
+              unfold log_rep, log_reboot_rep, log_rep_general in *.
+              logic_clean.
+              (** XXXX
+              erewrite map_addr_list_eq_map_map; eauto.
+              rewrite shift_list_upd_batch_set_comm; eauto.
+              erewrite <- shift_select_total_mem_synced.      
+              repeat rewrite <- shift_list_upd_batch_set_comm.        
+              repeat erewrite <- map_addr_list_eq_map_map; eauto.
+              
+              all: try apply sumbool_agree_addr_dec.
+              intros; apply H5; lia.
+              **)
+              admit.
+            }
           }
           {
-            
-            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
-            unfold logged_disk_reboot_list; simpl.
-            eapply ExecRecovered.
-            repeat econstructor.
-            unfold refines_to, cached_log_rep in *; cleanup.
-            unfold log_rep, log_reboot_rep, log_rep_general in *.
-            logic_clean.
-            erewrite map_addr_list_eq_map_map; eauto.
-            rewrite shift_list_upd_batch_set_comm; eauto.
-            erewrite <- shift_select_total_mem_synced.      
-            repeat rewrite <- shift_list_upd_batch_set_comm.        
-            repeat erewrite <- map_addr_list_eq_map_map; eauto.
-            
-            all: try apply sumbool_agree_addr_dec.
-            (** Investigate this further **)
-            admit.
-          }
-          {
-            unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
-            split.
-            eexists; intuition eauto.
-            intros.
-            apply select_total_mem_synced in H3; eauto.
-          }
-          {
-            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
-            unfold logged_disk_reboot_list; simpl.
-            eapply ExecRecovered.
-            repeat econstructor.
-            unfold refines_to, cached_log_rep in *; cleanup.
-            simpl in *.
-            unfold log_rep, log_reboot_rep, log_rep_general in *.
-            logic_clean.
-            (** XXXX
-            erewrite map_addr_list_eq_map_map; eauto.
-            rewrite shift_list_upd_batch_set_comm; eauto.
-            erewrite <- shift_select_total_mem_synced.      
-            repeat rewrite <- shift_list_upd_batch_set_comm.        
-            repeat erewrite <- map_addr_list_eq_map_map; eauto.
-            
-            all: try apply sumbool_agree_addr_dec.
-            intros; apply H5; lia.
-             **)
-            admit.
-          }
-        }        
+            eapply log_rep_to_reboot_rep in H1.
+            repeat split_ors; edestruct recovery_simulation; eauto;
+            try solve [eapply H3; eauto].
+            {
+              unfold refines_to_reboot, cached_log_reboot_rep; simpl.          
+              split.          
+              eexists; intuition eauto.
+              intros.
+              apply select_total_mem_synced in H3; eauto.
+            }
+            {
+              
+              exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+              unfold logged_disk_reboot_list; simpl.
+              eapply ExecRecovered.
+              repeat econstructor.
+              unfold refines_to, cached_log_rep in *; cleanup.
+              unfold log_rep, log_reboot_rep, log_rep_general in *.
+              logic_clean.
+              erewrite map_addr_list_eq_map_map; eauto.
+              rewrite shift_list_upd_batch_set_comm; eauto.
+              erewrite <- shift_select_total_mem_synced.      
+              repeat rewrite <- shift_list_upd_batch_set_comm.        
+              repeat erewrite <- map_addr_list_eq_map_map; eauto.
+              
+              all: try apply sumbool_agree_addr_dec.
+              (** Investigate this further **)
+              admit.
+            }
+          }        
+        }
         {
           unfold cached_log_crash_rep in H1; cleanup.
           edestruct recovery_simulation; eauto;

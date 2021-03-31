@@ -132,7 +132,8 @@ Definition cached_log_crash_rep cached_log_crash_state (s: Language.state Cached
 
   | During_Apply merged_disk =>
     exists txns,
-    log_crash_rep (Log.During_Apply txns) (snd s) /\
+    (log_crash_rep (Log.During_Apply txns) (snd s) \/
+    log_rep txns (snd s)) /\
      merged_disk = total_mem_map fst (shift (plus data_start)
         (list_upd_batch_set (snd (snd s)) (map addr_list txns)
                         (map data_blocks txns)))
@@ -1431,31 +1432,53 @@ Proof.
              {               
                split_ors; cleanup.
                {
-                 left. unfold cached_log_rep; simpl.
+                 right.
+                 intuition eauto.
+                 right. right. left.
                  eexists; intuition eauto.
+                 unfold log_rep, log_rep_general, 
+                 log_rep_explicit, log_crash_rep,
+                 log_rep_inner, txns_valid, header_part_is_valid in *; 
+                 simpl in *; logic_clean.
+                 rewrite <- H23.
+                 repeat erewrite RepImplications.bimap_get_addr_list; eauto.
                  repeat rewrite total_mem_map_shift_comm.
                  repeat rewrite total_mem_map_fst_list_upd_batch_set.
-                 rewrite total_mem_map_fst_upd_batch_set.
-                 rewrite total_mem_map_fst_list_upd_batch_set.
-                 rewrite upd_batch_to_list_upd_batch_singleton.
-                 setoid_rewrite <- list_upd_batch_app at 2.
-                 unfold log_rep_general, log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-                 rewrite <- H11.
-                 erewrite RepImplications.bimap_get_addr_list.
-                 4: eauto.
-                 rewrite list_upd_batch_firstn_noop; eauto.                 
-                 eapply log_rep_forall2_txns_length_match; eauto.
-                 eauto.
+                 repeat rewrite total_mem_map_fst_upd_batch_set.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+                 destruct (list_list_in_EXM addr_dec (map addr_list x) (data_start + a)); 
+                 try logic_clean.
+                 eapply list_upd_batch_in; eauto.
+                 eexists; split; eauto.
+                 apply in_seln; eauto.
+
+                 apply forall_forall2.
+                 apply Forall_forall; intros.
+                 rewrite <- combine_map in H32.
+                 apply in_map_iff in H32; logic_clean.
+                 eapply Forall_forall in H12; eauto.
+                 unfold txn_well_formed in H12; logic_clean; eauto.
+                 destruct x11; simpl in *.
+                 inversion H32; subst.
+                 rewrite H36, <- H40, firstn_length_l; eauto. 
+                 repeat rewrite map_length; eauto.
+                 
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 rewrite upd_batch_ne.
+                 rewrite list_upd_batch_not_in; eauto.
+                 intros.
+                 apply in_firstn_in in H30; eauto.
+                 intros Hx.
+                 apply in_firstn_in in Hx; eauto.
+                 eapply H29; eauto.
+                 apply in_seln; eauto.
+                 destruct (lt_dec x1 (length (map addr_list x))); eauto.
+                 rewrite seln_oob in Hx; eauto.
+                 simpl in *; intuition.
+                 lia.
                  rewrite map_length; eauto.
-                 unfold log_rep_general, log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-                 rewrite <- H11.                 
-                 erewrite RepImplications.bimap_get_addr_list.
-                 repeat rewrite firstn_length, map_length; eauto.
-                 3: eauto.
-                 eauto.
-                 rewrite map_length; eauto.
-                 (** Apply log crash being synced  not true *)
-                 admit.
                }
                split_ors; cleanup.
                {
@@ -1904,7 +1927,7 @@ Proof.
   all: try solve [left; eexists; intuition eauto].
   Unshelve.
   apply value0.
-Admitted.
+Qed.
 
 
   

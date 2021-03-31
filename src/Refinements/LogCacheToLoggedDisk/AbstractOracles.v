@@ -480,18 +480,34 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         eexists; repeat split; eauto.
         right.
         eexists; left; intuition eauto.
-        unfold cached_log_rep in H9; cleanup.
+        {
+          unfold cached_log_rep in H3; cleanup.
+          right; left; eauto.
+          unfold cached_log_crash_rep in *;
+          simpl in *; cleanup.
+          eexists; intuition eauto.
+          setoid_rewrite <- H8.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H3; eauto.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          setoid_rewrite <- H3; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+          eapply log_rep_forall2_txns_length_match; eauto.
+        }
+        {
+          unfold cached_log_rep in H3; cleanup.
         right; left; eauto.
         unfold cached_log_crash_rep in *;
         simpl in *; cleanup.
         eexists; intuition eauto.
         setoid_rewrite <- H8.
-        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H9; eauto.
+        eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H3; eauto.
         repeat rewrite total_mem_map_shift_comm in *.
         repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
-        setoid_rewrite <- H9; eauto.
+        setoid_rewrite <- H3; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
+        }
         eauto.
       }
       {
@@ -553,12 +569,21 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           }
           split_ors; cleanup.
           {
+            split_ors.
+            {
             eapply crash_rep_apply_to_reboot_rep in H1.
             split_ors;
             eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H8; eauto.
             eapply select_total_mem_synced in H8; eauto.
+            }
+            {
+              eapply log_rep_to_reboot_rep in H1.
+            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; intuition eauto.
+            eapply select_total_mem_synced in H8; eauto.
+            }
           }
           {
             eapply log_rep_to_reboot_rep in H1.
@@ -569,6 +594,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         }
       }
     }
+    
   Admitted.
 
   Fixpoint not_init {T} (p_abs: abs.(prog) T) :=
