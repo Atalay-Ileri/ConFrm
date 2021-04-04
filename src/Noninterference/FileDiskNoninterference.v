@@ -761,32 +761,17 @@ Proof.
       invert_exec; cleanup.
       exists (RFinished s2 None); simpl.
       repeat (split; eauto).
-      repeat split_ors;
-      try solve [ repeat econstructor; eauto].
       {
+        
+        unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+        eapply H2 in H11; eauto; cleanup.
         do 3 econstructor; eauto.
-        unfold FD_related_states, same_for_user_except,
-        addrs_match_exactly in *.
-        destruct_fresh (s2 inum); eauto.
-        cleanup; eauto.
-        destruct (i inum).
-        exfalso; apply H2; congruence.
-      }
-      {
-        cleanup.        
-        unfold FD_related_states, same_for_user_except,
-        addrs_match_exactly in *.
-        destruct_fresh (s2 inum); eauto.
-        cleanup; eauto.
-        eapply H4 in H; eauto; try congruence; cleanup.
-        do 3 econstructor; intuition eauto.
-        cleanup; eauto.
-        destruct (H2 inum).
-        exfalso; apply H5; congruence.
-      }
-      {
         cleanup.
-        intuition eauto.
+        edestruct H.
+        exfalso; apply H3; eauto; congruence.
       }
     }
   }
@@ -1043,6 +1028,25 @@ Proof.
       destruct (H inum).
       exfalso; apply H3; congruence.
     }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+      eapply H2 in H10; eauto; cleanup.
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+
+      cleanup.
+      edestruct H; exfalso.
+      eapply H3; eauto; congruence.
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
   }
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1282,6 +1286,25 @@ Proof.
         intuition eauto.
       }
     }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+      eapply H2 in H10; eauto; cleanup.
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+
+      cleanup.
+      edestruct H; exfalso.
+      eapply H3; eauto; congruence.
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
   }
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1493,6 +1516,16 @@ Proof.
         cleanup; eauto.
         apply H1; eauto.
       }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      invert_exec.
+      try solve [ repeat econstructor; eauto].
       {
         cleanup.
         intuition eauto.
@@ -1722,6 +1755,25 @@ Proof.
         destruct (H2 inum).
         exfalso; apply H5; congruence.
       }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+      eapply H2 in H9; eauto; cleanup.
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+
+      cleanup.
+      edestruct H; exfalso.
+      eapply H3; eauto; congruence.
       {
         cleanup.
         intuition eauto.
@@ -1958,6 +2010,25 @@ Proof.
         destruct (H2 inum).
         exfalso; apply H5; congruence.
       }
+      {
+        cleanup.
+        intuition eauto.
+      }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      repeat (split; eauto).
+      unfold FD_related_states, same_for_user_except,
+        addrs_match_exactly in *.
+        destruct_fresh (s2 inum); eauto.
+        cleanup; eauto.
+      eapply H2 in H11; eauto; cleanup.
+      repeat split_ors;
+      try solve [ repeat econstructor; eauto].
+
+      cleanup.
+      edestruct H; exfalso.
+      eapply H3; eauto; congruence.
       {
         cleanup.
         intuition eauto.
@@ -2202,6 +2273,20 @@ Proof.
         cleanup.
         intuition eauto.
       }
+    }
+    {
+      exists (RFinished s2 None); simpl.
+      unfold FD_related_states, same_for_user_except,
+      addrs_match_exactly in *.
+      destruct_fresh (s2 inum); eauto.
+      cleanup; eauto.
+      eapply H2 in H10; eauto; try congruence; cleanup.      
+      repeat (split; eauto).
+      do 3 econstructor; eauto.
+
+      cleanup; eauto.
+      destruct (H inum).
+      exfalso; apply H3; congruence.
     }
     {
       exists (RFinished s2 None); simpl.
