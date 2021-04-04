@@ -2372,17 +2372,17 @@ Qed.
 (*
 (** Intermediate Layers *)
 (* Authenticated Disk *)
-Definition AD_valid_state := refines_to_valid FileDisk.refinement FD_valid_state.
-Definition AD_related_states := refines_to_related FileDisk.refinement FD_related_states.
+Definition AD_valid_state := refines_valid FileDisk.refinement FD_valid_state.
+Definition AD_related_states := refines_related FileDisk.refinement FD_related_states.
 
 (* Transactional Disk *)
 Definition TD_valid_state s1 := fun s2 => AD_valid_state (s1, s2).
 Definition TD_related_states s1 := fun s2 s2' => AD_related_states (s1, s2) (s1, s2').
 
 (* Transaction Cache *)
-Definition TC_valid_state s1 := refines_to_valid TransactionalDisk.refinement (TD_valid_state s1).
+Definition TC_valid_state s1 := refines_valid TransactionalDisk.refinement (TD_valid_state s1).
 Definition TC_valid_prog  := compiles_to_valid TransactionalDisk.refinement TD_valid_prog.
-Definition TC_related_states s1 := refines_to_related TransactionalDisk.refinement (TD_related_states s1).
+Definition TC_related_states s1 := refines_related TransactionalDisk.refinement (TD_related_states s1).
 
 (* Logged Disk *)
 Definition LD_valid_state s := fun s2 => TC_valid_state (fst s) (snd s, s2).
@@ -2390,9 +2390,9 @@ Definition LD_valid_prog  := horizontally_compose_valid_prog2 (StorageLang (list
 Definition LD_related_states s := fun s2 s2' => TC_related_states (fst s) (snd s, s2) (snd s, s2').
 
 (* Cached Disk *)
-Definition CD_valid_state s1 := refines_to_valid LoggedDisk.refinement (LD_valid_state s1).
+Definition CD_valid_state s1 := refines_valid LoggedDisk.refinement (LD_valid_state s1).
 Definition CD_valid_prog  := compiles_to_valid LoggedDisk.refinement LD_valid_prog.
-Definition CD_related_states s1 := refines_to_related LoggedDisk.refinement (LD_related_states s1).
+Definition CD_related_states s1 := refines_related LoggedDisk.refinement (LD_related_states s1).
 
 (* Crypto Disk *)
 Definition CrD_valid_state s := fun s2 => CD_valid_state (fst s) (snd s, s2).
@@ -2535,21 +2535,21 @@ Qed.
 
 (** Required theorems for transfer *)
 Theorem ortsfr_FD:
-  oracle_refines_to_same_from_related FileDisk.refinement FD_related_states.
+  oracle_refines_same_from_related FileDisk.refinement FD_related_states.
 Proof. Admitted.
 
 Theorem ecpv_FD:  
 exec_compiled_preserves_validity FileDisk.refinement AD_valid_state.
 Proof.
   unfold AD_valid_state, FD_valid_state,
-  exec_compiled_preserves_validity, refines_to_valid; intros; eauto.
+  exec_compiled_preserves_validity, refines_valid; intros; eauto.
 Qed.
 
 
 Theorem ortsfr_TD:
-  forall s, oracle_refines_to_same_from_related TransactionalDisk.refinement (TD_related_states s).
+  forall s, oracle_refines_same_from_related TransactionalDisk.refinement (TD_related_states s).
 Proof.
-  unfold oracle_refines_to_same_from_related; simpl.
+  unfold oracle_refines_same_from_related; simpl.
   induction p2; simpl; intros.
   cleanup.
   eexists; intuition eauto.
@@ -2561,7 +2561,7 @@ Proof.
         destruct sbs.
         edestruct wp_to_exec with (p:= Transaction.start)
       (Q:= strongest_postcondition TransactionToTransactionalDisk.Definitions.low Transaction.start
-         (fun o' s' => refines_to_related TransactionalDisk.refinement (TD_related_states s) s1 s' /\ s' = s2 /\ o' = o)); eauto.
+         (fun o' s' => refines_related TransactionalDisk.refinement (TD_related_states s) s1 s' /\ s' = s2 /\ o' = o)); eauto.
         simpl.
         do 2 eexists; intuition eauto; simpl.
         eexists; intuition eauto; simpl.
@@ -2572,7 +2572,7 @@ Proof.
         instantiate (1:= fst s2); simpl; eauto.
         destruct s2; eauto.
         
-        eapply exec_to_sp with (P:= fun o' s' => refines_to_related TransactionalDisk.refinement (TD_related_states s) s' s2 /\ s' = s1 /\ o' = o) in H0; eauto.
+        eapply exec_to_sp with (P:= fun o' s' => refines_related TransactionalDisk.refinement (TD_related_states s) s' s2 /\ s' = s1 /\ o' = o) in H0; eauto.
         simpl in *; cleanup; eauto.
       
       simpl; eauto.
@@ -2584,10 +2584,10 @@ Proof.
        edestruct wcp_to_exec with (p:= Transaction.start)
       (Q:= strongest_crash_postcondition TransactionToTransactionalDisk.Definitions.low Transaction.start
          (fun o' s' =>
-            refines_to_related TransactionalDisk.refinement (TD_related_states s) s1 s' /\ s' = s2 /\ o' = o)); eauto.
+            refines_related TransactionalDisk.refinement (TD_related_states s) s1 s' /\ s' = s2 /\ o' = o)); eauto.
        do 2 eexists; intuition eauto; simpl.
 
-       eapply exec_to_scp with (P:= fun o' s' => refines_to_related TransactionalDisk.refinement (TD_related_states s) s' s2 /\ s' = s1 /\ o' = o) in H0; eauto.
+       eapply exec_to_scp with (P:= fun o' s' => refines_related TransactionalDisk.refinement (TD_related_states s) s' s2 /\ s' = s1 /\ o' = o) in H0; eauto.
        simpl in *; cleanup; eauto.
 
        split_ors; cleanup; simpl in *;

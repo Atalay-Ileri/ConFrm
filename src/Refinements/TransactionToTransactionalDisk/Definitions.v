@@ -17,7 +17,7 @@ Definition compile  T (p2: abs_op.(operation) T) : prog imp T.
   exact (init l).
 Defined.
 
-Definition token_refines_to  T u (d1: state imp) (p: Core.operation abs_op T) (get_reboot_state: imp.(state) -> imp.(state)) o1 o2 : Prop :=
+Definition token_refines  T u (d1: state imp) (p: Core.operation abs_op T) (get_reboot_state: imp.(state) -> imp.(state)) o1 o2 : Prop :=
      match p with
      (* | Start =>
        (exists d1' r,
@@ -112,31 +112,31 @@ Definition token_refines_to  T u (d1: state imp) (p: Core.operation abs_op T) (g
           o2 = CrashBefore)
      end.
 
-Definition refines_to := transaction_rep.
-Definition refines_to_reboot := transaction_reboot_rep.     
+Definition refines := transaction_rep.
+Definition refines_reboot := transaction_reboot_rep.     
 
 
    Lemma exec_compiled_preserves_refinement_finished_core:
     forall T (p2: abs_op.(Core.operation) T) o1 s1 s1' r u,
-        (exists s2, refines_to s1 s2) ->
+        (exists s2, refines s1 s2) ->
         imp.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
-        (exists s2', refines_to s1' s2').
+        (exists s2', refines s1' s2').
   Proof.
     intros; destruct p2; simpl in *; cleanup.
     {
       eapply read_finished in H0; eauto; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply write_finished in H0; eauto.
       split_ors; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply commit_finished in H0; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply abort_finished in H0; eauto.
       unfold transaction_rep in *; cleanup; eauto.
       exists (snd x, snd x); repeat cleanup_pairs; eauto.
@@ -144,12 +144,12 @@ Definition refines_to_reboot := transaction_reboot_rep.
       pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply recover_finished_2 in H0; eauto.
       cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply init_finished in H0; eauto.
       cleanup; eauto.
       unfold transaction_rep in *; cleanup; eauto.
@@ -160,7 +160,7 @@ Definition refines_to_reboot := transaction_reboot_rep.
   Qed.
 
    
-  Definition TransactionalDiskCoreRefinement := Build_CoreRefinement compile refines_to token_refines_to exec_compiled_preserves_refinement_finished_core.
+  Definition TransactionalDiskCoreRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
   Definition TransactionalDiskRefinement := LiftRefinement abs TransactionalDiskCoreRefinement.
   
   Notation "| p |" := (Op abs_op p)(at level 60).

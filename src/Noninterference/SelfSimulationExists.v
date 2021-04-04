@@ -1,8 +1,8 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
 Require Import FunctionalExtensionality Lia.
 
-Definition AD_valid_state := refines_to_valid FileDiskRefinement FD_valid_state.
-Definition AD_related_states u exc := refines_to_related FileDiskRefinement (FD_related_states u exc).
+Definition AD_valid_state := refines_valid FileDiskRefinement FD_valid_state.
+Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_related_states u exc).
 
 Ltac econstructor_recovery :=
   match goal with
@@ -21,7 +21,7 @@ Proof.
   induction n; simpl;
   unfold SelfSimulation_Exists, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
-  refines_to_valid, refines_to_related,
+  refines_valid, refines_related,
   authenticated_disk_reboot_list in *;
   intros; cleanup; simpl in *.
   {
@@ -45,7 +45,7 @@ Proof.
     intros; eauto.
     intros; eauto.    
     instantiate (1:= (s0, (t2, t2))).
-    unfold refines_to, files_rep in *; simpl in *.
+    unfold refines, files_rep in *; simpl in *.
     cleanup; do 2 eexists; intuition eauto.
     eexists.
     econstructor_recovery.
@@ -67,7 +67,7 @@ Theorem SelfSimulation_Exists_auth_then_exec:
 Proof.
   unfold SelfSimulation_Exists, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
-  refines_to_valid, refines_to_related,
+  refines_valid, refines_related,
   authenticated_disk_reboot_list;
   intros; cleanup; simpl in *.
   destruct m; simpl in *.
@@ -188,7 +188,7 @@ Proof.
    repeat econstructor; eauto.
    {
      clear H H0 H1.
-     unfold refines_to, files_rep,
+     unfold refines, files_rep,
      files_inner_rep, file_map_rep,
      Inode.inode_rep,
      Inode.InodeAllocator.block_allocator_rep,

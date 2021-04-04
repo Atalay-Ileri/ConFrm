@@ -3,37 +3,37 @@ Require Import Lia Primitives Layer.
 Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
   {
     compile_core : forall T, O_abs.(Core.operation) T -> L_imp.(prog) T;
-    refines_to_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
-    token_refines_to: forall T, user -> L_imp.(state) -> O_abs.(Core.operation) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
+    refines_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
+    token_refines: forall T, user -> L_imp.(state) -> O_abs.(Core.operation) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
     exec_compiled_preserves_refinement_finished_core :
       forall T (p2: O_abs.(Core.operation) T) o1 s1 s1' r u,
-        (exists s2, refines_to_core s1 s2) ->
+        (exists s2, refines_core s1 s2) ->
         L_imp.(exec) u o1 s1 (compile_core T p2) (Finished s1' r) ->
-        (exists s2', refines_to_core s1' s2');
+        (exists s2', refines_core s1' s2');
   }.
 
 Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) :=
   {
     compile : forall T, L_abs.(prog) T -> L_imp.(prog) T;
-    refines_to: L_imp.(state) -> L_abs.(state) -> Prop;
-    oracle_refines_to: forall T, user -> L_imp.(state) -> L_abs.(prog) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> L_abs.(oracle) -> Prop;
+    refines: L_imp.(state) -> L_abs.(state) -> Prop;
+    oracle_refines: forall T, user -> L_imp.(state) -> L_abs.(prog) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> L_abs.(oracle) -> Prop;
     exec_compiled_preserves_refinement_finished :
       forall T (p2: L_abs.(prog) T) o1 s1 s1' r u,
-        (exists s2, refines_to s1 s2) ->
+        (exists s2, refines s1 s2) ->
         L_imp.(exec) u o1 s1 (compile T p2) (Finished s1' r) ->
-        (exists s2', refines_to s1' s2');
+        (exists s2', refines s1' s2');
   }.
 
 Arguments Build_CoreRefinement {_ _ _}.
 Arguments compile_core {_ _ _} _ {_}.
-Arguments refines_to_core {_ _ _}.
-Arguments token_refines_to {_ _ _} _ {_}.
+Arguments refines_core {_ _ _}.
+Arguments token_refines {_ _ _} _ {_}.
 Arguments exec_compiled_preserves_refinement_finished_core {_ _ _}.
 
 Arguments Build_Refinement {_ _ _ _}.
 Arguments compile {_ _ _ _} _ {_}.
-Arguments refines_to {_ _ _ _}.
-Arguments oracle_refines_to {_ _ _ _} _ {_}.
+Arguments refines {_ _ _ _}.
+Arguments oracle_refines {_ _ _ _} _ {_}.
 Arguments exec_compiled_preserves_refinement_finished {_ _ _ _}.
 
 Section Relations.
@@ -51,12 +51,12 @@ Section Relations.
       length lo_imp = length lo_abs /\
       (forall s' t,
          L_imp.(exec) u o_imp s (R.(compile) p_abs) (Finished s' t) ->
-         R.(oracle_refines_to) u s p_abs (fun s => s) o_imp o_abs) /\
+         R.(oracle_refines) u s p_abs (fun s => s) o_imp o_abs) /\
       (forall s',
          L_imp.(exec) u o_imp s (R.(compile) p_abs) (Crashed s') ->
          match l_get_reboot_state_imp with
          | get_reboot_state_imp :: lgrsi =>
-           R.(oracle_refines_to) u s p_abs get_reboot_state_imp o_imp o_abs /\
+           R.(oracle_refines) u s p_abs get_reboot_state_imp o_imp o_abs /\
            recovery_oracles_refine_to u (get_reboot_state_imp s') rec_abs rec_abs lgrsi loi loa
          | _ => False
          end)
@@ -72,29 +72,29 @@ Definition abstract_oracles_exist_wrt Rel (u: user) {T} (p_abs: L_abs.(prog) T) 
 (** 
 A relation that takes 
    - two input states (si1 and si2), 
-   - a refinement realiton (refines_to), and
+   - a refinement realiton (refines), and
    - a relation (related_abs)
 and asserts that 
     - there are two other abstract states (sa1 and sa2) such that,
-    - si1 (si2) refines to sa1 (sa2) via refines_to relation, and
+    - si1 (si2) refines to sa1 (sa2) via refines relation, and
     - sa1 and sa2 are related via related_abs
 **)
-  Definition refines_to_related 
+  Definition refines_related 
              (related_abs:  L_abs.(state) -> L_abs.(state) -> Prop)
              (si1 si2: L_imp.(state))
     : Prop :=
     exists (sa1 sa2: L_abs.(state)),
-      R.(refines_to) si1 sa1 /\
-      R.(refines_to) si2 sa2 /\
+      R.(refines) si1 sa1 /\
+      R.(refines) si2 sa2 /\
       related_abs sa1 sa2.
 
 
-Definition refines_to_valid 
+Definition refines_valid 
            (valid_state_abs: L_abs.(state) -> Prop)
            (si: L_imp.(state))
   : Prop :=
   forall (sa: L_abs.(state)),
-    R.(refines_to) si sa ->
+    R.(refines) si sa ->
     valid_state_abs sa.
 
 
@@ -105,13 +105,13 @@ Definition exec_compiled_preserves_validity  {T} (u: user)(p_abs: L_abs.(prog) T
       valid_state (extract_state_r ret).
 
 
-Definition oracle_refines_to_same_from_related
+Definition oracle_refines_same_from_related
             (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
             rec_abs
             l_get_reboot_state_imp
            (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
   forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
-    refines_to_related related_states_abs s1_imp s2_imp ->
+    refines_related related_states_abs s1_imp s2_imp ->
     recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
     recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
@@ -211,7 +211,7 @@ Definition SimulationForProgramGeneral
  Definition SimulationForProgram u T (p_abs: L_abs.(prog) T) (rec_abs : L_abs.(prog) unit)
            l_get_reboot_state_imp
            l_get_reboot_state_abs :=
-    SimulationForProgramGeneral u T p_abs rec_abs l_get_reboot_state_imp l_get_reboot_state_abs R.(refines_to) R.(refines_to).
+    SimulationForProgramGeneral u T p_abs rec_abs l_get_reboot_state_imp l_get_reboot_state_abs R.(refines) R.(refines).
 
 Definition Simulation rec_abs l_get_reboot_state_imp l_get_reboot_state_abs
     := forall u T (p_abs: L_abs.(prog) T),
@@ -281,11 +281,11 @@ Qed.
 End Relations.
 
 Arguments recovery_oracles_refine_to {_ _ _ _} _ {_}.
-Arguments refines_to_related {_ _ _ _}.
-Arguments refines_to_valid {_ _ _ _}.
+Arguments refines_related {_ _ _ _}.
+Arguments refines_valid {_ _ _ _}.
 Arguments exec_compiled_preserves_validity {_ _ _ _} _ {_}.
 Arguments abstract_oracles_exist_wrt {_ _ _ _} _ _ _ {_}.
-Arguments oracle_refines_to_same_from_related {_ _ _ _} _ _ {_}.
+Arguments oracle_refines_same_from_related {_ _ _ _} _ _ {_}.
 Arguments SelfSimulation {_ _} _ {_}.
 Arguments SelfSimulation_Weak {_ _} _ {_}.
 Arguments SelfSimulation_Exists {_ _} _ {_}.
@@ -323,31 +323,31 @@ Lemma SS_transfer:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
-    abstract_oracles_exist_wrt R R.(refines_to) u p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exist_wrt R R.(refines_to) u p2_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
     
-    oracle_refines_to_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
+    oracle_refines_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
     exec_compiled_preserves_validity R
     u p1_abs rec_abs l_get_reboot_state_imp
-    (refines_to_valid R valid_state_abs) ->
+    (refines_valid R valid_state_abs) ->
 
     exec_compiled_preserves_validity R
     u p2_abs rec_abs l_get_reboot_state_imp
-    (refines_to_valid R valid_state_abs) ->
+    (refines_valid R valid_state_abs) ->
 
     SelfSimulation_Exists u (compile R p1_abs)
     (compile R p2_abs) (compile R rec_abs)
-    (refines_to_valid R valid_state_abs)
-    (refines_to_related R equivalent_states_abs)
+    (refines_valid R valid_state_abs)
+    (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->
     
     SelfSimulation
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
-      (refines_to_valid R valid_state_abs)
-      (refines_to_related R equivalent_states_abs)
+      (refines_valid R valid_state_abs)
+      (refines_related R equivalent_states_abs)
       cond
       l_get_reboot_state_imp.
 Proof.
@@ -358,7 +358,7 @@ Proof.
   unfold SelfSimulation_Weak; simpl; intros.
 
   (** Construct abs oracles **)
-  (* unfold refines_to_valid, refines_to_related in *; cleanup. *)
+  (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -367,18 +367,18 @@ Proof.
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
     eapply_fresh H2 in H0; eauto; cleanup;
-    try solve [ unfold refines_to_valid, refines_to_related in *; cleanup; eauto]
+    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
   end.
   
   match goal with
   | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
      H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H1: oracle_refines_to_same_from_related _ _ _ _ _ _ _ |- _ ] =>
+     H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
   
   (** Construct abs executions **)
-  unfold refines_to_related in *; cleanup.
+  unfold refines_related in *; cleanup.
   
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -447,25 +447,25 @@ Lemma SSW_transfer:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
-    abstract_oracles_exist_wrt R R.(refines_to) u p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exist_wrt R R.(refines_to) u p2_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
     
-    oracle_refines_to_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
+    oracle_refines_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
     exec_compiled_preserves_validity R
     u p1_abs rec_abs l_get_reboot_state_imp
-    (refines_to_valid R valid_state_abs) ->
+    (refines_valid R valid_state_abs) ->
 
     exec_compiled_preserves_validity R
     u p2_abs rec_abs l_get_reboot_state_imp
-    (refines_to_valid R valid_state_abs) ->
+    (refines_valid R valid_state_abs) ->
     
     SelfSimulation_Weak
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
-      (refines_to_valid R valid_state_abs)
-      (refines_to_related R equivalent_states_abs)
+      (refines_valid R valid_state_abs)
+      (refines_related R equivalent_states_abs)
       cond
       l_get_reboot_state_imp.
 Proof.
@@ -475,7 +475,7 @@ Proof.
   unfold SelfSimulation_Weak; simpl; intros.
 
   (** Construct abs oracles **)
-  (* unfold refines_to_valid, refines_to_related in *; cleanup. *)
+  (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -484,18 +484,18 @@ Proof.
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
     eapply_fresh H2 in H0; eauto; cleanup;
-    try solve [ unfold refines_to_valid, refines_to_related in *; cleanup; eauto]
+    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
   end.
   
   match goal with
   | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
      H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H1: oracle_refines_to_same_from_related _ _ _ _ _ _ _ |- _ ] =>
+     H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
   
   (** Construct abs executions **)
-  unfold refines_to_related in *; cleanup.
+  unfold refines_related in *; cleanup.
   
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -536,21 +536,21 @@ Lemma SS_All_Valid_transfer:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
-    abstract_oracles_exist_wrt R R.(refines_to) u p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exist_wrt R R.(refines_to) u p2_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
     
-    oracle_refines_to_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
+    oracle_refines_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
     SelfSimulation_Exists_All_Valid u (compile R p1_abs)
     (compile R p2_abs) (compile R rec_abs)
-    (refines_to_related R equivalent_states_abs)
+    (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->
     
     SelfSimulation_All_Valid
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
-      (refines_to_related R equivalent_states_abs)
+      (refines_related R equivalent_states_abs)
       cond
       l_get_reboot_state_imp.
 Proof.
@@ -561,7 +561,7 @@ Proof.
   unfold SelfSimulation_Weak_All_Valid; simpl; intros.
 
   (** Construct abs oracles **)
-  (* unfold refines_to_valid, refines_to_related in *; cleanup. *)
+  (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -570,18 +570,18 @@ Proof.
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
     eapply_fresh H2 in H0; eauto; cleanup;
-    try solve [ unfold refines_to_valid, refines_to_related in *; cleanup; eauto]
+    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
   end.
   
   match goal with
   | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
      H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H1: oracle_refines_to_same_from_related _ _ _ _ _ _ _ |- _ ] =>
+     H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
   
   (** Construct abs executions **)
-  unfold refines_to_related in *; cleanup.
+  unfold refines_related in *; cleanup.
   
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -641,16 +641,16 @@ Lemma SSW_All_Valid_transfer:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
-    abstract_oracles_exist_wrt R R.(refines_to) u p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exist_wrt R R.(refines_to) u p2_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
     
-    oracle_refines_to_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
+    oracle_refines_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
     
     SelfSimulation_Weak_All_Valid
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
-      (refines_to_related R equivalent_states_abs)
+      (refines_related R equivalent_states_abs)
       cond
       l_get_reboot_state_imp.
 Proof.
@@ -659,7 +659,7 @@ Proof.
   unfold SelfSimulation_Weak_All_Valid; simpl; intros.
 
   (** Construct abs oracles **)
-  (* unfold refines_to_valid, refines_to_related in *; cleanup. *)
+  (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
@@ -668,18 +668,18 @@ Proof.
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
     eapply_fresh H2 in H0; eauto; cleanup;
-    try solve [ unfold refines_to_valid, refines_to_related in *; cleanup; eauto]
+    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
   end.
   
   match goal with
   | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
      H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H1: oracle_refines_to_same_from_related _ _ _ _ _ _ _ |- _ ] =>
+     H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
   
   (** Construct abs executions **)
-  unfold refines_to_related in *; cleanup.
+  unfold refines_related in *; cleanup.
   
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,

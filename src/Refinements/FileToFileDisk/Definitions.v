@@ -20,7 +20,7 @@ Fixpoint compile T (p2: Core.operation abs_core T) : prog impl T.
   exact recover.
 Defined.
 
-Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) (get_reboot_state: state impl -> state impl) o1 o2 : Prop :=
+Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (get_reboot_state: state impl -> state impl) o1 o2 : Prop :=
     match p with
     | Read inum a =>
       forall fd,
@@ -122,6 +122,14 @@ Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) 
             fd inum = Some file /\
             file.(owner) = u /\
             files_rep fd d'
+          )  \/
+          (
+            exec impl u o1 d1 (extend inum v) (Finished d' r) /\
+            o2 = TxnFull /\
+            inum < inode_count /\
+            fd inum = Some file /\
+            file.(owner) = u /\
+            files_rep fd d'
           )
        ) \/
   
@@ -150,6 +158,7 @@ Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) 
        (exists d' r file,
           (
             exec impl u o1 d1 (change_owner inum own) (Finished d' r) /\
+            r = Some tt /\
             o2 = Cont /\
             inum < inode_count /\
             fd inum = Some file /\
@@ -159,12 +168,22 @@ Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) 
           ) \/
           (
             exec impl u o1 d1 (change_owner inum own) (Finished d' r) /\
+            r = None /\
             o2 = Cont /\
             (
               inum >= inode_count \/
               fd inum = None \/
               (fd inum = Some file /\ file.(owner) <> u)
             ) /\
+            files_rep fd d'
+          ) \/
+          (
+            exec impl u o1 d1 (change_owner inum own) (Finished d' r) /\
+            r = None /\
+            o2 = TxnFull /\
+            inum < inode_count /\
+            fd inum = Some file /\
+            file.(owner) = u /\
             files_rep fd d'
           )
        ) \/
@@ -202,6 +221,13 @@ Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) 
             exec impl u o1 d1 (create own) (Finished d' None) /\
             o2 = InodesFull /\
             (forall inum, inum < inode_count -> fd inum <> None) /\
+            files_rep fd d'
+          ) \/
+          (exists inum,
+            exec impl u o1 d1 (create own) (Finished d' None) /\
+            o2 = TxnFull /\
+            inum < inode_count /\
+            fd inum = None /\
             files_rep fd d'
           )
        ) \/
@@ -243,6 +269,14 @@ Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) 
               (fd inum = Some file /\ file.(owner) <> u)
             ) /\
             files_rep fd d'
+          ) \/
+          (
+            exec impl u o1 d1 (delete inum) (Finished d' r) /\
+            o2 = TxnFull /\
+            inum < inode_count /\
+            fd inum = Some file /\
+            file.(owner) = u /\
+            files_rep fd d'
           )
        ) \/
        (exists d',
@@ -277,56 +311,56 @@ Definition token_refines_to T u (d1: state impl) (p: Core.operation abs_core T) 
        )
     end.
 
-   Definition refines_to (d1: state impl) (d2: state abs) :=
+   Definition refines (d1: state impl) (d2: state abs) :=
      files_rep d2 d1.
 
-   Definition refines_to_reboot (d1: state impl) (d2: state abs) :=
+   Definition refines_reboot (d1: state impl) (d2: state abs) :=
      files_reboot_rep d2 d1.
 
    Lemma exec_compiled_preserves_refinement_finished_core:
     forall T (p2: abs_core.(Core.operation) T) o1 s1 s1' r u,
-        (exists s2, refines_to s1 s2) ->
+        (exists s2, refines s1 s2) ->
         impl.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
-        (exists s2', refines_to s1' s2').
+        (exists s2', refines s1' s2').
   Proof.
     intros; destruct p2; simpl in *; cleanup.
     {
       eapply read_finished in H0; eauto; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply write_finished in H0; eauto.
       split_ors; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply extend_finished in H0; cleanup; eauto.
       split_ors; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply change_owner_finished in H0; cleanup; eauto.
       split_ors; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply create_finished in H0; cleanup; eauto.
       split_ors; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply delete_finished in H0; cleanup; eauto.
       split_ors; cleanup; eauto.
     }
     {
-      unfold refines_to in *; cleanup.
+      unfold refines in *; cleanup.
       eapply recover_finished in H0; eauto.
       unfold files_rep, files_reboot_rep, files_crash_rep in *;
       cleanup; eauto.
     }
   Qed.
 
-  Definition FileDiskOperationRefinement := Build_CoreRefinement compile refines_to token_refines_to exec_compiled_preserves_refinement_finished_core.
+  Definition FileDiskOperationRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
   Definition FileDiskRefinement := LiftRefinement abs FileDiskOperationRefinement.
 
   Notation "| p |" := (Op abs_core p)(at level 60).

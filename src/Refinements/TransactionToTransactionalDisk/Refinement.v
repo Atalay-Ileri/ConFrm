@@ -45,9 +45,9 @@ Section TransactionalDiskSimulation.
   
   Theorem abstract_oracles_exist_wrt_recover:
     forall n u, 
-      abstract_oracles_exist_wrt refinement refines_to_reboot u (|Recover|) (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines_reboot u (|Recover|) (|Recover|) (transaction_cache_reboot_list n).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; induction n;
+    unfold abstract_oracles_exist_wrt, refines_reboot; induction n;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
@@ -83,9 +83,9 @@ Section TransactionalDiskSimulation.
 
   Theorem abstract_oracles_exist_wrt_recover':
     forall n u, 
-      abstract_oracles_exist_wrt refinement refines_to u (|Recover|) (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines u (|Recover|) (|Recover|) (transaction_cache_reboot_list n).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; destruct n;
+    unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
@@ -97,7 +97,7 @@ Section TransactionalDiskSimulation.
       unify_execs; cleanup.
       eapply_fresh recover_finished_2 in H7; eauto.
       eexists; intuition eauto.
-      unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+      unfold refines, transaction_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs; eauto.
       unify_execs; cleanup.      
     }
@@ -112,16 +112,16 @@ Section TransactionalDiskSimulation.
       simpl in *.
       cleanup; eauto.
       
-      unfold refines_to, refines_to_reboot,
+      unfold refines, refines_reboot,
       transaction_rep, transaction_reboot_rep in *;
       simpl in *; cleanup; eauto.
 
       eapply_fresh recover_crashed in H10; eauto; cleanup.
-      eexists; unfold refines_to, refines_to_reboot,
+      eexists; unfold refines, refines_reboot,
                transaction_rep, transaction_reboot_rep in *;
       simpl in *; cleanup; eauto.
       
-      unfold refines_to, refines_to_reboot,
+      unfold refines, refines_reboot,
       transaction_rep, transaction_reboot_rep in *;
       simpl in *; cleanup; eauto.
     }
@@ -129,9 +129,9 @@ Section TransactionalDiskSimulation.
 
   Theorem abstract_oracles_exist_wrt_read:
     forall n a u, 
-      abstract_oracles_exist_wrt refinement refines_to u (|Read a|) (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines u (|Read a|) (|Recover|) (transaction_cache_reboot_list n).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; destruct n;
+    unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
@@ -142,7 +142,7 @@ Section TransactionalDiskSimulation.
       unify_execs; cleanup.
       eapply_fresh read_finished in H7; eauto.
       eexists; intuition eauto.
-      unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+      unfold refines, transaction_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs; eauto.
       unify_execs; cleanup.      
     }
@@ -159,7 +159,7 @@ Section TransactionalDiskSimulation.
       
 
       eapply_fresh read_crashed in H10; eauto; cleanup.
-      eexists; unfold refines_to, refines_to_reboot,
+      eexists; unfold refines, refines_reboot,
                transaction_rep, transaction_reboot_rep in *;
       simpl in *; cleanup; eauto.
     }
@@ -167,9 +167,9 @@ Section TransactionalDiskSimulation.
   
   Theorem abstract_oracles_exist_wrt_write:
     forall n l_a l_v u,
-      abstract_oracles_exist_wrt refinement refines_to u (|Write l_a l_v|) (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines u (|Write l_a l_v|) (|Recover|) (transaction_cache_reboot_list n).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; destruct n;
+    unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {      
       eapply_fresh write_finished in H7; eauto.
@@ -182,7 +182,7 @@ Section TransactionalDiskSimulation.
         eexists; intuition eauto.
         unify_execs; cleanup.
         eexists; split; eauto.
-        unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+        unfold refines, transaction_rep in *; simpl in *; cleanup.
         repeat cleanup_pairs; eauto.
         inversion H0; eauto.
         unify_execs; cleanup.
@@ -222,7 +222,7 @@ Section TransactionalDiskSimulation.
       cleanup; eauto.      
 
       eapply_fresh write_crashed in H10; eauto; cleanup.
-      eexists; unfold refines_to, refines_to_reboot,
+      eexists; unfold refines, refines_reboot,
                transaction_rep, transaction_reboot_rep in *;
       simpl in *; cleanup; eauto.
     }
@@ -230,9 +230,9 @@ Section TransactionalDiskSimulation.
 
     Theorem abstract_oracles_exist_wrt_abort:
     forall n u, 
-      abstract_oracles_exist_wrt refinement refines_to u (|Abort|) (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines u (|Abort|) (|Recover|) (transaction_cache_reboot_list n).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; destruct n;
+    unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
@@ -243,7 +243,7 @@ Section TransactionalDiskSimulation.
       unify_execs; cleanup.
       eapply_fresh abort_finished in H7; eauto.
       eexists; intuition eauto.
-      unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+      unfold refines, transaction_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs; eauto.
       unify_execs; cleanup.      
     }
@@ -259,7 +259,7 @@ Section TransactionalDiskSimulation.
       cleanup; eauto.
       
       eapply_fresh abort_crashed in H10; eauto; cleanup.
-      eexists; unfold refines_to, refines_to_reboot,
+      eexists; unfold refines, refines_reboot,
                transaction_rep, transaction_reboot_rep in *;
       simpl in *; cleanup; eauto.
     }
@@ -267,9 +267,9 @@ Section TransactionalDiskSimulation.
 
   Theorem abstract_oracles_exist_wrt_commit:
     forall n u, 
-      abstract_oracles_exist_wrt refinement refines_to u (|Commit|) (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines u (|Commit|) (|Recover|) (transaction_cache_reboot_list n).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; destruct n;
+    unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     
     {
@@ -281,7 +281,7 @@ Section TransactionalDiskSimulation.
       left.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+      unfold refines, transaction_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs; eauto.      
       unify_execs; cleanup.      
     }
@@ -299,10 +299,10 @@ Section TransactionalDiskSimulation.
         cleanup; eauto.
         right; eexists; repeat split; eauto;
         simpl in *.
-        unfold refines_to, transaction_rep in *;
+        unfold refines, transaction_rep in *;
         cleanup; eauto.
 
-        unfold refines_to, refines_to_reboot,
+        unfold refines, refines_reboot,
         transaction_rep, transaction_reboot_rep in *;
         simpl in *; cleanup; eauto.
       }
@@ -316,17 +316,17 @@ Section TransactionalDiskSimulation.
         cleanup; eauto.
         right; eexists; repeat split; eauto;
         simpl in *.
-        unfold refines_to, transaction_rep in *;
+        unfold refines, transaction_rep in *;
         cleanup; eauto.
 
-        unfold refines_to, refines_to_reboot,
+        unfold refines, refines_reboot,
         transaction_rep, transaction_reboot_rep in *;
         simpl in *; cleanup; eauto.
       }
       {
         eapply_fresh commit_crashed in H10; eauto; cleanup.
         split_ors;
-        unfold refines_to, refines_to_reboot,
+        unfold refines, refines_reboot,
         transaction_rep, transaction_reboot_rep in *;
         simpl in *; cleanup; eauto.
         exists (fst x, fst x); simpl; eauto.
@@ -337,7 +337,7 @@ Section TransactionalDiskSimulation.
     (*
   Theorem abstract_oracles_exists_transactional_disk:
     forall T (p_abs: abs.(prog) T) n u, 
-      abstract_oracles_exist_wrt refinement refines_to u p_abs (|Recover|) (transaction_cache_reboot_list n).
+      abstract_oracles_exist_wrt refinement refines u p_abs (|Recover|) (transaction_cache_reboot_list n).
   Proof.
     unfold abstract_oracles_exist_wrt; induction p_abs;
     simpl; intros; cleanup.
@@ -371,7 +371,7 @@ Section TransactionalDiskSimulation.
         left; eexists; intuition eauto.
         econstructor.
         invert_exec'' H1; eauto.
-        unfold refines_to, refines_to_reboot,
+        unfold refines, refines_reboot,
         transaction_rep, transaction_reboot_rep in *.
         cleanup; eauto.
       }
@@ -541,7 +541,7 @@ Lemma recovery_simulation :
     SimulationForProgramGeneral _ _ _ _ refinement u _ (|Recover|) (|Recover|)
                          (transaction_cache_reboot_list n)
                          (transactional_disk_reboot_list n)
-                         refines_to_reboot refines_to.
+                         refines_reboot refines.
 Proof.
   unfold SimulationForProgramGeneral; induction n; simpl; intros; cleanup.
   {
@@ -556,7 +556,7 @@ Proof.
     simpl in *; destruct l; simpl in *; try lia.
     instantiate (1:= RFinished (snd s_abs, snd s_abs) tt). 
     repeat econstructor.
-    unfold refines_to, refines_to_reboot,
+    unfold refines, refines_reboot,
     transaction_rep, transaction_reboot_rep in *;
     simpl in *; cleanup; eauto.
     intuition eauto.
@@ -575,10 +575,10 @@ Proof.
     eauto.
     eauto.
       
-    unfold refines_to_reboot, transaction_reboot_rep in *; simpl in *; cleanup.
+    unfold refines_reboot, transaction_reboot_rep in *; simpl in *; cleanup.
     exists (Recovered (extract_state_r x)).
     unfold transactional_disk_reboot_list in *; simpl in *.
-    unfold refines_to_reboot, transaction_reboot_rep in *; cleanup.
+    unfold refines_reboot, transaction_reboot_rep in *; cleanup.
     split; eauto.
     repeat econstructor; eauto.
     repeat cleanup_pairs; eauto.
@@ -626,7 +626,7 @@ Proof.
       destruct n; simpl in *; try congruence; cleanup.
       
       edestruct recovery_simulation; eauto.
-      unfold refines_to, transaction_rep in *; cleanup.
+      unfold refines, transaction_rep in *; cleanup.
       instantiate (1:=(snd s_abs, snd s_abs)).
       eauto.
       
@@ -703,7 +703,7 @@ Proof.
       destruct n; simpl in *; try congruence; cleanup.
       
       edestruct recovery_simulation; eauto.
-      unfold refines_to, transaction_rep in *; cleanup.
+      unfold refines, transaction_rep in *; cleanup.
       instantiate (1:=(snd s_abs, snd s_abs)).
       eauto.
       
@@ -738,7 +738,7 @@ Proof.
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
-        unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+        unfold refines, transaction_rep in *; simpl in *; cleanup.
         intuition eauto.
         pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
         destruct x1; eauto.
@@ -751,7 +751,7 @@ Proof.
       destruct n; simpl in *; try congruence; cleanup.
       
       edestruct recovery_simulation; eauto.
-      unfold refines_to, transaction_rep in *; cleanup.
+      unfold refines, transaction_rep in *; cleanup.
       instantiate (1:=(snd s_abs, snd s_abs)).
       eauto.
       
@@ -786,7 +786,7 @@ Proof.
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
-        unfold refines_to, transaction_rep in *; simpl in *; cleanup.
+        unfold refines, transaction_rep in *; simpl in *; cleanup.
         intuition eauto.
         pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
         destruct x1; eauto.
@@ -801,7 +801,7 @@ Proof.
       split_ors; cleanup.
       {
         edestruct recovery_simulation; eauto.
-        unfold refines_to, transaction_rep in *; cleanup.
+        unfold refines, transaction_rep in *; cleanup.
         instantiate (1:=(snd s_abs, snd s_abs)).
         eauto.
 
@@ -812,7 +812,7 @@ Proof.
       }
       {
         edestruct recovery_simulation; eauto.
-        unfold refines_to, transaction_rep in *; cleanup.
+        unfold refines, transaction_rep in *; cleanup.
         instantiate (1:=(fst s_abs, fst s_abs)).
         eauto.
         
@@ -841,14 +841,14 @@ Proof.
     { (** Start **)
       destruct s1'.
       { (** Finished **)
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_sp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         simpl in *; cleanup.
         do 2 eexists; intuition eauto.
         left; do 2 eexists; intuition eauto.
         destruct s; simpl in *; subst; eauto.
       }
       { (** Crashed **)
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_scp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         simpl in *; cleanup.
         split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
         try (inversion H1; clear H1); cleanup; eauto;
@@ -861,7 +861,7 @@ Proof.
     { (** Read **)
       destruct s1'.
       { (** Finished **)
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_sp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold read in Hx; simpl in Hx; cleanup;
         cleanup; simpl in *; cleanup;
         do 2 eexists; intuition eauto;
@@ -869,7 +869,7 @@ Proof.
         destruct s; cleanup; simpl in *; cleanup; eauto.
       }
       { (** Crashed **)
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_scp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold read in Hx; repeat (simpl in *; cleanup).
         split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
         try (inversion H1; clear H1); cleanup; eauto;
@@ -886,7 +886,7 @@ Proof.
     { (** Write **)
       destruct s1'.
       { (** Finished **)
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_sp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold write in Hx; simpl in *; cleanup;
         cleanup; simpl in *; cleanup;      
         try destruct s; cleanup; simpl in *; cleanup; eauto;
@@ -900,7 +900,7 @@ Proof.
         omega.
       }
       { (** Crashed **)
-        eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_scp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         unfold write in Hx; repeat (simpl in *; cleanup).
         split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
         inversion H1; clear H1; cleanup; eauto;
@@ -916,7 +916,7 @@ Proof.
     { (** Commit **)
       destruct s1'.
       { (** Finished **)
-        eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+        eapply exec_to_sp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
         simpl in *; cleanup.
         cleanup; simpl in *; cleanup;        
         do 2 eexists; intuition eauto;
@@ -932,10 +932,10 @@ Proof.
 
         exfalso; apply H2; apply dedup_last_dedup_by_list_length_le.
         rewrite <- map_fst_split, <- map_snd_split; repeat rewrite map_length; omega.
-        unfold refines_to in *; cleanup; simpl in *; eauto.
+        unfold refines in *; cleanup; simpl in *; eauto.
         cleanup.
 
-         unfold refines_to in *; simpl in *;
+         unfold refines in *; simpl in *;
          cleanup; exfalso; eauto;
          match goal with
          | [H: addrs_match _ _ |- _ ] =>
@@ -946,7 +946,7 @@ Proof.
          rewrite map_fst_split; eauto.
     }
     {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+      eapply exec_to_scp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
        simpl in *; cleanup.
        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
        
@@ -976,7 +976,7 @@ Proof.
                    rewrite <- map_fst_split, <- map_snd_split;
                    repeat rewrite map_length; eauto ];
              try solve [
-                   unfold refines_to in *; simpl in *;
+                   unfold refines in *; simpl in *;
                    cleanup; exfalso; eauto;
                    match goal with
                    | [H: addrs_match _ _ |- _ ] =>
@@ -1009,14 +1009,14 @@ Proof.
   - (** Abort **)
     destruct s1'.
     {
-      eapply exec_to_sp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+      eapply exec_to_sp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
       simpl in *; cleanup.
       do 2 eexists; intuition eauto.
       left; do 2 eexists; intuition eauto.
       destruct s; simpl in *; subst; eauto.
     }
     {
-      eapply exec_to_scp with (P := fun o s => refines_to s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
+      eapply exec_to_scp with (P := fun o s => refines s x /\ o = o1 /\ s = s1) in H0 as Hx; eauto.
       simpl in *; cleanup.
        split_ors; cleanup; repeat (simpl in *; try split_ors; cleanup);
        try (inversion H1; clear H1); cleanup; eauto;
@@ -1067,16 +1067,16 @@ Theorem transfer_to_TransactionCache:
       valid_prog_h
       related_states_h ->
     
-    oracle_refines_to_same_from_related refinement related_states_h ->
+    oracle_refines_same_from_related refinement related_states_h ->
 
     exec_compiled_preserves_validity refinement                           
-    (refines_to_valid refinement valid_state_h) ->
+    (refines_valid refinement valid_state_h) ->
     
     SelfSimulation
       low
-      (refines_to_valid refinement valid_state_h)
+      (refines_valid refinement valid_state_h)
       (compiles_to_valid refinement valid_prog_h)
-      (refines_to_related refinement related_states_h).
+      (refines_related refinement related_states_h).
 Proof.
   intros; eapply transfer_high_to_low; eauto.
   apply sbs.

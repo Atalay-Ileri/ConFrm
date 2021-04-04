@@ -180,6 +180,8 @@ Section GenMem.
 
 
   (** Facts **)  
+
+  
   Theorem upd_eq : forall m (a : A) (v : V) a',
     a' = a -> upd m a v a' = Some v.
   Proof.
@@ -1651,6 +1653,25 @@ Proof.
   destruct (m a); congruence.
   destruct (m a); congruence.
 Qed.
+
+Lemma mem_full_or_not:
+      forall V n (m: @mem addr addr_dec V),
+      (forall inum, inum < n -> m inum <> None) \/
+      (exists inum, inum < n /\ m inum = None).
+      Proof.
+        induction n; intros; intuition eauto.
+        - left; intros; lia.
+        - destruct (m n) eqn:D.
+        
+        + edestruct IHn.
+            * left; intros.
+              eapply H; eauto.
+              inversion H0; eauto; subst; congruence.
+            * destruct H; intuition.
+              right; eexists; split; [|eauto].
+              lia.
+          + right; eexists; intuition eauto.
+      Qed.
 
 
 Hint Rewrite upd_eq using (solve [ auto ]) : upd.

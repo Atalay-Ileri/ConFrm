@@ -88,9 +88,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
   
   Theorem abstract_oracles_exist_wrt_recover:
     forall l_selector u, 
-      abstract_oracles_exist_wrt refinement refines_to_reboot u (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
+      abstract_oracles_exist_wrt refinement refines_reboot u (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
+    unfold abstract_oracles_exist_wrt, refines_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
@@ -135,9 +135,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
 
   Theorem abstract_oracles_exist_wrt_recover':
     forall l_selector u, 
-      abstract_oracles_exist_wrt refinement refines_to u (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
+      abstract_oracles_exist_wrt refinement refines u (|Recover|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
+    unfold abstract_oracles_exist_wrt, refines_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
@@ -146,13 +146,13 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       destruct t.
       left.
       eexists; intuition eauto.
-      unfold refines_to, cached_log_reboot_rep in *; cleanup.
+      unfold refines, cached_log_reboot_rep in *; cleanup.
       eapply recover_finished in H7; eauto.
       eexists; intuition eauto.
       unify_execs; cleanup.
     }
     {
-      unfold refines_to, cached_log_rep in *.
+      unfold refines, cached_log_rep in *.
       cleanup.
       eapply log_rep_to_reboot_rep_same in H0.
               
@@ -181,7 +181,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       try eapply reboot_rep_to_reboot_rep in H1;
       try eapply crash_rep_recover_to_reboot_rep in H1;
       try eapply log_rep_to_reboot_rep in H1;
-      eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+      eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
       eexists; intuition eauto;
       match goal with
       |[H: select_total_mem _ _ _ = _ |- _ ]=>
@@ -192,9 +192,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
 
   Theorem abstract_oracles_exist_wrt_read:
     forall l_selector a u, 
-      abstract_oracles_exist_wrt refinement refines_to u (|Read a|) (|Recover|) (cached_disk_reboot_list l_selector).
+      abstract_oracles_exist_wrt refinement refines u (|Read a|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
+    unfold abstract_oracles_exist_wrt, refines_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
@@ -207,7 +207,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       cleanup; eauto.
     }
     {
-      unfold refines_to, cached_log_rep in *.
+      unfold refines, cached_log_rep in *.
       cleanup.
       eapply_fresh log_rep_to_reboot_rep_same in H0.
               
@@ -238,9 +238,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
   
   Theorem abstract_oracles_exist_wrt_write:
     forall l_selector l_a l_v u,
-      abstract_oracles_exist_wrt refinement refines_to u (|Write l_a l_v|) (|Recover|) (cached_disk_reboot_list l_selector).
+      abstract_oracles_exist_wrt refinement refines u (|Write l_a l_v|) (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
-    unfold abstract_oracles_exist_wrt, refines_to_reboot; induction l_selector;
+    unfold abstract_oracles_exist_wrt, refines_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
@@ -250,12 +250,12 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       eexists; intuition eauto.
       eexists; intuition eauto.
       eapply_fresh write_finished in H7; eauto.
-      unfold refines_to, cached_log_rep in *;
+      unfold refines, cached_log_rep in *;
       cleanup; eauto.
       intuition eauto.
     }
     {
-      unfold refines_to, cached_log_rep in *.
+      unfold refines, cached_log_rep in *.
       cleanup.
       eapply_fresh write_crashed in H10; eauto.
       2: unfold cached_log_rep; eexists; eauto.
@@ -536,7 +536,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         {
           unfold cached_log_rep in *; cleanup; eauto;
           try eapply log_rep_to_reboot_rep in H3;
-          eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+          eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
           eexists; intuition eauto.
           eapply select_total_mem_synced in H6; eauto.
         }
@@ -546,14 +546,14 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           split_ors; cleanup.
           {
             eapply crash_rep_log_write_to_reboot_rep in H1.
-            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H9; eauto.
           }
           {
             eapply crash_rep_header_write_to_reboot_rep in H1.
             split_ors;
-            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H12; eauto.
             eapply select_total_mem_synced in H12; eauto.
@@ -563,7 +563,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           split_ors; cleanup.
           {
             eapply log_rep_to_reboot_rep in H1.
-            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H9; eauto.
           }
@@ -573,21 +573,21 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
             {
             eapply crash_rep_apply_to_reboot_rep in H1.
             split_ors;
-            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H8; eauto.
             eapply select_total_mem_synced in H8; eauto.
             }
             {
               eapply log_rep_to_reboot_rep in H1.
-            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H8; eauto.
             }
           }
           {
             eapply log_rep_to_reboot_rep in H1.
-            eexists; unfold refines_to_reboot, cached_log_reboot_rep; simpl;
+            eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
             eapply select_total_mem_synced in H9; eauto.
           }
@@ -612,7 +612,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
   Theorem abstract_oracles_exists_logged_disk:
     forall T (p_abs: abs.(prog) T) l_selector u,
       not_init p_abs ->
-      abstract_oracles_exist_wrt refinement refines_to u p_abs (|Recover|) (cached_disk_reboot_list l_selector).
+      abstract_oracles_exist_wrt refinement refines u p_abs (|Recover|) (cached_disk_reboot_list l_selector).
   Proof.
     unfold abstract_oracles_exist_wrt; induction p_abs;
     simpl; intros; cleanup_no_match.
@@ -642,10 +642,10 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         left; eexists; intuition eauto.
         econstructor.
         invert_exec'' H2; eauto.
-        unfold refines_to, cached_log_rep in *.
+        unfold refines, cached_log_rep in *.
         cleanup.
         eapply log_rep_to_reboot_rep in H1.
-        unfold refines_to_reboot, cached_log_reboot_rep.
+        unfold refines_reboot, cached_log_reboot_rep.
         do 2 eexists; intuition eauto.
         eapply select_total_mem_synced in H2; eauto.
       }
@@ -760,16 +760,16 @@ Section TransferToCachedDisk.
         valid_prog_h
         related_states_h ->
       
-      oracle_refines_to_same_from_related LoggedDiskRefinement related_states_h ->
+      oracle_refines_same_from_related LoggedDiskRefinement related_states_h ->
       
       exec_compiled_preserves_validity LoggedDiskRefinement                           
-                                       (refines_to_valid LoggedDiskRefinement valid_state_h) ->
+                                       (refines_valid LoggedDiskRefinement valid_state_h) ->
       
       SelfSimulation
         CachedDiskLang
-        (refines_to_valid LoggedDiskRefinement valid_state_h)
+        (refines_valid LoggedDiskRefinement valid_state_h)
         (compiles_to_valid LoggedDiskRefinement valid_prog_h)
-        (refines_to_related LoggedDiskRefinement related_states_h).
+        (refines_related LoggedDiskRefinement related_states_h).
   Proof.
     intros; eapply transfer_high_to_low; eauto.
     apply sbs.
