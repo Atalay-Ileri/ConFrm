@@ -31,10 +31,12 @@ Axiom data_fits_in_disk:
 (** For simplicity, it will be 1 inode per block *)
 Definition inode_blocks_start := 0.
 Axiom inode_count: nat.
+Axiom inode_count_nonzero: 0 < inode_count.
 Axiom inode_count_in_bounds: inode_count <= block_size.
 
 Definition file_blocks_start:= S(inode_count). (** 1 bitmap + inode_count inodes *)
 Axiom file_blocks_count : nat.
+Axiom file_blocks_count_nonzero: 0 < file_blocks_count.
 Axiom file_blocks_count_in_bounds: file_blocks_count <= block_size.
 
 Axiom all_fits_to_data_region : 2 + inode_count + file_blocks_count <= data_length.

@@ -49,6 +49,9 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
              inum < inode_count /\
              fd inum = Some file /\
              file.(owner) = u /\
+             let txn := fst (snd d1) in
+             (length (addr_list_to_blocks (map fst txn ++ [off])) +
+             length ((map snd txn) ++ [v])) > log_length /\
              let new_file := update_file file off v in
              files_rep (Mem.upd fd inum new_file) d'
            ) \/
@@ -70,6 +73,9 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
              fd inum = Some file /\
              file.(owner) = u /\
              off < length file.(blocks) /\
+             let txn := fst (snd d1) in
+             (length (addr_list_to_blocks (map fst txn ++ [off])) +
+             length ((map snd txn) ++ [v])) > log_length /\
              files_rep fd d'
            )
         ) \/
@@ -87,6 +93,9 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
               fd inum = Some file /\
               file.(owner) = u /\
               off < length file.(blocks) /\
+              let txn := fst (snd d1) in
+             (length (addr_list_to_blocks (map fst txn ++ [off])) +
+             length ((map snd txn) ++ [v])) > log_length /\
               let new_file := update_file file off v in
               files_crash_rep (Mem.upd fd inum new_file) d'     
            )

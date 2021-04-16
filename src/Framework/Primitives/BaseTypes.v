@@ -157,6 +157,13 @@ Inductive Recovery_Result {State T: Type} :=
 | RFinished : State -> T -> @Recovery_Result State T
 | Recovered : State -> @Recovery_Result State T.
 
+Definition results_match {State T T'} (res1: @Result State T) (res2: @Result State T') :=
+  match res1, res2 with
+  | Finished _ _, Finished _ _ => True
+  | Crashed _, Crashed _ => True
+  | _, _ => False
+  end.
+
 Definition extract_state {State T} (res: @Result State T) :=
   match res with
   | Finished s _ | Crashed s => s
@@ -167,6 +174,13 @@ Definition extract_ret {State T} (res: @Result State T) :=
   | Finished _ r => Some r
   | Crashed _ => None
   end.
+
+  Definition results_match_r {State T T'} (res1: @Recovery_Result State T) (res2: @Recovery_Result State T') :=
+    match res1, res2 with
+    | RFinished _ _, RFinished _ _ => True
+    | Recovered _, Recovered _ => True
+    | _, _ => False
+    end.
 
 Definition extract_state_r {State T} (res: @Recovery_Result State T) :=
   match res with

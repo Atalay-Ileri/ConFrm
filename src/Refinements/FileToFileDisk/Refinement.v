@@ -66,20 +66,24 @@ Section FileDiskSimulation.
     {
       exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
       intuition eauto.
+      left.
+      eexists; intuition eauto.
+      eexists; intuition eauto.
       eexists; intuition eauto.
       left.
       eexists; intuition eauto.
-      destruct t0; eauto.
+      destruct t; eauto.
       eapply_fresh recover_finished in H0; eauto.
-      unify_execs; cleanup.
     }
     { 
       eapply IHn in H11; eauto; cleanup.
       exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
-      repeat split; eauto; try (unify_execs; cleanup).
+      repeat split; eauto.
       eapply recovery_oracles_refine_to_length in H0; eauto.
-      intros; unify_execs; cleanup.
+      right.
+      eexists; repeat split; eauto;
+      simpl in *.
       eexists; repeat split; eauto;
       simpl in *.
       intros.
@@ -99,21 +103,24 @@ Section FileDiskSimulation.
     {
       exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
       intuition eauto.
+      left.
+      eexists; intuition eauto.
+      eexists; intuition eauto.
       eexists; intuition eauto.
       
-      unify_execs; cleanup.
       eapply_fresh recover_finished in H7; eauto.
       left; eexists; intuition eauto.
-      destruct t0; eauto.
-      unify_execs; cleanup.      
+      destruct t; eauto.
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
       exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
-      repeat split; eauto; try (unify_execs; cleanup).
+      repeat split; eauto.
       eapply recovery_oracles_refine_to_length in H0; eauto.
-      intros; unify_execs; cleanup.
+      right.
+      eexists; repeat split; eauto;
+      simpl in *.
       eexists; repeat split; eauto;
       simpl in *.
       intros.
@@ -140,12 +147,13 @@ Section FileDiskSimulation.
     {
       exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
       intuition eauto.
+      left.
+      eexists; intuition eauto.
+      eexists; intuition eauto.
       eexists; intuition eauto.
       left; eexists; intuition eauto.
-      unify_execs; cleanup.
       eapply_fresh read_finished in H7; eauto.
       eexists; intuition eauto.
-      unify_execs; cleanup.      
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
@@ -153,9 +161,11 @@ Section FileDiskSimulation.
       eapply_fresh read_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
-      intros; unify_execs; cleanup.
+      right.
       eexists; repeat split; eauto;
       simpl in *; intros.      
+      eexists; repeat split; eauto;
+      simpl in *; intros.
 
       eapply_fresh read_crashed in H10; eauto; cleanup.
       eauto.
@@ -178,56 +188,50 @@ Section FileDiskSimulation.
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         split; eauto.
-        intros.
+        left.
         eexists; repeat split; eauto.
-        intros.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         intros.
         eapply files_rep_eq in H; eauto; subst.
-        left; eexists; repeat (split; eauto);
-        unify_execs; cleanup;
 
+        left.
         repeat split_ors; cleanup;
-        do 2 eexists;
+        do 3 eexists;
         try solve [right; left; eauto;
                    repeat (split; eauto) ].
-        intros; unify_execs; cleanup.
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
-        intros.
+        left.
         eexists; repeat split; eauto.
-        intros.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         intros.
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto);
-        unify_execs; cleanup;
         
         repeat split_ors; cleanup;
         do 2 eexists;
         try solve [right; right; eauto;
                    repeat (split; eauto) ].
-        intros; unify_execs; cleanup.
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         split; eauto.
-        intros.
+        left.
         eexists; repeat split; eauto.
-        intros.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         intros.
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto);
-        unify_execs; cleanup;
 
         repeat split_ors; cleanup;
         do 2 eexists;
         try solve [left; eauto;
                    repeat (split; eauto) ].
-        intros; unify_execs; cleanup.
       }
     }
     {        
@@ -236,29 +240,31 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       {
         exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
-        repeat split; eauto; try (unify_execs; cleanup).
+        repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto;
+        simpl in *; intros.
         eexists; repeat split; eauto;
         simpl in *; intros.
         eapply files_rep_eq in H; eauto; subst.
         right; eexists; intuition eauto.
-        eauto.
       }
       {
         exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
-        repeat split; eauto; try (unify_execs; cleanup).
+        repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         apply (owner x1).
     
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto;
+        simpl in *; intros.
         eexists; repeat split; eauto;
         simpl in *; intros.
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        eauto.
       }
           
       eapply_fresh write_crashed in H10; eauto; cleanup.
@@ -286,46 +292,44 @@ Section FileDiskSimulation.
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         split; eauto.
-        intros.
+        left.
+        eexists; repeat split; eauto.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         intros.
+        left.
         eexists; repeat (split; eauto).
         intros; eapply files_rep_eq in H; eauto; subst.
-        left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
 
         repeat split_ors; cleanup;
         do 2 eexists; right; eauto;
         left; repeat (split; eauto).
-                
-        intros; unify_execs; cleanup.
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
-        intros.
+        left.
         eexists; repeat split; eauto.
-        intros.
+        eexists; repeat (split; eauto).
         eexists; repeat (split; eauto).
         intros; eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
-
+        
         repeat split_ors; cleanup;
         do 2 eexists; right; eauto;
         right; right; repeat (split; eauto).
-                
-        intros; unify_execs; cleanup.
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         intuition eauto.
+        left.
+        eexists; intuition eauto.
+        eexists; intuition eauto.
         eexists; intuition eauto.
         left; eexists; intuition eauto.
-        unify_execs; cleanup.
+        
         eapply files_rep_eq in H; eauto; subst.
         do 2 eexists; left; repeat (split; eauto).
-        unify_execs; cleanup.
       }
     }
     {        
@@ -334,15 +338,16 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       {
         exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
-        repeat split; eauto; try (unify_execs; cleanup).
+        repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto;
+        simpl in *; intros;
         eexists; repeat split; eauto;
         simpl in *; intros;
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
-        eauto.
       }
       {
         exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
@@ -350,14 +355,15 @@ Section FileDiskSimulation.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         apply (owner x1).
     
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto;
+        simpl in *; intros;
         eexists; repeat split; eauto;
         simpl in *; intros;
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        eauto.
       }
           
       {
@@ -388,46 +394,47 @@ Section FileDiskSimulation.
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         split; eauto.
-        intros.
+        left.
         eexists; repeat split; eauto.
-        intros.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         intros;
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
 
         repeat split_ors; cleanup;
         do 2 eexists; right; left; eauto;
         repeat (split; eauto).        
-        intros; unify_execs; cleanup.
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
-        intros.
+        left.
         eexists; repeat split; eauto.
         intros.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         intros;
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
 
         repeat split_ors; cleanup;
         do 2 eexists; right; right; eauto;
         repeat (split; eauto).        
-        intros; unify_execs; cleanup.
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         intuition eauto.
+        left.
         eexists; intuition eauto.
+        eexists; repeat split; eauto.
+        eexists; repeat split; eauto.
+        intros.
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; intuition eauto.
-        unify_execs; cleanup.
+        
         do 2 eexists; left; repeat (split; eauto).
-        unify_execs; cleanup.
+    
       }
     }
     {        
@@ -438,13 +445,15 @@ Section FileDiskSimulation.
         exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
-        intros; unify_execs; cleanup.
+        right.
+
         eexists; repeat split; eauto;
         simpl in *; intros;
+        eexists; repeat split; eauto; intros.
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
-        eauto.
+  
       }
       {
         exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
@@ -452,14 +461,16 @@ Section FileDiskSimulation.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         apply (owner x1).
     
-        intros; unify_execs; cleanup.
+        right.
         eexists; repeat split; eauto;
         simpl in *; intros;
+
+        eexists; repeat split; eauto; intros.
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        eauto.
+      
       }
           
       {
@@ -490,46 +501,54 @@ Section FileDiskSimulation.
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         split; eauto.
+        left.
         intros.
         eexists; repeat split; eauto.
         intros.
         eexists; repeat split; eauto.
+        eexists; repeat split; eauto; intros.
         intros;
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
+      
 
         repeat split_ors; cleanup;
         do 2 eexists; right; left; eauto;
         repeat (split; eauto).        
-        intros; unify_execs; cleanup.
+        
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
         intros.
+        left.
+        
         eexists; repeat split; eauto.
         intros.
         eexists; repeat split; eauto.
+        eexists; repeat split; eauto; intros.
         intros;
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
+        
 
         repeat split_ors; cleanup;
         do 2 eexists; right; right; eauto;
         repeat (split; eauto).        
-        intros; unify_execs; cleanup.
+        
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
         intuition eauto.
+        left.
         eexists; intuition eauto.
+        eexists; repeat split; eauto; intros.
+        eexists; repeat split; eauto; intros.
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; intuition eauto.
-        unify_execs; cleanup.
+        
         do 2 eexists; left; repeat (split; eauto).
-        unify_execs; cleanup.
+        
       }
     }
     {        
@@ -540,27 +559,29 @@ Section FileDiskSimulation.
         exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
-        intros; unify_execs; cleanup.
+        right.
         eexists; repeat split; eauto;
         simpl in *; intros;
+        eexists; repeat split; eauto; intros;
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
-        eauto.
+        
       }
       {
         exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
     
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto; intros.
         eexists; repeat split; eauto;
         simpl in *; intros;
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        eauto.
+        
       }          
       {
         eapply_fresh change_owner_crashed in H10; eauto; cleanup.
@@ -579,7 +600,6 @@ Section FileDiskSimulation.
     forall n own u, 
       abstract_oracles_exist_wrt refinement refines u (|Create own|) (|Recover|) (authenticated_disk_reboot_list n).
   Proof.
-    Proof.
     unfold addr, abstract_oracles_exist_wrt,
     refines, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
@@ -590,6 +610,9 @@ Section FileDiskSimulation.
       {
         exists  [ [OpToken (FileDiskOperation inode_count) InodesFull] ]; simpl.
         split; eauto.
+        left.
+      
+        eexists; repeat split; eauto; intros.
         intros.
         eexists; repeat split; eauto.
         intros.
@@ -597,39 +620,44 @@ Section FileDiskSimulation.
         intros;
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
+        
         right; left.        
         repeat split_ors; cleanup;
         eexists; eauto;
         repeat (split; eauto).
-        intros; unify_execs; cleanup.
+        
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
+        left.
         intros.
         eexists; repeat split; eauto.
         intros.
         eexists; repeat split; eauto.
+        eexists; repeat split; eauto; intros.
         intros;
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
+        
         right; right.        
         repeat split_ors; cleanup;
         eexists; eauto;
         repeat (split; eauto).
-        intros; unify_execs; cleanup.
+        
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) (NewInum x0)] ]; simpl.
         intuition eauto.
+        left.
+        eexists; repeat split; eauto; intros.
+        eexists; repeat split; eauto; intros.
         eexists; intuition eauto.
         eapply files_rep_eq in H; eauto; subst.
         left; eexists; intuition eauto.
-        unify_execs; cleanup.
+        
         left; eexists; repeat (split; eauto).
-        unify_execs; cleanup.
+        
       }
     }
     {        
@@ -640,26 +668,28 @@ Section FileDiskSimulation.
         exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto; intros.
         eexists; repeat split; eauto;
         simpl in *; intros;
         eapply files_rep_eq in H; eauto; subst.
         right; eexists; intuition eauto.
-        eauto.
+        
       }
       {
         exists ([OpToken (FileDiskOperation inode_count) (CrashAfterCreate x1)]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
     
-        intros; unify_execs; cleanup.
+        right.
+        eexists; repeat split; eauto; intros.
         eexists; repeat split; eauto;
         simpl in *;intros;
         eapply files_rep_eq in H; eauto; subst.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        eauto.
+        
       }          
       {
         eapply_fresh create_crashed in H10; eauto; cleanup.
@@ -693,8 +723,9 @@ Section FileDiskSimulation.
       {
         rewrite <- H1; simpl.
         exists [[Language.Cont (FileDiskOperation inode_count) ]]; simpl; intuition.
-        right; intuition eauto.
-        unify_execs; cleanup.
+        left.
+        eexists; repeat split; eauto; intros.
+        eexists; repeat split; eauto; intros.
       }
       {
         destruct n; unfold authenticated_disk_reboot_list in *;
@@ -707,9 +738,11 @@ Section FileDiskSimulation.
         exists ([Language.Crash (FileDiskOperation inode_count)]::x0);
         simpl; intuition eauto.
         apply recovery_oracles_refine_to_length in H0; eauto.
+        right.
+        eexists; repeat split; eauto; intros.
+        econstructor.
         left; eexists; intuition eauto.
         econstructor.
-        invert_exec'' H1; eauto.
         unfold refines, refines_reboot,
         files_rep, files_reboot_rep, files_crash_rep in *.
         cleanup; eauto.
@@ -730,13 +763,13 @@ Section FileDiskSimulation.
         eapply exec_compiled_preserves_refinement_finished in H8; eauto.
         simpl in *; cleanup; try tauto.
         simpl in *.
-        exists ([o0 ++ o]); intuition eauto.
+        exists ([o0 ++ o]); intuition eauto; cleanup; try tauto.
+        repeat unify_execs; cleanup.
+        left; eexists; intuition eauto.
+        eexists; intuition eauto.
+        econstructor; eauto.
         do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
-        invert_exec; split_ors; cleanup; repeat (unify_execs; cleanup).        
-        eapply finished_not_crashed_oracle_prefix in H8; eauto.
-        eapply exec_finished_deterministic_prefix in H8; eauto; cleanup.
-        unify_execs; cleanup.
       }
       {
         destruct n; unfold authenticated_disk_reboot_list in *;
@@ -756,24 +789,13 @@ Section FileDiskSimulation.
           eapply exec_compiled_preserves_refinement_finished in H7; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
-          exists ((o0 ++ o)::l); intuition eauto.
-          - invert_exec; try split_ors; repeat (unify_execs; cleanup).
-            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
-            unify_execs; cleanup.
-          - invert_exec; cleanup; try split_ors; try cleanup;
-            repeat (unify_execs; cleanup).
-            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
-            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
-            unify_execs; cleanup; eauto.
-            specialize H4 with (1:= H12); cleanup.
-            do 4 eexists; intuition eauto.
-            right; simpl; repeat eexists; intuition eauto.
-          - invert_exec; cleanup; try split_ors; try cleanup;
-            repeat (unify_execs; cleanup).
-            exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
-            eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
-            unify_execs; cleanup; eauto.
-            specialize H4 with (1:= H12); cleanup; eauto.
+          exists ((o0 ++ o)::l); intuition eauto; cleanup; try tauto;
+          repeat unify_execs; cleanup.
+
+          right; eexists; intuition eauto.
+          econstructor; eauto.
+          do 4 eexists; intuition eauto.
+        right; simpl; repeat eexists; intuition eauto.
         }
         {
           edestruct IHp_abs; eauto.
@@ -782,28 +804,13 @@ Section FileDiskSimulation.
           econstructor; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
-          exists (o::l); intuition eauto.
-          - invert_exec; cleanup; try split_ors;
-            cleanup; repeat (unify_execs; cleanup).            
-            exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto.
-          - invert_exec; cleanup; try split_ors;
-            cleanup; repeat (unify_execs; cleanup).
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
-            specialize H3 with (1:= H6).
-            clear H5.
-            logic_clean; eauto.
-            exists o1, o2, o, nil; intuition eauto.
-            rewrite app_nil_r; eauto.
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
-            eauto; cleanup.
-          - invert_exec; cleanup; try split_ors;
-            cleanup; repeat (unify_execs; cleanup).
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
-            specialize H3 with (1:= H6).
-            clear H5.
-            logic_clean; eauto.
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
-            eauto; cleanup.
+          exists (o::l);intuition eauto; cleanup; try tauto;
+          repeat unify_execs; cleanup.
+
+          right; eexists; intuition eauto.
+          eapply ExecBindCrash; eauto.
+          do 4 eexists; intuition eauto.
+          rewrite app_nil_r; eauto.
         }
       }
     }
@@ -886,18 +893,18 @@ Proof.
     destruct l_o_imp; intuition; simpl in *.
     cleanup; intuition.
     invert_exec; simpl in *; cleanup; intuition.
-    specialize H2 with (1:= H12).
+    unify_execs; cleanup.
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
     
     eexists; intuition eauto.
     unfold file_disk_reboot_list in *; simpl.
-    simpl in *; destruct l; simpl in *; try lia.
+    simpl in *.
     instantiate (1:= RFinished s_abs tt). 
     repeat econstructor.
     {
       simpl.
       unfold refines, refines_reboot in *.
-      eapply H2 in H0; split_ors; cleanup; unify_execs;
+      eapply H5 in H0; split_ors; cleanup; unify_execs;
       cleanup; eauto.
       econstructor; eauto.
     }
@@ -906,13 +913,13 @@ Proof.
       eapply recover_finished; eauto.
     }
     simpl; eauto.
-    destruct t; eauto.
+    destruct x0; eauto.
+    cleanup; tauto.
   }
   {
     invert_exec; simpl in *; cleanup; intuition;
     cleanup; intuition eauto; repeat (unify_execs; cleanup).
-    clear H1.
-    specialize H2 with (1:= H11).
+    eapply_fresh H4 in H0; intuition;
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
     edestruct IHn.
     eauto.
@@ -925,14 +932,11 @@ Proof.
     eauto; cleanup.
 
     cleanup.
-    exists (Recovered (extract_state_r x0)).
+    exists (Recovered (extract_state_r x)).
     unfold file_disk_reboot_list in *; simpl in *.
     unfold refines_reboot, files_reboot_rep in *; cleanup.
     split; eauto.
     repeat econstructor; eauto.
-    eapply H3 in H0; split_ors; cleanup; unify_execs;
-    cleanup; eauto.
-    econstructor; eauto.
   }
 Qed.
 
@@ -950,47 +954,43 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;
                         unify_execs; cleanup].
     {
-      specialize H1 with (1:= H10).
+      cleanup; unify_execs; 
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       eapply_fresh read_finished in H10; cleanup; eauto.
       
       destruct n; simpl in *; try congruence; cleanup.
-      destruct l; simpl in *; try lia.
       split_ors; cleanup.
       {
         exists (RFinished s_abs None);
         simpl; repeat (split; eauto).
         eapply ExecFinished.
-        eapply H4 in H0; destruct H0; cleanup; unify_execs;
+        eapply H6 in H0; destruct H0; cleanup; unify_execs;
         cleanup; eauto.
         econstructor; eauto.
         repeat split_ors; cleanup;
         econstructor; eauto.
       }
       {
-        exists (RFinished s_abs (nth_error x0.(blocks) a));
+        exists (RFinished s_abs (nth_error x2.(blocks) a));
         simpl; intuition eauto.
         eapply ExecFinished.
-        eapply H4 in H0; destruct H0; cleanup; unify_execs;
+        eapply H6 in H0; destruct H0; cleanup; unify_execs;
         cleanup; eauto.        
-        destruct_fresh (nth_error (blocks x0) a);
+        destruct_fresh (nth_error (blocks x2) a);
         do 2 econstructor; eauto.
       }
     }
     {
-      clear H1.
-      specialize H3 with (1:= H9).
+      eapply_fresh H4 in H0; cleanup; unify_execs; 
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       destruct n; simpl in *; try congruence; cleanup.
 
       eapply_fresh read_crashed in H9; eauto.
       edestruct recovery_simulation; eauto.
       
-      exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
+      exists (Recovered (extract_state_r x)); simpl; intuition eauto.
       unfold file_disk_reboot_list; simpl.
       eapply ExecRecovered; eauto.
-      eapply H3 in H0; destruct H0; cleanup; try unify_execs;
-      cleanup; eauto.
       repeat econstructor.
     }
     Unshelve.
@@ -1013,16 +1013,15 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;
                         unify_execs; cleanup].
     {
-      specialize H1 with (1:= H10).
+      cleanup; unify_execs; 
       cleanup.
-      eapply_fresh H4 in H0; clear H4;cleanup;
+      eapply_fresh H6 in H0; clear H4;cleanup;
       do 2 (split_ors; cleanup); try unify_execs;
       cleanup; eauto;
       cleanup; repeat (split_ors; cleanup);
       try unify_execs; cleanup;
      
       destruct n; simpl in *; try congruence; cleanup;
-      destruct l; simpl in *; try lia;
       
       eapply_fresh write_finished in H10; eauto;
       repeat split_ors; cleanup; try congruence; try lia; 
@@ -1040,56 +1039,18 @@ Proof.
         do 2 econstructor; eauto ].
     }
     {
-      clear H1.
-      specialize H3 with (1:= H9).
-      cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
-      repeat split_ors; cleanup; try unify_execs; cleanup.
-      destruct n; simpl in *; try congruence; cleanup.
-      {
-        eapply_fresh write_crashed in H9; eauto;
-        repeat split_ors; cleanup; try unify_execs; cleanup;
-        edestruct recovery_simulation; eauto; cleanup.
-        
-        {
-          exists (Recovered (extract_state_r x0)); simpl; split; eauto.
-          unfold file_disk_reboot_list; simpl.
-          eapply_fresh H3 in H0; clear H3; cleanup;
-          do 2 (split_ors; cleanup); try unify_execs;
-          cleanup; eauto;
-          try solve [eapply ExecRecovered; eauto;
-                     repeat econstructor; eauto].
+      eapply_fresh H4 in H0;
+    cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    destruct n; simpl in *; try congruence; cleanup;
 
-          split_ors; cleanup; try unify_execs;
-          cleanup; eauto;
-          try solve [eapply ExecRecovered; eauto;
-                    repeat econstructor; eauto].
-
-          eapply files_crash_rep_eq in H1; eauto; cleanup. 
-          eapply ExecRecovered.
-          repeat econstructor; eauto.
-          setoid_rewrite H1; eauto.
-        }
-        {
-           exists (Recovered (extract_state_r x1)); simpl; split; eauto.
-           unfold file_disk_reboot_list; simpl.
-           eapply_fresh H3 in H0; clear H3; cleanup;
-           do 2 (split_ors; cleanup); try unify_execs;
-           cleanup; eauto;
-           try solve [eapply ExecRecovered; eauto;
-                      repeat econstructor; eauto].
-
-          split_ors; cleanup; try unify_execs;
-          cleanup; eauto;
-          try solve [eapply ExecRecovered; eauto;
-                     repeat econstructor; eauto].
-           
-           
-           eapply files_crash_rep_eq in H7; eauto. 
-           eapply ExecRecovered.
-           repeat econstructor; eauto.
-           setoid_rewrite H7; eauto.
-        }
-      }
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    edestruct recovery_simulation; eauto; cleanup;
+        exists (Recovered (extract_state_r x)); simpl; split; eauto;
+        unfold file_disk_reboot_list; simpl;
+        cleanup; eauto;
+        try solve [eapply ExecRecovered; eauto;
+                   repeat econstructor; eauto].
     }
     Unshelve.
     all: repeat econstructor; eauto.
@@ -1110,16 +1071,14 @@ Proof.
   cleanup; try solve [intuition eauto; try congruence;
                       unify_execs; cleanup].
   {
-    specialize H1 with (1:= H10).
-    cleanup.
-    eapply_fresh H4 in H0; clear H4;cleanup;
+    unify_execs; cleanup.
+    eapply_fresh H6 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
     try unify_execs; cleanup;
     
     destruct n; simpl in *; try congruence; cleanup;
-    destruct l; simpl in *; try lia;
     
     eapply_fresh extend_finished in H10; eauto;
     repeat split_ors; cleanup; try congruence; try lia; 
@@ -1138,19 +1097,19 @@ Proof.
 
     all: try solve [
       eapply_fresh files_rep_eq in H8; eauto;
-      rewrite Hx in H6;
-      rewrite Mem.upd_eq in H6; eauto;
-      inversion H6;
+      rewrite Hx in H5;
+      rewrite Mem.upd_eq in H5; eauto;
+      inversion H5;
       unfold extend_file in *;
-      destruct x2; simpl in *;
-      inversion H1;
+      destruct x4; simpl in *;
+      inversion H7;
       exfalso; eapply app_ne_diag; eauto;
       congruence ].
 
       eapply_fresh files_rep_eq in H8; eauto;
-      rewrite <- Hx in H6;
-      rewrite Mem.upd_eq in H6; eauto;
-      inversion H6;
+      rewrite <- Hx in H5;
+      rewrite Mem.upd_eq in H5; eauto;
+      inversion H5;
       unfold extend_file in *;
       destruct x; simpl in *;
       inversion H1;
@@ -1158,9 +1117,9 @@ Proof.
       congruence.
 
       eapply_fresh files_rep_eq in H8; eauto;
-      rewrite <- Hx in H6;
-      rewrite Mem.upd_eq in H6; eauto;
-      inversion H6;
+      rewrite <- Hx in H5;
+      rewrite Mem.upd_eq in H5; eauto;
+      inversion H5;
       unfold extend_file in *;
       destruct x; simpl in *;
       inversion H1;
@@ -1168,58 +1127,20 @@ Proof.
       congruence.
     }
   {
-      clear H1.
-      specialize H3 with (1:= H9).
-      cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
-      repeat split_ors; cleanup; try unify_execs; cleanup.
-      destruct n; simpl in *; try congruence; cleanup.
-      {
-        eapply_fresh extend_crashed in H9; eauto;
-        repeat split_ors; cleanup; try unify_execs; cleanup;
-        edestruct recovery_simulation; eauto; cleanup.
-        
-        {
-          exists (Recovered (extract_state_r x0)); simpl; split; eauto.
-          unfold file_disk_reboot_list; simpl.
-          eapply_fresh H3 in H0; clear H3; cleanup;
-          do 2 (split_ors; cleanup); try unify_execs;
-          cleanup; eauto;
-          try solve [eapply ExecRecovered; eauto;
-                     repeat econstructor; eauto].
-          split_ors; cleanup;
-          try unify_execs;
-          cleanup; eauto.
-          split_ors; cleanup;
-          try unify_execs;
-          cleanup; eauto.
-        
-          eapply files_crash_rep_eq in H1; eauto; cleanup. 
-          eapply ExecRecovered.
-          repeat econstructor; eauto.
-          setoid_rewrite H1; eauto.
-        }
-        {
-           exists (Recovered (extract_state_r x1)); simpl; split; eauto.
-           unfold file_disk_reboot_list; simpl.
-           eapply_fresh H3 in H0; clear H3; cleanup;
-           do 2 (split_ors; cleanup); try unify_execs;
-           cleanup; eauto;
-           try solve [eapply ExecRecovered; eauto;
-                      repeat econstructor; eauto].
-           split_ors; cleanup;
-           try unify_execs;
-           cleanup; eauto.
-           split_ors; cleanup;
-          try unify_execs;
-          cleanup; eauto.
-           
-           eapply files_crash_rep_eq in H6; eauto. 
-           eapply ExecRecovered.
-           repeat econstructor; eauto.
-           setoid_rewrite H6; eauto.
-        }
+    eapply_fresh H4 in H0;
+    cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    destruct n; simpl in *; try congruence; cleanup;
+
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    edestruct recovery_simulation; eauto; cleanup;
+        exists (Recovered (extract_state_r x)); simpl; split; eauto;
+        unfold file_disk_reboot_list; simpl;
+        cleanup; eauto;
+        try solve [eapply ExecRecovered; eauto;
+                   repeat econstructor; eauto].
       }
-    }
+    
     Unshelve.
     all: repeat econstructor; eauto.
     exact (owner x). 
@@ -1238,16 +1159,14 @@ Proof.
   cleanup; try solve [intuition eauto; try congruence;
                       unify_execs; cleanup].
   {
-    specialize H1 with (1:= H10).
     cleanup.
-    eapply_fresh H4 in H0; clear H4;cleanup;
+    eapply_fresh H6 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
     try unify_execs; cleanup;
     
     destruct n; simpl in *; try congruence; cleanup;
-    destruct l; simpl in *; try lia;
     
     eapply_fresh change_owner_finished in H10; eauto;
     repeat split_ors; cleanup; try congruence; try lia; 
@@ -1265,50 +1184,18 @@ Proof.
             do 2 econstructor; eauto ].
   }
   {
-    clear H1.
-    specialize H3 with (1:= H9).
+    eapply_fresh H4 in H0;
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
-    repeat split_ors; cleanup; try unify_execs; cleanup.
-    destruct n; simpl in *; try congruence; cleanup.
-    {
-      eapply_fresh change_owner_crashed in H9; eauto;
-      repeat split_ors; cleanup; try unify_execs; cleanup;
-      edestruct recovery_simulation; eauto; cleanup.
-      
-      {
-        exists (Recovered (extract_state_r x0)); simpl; split; eauto.
-        unfold file_disk_reboot_list; simpl.
-        eapply_fresh H3 in H0; clear H3; cleanup;
-        do 2 (split_ors; cleanup); try unify_execs;
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    destruct n; simpl in *; try congruence; cleanup;
+
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    edestruct recovery_simulation; eauto; cleanup;
+        exists (Recovered (extract_state_r x)); simpl; split; eauto;
+        unfold file_disk_reboot_list; simpl;
         cleanup; eauto;
         try solve [eapply ExecRecovered; eauto;
                    repeat econstructor; eauto].
-        split_ors; cleanup; try unify_execs;
-                   cleanup; eauto.           
-
-        eapply files_crash_rep_eq in H1;
-        eauto; cleanup. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H1; eauto.
-      }
-      {
-        exists (Recovered (extract_state_r x1)); simpl; split; eauto.
-        unfold file_disk_reboot_list; simpl.
-        eapply_fresh H3 in H0; clear H3; cleanup;
-        do 2 (split_ors; cleanup); try unify_execs;
-        cleanup; eauto;
-        try solve [eapply ExecRecovered; eauto;
-                   repeat econstructor; eauto].
-                   split_ors; cleanup; try unify_execs;
-                   cleanup; eauto.
-
-        eapply files_crash_rep_eq in H6; eauto. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H6; eauto.
-      }
-    }
   }
   Unshelve.
   all: repeat econstructor; eauto.
@@ -1329,16 +1216,14 @@ Proof.
   cleanup; try solve [intuition eauto; try congruence;
                       unify_execs; cleanup].
   {
-    specialize H1 with (1:= H10).
     cleanup.
-    eapply_fresh H4 in H0; clear H4;cleanup;
+    eapply_fresh H6 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
     try unify_execs; cleanup;
     
     destruct n; simpl in *; try congruence; cleanup;
-    destruct l; simpl in *; try lia;
     
     eapply_fresh delete_finished in H10; eauto;
     repeat split_ors; cleanup; try congruence; try lia; 
@@ -1355,61 +1240,30 @@ Proof.
             repeat split_ors; cleanup;
             do 2 econstructor; eauto ].
 
+            eapply_fresh files_rep_eq in H9; eauto.
+            rewrite Hx in H7;
+            rewrite Mem.delete_eq in H7; eauto;
+            inversion H7.
+            
+            
             eapply_fresh files_rep_eq in H8; eauto.
-            rewrite Hx in H6;
-            rewrite Mem.delete_eq in H6; eauto;
-            inversion H6.
-
-            eapply_fresh files_rep_eq in H8; eauto.
-            rewrite <- Hx in H6;
-            rewrite Mem.delete_eq in H6; eauto;
-            inversion H6.
+            rewrite <- Hx in H5;
+            rewrite Mem.delete_eq in H5; eauto;
+            inversion H5.
   }
   {
-    clear H1.
-    specialize H3 with (1:= H9).
+    eapply_fresh H4 in H0;
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
-    repeat split_ors; cleanup; try unify_execs; cleanup.
-    destruct n; simpl in *; try congruence; cleanup.
-    {
-      eapply_fresh delete_crashed in H9; eauto;
-      repeat split_ors; cleanup; try unify_execs; cleanup;
-      edestruct recovery_simulation; eauto; cleanup.
-      
-      {
-        exists (Recovered (extract_state_r x0)); simpl; split; eauto.
-        unfold file_disk_reboot_list; simpl.
-        eapply_fresh H3 in H0; clear H3; cleanup;
-        do 2 (split_ors; cleanup); try unify_execs;
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    destruct n; simpl in *; try congruence; cleanup;
+
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    edestruct recovery_simulation; eauto; cleanup;
+        exists (Recovered (extract_state_r x)); simpl; split; eauto;
+        unfold file_disk_reboot_list; simpl;
         cleanup; eauto;
         try solve [eapply ExecRecovered; eauto;
                    repeat econstructor; eauto].
-                   split_ors; cleanup; try unify_execs;
-        cleanup; eauto.
-        
-        eapply files_crash_rep_eq in H1;
-        eauto; cleanup. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H1; eauto.
-      }
-      {
-        exists (Recovered (extract_state_r x1)); simpl; split; eauto.
-        unfold file_disk_reboot_list; simpl.
-        eapply_fresh H3 in H0; clear H3; cleanup;
-        do 2 (split_ors; cleanup); try unify_execs;
-        cleanup; eauto;
-        try solve [eapply ExecRecovered; eauto;
-                   repeat econstructor; eauto].
-                   split_ors; cleanup; try unify_execs;
-        cleanup; eauto.
-        
-        eapply files_crash_rep_eq in H6; eauto. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H6; eauto.
-      }
-    }
   }
   Unshelve.
   all: repeat econstructor; eauto.
@@ -1433,16 +1287,14 @@ Proof.
   cleanup; try solve [intuition eauto; try congruence;
                       unify_execs; cleanup].  
   {
-    specialize H1 with (1:= H10).
     cleanup.
-    eapply_fresh H4 in H0; clear H4;cleanup;
+    eapply_fresh H6 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
     try unify_execs; cleanup;
     
     destruct n; simpl in *; try congruence; cleanup;
-    destruct l; simpl in *; try lia;
     
     eapply_fresh create_finished in H10; eauto;
     repeat split_ors; cleanup; try congruence; try lia; 
@@ -1453,62 +1305,25 @@ Proof.
             repeat split_ors; cleanup;
             do 2 econstructor; eauto ].
     try solve [
-          exists (RFinished  (Mem.upd s_abs x (new_file own)) (Some x));
+          exists (RFinished  (Mem.upd s_abs x0 (new_file own)) (Some x0));
             simpl; repeat (split; eauto);
             eapply ExecFinished;
             repeat split_ors; cleanup;
             do 2 econstructor; eauto ].
   }
   {
-    clear H1.
-    specialize H3 with (1:= H9).
+    eapply_fresh H4 in H0;
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
-    repeat split_ors; cleanup; try unify_execs; cleanup.
-    destruct n; simpl in *; try congruence; cleanup.
-    {
-      eapply_fresh create_crashed in H9; eauto;
-      repeat split_ors; cleanup; try unify_execs; cleanup;
-      edestruct recovery_simulation; eauto; cleanup.
-      
-      {
-        exists (Recovered (extract_state_r x0)); simpl; split; eauto.
-        unfold file_disk_reboot_list; simpl.
-        eapply_fresh H3 in H0; clear H3; cleanup;
-        do 2 (split_ors; cleanup); try unify_execs;
-        cleanup; eauto;
-        try solve [eapply ExecRecovered; eauto;
-                   repeat econstructor; eauto].
-        split_ors; cleanup; try unify_execs;
-        cleanup; eauto.
-        
-        eapply files_crash_rep_eq in H1;
-        eauto; cleanup. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H1; eauto.
-      }
-      {
-        exists (Recovered (extract_state_r x1)); simpl; split; eauto.
-        unfold file_disk_reboot_list; simpl.
-        eapply_fresh H3 in H0; clear H3; cleanup;
-        do 2 (split_ors; cleanup); try unify_execs;
-        cleanup; eauto;
-        try solve [eapply ExecRecovered; eauto;
-                   repeat econstructor; eauto].
-        split_ors; cleanup; try unify_execs;
-        cleanup; eauto.
-        
-        eapply files_crash_rep_eq in H5; eauto. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H5; eauto.
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    destruct n; simpl in *; try congruence; cleanup;
 
-        eapply files_crash_rep_eq in H5; eauto. 
-        eapply ExecRecovered.
-        repeat econstructor; eauto.
-        setoid_rewrite H5; eauto.
-      }
-    }
+    repeat split_ors; cleanup; try unify_execs; cleanup;
+    edestruct recovery_simulation; eauto; cleanup;
+        exists (Recovered (extract_state_r x)); simpl; split; eauto;
+        unfold file_disk_reboot_list; simpl;
+        cleanup; eauto;
+        try solve [eapply ExecRecovered; eauto;
+                   repeat econstructor; eauto].
   }
   Unshelve.
   all: repeat econstructor; eauto.

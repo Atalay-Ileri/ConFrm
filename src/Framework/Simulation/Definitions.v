@@ -49,17 +49,19 @@ Section Relations.
     match lo_imp, lo_abs with
     | o_imp :: loi, o_abs :: loa =>
       length lo_imp = length lo_abs /\
-      (forall s' t,
-         L_imp.(exec) u o_imp s (R.(compile) p_abs) (Finished s' t) ->
-         R.(oracle_refines) u s p_abs (fun s => s) o_imp o_abs) /\
-      (forall s',
-         L_imp.(exec) u o_imp s (R.(compile) p_abs) (Crashed s') ->
+      ((exists s' t,
+         L_imp.(exec) u o_imp s (R.(compile) p_abs) (Finished s' t) /\
+         R.(oracle_refines) u s p_abs (fun s => s) o_imp o_abs /\
+         loi = [] /\ loa = []) \/
+      (exists s',
+         L_imp.(exec) u o_imp s (R.(compile) p_abs) (Crashed s') /\
          match l_get_reboot_state_imp with
          | get_reboot_state_imp :: lgrsi =>
            R.(oracle_refines) u s p_abs get_reboot_state_imp o_imp o_abs /\
            recovery_oracles_refine_to u (get_reboot_state_imp s') rec_abs rec_abs lgrsi loi loa
+           (*  /\ loi <> [] /\ loa <> [] *)
          | _ => False
-         end)
+         end))
     | _, _ => False
     end.
 
@@ -200,8 +202,8 @@ Definition SimulationForProgramGeneral
 
     (forall s_imp',
        L_imp.(recovery_exec) u l_o_imp s_imp
-                             l_get_reboot_state_imp (R.(compile) p_abs)
-                             (R.(compile) rec_abs) s_imp' ->
+        l_get_reboot_state_imp (R.(compile) p_abs)
+        (R.(compile) rec_abs) s_imp' ->
        exists s_abs',
          L_abs.(recovery_exec) u l_o_abs s_abs l_get_reboot_state_abs p_abs rec_abs s_abs' /\
          R_end (extract_state_r s_imp') (extract_state_r s_abs') /\
@@ -278,6 +280,62 @@ Qed.
 (*** ALL VALID EXPERIMENT END ***)
 
 
+
+
+(******SSE EXPERIMENT BEGIN *****)
+Definition SSE_N u {T} (p1 p2: L_abs.(prog) T)
+           (valid_state: L_abs.(state) -> Prop)
+           (R: L_abs.(state) -> L_abs.(state) -> Prop)
+           :=
+  forall s1 s1' s2 o,
+    valid_state s1 ->
+    valid_state s2 -> 
+    L_abs.(exec) u o s1 p1 s1' ->
+    R s1 s2 ->
+    exists s2', 
+      L_abs.(exec) u o s2 p2 s2'.
+
+Definition SSE_N_F u {T} {T'} (p1: L_abs.(prog) T) 
+(p2: L_abs.(prog) T')
+(valid_state: L_abs.(state) -> Prop)
+(R: L_abs.(state) -> L_abs.(state) -> Prop)
+:=
+forall s1 s1' r1 s2 o,
+valid_state s1 ->
+valid_state s2 -> 
+L_abs.(exec) u o s1 p1 (Finished s1' r1) ->
+R s1 s2 ->
+exists s2' r2, 
+ L_abs.(exec) u o s2 p2 (Finished s2' r2).
+
+ Definition SSE_N_C u 
+ {T} {T'} (p1: L_abs.(prog) T) 
+(p2: L_abs.(prog) T')
+           (valid_state: L_abs.(state) -> Prop)
+           (R: L_abs.(state) -> L_abs.(state) -> Prop)
+           :=
+  forall s1 s1' s2 o,
+    valid_state s1 ->
+    valid_state s2 -> 
+    L_abs.(exec) u o s1 p1 (Crashed s1') ->
+    R s1 s2 ->
+    exists s2', 
+      L_abs.(exec) u o s2 p2 (Crashed s2').
+
+Lemma exec_empty_oracle:
+      forall u T (p: L_abs.(prog) T) s s',
+      ~ exec L_abs u [] s p s'.
+      induction p; unfold not; intros;
+      invert_exec.
+      symmetry in H2; apply app_eq_nil in H2; cleanup.
+      simpl in *; eauto.
+      eapply IHp; eauto.
+      symmetry in H0; apply app_eq_nil in H0; cleanup.
+      simpl in *; eauto.
+      split_ors; cleanup;  eapply IHp; eauto.
+  Qed.
+
+(******* SSE EXPERIMENT END ******)
 End Relations.
 
 Arguments recovery_oracles_refine_to {_ _ _ _} _ {_}.
@@ -413,7 +471,109 @@ Proof.
 Qed.
 
 
+Lemma SS_compositional:
+  forall O (L: Language O) u 
+  T (p1 p2: L.(prog) T) T' (p3 p4: T -> L.(prog) T') 
+      rec
+      l_get_reboot_state3
+      equivalent_states valid_state
+      cond1 cond2,
 
+    (forall l_get_reboot_state1,
+    SelfSimulation
+      u p1 p2
+      rec
+      valid_state
+      equivalent_states
+      cond1
+      l_get_reboot_state1) ->
+
+    (forall l_get_reboot_state2 t t',
+    SelfSimulation
+      u (p3 t) (p4 t')
+      rec
+      valid_state
+      equivalent_states
+      cond2
+      l_get_reboot_state2) ->
+
+      
+      SelfSimulation
+      u (Bind p1 p3) (Bind p2 p4)
+      rec
+      valid_state
+      equivalent_states
+      (fun u => cond1 u /\ cond2 u)
+      l_get_reboot_state3.
+Proof.
+
+  unfold SelfSimulation;
+  intros; simpl in *.
+  repeat invert_exec.
+  {
+    invert_exec'' H13.
+    
+    edestruct H. 
+    4: eauto.
+    repeat econstructor; eauto.
+    all: eauto.
+    cleanup.
+    simpl in *.
+    invert_exec; simpl in *.
+    
+    edestruct H0. 
+    4: eauto.
+    eapply ExecFinished; eauto.
+    all: eauto.
+    cleanup.
+    simpl in *.
+
+    repeat invert_exec.
+    exists (RFinished
+    d'1 t1).
+    intuition eauto.
+    simpl in *.
+    repeat econstructor; eauto.
+  }
+  {
+    invert_exec'' H12.
+    {
+        edestruct H. 
+        4: eauto.
+        repeat econstructor; eauto.
+        all: eauto.
+        cleanup.
+        simpl in *.
+        invert_exec; simpl in *.
+
+        edestruct H0. 
+        4: eauto.
+        eapply ExecRecovered; eauto.
+        all: eauto.
+        cleanup; simpl in *.
+
+        repeat invert_exec.
+        exists (Recovered (extract_state_r ret0)).
+        intuition eauto.
+        simpl in *.
+        repeat econstructor; eauto.
+    }
+    {
+      edestruct H. 
+      4: eauto.
+      eapply ExecRecovered; eauto.
+      all: eauto.
+      cleanup.
+      simpl in *.
+      repeat invert_exec.
+        exists (Recovered (extract_state_r ret0)).
+        intuition eauto.
+        simpl in *.
+        econstructor; eauto.
+        eapply ExecBindCrash; eauto.
+    }
+  }
+Qed.
 
 
 
@@ -694,3 +854,6 @@ Proof.
   edestruct H; eauto.
   intuition eauto.
 Qed.
+
+
+

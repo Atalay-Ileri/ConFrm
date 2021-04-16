@@ -246,6 +246,18 @@ Local Lemma lift2_invert_exec_crashed :
       eapply lift1_invert_exec_crashed in H; logic_clean
     | [ H: exec _ _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
       eapply lift2_invert_exec_crashed in H; logic_clean
+    | [ H: exec' _ _ _ (lift_L1 _ _) (Finished _ _) |- _ ] =>
+      eapply lift1_invert_exec in H; logic_clean
+    | [ H: exec' _ _ _ (lift_L2 _ _) (Finished _ _) |- _ ] =>
+      eapply lift2_invert_exec in H; logic_clean
+    | [ H: exec' _ _ _ (lift_L1 _ _) (Crashed _) |- _ ] =>
+      eapply lift1_invert_exec_crashed in H; logic_clean
+    | [ H: exec' _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
+      eapply lift2_invert_exec_crashed in H; logic_clean
+    | [H: exec' _ _ _ (Op _ (P1 _)) _ |- _ ]=>
+        invert_exec'' H
+    | [H: exec' _ _ _ (Op _ (P2 _)) _ |- _ ]=>
+        invert_exec'' H
     | [ H: HorizontalComposition.exec' _ _ _ _ _ |- _ ] =>
       invert_exec'' H
     | [ H: Core.exec _ _ _ _ _ _ |- _ ] =>
@@ -285,3 +297,63 @@ Local Lemma lift2_invert_exec_crashed :
         H0: Language.exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     end.
+
+Lemma bind_reorder:
+  forall O (L: Language O) T  
+  (p1: prog L T) T' (p2: T -> prog L T') 
+  T'' (p3: T' -> prog L T'') 
+  u o s r,
+      exec L u o s (Bind p1 (fun t => Bind (p2 t) p3)) r <->
+      exec L u o s (Bind (Bind p1 p2) p3) r.
+Proof.
+  intros; split; intros.
+  {
+    repeat invert_exec.
+    {
+      rewrite app_assoc.
+      repeat econstructor; eauto.
+    }
+    split_ors; cleanup; 
+    repeat invert_exec.
+    {
+    repeat eapply ExecBindCrash.
+    rewrite <- app_nil_r with (l:=x).
+    eapply ExecBindCrash; eauto.
+    }
+    split_ors; cleanup; 
+    repeat invert_exec.
+    {
+      rewrite app_assoc.
+      eapply ExecBindCrash.
+      econstructor; eauto.
+    }
+    {
+      rewrite app_assoc.
+      repeat econstructor; eauto.
+    }
+  }
+  {
+    repeat invert_exec.
+    {
+      rewrite <- app_assoc.
+      repeat econstructor; eauto.
+    }
+    split_ors; cleanup; 
+    repeat invert_exec.
+    split_ors; cleanup; 
+    repeat invert_exec.
+    {
+      rewrite <- app_assoc.
+    repeat eapply ExecBindCrash; eauto.
+    }
+    {
+      rewrite <- app_assoc.
+      eapply ExecBind; eauto.
+      eapply ExecBindCrash; eauto.
+    }
+    {
+      rewrite <- app_assoc.
+      repeat econstructor; eauto.
+    }
+  }
+Qed.
