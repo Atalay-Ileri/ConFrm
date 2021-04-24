@@ -127,6 +127,63 @@ Proof.
   eapply IHl; eauto; lia.
 Qed.
 
+Lemma file_map_rep_eq:
+  forall fd1 fd2 im s,
+    file_map_rep fd1 im s ->
+    file_map_rep fd2 im s ->
+    fd1 = fd2.
+Proof.
+  unfold file_map_rep;
+  intros; extensionality inum.
+  cleanup.
+  unfold addrs_match_exactly in *.
+  specialize (H inum); specialize (H0 inum);
+  destruct_fresh (fd1 inum); cleanup;
+  destruct_fresh (im inum).
+  {
+    destruct_fresh (fd2 inum).
+    {
+      eapply_fresh H2 in D0; eauto.
+      eapply_fresh H1 in D0; eauto.
+      unfold file_rep in *; cleanup.
+      destruct f, f0; simpl in *; cleanup.
+      assert_fresh (blocks = blocks0). {
+        eapply list_seln_ext'; eauto.
+        intros.
+        repeat rewrite nth_seln_eq.
+        apply Some_injective.
+        repeat rewrite <- nth_error_nth'; try lia.
+        destruct_fresh (nth_error (block_numbers i) pos).
+        eapply_fresh H5 in D2; eauto; cleanup.
+        eapply_fresh H8 in D2; eauto; cleanup; eauto.
+        apply nth_error_None in D2; lia.
+      }
+      rewrite A; eauto.
+    }
+    {
+      edestruct H0; eauto.
+      exfalso; eapply H4; congruence.
+    }
+  }
+  {
+    edestruct H; eauto.
+    exfalso; eapply H3; congruence.
+  }
+  {
+    edestruct H; eauto.
+    exfalso; eapply H4; congruence.
+  }
+  {
+    destruct_fresh (fd2 inum); eauto.
+    {
+      edestruct H0; eauto.
+      exfalso; eapply H3; congruence.
+    }
+  }
+  Unshelve.
+  exact value0.
+Qed.
+
 Lemma files_inner_rep_eq:
   forall fd1 fd2 s,
     files_inner_rep fd1 s ->
@@ -138,53 +195,8 @@ Proof.
   cleanup.
   eapply DiskAllocator.block_allocator_rep_eq in H3; eauto; subst.
   eapply inode_rep_eq in H; eauto; subst.
-  unfold file_map_rep in *; cleanup.
-  unfold addrs_match_exactly in *.
-  specialize (H inum); specialize (H3 inum);
-  destruct_fresh (fd1 inum); cleanup;
-  destruct_fresh (x0 inum).
-  {
-    destruct_fresh (fd2 inum).
-    {
-      eapply_fresh H2 in D0; eauto.
-      eapply_fresh H4 in D0; eauto.
-      unfold file_rep in *; cleanup.
-      destruct f, f0; simpl in *; cleanup.
-      assert_fresh (blocks = blocks0). {
-        eapply list_seln_ext'; eauto.
-        intros.
-        repeat rewrite nth_seln_eq.
-        apply Some_injective.
-        repeat rewrite <- nth_error_nth'; try lia.
-        destruct_fresh (nth_error (block_numbers i) pos).
-        eapply_fresh H7 in D2; eauto; cleanup.
-        eapply_fresh H10 in D2; eauto; cleanup; eauto.
-        apply nth_error_None in D2; lia.
-      }
-      rewrite A; eauto.
-    }
-    {
-      edestruct H; eauto.
-      exfalso; eapply H6; congruence.
-    }
-  }
-  {
-    edestruct H3; eauto.
-    exfalso; eapply H5; congruence.
-  }
-  {
-    edestruct H3; eauto.
-    exfalso; eapply H6; congruence.
-  }
-  {
-    destruct_fresh (fd2 inum); eauto.
-    {
-      edestruct H; eauto.
-      exfalso; eapply H5; congruence.
-    }
-  }
-  Unshelve.
-  exact value0.
+  eapply file_map_rep_eq in H4; subst; eauto.
+  rewrite H4; eauto. 
 Qed.
 
 Lemma files_rep_eq:
@@ -430,9 +442,9 @@ Proof.
   repeat cleanup_pairs; repeat invert_exec_no_match; intuition eauto.
   {
 
-  eapply_fresh inode_exists_then_file_exists in H9; eauto; cleanup.
+  eapply_fresh inode_exists_then_file_exists in H10; eauto; cleanup.
     unfold file_map_rep in *; cleanup.
-      eapply_fresh H11 in H9; eauto.
+      eapply_fresh H12 in H10; eauto.
       unfold file_rep in *; cleanup; eauto.
                 
         right; eexists; intuition eauto.
@@ -449,39 +461,39 @@ Proof.
           }
           {
             destruct (addr_dec inum inum0); subst;
-            [rewrite Mem.upd_eq in H15;
-             rewrite Mem.upd_eq in H16; eauto |
-             rewrite Mem.upd_ne in H15;
-             rewrite Mem.upd_ne in H16;eauto].
+            [rewrite Mem.upd_eq in H16;
+             rewrite Mem.upd_eq in H17; eauto |
+             rewrite Mem.upd_ne in H16;
+             rewrite Mem.upd_ne in H17;eauto].
             {
               cleanup; simpl; intuition eauto.
             }
             {
-              eapply H11 in H15; eauto; cleanup; eauto.
+              eapply H12 in H16; eauto; cleanup; eauto.
             }
           }
           {
             destruct (addr_dec inum inum0); subst;
-            [rewrite Mem.upd_eq in H15;
-             rewrite Mem.upd_eq in H16; eauto |
-             rewrite Mem.upd_ne in H15;
-             rewrite Mem.upd_ne in H16;eauto].
+            [rewrite Mem.upd_eq in H16;
+             rewrite Mem.upd_eq in H17; eauto |
+             rewrite Mem.upd_ne in H16;
+             rewrite Mem.upd_ne in H17;eauto].
             
             - cleanup; simpl; repeat rewrite app_length; simpl; eauto.
             
-            - eapply H11 in H15; eauto; cleanup; eauto.
+            - eapply H12 in H16; eauto; cleanup; eauto.
           }
           {
             destruct (addr_dec inum inum0); subst;
-            [rewrite Mem.upd_eq in H15;
-           rewrite Mem.upd_eq in H16; eauto |
-           rewrite Mem.upd_ne in H15;
-           rewrite Mem.upd_ne in H16;eauto].
+            [rewrite Mem.upd_eq in H16;
+           rewrite Mem.upd_eq in H17; eauto |
+           rewrite Mem.upd_ne in H16;
+           rewrite Mem.upd_ne in H17;eauto].
           {
             cleanup; simpl in *.
               destruct (lt_dec i (length x5.(blocks))).
-              - rewrite nth_error_app1 in H17; eauto.
-                apply H14 in H17; cleanup.
+              - rewrite nth_error_app1 in H18; eauto.
+                apply H15 in H18; cleanup.
                 eexists; rewrite nth_error_app1; eauto.
                 split; eauto.
                 rewrite Mem.upd_ne; eauto.
@@ -490,22 +502,22 @@ Proof.
                 lia.
 
               - assert (A: i = length x5.(blocks)). {
-                  apply nth_error_some_lt in H17;
-                  rewrite app_length in H17; simpl in *;
+                  apply nth_error_some_lt in H18;
+                  rewrite app_length in H18; simpl in *;
                   lia.
                 }
                 subst.
                 rewrite nth_error_app2 in *; try lia.
-                rewrite H13 in *.
+                rewrite H14 in *.
                 rewrite PeanoNat.Nat.sub_diag in *; simpl in *.
                 cleanup; eexists; intuition eauto.
                 rewrite Mem.upd_eq; eauto.
             }
             {
-              eapply_fresh H11 in H15; eauto; cleanup.
+              eapply_fresh H12 in H16; eauto; cleanup.
               unfold file_rep; simpl;
               intuition eauto.
-              eapply H20 in H17; cleanup.
+              eapply H21 in H18; cleanup.
               eexists; intuition eauto.
               rewrite Mem.upd_ne; eauto.
               intros Hnot; subst; congruence.
@@ -514,13 +526,13 @@ Proof.
         }
         {
           intros.
-          eapply_fresh inode_exists_then_file_exists in H8; 
+          eapply_fresh inode_exists_then_file_exists in H9; 
           eauto; cleanup.
          unfold file_map_rep in *; cleanup.
-         eapply_fresh H10 in H8; eauto.
+         eapply_fresh H11 in H9; eauto.
          unfold file_rep in *; cleanup; eauto.
          intros Hnot; apply In_nth_error in Hnot; cleanup.
-         apply H13 in H14; cleanup; congruence.
+         apply H14 in H15; cleanup; congruence.
       }
   Qed.
 

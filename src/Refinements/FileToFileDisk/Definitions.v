@@ -49,9 +49,6 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
              inum < inode_count /\
              fd inum = Some file /\
              file.(owner) = u /\
-             let txn := fst (snd d1) in
-             (length (addr_list_to_blocks (map fst txn ++ [off])) +
-             length ((map snd txn) ++ [v])) > log_length /\
              let new_file := update_file file off v in
              files_rep (Mem.upd fd inum new_file) d'
            ) \/
@@ -73,9 +70,6 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
              fd inum = Some file /\
              file.(owner) = u /\
              off < length file.(blocks) /\
-             let txn := fst (snd d1) in
-             (length (addr_list_to_blocks (map fst txn ++ [off])) +
-             length ((map snd txn) ++ [v])) > log_length /\
              files_rep fd d'
            )
         ) \/
@@ -93,9 +87,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
               fd inum = Some file /\
               file.(owner) = u /\
               off < length file.(blocks) /\
-              let txn := fst (snd d1) in
-             (length (addr_list_to_blocks (map fst txn ++ [off])) +
-             length ((map snd txn) ++ [v])) > log_length /\
+              seln file.(blocks) off value0 <> v /\
               let new_file := update_file file off v in
               files_crash_rep (Mem.upd fd inum new_file) d'     
            )
@@ -110,6 +102,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
           (
             exec impl u o1 d1 (extend inum v) (Finished d' r) /\
             o2 = Cont /\
+            r = Some tt /\
             inum < inode_count /\
             fd inum = Some file /\
             file.(owner) = u /\
@@ -119,6 +112,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
           (
             exec impl u o1 d1 (extend inum v) (Finished d' r) /\
             o2 = Cont /\
+            r = None /\
             (inum >= inode_count \/
              fd inum = None \/
              (fd inum = Some file /\ file.(owner) <> u)) /\
@@ -126,15 +120,8 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
           ) \/
           (
             exec impl u o1 d1 (extend inum v) (Finished d' r) /\
-            o2 = DiskFull /\
-            inum < inode_count /\
-            fd inum = Some file /\
-            file.(owner) = u /\
-            files_rep fd d'
-          )  \/
-          (
-            exec impl u o1 d1 (extend inum v) (Finished d' r) /\
             o2 = TxnFull /\
+            r = None /\
             inum < inode_count /\
             fd inum = Some file /\
             file.(owner) = u /\
@@ -208,6 +195,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
             inum < inode_count /\
             fd inum = Some file /\
             file.(owner) = u /\
+            own <> u /\
             let new_file := change_file_owner file own in
             files_crash_rep (Mem.upd fd inum new_file) d'
           )
@@ -223,6 +211,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
             o2 = NewInum inum /\
             inum < inode_count /\
             fd inum = None /\
+            (forall i, i < inum -> fd i <> None ) /\ 
             let new_file := new_file own in
             files_rep (Mem.upd fd inum new_file) d'
           ) \/
@@ -251,6 +240,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
             o2 = CrashAfterCreate inum /\
             inum < inode_count /\
             fd inum = None /\
+            (forall i, i < inum -> fd i <> None ) /\ 
             let new_file := new_file own in
             files_crash_rep (Mem.upd fd inum new_file) d'
           )
@@ -264,6 +254,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
           (
             exec impl u o1 d1 (delete inum) (Finished d' r) /\
             o2 = Cont /\
+            r = Some tt /\
             inum < inode_count /\
             fd inum = Some file /\
             file.(owner) = u /\
@@ -272,6 +263,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
           (
             exec impl u o1 d1 (delete inum) (Finished d' r) /\
             o2 = Cont /\
+            r = None /\
             (
               inum >= inode_count \/
               fd inum = None \/
@@ -282,6 +274,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
           (
             exec impl u o1 d1 (delete inum) (Finished d' r) /\
             o2 = TxnFull /\
+            r = None /\
             inum < inode_count /\
             fd inum = Some file /\
             file.(owner) = u /\

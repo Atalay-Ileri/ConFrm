@@ -251,6 +251,25 @@ Section FileDiskSimulation.
         right; eexists; intuition eauto.
       }
       {
+        destruct (value_dec (seln (blocks x1) a value0) v).
+        {
+          unfold update_file in *; rewrite <- e in *.
+          rewrite updn_seln_eq in H5.
+          rewrite Mem.upd_nop in H5; [| destruct x1; simpl in *; eauto].
+          
+          exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        repeat split; eauto.
+        eapply recovery_oracles_refine_to_length in H0; eauto.
+        exact (owner x1).
+        right.
+        eexists; repeat split; eauto;
+        simpl in *; intros.
+        eexists; repeat split; eauto;
+        simpl in *; intros.
+        eapply files_rep_eq in H; eauto; subst.
+        right; eexists; intuition eauto.
+        }
+        {
         exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -265,6 +284,7 @@ Section FileDiskSimulation.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
+      }
       }
           
       eapply_fresh write_crashed in H10; eauto; cleanup.
@@ -317,7 +337,7 @@ Section FileDiskSimulation.
         
         repeat split_ors; cleanup;
         do 2 eexists; right; eauto;
-        right; right; repeat (split; eauto).
+        right; repeat (split; eauto).
       }
       {
         exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
@@ -569,6 +589,22 @@ Section FileDiskSimulation.
         
       }
       {
+        destruct (user_dec (owner x1) own); subst.
+        {
+          rewrite Mem.upd_nop in H4; [| unfold change_file_owner; destruct x1; simpl in *; eauto].
+          exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+          repeat split; eauto; try (unify_execs; cleanup).
+          eapply recovery_oracles_refine_to_length in H0; eauto.
+          exact (owner x1).
+          right.
+          eexists; repeat split; eauto;
+          simpl in *; intros;
+          eexists; repeat split; eauto; intros;
+          eapply files_rep_eq in H; eauto; subst.
+          
+          right; eexists; intuition eauto.
+        }
+        {
         exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -581,7 +617,7 @@ Section FileDiskSimulation.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        
+        }
       }          
       {
         eapply_fresh change_owner_crashed in H10; eauto; cleanup.
@@ -689,7 +725,6 @@ Section FileDiskSimulation.
         
         right; eexists; intuition eauto.
         right; eexists; repeat (split; eauto).
-        
       }          
       {
         eapply_fresh create_crashed in H10; eauto; cleanup.
@@ -1105,26 +1140,6 @@ Proof.
       inversion H7;
       exfalso; eapply app_ne_diag; eauto;
       congruence ].
-
-      eapply_fresh files_rep_eq in H8; eauto;
-      rewrite <- Hx in H5;
-      rewrite Mem.upd_eq in H5; eauto;
-      inversion H5;
-      unfold extend_file in *;
-      destruct x; simpl in *;
-      inversion H1;
-      exfalso; eapply app_ne_diag; eauto;
-      congruence.
-
-      eapply_fresh files_rep_eq in H8; eauto;
-      rewrite <- Hx in H5;
-      rewrite Mem.upd_eq in H5; eauto;
-      inversion H5;
-      unfold extend_file in *;
-      destruct x; simpl in *;
-      inversion H1;
-      exfalso; eapply app_ne_diag; eauto;
-      congruence.
     }
   {
     eapply_fresh H4 in H0;
@@ -1184,7 +1199,7 @@ Proof.
             do 2 econstructor; eauto ].
   }
   {
-    eapply_fresh H4 in H0;
+    eapply_fresh H4 in H0; clear H4;
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup;
     repeat split_ors; cleanup; try unify_execs; cleanup;
     destruct n; simpl in *; try congruence; cleanup;
@@ -1196,7 +1211,8 @@ Proof.
         cleanup; eauto;
         try solve [eapply ExecRecovered; eauto;
                    repeat econstructor; eauto].
-  }
+  
+                   }
   Unshelve.
   all: repeat econstructor; eauto.
 Qed.
@@ -1239,17 +1255,6 @@ Proof.
             eapply ExecFinished;
             repeat split_ors; cleanup;
             do 2 econstructor; eauto ].
-
-            eapply_fresh files_rep_eq in H9; eauto.
-            rewrite Hx in H7;
-            rewrite Mem.delete_eq in H7; eauto;
-            inversion H7.
-            
-            
-            eapply_fresh files_rep_eq in H8; eauto.
-            rewrite <- Hx in H5;
-            rewrite Mem.delete_eq in H5; eauto;
-            inversion H5.
   }
   {
     eapply_fresh H4 in H0;

@@ -8,10 +8,10 @@ Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_rel
   (******** SSE PROOFS *********)
 
 Theorem SelfSimulation_Exists_write:
-  forall u m inum off v,
+  forall u m inum off v1 v2 ex,
     SelfSimulation_Exists
-      u (write inum off v) (write inum off v) recover
-      AD_valid_state (AD_related_states u None)
+      u (write inum off v1) (write inum off v2) recover
+      AD_valid_state (AD_related_states u ex)
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque write_inner.

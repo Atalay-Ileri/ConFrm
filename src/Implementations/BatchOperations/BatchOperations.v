@@ -18,7 +18,7 @@ Fixpoint write_batch al vl :=
   | _, _ => Ret tt
   end.
 
- Fixpoint write_consecutive a vl := write_batch (seq a (length vl)) vl.
+Definition write_consecutive a vl := write_batch (seq a (length vl)) vl.
   
 Fixpoint encrypt_all k vl :=
   match vl with

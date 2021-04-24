@@ -146,6 +146,7 @@ Axiom decrypt_encrypt: forall k ev, encrypt k (decrypt k ev) = ev.
 (** Access control **) 
 Axiom user : Type.
 Axiom user0: user.
+Axiom user_eq_dec: EqDec user.
 
 
 (** Execution Semantics **)
@@ -217,7 +218,7 @@ Instance addr_dec : EqDec addr := addr_eq_dec.
 Instance value_dec : EqDec value := value_eq_dec.
 Instance key_dec : EqDec key := key_eq_dec.
 Instance hash_dec : EqDec hash := hash_eq_dec.
-
+Instance user_dec : EqDec user := user_eq_dec.
 
 Record File := {
     owner: user;

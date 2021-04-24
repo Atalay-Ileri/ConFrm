@@ -222,7 +222,7 @@ Local Lemma lift2_invert_exec_crashed :
     eauto.
   Qed.
 
-  Local Ltac invert_exec' :=
+  Ltac invert_exec' :=
     match goal with
     |[H : recovery_exec _ _ _ _ _ _ _ _ |- _ ] =>
      invert_exec'' H

@@ -1990,7 +1990,8 @@ Proof.
       rewrite upd_batch_set_ne in D.      
       unfold log_header_block_rep in *; simpl in *; cleanup_no_match; eauto.
       intros Hx; apply in_seq in Hx.
-      rewrite hdr_block_num_eq in Hx; lia.
+      rewrite hdr_block_num_eq, log_start_eq in Hx; 
+      lia.
     }
     {
       simpl.
@@ -2211,7 +2212,6 @@ Proof.
     simpl in *.
     rewrite map_length in *.
     pose proof data_start_where_log_ends.
-    rewrite log_start_eq in H.
     lia.
     pose proof hdr_before_log.
     pose proof data_start_where_log_ends.
@@ -2349,7 +2349,7 @@ Proof.
         rewrite upd_batch_set_ne; eauto.
         intros Hx; apply in_firstn_in in Hx.
         apply in_seq in Hx.
-        rewrite hdr_block_num_eq in Hx; lia.
+        rewrite hdr_block_num_eq, log_start_eq in Hx; lia.
       }
       {
         unfold log_data_blocks_rep in *; simpl in *; cleanup_no_match.
@@ -2619,7 +2619,7 @@ Proof.
             rewrite upd_batch_set_ne; eauto.
             intros Hx;
             apply in_seq in Hx.
-            rewrite hdr_block_num_eq in Hx; lia.
+            rewrite hdr_block_num_eq, log_start_eq in Hx; lia.
           }
           {
             unfold log_data_blocks_rep in *; simpl in *; cleanup_no_match.
@@ -2904,7 +2904,7 @@ Proof.
             cleanup_no_match; simpl; eauto.
 
             intros Hx; apply in_seq in Hx.
-            rewrite hdr_block_num_eq in Hx; simpl in *; lia.
+            rewrite hdr_block_num_eq, log_start_eq in Hx; simpl in *; lia.
           }
           {
             unfold log_data_blocks_rep in *; simpl in *; cleanup_no_match.
@@ -3026,7 +3026,7 @@ Proof.
             {
               intros Hx; apply in_seq in Hx.              
               rewrite map_length, app_length in *;
-              rewrite hdr_block_num_eq in Hx; simpl in *; lia.
+              rewrite hdr_block_num_eq, log_start_eq in Hx; simpl in *; lia.
             }
             {
               apply in_app_iff in H7; split_ors.
@@ -3083,7 +3083,7 @@ Proof.
             lia.
             
             intros Hx; apply in_seq in Hx.              
-            rewrite hdr_block_num_eq in Hx; simpl in *; lia.    
+            rewrite hdr_block_num_eq, log_start_eq in Hx; simpl in *; lia.    
           }
           {
             unfold log_header_block_rep in *; simpl in *;
@@ -3093,7 +3093,7 @@ Proof.
             lia.
             
             intros Hx; apply in_seq in Hx.              
-            rewrite hdr_block_num_eq in Hx; simpl in *; lia.
+            rewrite hdr_block_num_eq, log_start_eq in Hx; simpl in *; lia.
           }
           {
             unfold log_header_block_rep in *; simpl in *;
@@ -3104,7 +3104,7 @@ Proof.
             lia.
             
             intros Hx; apply in_seq in Hx.              
-            rewrite hdr_block_num_eq in Hx; simpl in *; lia.
+            rewrite hdr_block_num_eq, log_start_eq in Hx; simpl in *; lia.
           }
           {
             repeat rewrite map_length in *;
@@ -3117,7 +3117,7 @@ Proof.
             simpl in *; lia.
             
             intros Hx; apply in_seq in Hx.              
-            rewrite hdr_block_num_eq in Hx; simpl in *; lia.
+            rewrite hdr_block_num_eq, log_start_eq in Hx; simpl in *; lia.
                         
             unfold log_header_block_rep in *; logic_clean; subst; eauto.
             lia.
@@ -3329,7 +3329,7 @@ Proof.
             }
             {
               intros Hx; apply in_seq in Hx.
-              rewrite hdr_block_num_eq in Hx; lia.
+              rewrite hdr_block_num_eq, log_start_eq in Hx; lia.
             }
           }
           {
@@ -3391,7 +3391,7 @@ Proof.
             }
             {
               intros Hx; apply in_seq in Hx.
-              rewrite hdr_block_num_eq in Hx; lia.
+              rewrite hdr_block_num_eq, log_start_eq in Hx; lia.
             }              
           }
     }
@@ -3404,7 +3404,7 @@ Proof.
         intros Hx; apply in_seq in Hx.
         pose proof data_start_where_log_ends.
         rewrite map_length, app_length in *;
-        rewrite log_start_eq in H; simpl in *; lia.
+        simpl in *; lia.
       }
       {
         pose proof data_start_where_log_ends.

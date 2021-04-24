@@ -29,25 +29,25 @@ Proof.
   unfold SimulationForProgramGeneral; induction l_selector; simpl; intros; cleanup.
   {
     destruct l_o_imp; intuition; simpl in *.
-    cleanup; intuition.
-    invert_exec; simpl in *; cleanup; intuition.
-    specialize H2 with (1:= H12).
-    cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
+    cleanup; try tauto.
+    invert_exec; simpl in *; cleanup; try tauto.
+    cleanup; intuition eauto; cleanup; 
+    repeat unify_execs; cleanup.
+
+    cleanup; intuition eauto; cleanup; 
+    repeat unify_execs; cleanup.
     
-    eexists; intuition eauto.
+    
+    eexists; split; eauto.
     unfold logged_disk_reboot_list in *; simpl.
-    simpl in *; destruct l; simpl in *; try lia.
     instantiate (1:= RFinished s_abs tt). 
     repeat econstructor.
     unfold refines, refines_reboot in *;
     simpl in *; cleanup; eauto.
-    simpl; eauto.
   }
   {
     invert_exec; simpl in *; cleanup; intuition;
     cleanup; intuition eauto; repeat (unify_execs; cleanup).
-    clear H1.
-    specialize H2 with (1:= H11).
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
     edestruct IHl_selector; eauto.
     instantiate (1:= s_abs).
@@ -57,18 +57,18 @@ Proof.
     cleanup; simpl in *; split; eauto.
     unfold cached_log_reboot_rep in *; cleanup.
 
-    eapply ext_or_take_out in H3.
+    eapply ext_or_take_out in H2.
     cleanup.
-    exists x1.
+    exists x0.
     simpl; split.
     cleanup; repeat split_ors;
     simpl in *; cleanup;
-    try eapply reboot_rep_to_reboot_rep in H3;
-    try eapply crash_rep_recover_to_reboot_rep in H3;
-    try eapply log_rep_to_reboot_rep in H3;
+    try eapply reboot_rep_to_reboot_rep in H2;
+    try eapply crash_rep_recover_to_reboot_rep in H2;
+    try eapply log_rep_to_reboot_rep in H2;
     intuition eauto.
      
-    assert (A: (map addr_list x1) = (map (map (Nat.add data_start)) (map (map (fun a => a - data_start)) (map addr_list x1)))). {
+    assert (A: (map addr_list x0) = (map (map (Nat.add data_start)) (map (map (fun a => a - data_start)) (map addr_list x0)))). {
         rewrite map_map.
         setoid_rewrite map_ext_in at 2.
         rewrite map_id; eauto.
@@ -119,7 +119,7 @@ Proof.
         intros.
         rewrite shift_some in H6.
         split_ors;
-        rewrite H5 in H6; eauto.
+        rewrite H4 in H6; eauto.
         lia.
         unfold sync in H6.
         destruct_fresh (snd (snd s_imp) (data_start + a0));
@@ -157,11 +157,10 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;
                         unify_execs; cleanup].
     {
-      specialize H1 with (1:= H10).
+      
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       eapply_fresh read_finished in H10; cleanup; eauto.
       destruct l_selector; simpl in *; try congruence; cleanup.
-      destruct l; simpl in *; try lia.
       unfold logged_disk_reboot_list; simpl.
       split_ors; cleanup.
       {
@@ -178,15 +177,14 @@ Proof.
       }
     }
     {
-      clear H1.
-      specialize H3 with (1:= H9).
+      
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       destruct l_selector; simpl in *; try congruence; cleanup.
       eapply_fresh read_crashed in H9; cleanup.
       
       edestruct recovery_simulation; eauto.
       unfold refines in *.
-      apply H4 in H0.
+      apply H5 in H0.
       unfold refines_reboot; simpl.
       instantiate (1:= s_abs).
       unfold cached_log_rep, cached_log_reboot_rep in *; cleanup.
@@ -204,10 +202,11 @@ Proof.
       repeat erewrite <- map_addr_list_eq_map_map; eauto.
       
       all: try apply sumbool_agree_addr_dec.
-      intros; apply H5; lia.
-      apply select_total_mem_synced in H3; eauto.
-      
-      exists (Recovered (extract_state_r x)); simpl; intuition eauto.
+      intros; apply H6; lia.
+      apply select_total_mem_synced in H4; eauto.
+      repeat unify_execs; cleanup; eauto.
+      repeat unify_execs; cleanup; eauto.
+      exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
       unfold logged_disk_reboot_list; simpl.
       eapply ExecRecovered; eauto.
       repeat econstructor.
@@ -226,12 +225,11 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;    
     unify_execs; cleanup].
     {
-      specialize H1 with (1:= H10).
+      
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       {
         eapply write_finished in H10; eauto.
         destruct l_selector; simpl in *; try congruence; cleanup.
-        destruct l; simpl in *; try lia.
         unfold logged_disk_reboot_list; simpl.
         split_ors; cleanup.
         {
@@ -242,7 +240,7 @@ Proof.
           intuition eauto.
           erewrite addr_list_to_blocks_length_eq; eauto.
           rewrite map_length; eauto.
-          destruct x1; eauto.
+          destruct t; eauto.
         }
       {
         exists (RFinished (upd_batch s_abs l_a l_v) tt);
@@ -251,7 +249,7 @@ Proof.
         repeat econstructor; eauto.
         erewrite addr_list_to_blocks_length_eq; eauto.
         rewrite map_length; eauto.
-        destruct x1; eauto.
+        destruct t; eauto.
       }
     }
     {
@@ -265,8 +263,6 @@ Proof.
     }
     {
       unfold refines in *.
-      clear H1.
-      specialize H3 with (1:= H9).
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       destruct l_selector; simpl in *; try congruence; cleanup.
       
@@ -275,13 +271,14 @@ Proof.
         specialize H4 with (1:= H0).
         repeat split_ors.
         {
+          repeat unify_execs; cleanup.
           unfold cached_log_rep in *; cleanup.
           edestruct recovery_simulation; eauto;
           try solve [eapply H3; eauto].
           {
             unfold refines_reboot, cached_log_reboot_rep; simpl.
             split.          
-            eapply log_rep_to_reboot_rep in H3.
+            eapply log_rep_to_reboot_rep in H2.
             eexists; intuition eauto.
             intros.
             apply select_total_mem_synced in H7; eauto.
@@ -316,11 +313,11 @@ Proof.
               split.          
               eexists; intuition eauto.
               intros.
-              apply select_total_mem_synced in H3; eauto.
+              apply select_total_mem_synced in H2; eauto.
             }
             {
               
-              exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+              exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
               unfold logged_disk_reboot_list; simpl.
               eapply ExecRecovered.
               repeat econstructor.
@@ -334,6 +331,7 @@ Proof.
               repeat erewrite <- map_addr_list_eq_map_map; eauto.
               
               all: try apply sumbool_agree_addr_dec.
+
               (** Investigate this further **)
               admit.
             }
@@ -342,10 +340,10 @@ Proof.
               split.
               eexists; intuition eauto.
               intros.
-              apply select_total_mem_synced in H3; eauto.
+              apply select_total_mem_synced in H2; eauto.
             }
             {
-              exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+              exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
               unfold logged_disk_reboot_list; simpl.
               eapply ExecRecovered.
               repeat econstructor.
@@ -375,11 +373,11 @@ Proof.
               split.          
               eexists; intuition eauto.
               intros.
-              apply select_total_mem_synced in H3; eauto.
+              apply select_total_mem_synced in H2; eauto.
             }
             {
               
-              exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+              exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
               unfold logged_disk_reboot_list; simpl.
               eapply ExecRecovered.
               repeat econstructor.
@@ -408,7 +406,7 @@ Proof.
             eapply log_rep_to_reboot_rep in H1.
             eexists; intuition eauto.
             intros.
-            apply select_total_mem_synced in H3; eauto.
+            apply select_total_mem_synced in H2; eauto.
           }
           {
             exists (Recovered (extract_state_r x)); simpl; intuition eauto.        
@@ -436,7 +434,7 @@ Proof.
           apply select_total_mem_synced in H5; eauto.
         }
         {
-          exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+          exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
           unfold logged_disk_reboot_list; simpl.
           eapply ExecRecovered.
           repeat econstructor; eauto.
@@ -449,7 +447,7 @@ Proof.
           (** Log length goal for write crash **)
           admit.  
           unfold refines, cached_log_rep in *; simpl in *; cleanup; eauto.
-          setoid_rewrite H3; eauto.
+          setoid_rewrite H2; eauto.
           {
             unfold log_rep, log_rep_general in H1.
             
@@ -461,7 +459,7 @@ Proof.
         }
       }
       {
-        specialize H3 with (1:= H0); cleanup.
+        specialize H2 with (1:= H0); cleanup.
         split_ors; cleanup.
         
         {
@@ -477,7 +475,7 @@ Proof.
             apply select_total_mem_synced in H4; eauto.
           }
           {
-            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+            exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
             unfold logged_disk_reboot_list; simpl.
             eapply ExecRecovered.
             repeat econstructor.
@@ -497,7 +495,7 @@ Proof.
             apply select_total_mem_synced in H6; eauto.
           }
           {
-            exists (Recovered (extract_state_r x1)); simpl; intuition eauto.        
+            exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
             unfold logged_disk_reboot_list; simpl.
             eapply ExecRecovered.
             repeat econstructor; eauto.

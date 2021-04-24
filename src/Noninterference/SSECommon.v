@@ -247,6 +247,85 @@ Proof.
 Qed.
 
 Lemma inode_owners_are_same:
+forall u fm1 fm2 s1 s2 inum ex,
+refines s1 fm1 ->
+refines s2 fm2 ->
+same_for_user_except u ex fm1 fm2 ->
+inum < Inode.InodeAllocatorParams.num_of_blocks ->
+nth_error
+(value_to_bits
+  (fst (snd s1) Inode.InodeAllocatorParams.bitmap_addr))
+inum = Some true ->
+  Inode.owner (Inode.decode_inode
+(fst (snd s1) (Inode.InodeAllocatorParams.bitmap_addr + S inum))) =
+  Inode.owner
+(Inode.decode_inode
+(fst (snd s2) (Inode.InodeAllocatorParams.bitmap_addr + S inum))).
+Proof.
+  unfold refines, files_rep, 
+  files_inner_rep, same_for_user_except; intros.
+  cleanup; repeat cleanup_pairs.
+  destruct_fresh (x1 inum).
+  {
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in D; eauto.
+    cleanup.
+    destruct_fresh (fm2 inum).
+    {
+      destruct_fresh (x inum).
+      eapply_fresh H5 in D0; eauto; cleanup.
+      unfold file_map_rep in *; cleanup.
+      eapply_fresh H13 in D0; eauto.
+      eapply_fresh H14 in D; eauto.
+      unfold file_rep in *; cleanup.
+
+      unfold Inode.inode_rep, 
+      Inode.inode_map_rep,
+      Inode.InodeAllocator.block_allocator_rep in *.
+      cleanup.
+      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H23.
+      cleanup; split_ors; cleanup; try congruence.
+      rewrite H21, H23 in D1; simpl in *; congruence.
+      rewrite H21, H23 in D1; simpl in *.
+      cleanup.
+
+      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H28.
+      cleanup; split_ors; cleanup; try congruence.
+      rewrite H26, H32 in D; simpl in *; congruence.
+      rewrite H26, H32 in D; simpl in *; cleanup.
+      eauto.
+
+      all: try rewrite value_to_bits_length;
+      unfold Inode.InodeAllocatorParams.num_of_blocks in *;
+      pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
+
+      unfold file_map_rep in *; cleanup.
+      edestruct H8; exfalso.
+      apply H14; eauto; congruence.
+    }
+    {
+      edestruct H1; exfalso.
+      apply H0; eauto; congruence.
+    }
+  }
+  {
+    unfold Inode.inode_rep, 
+      Inode.inode_map_rep,
+      Inode.InodeAllocator.block_allocator_rep in *.
+      cleanup.
+      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H17.
+      cleanup; split_ors; cleanup; try congruence.
+      eapply nth_error_nth in H3.
+      rewrite <- nth_seln_eq in H3.
+      rewrite H0 in H3; congruence.
+      rewrite H15, H17 in D; simpl in *; congruence.
+
+      all: try rewrite value_to_bits_length;
+      unfold Inode.InodeAllocatorParams.num_of_blocks in *;
+      pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
+  }
+Qed.
+
+Lemma inode_owners_are_same':
 forall u fm1 fm2 s1 s2 t1 t2 inum ex,
 refines s1 fm1 ->
 refines s2 fm2 ->
@@ -865,7 +944,7 @@ A1: nth_error
   (fst (snd _) Inode.InodeAllocatorParams.bitmap_addr))
 ?inum = Some true |- context [Compare_dec.lt_dec 
   (nth ?off (Inode.block_numbers (Inode.decode_inode
-  (fst (snd ?s2)
+  (fst (snd (fst ?s2, snd ?s2))
       (Inode.InodeAllocatorParams.bitmap_addr + S ?inum)))) ?def) ?c] ] =>
       pose proof A1 as A2;
       erewrite inode_allocations_are_same in A2;
@@ -889,7 +968,7 @@ try match goal with
   A0: refines ?s2 ?x0,
   A1: same_for_user_except _ _ ?x ?x0
   |- exec' (Inode.owner (Inode.decode_inode (?t _))) _ _ _ _ ] =>
-  erewrite inode_owners_are_same;
+  erewrite inode_owners_are_same';
   [| | | eauto | | | |];
   try match goal with
       | [|- refines _ _ ] =>
@@ -900,9 +979,9 @@ try match goal with
 |[A: refines ?x4 ?x,
   A0: refines ?s2 ?x0,
   A1: same_for_user_except _ _ ?x ?x0
-|- context[Some (Inode.owner (Inode.decode_inode (fst (snd ?s2) _)))] ] =>
+|- context[Some (Inode.owner (Inode.decode_inode (fst (snd (fst ?s2, snd ?s2)) _)))] ] =>
   erewrite inode_owners_are_same with (s1:= x4)(s2:= s2);
-  [| | | eauto | | | |];
+  [| | | eauto | |];
   try match goal with
       | [|- refines _ _ ] =>
       eauto

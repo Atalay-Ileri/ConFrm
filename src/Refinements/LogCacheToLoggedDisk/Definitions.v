@@ -49,7 +49,6 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
             cached_log_crash_rep (After_Apply merged_disk) d1') \/
         (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashAfter /\
-         (** ???? **)
          (forall merged_disk,
             cached_log_rep merged_disk d1 ->
             cached_log_crash_rep (After_Commit (upd_batch merged_disk la lv)) d1')) \/

@@ -15,7 +15,6 @@ Section FileDisk.
   | CrashAfterCreate : Inum -> token'
   | NewInum : Inum -> token'
   | InodesFull : token'
-  | DiskFull : token'
   | TxnFull: token'
   | Cont : token'.
 
@@ -88,13 +87,6 @@ Section FileDisk.
          d inum = None \/
          (d inum = Some file /\ file.(owner) <> u)) ->
         exec' u Cont d (Extend inum v) (Finished d None)
-              
-  | ExecExtendFailDiskFull :
-      forall d u inum file v,
-        inum < disk_size ->
-        d inum = Some file ->
-        file.(owner) = u ->
-        exec' u DiskFull d (Extend inum v) (Finished d None)
 
   | ExecExtendFailTxnFull :
       forall d u inum file v,

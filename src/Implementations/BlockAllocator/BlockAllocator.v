@@ -256,8 +256,6 @@ Lemma valid_bits'_bitlist_upd_after:
     generalize dependent i.
     induction i; simpl; intros; cleanup; eauto.
     try congruence.
-    apply IHi in H1.
-    rewrite H1; simpl; eauto.
   Qed.
 
   Lemma valid_bits'_bitlist_upd_after_rev:
@@ -282,8 +280,6 @@ Lemma valid_bits'_bitlist_upd_after:
     generalize dependent i.
     induction i; simpl; intros; cleanup; eauto.
     try congruence.
-    apply IHi in H1.
-    rewrite H1; simpl; eauto.
   Qed.
 
 
@@ -314,8 +310,6 @@ Lemma valid_bits'_bitlist_upd_after:
     generalize dependent i.
     induction i; simpl; intros; cleanup; eauto.
     try congruence.
-    apply IHi in H1.
-    rewrite H1; simpl; eauto.
   Qed.
 
   Lemma valid_bits'_upd_values_empty:
@@ -482,6 +476,18 @@ Proof.
   eauto.
 Qed.
 
+Lemma get_first_zero_index_lt_true:
+forall l_b i, 
+i < get_first_zero_index l_b -> 
+nth i l_b false = true.
+Proof.
+  induction l_b; simpl; intros; eauto.
+  lia.
+  destruct a; try lia.
+  destruct i; eauto.
+  eapply IHl_b; lia.
+Qed.
+
 Lemma block_allocator_rep_eq:
   forall dh1 dh2 s,
     block_allocator_rep dh1 s ->
@@ -522,6 +528,7 @@ Theorem alloc_finished:
     ((exists a, t = Some a /\
            dh a = None /\
            a < num_of_blocks /\
+           (forall i, i < a -> dh i <> None ) /\ 
           block_allocator_rep (Mem.upd dh a v) (fst s')) \/
      (t = None /\ block_allocator_rep dh (fst s'))) /\
     (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
@@ -554,7 +561,16 @@ Proof.
          setoid_rewrite get_first_zero_index_false in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
-         rewrite get_first_zero_index_firstn; eauto.         
+         rewrite get_first_zero_index_firstn; eauto.
+         eapply valid_bits_extract with (n:= i) in H0; try lia.
+         cleanup.
+         split_ors; cleanup.
+         rewrite get_first_zero_index_firstn in H5; eauto.
+         rewrite nth_seln_eq in H8.
+         eapply get_first_zero_index_lt_true in H5; eauto.
+         congruence.
+         rewrite value_to_bits_length; lia.
+           
          eexists; 
          exists (updn x0 (get_first_zero_index
          (firstn num_of_blocks (value_to_bits (fst x1 bitmap_addr)))) v).
@@ -778,6 +794,155 @@ Proof.
   repeat (cleanup; repeat invert_exec; eauto;
   try split_ors).
 Qed.
+
+
+Lemma read_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (read inum)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (read inum')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, read.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]).
+Qed.
+
+Lemma write_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum' v v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (write inum v)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (write inum' v')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, write.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec; try lia;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]).
+all: pose proof blocks_fit_in_disk; lia.
+Qed.
+
+Lemma alloc_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (alloc v)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (alloc v')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, alloc.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec; try lia;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]).
+Qed.
+
+Lemma free_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 a a',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (free a)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (free a')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, free.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec; try lia;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]).
+Qed.
+
+
+
+Lemma read_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (read inum)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (read inum')
+(Crashed s2').
+Proof.
+unfold not, read.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]).
+Qed.
+
+Lemma write_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum' v v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (write inum v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (write inum' v')
+(Crashed s2').
+Proof.
+unfold not, write.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]).
+Qed.
+
+Lemma alloc_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r v v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (alloc v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (alloc v')
+(Crashed s2').
+Proof.
+unfold not, alloc.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]).
+Qed.
+
+Lemma free_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r v v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (free v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (free v')
+(Crashed s2').
+Proof.
+unfold not, free.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]).
+Qed.
+
 
 End BlockAllocator.
 

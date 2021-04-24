@@ -1,3 +1,3 @@
-(lang dune 2.4)
+(lang dune 2.8.5)
 (name ConFrm)
-(using coq 0.1)
+(using coq 0.3)

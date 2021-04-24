@@ -141,6 +141,7 @@ Theorem alloc_finished:
     ((exists a, t = Some a /\
            dh a = None /\
            a < InodeAllocatorParams.num_of_blocks /\
+           (forall i, i < a -> dh i <> None) /\
           inode_rep (Mem.upd dh a (Build_Inode user [])) (fst s')) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
@@ -159,6 +160,12 @@ Proof.
       rewrite H0, H4; simpl; eauto.
     }
     {
+      eapply H6; eauto.
+      unfold inode_map_rep in *; cleanup.
+      rewrite H1 in H8.
+      destruct (x i); eauto; simpl in *; congruence.
+    }
+    {
       eexists; intuition eauto.
       unfold inode_map_rep in *; cleanup.
       split; eauto.
@@ -174,30 +181,30 @@ Proof.
         split; intros.
         {
           destruct (addr_dec x0 i); subst.
-          - rewrite Mem.upd_eq in H8; simpl; eauto.
+          - rewrite Mem.upd_eq in H9; simpl; eauto.
             cleanup.
             unfold inode_valid; simpl; eauto.
             split; constructor.
-          - rewrite Mem.upd_ne in H8; simpl; eauto.
+          - rewrite Mem.upd_ne in H9; simpl; eauto.
         }
         {
           destruct (addr_dec x0 i); subst.
-          - rewrite Mem.upd_eq in H9; simpl; eauto.
+          - rewrite Mem.upd_eq in H10; simpl; eauto.
             cleanup; simpl.
-            rewrite Mem.upd_ne in H10; simpl; eauto.
-            apply H1 in H10.
+            rewrite Mem.upd_ne in H11; simpl; eauto.
+            apply H1 in H11.
             unfold inode_valid in *;
             cleanup; eauto.
             
-          - rewrite Mem.upd_ne in H9; simpl; eauto.
+          - rewrite Mem.upd_ne in H10; simpl; eauto.
             destruct (addr_dec x0 j); subst.
-            rewrite Mem.upd_eq in H10; simpl; eauto.
+            rewrite Mem.upd_eq in H11; simpl; eauto.
             cleanup; simpl.
             rewrite app_nil_r.
-            apply H1 in H9.
+            apply H1 in H10.
             unfold inode_valid in *;
             cleanup; eauto.
-            rewrite Mem.upd_ne in H10; simpl; eauto.
+            rewrite Mem.upd_ne in H11; simpl; eauto.
         }
       }
     }
@@ -669,6 +676,499 @@ Proof.
   - eapply get_inode_finished in H0; eauto;
     cleanup; eauto.
 Qed.
+
+
+
+
+
+
+
+Lemma get_inode_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_inode inum)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_inode inum')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, get_inode.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+    repeat rewrite <- app_assoc in H0; eauto;
+eapply read_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+split; eauto;
+intuition congruence ].
+Qed.
+
+Lemma set_inode_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum' inode inode',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (set_inode inum inode)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (set_inode inum' inode')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, set_inode.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+ repeat rewrite <- app_assoc in H0; eauto;
+eapply write_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+split; eauto;
+intuition congruence].
+Qed.
+
+
+Lemma get_owner_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_owner inum)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_owner inum')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, get_owner.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+    repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; 
+eauto; subst;    cleanup; eauto;
+split; eauto;
+intuition congruence ].
+Qed.
+
+Lemma extend_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v' inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (extend inum v)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (extend inum' v')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, extend.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+try eapply set_inode_finished_oracle_eq in H2; eauto; subst;
+cleanup; eauto;
+split; eauto;
+intuition congruence].
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup;
+eapply set_inode_finished_oracle_eq in H3; eauto; subst;
+cleanup; eauto;
+intuition congruence.
+Unshelve.
+all: eauto.
+Qed.
+
+
+Lemma alloc_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 own own',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (alloc own)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (alloc own')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, alloc.
+intros.
+eapply alloc_finished_oracle_eq; eauto.
+Qed.
+
+Lemma free_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (free inum)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (free inum')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, free.
+intros.
+eapply free_finished_oracle_eq; eauto.
+Qed.
+
+Lemma change_owner_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v' inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (change_owner inum v)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (change_owner inum' v')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, change_owner.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+try eapply set_inode_finished_oracle_eq in H2; eauto; subst;
+cleanup; eauto;
+split; eauto;
+intuition congruence].
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup;
+eapply set_inode_finished_oracle_eq in H3; eauto; subst;
+cleanup; eauto;
+intuition congruence.
+Unshelve.
+all: eauto.
+Qed.
+
+Lemma get_block_number_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v inum inum' v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_block_number inum v)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_block_number inum' v')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, get_block_number.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+split; eauto;
+intuition congruence].
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto.
+split; eauto.
+Abort.
+
+Lemma get_all_block_numbers_finished_oracle_eq:
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_all_block_numbers inum)
+(Finished s1' r1) ->
+o ++ o1 = o' ++ o2 ->
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_all_block_numbers inum')
+(Finished s2' r2) ->
+o = o' /\ (r1 = None <-> r2 = None).
+Proof.
+unfold not, get_all_block_numbers.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup; split; eauto;
+intuition congruence]);
+try solve [ 
+ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+split; eauto;
+intuition congruence].
+Qed.
+
+
+
+
+
+(* Finished ~ Crashed lemmas*)
+Lemma get_inode_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_inode inum)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_inode inum')
+(Crashed s2').
+Proof.
+unfold not, get_inode.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply read_finished_not_crashed; eauto];
+
+try solve [ 
+    repeat rewrite <- app_assoc in H0; eauto;
+eapply read_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+inversion H0; congruence ].
+Qed.
+
+Lemma set_inode_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum' ind ind',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (set_inode inum ind)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (set_inode inum' ind')
+(Crashed s2').
+Proof.
+unfold not, set_inode.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply write_finished_not_crashed; eauto];
+
+try solve [ 
+ repeat rewrite <- app_assoc in H0; eauto;
+eapply write_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+inversion H0; congruence ].
+Qed.
+
+Lemma get_owner_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_owner inum)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_owner inum')
+(Crashed s2').
+Proof.
+unfold not, get_owner.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_not_crashed; eauto];
+
+try solve [ 
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+inversion H0; congruence ].
+Qed. 
+
+
+Lemma extend_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (extend inum v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (extend inum' v')
+(Crashed s2').
+Proof.
+unfold not, extend.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_not_crashed; eauto];
+
+try solve [ 
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+eapply set_inode_finished_not_crashed; eauto;
+inversion H0; congruence ].
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+intuition congruence.
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+intuition congruence.
+
+Unshelve.
+all: eauto.
+all: repeat econstructor; eauto.
+Qed. 
+
+Lemma alloc_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r v v',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (alloc v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (alloc v')
+(Crashed s2').
+Proof.
+unfold not, alloc.
+intros.
+eapply alloc_finished_not_crashed; eauto.
+Qed. 
+
+Lemma free_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (free inum)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (free inum')
+(Crashed s2').
+Proof.
+unfold not, free.
+intros.
+eapply free_finished_not_crashed; eauto.
+Qed. 
+
+Lemma change_owner_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (change_owner inum v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (change_owner inum' v')
+(Crashed s2').
+Proof.
+unfold not, change_owner.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_not_crashed; eauto];
+
+try solve [ 
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+eapply set_inode_finished_not_crashed; eauto;
+inversion H0; congruence ].
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+intuition congruence.
+
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+intuition congruence.
+
+Unshelve.
+all: eauto.
+all: repeat econstructor; eauto.
+Qed.
+
+
+Lemma get_block_number_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_block_number inum v)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_block_number inum' v')
+(Crashed s2').
+Proof.
+unfold not, get_block_number.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_not_crashed; eauto];
+
+try solve [ 
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+eapply set_inode_finished_not_crashed; eauto;
+inversion H0; congruence ].
+
+Unshelve.
+all: eauto.
+all: repeat econstructor; eauto.
+Qed.
+
+Lemma get_all_block_numbers_finished_not_crashed:
+forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
+exec (TransactionalDiskLang FSParameters.data_length) 
+u o s1 (get_all_block_numbers inum)
+(Finished s1' r) ->
+o ++ o1 = o' ++ o2 ->
+~exec (TransactionalDiskLang FSParameters.data_length) 
+u o' s2 (get_all_block_numbers inum')
+(Crashed s2').
+Proof.
+unfold not, get_all_block_numbers.
+intros.
+cleanup; repeat invert_exec;
+repeat (try split_ors; cleanup; repeat invert_exec;
+try solve [simpl in *; cleanup]);
+try solve [ repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_not_crashed; eauto];
+
+try solve [ 
+repeat rewrite <- app_assoc in H0; eauto;
+eapply get_inode_finished_oracle_eq in H; eauto; subst;
+cleanup; eauto;
+eapply set_inode_finished_not_crashed; eauto;
+inversion H0; congruence ].
+
+Unshelve.
+all: eauto.
+all: repeat econstructor; eauto.
+Qed. 
+
 
 Global Opaque alloc free extend change_owner get_block_number get_all_block_numbers get_owner.
 

@@ -613,7 +613,7 @@ Proof.
     all: eauto.
     simpl in *.
     cleanup; split_ors; cleanup.
-    eapply DiskAllocator.block_allocator_rep_inbounds_eq with (s2:= t) in H11.  
+    eapply DiskAllocator.block_allocator_rep_inbounds_eq with (s2:= t) in H12.  
     {
       destruct_fresh (fm inum).
       {
@@ -628,7 +628,7 @@ Proof.
           rewrite H3 in H5; simpl in *.
           unfold InodeAllocatorParams.num_of_blocks in *.
           destruct (lt_dec inum inode_count); eauto.
-          rewrite H20 in H5; simpl in *; try congruence; try lia.
+          rewrite H21 in H5; simpl in *; try congruence; try lia.
         }
         {
           unfold files_rep, files_inner_rep; simpl.
@@ -647,18 +647,18 @@ Proof.
           }
           {
             destruct (addr_dec inum inum0); subst;
-            [rewrite Mem.upd_eq in H17;
-             rewrite Mem.upd_eq in H18; eauto |
-             rewrite Mem.upd_ne in H17;
-             rewrite Mem.upd_ne in H18;eauto].
+            [rewrite Mem.upd_eq in H18;
+             rewrite Mem.upd_eq in H19; eauto |
+             rewrite Mem.upd_ne in H18;
+             rewrite Mem.upd_ne in H19;eauto].
             {
               cleanup.
               unfold update_file, file_rep; simpl;
               intuition eauto.
               repeat rewrite app_length; simpl; eauto.
               destruct (lt_dec i (length f.(blocks))).
-              - rewrite nth_error_app1 in H17; eauto.
-                apply H16 in H17; cleanup.
+              - rewrite nth_error_app1 in H18; eauto.
+                apply H17 in H18; cleanup.
                 eexists; rewrite nth_error_app1; eauto.
                 split; eauto.
                 rewrite Mem.upd_ne; eauto.
@@ -667,22 +667,22 @@ Proof.
                 lia.
                 
               - assert (A: i = length f.(blocks)). {
-                  apply nth_error_some_lt in H17;
-                  rewrite app_length in H17; simpl in *;
+                  apply nth_error_some_lt in H18;
+                  rewrite app_length in H18; simpl in *;
                   lia.
                 }
                 subst.
                 rewrite nth_error_app2 in *; try lia.
-                rewrite H15 in *.
+                rewrite H16 in *.
                 rewrite PeanoNat.Nat.sub_diag in *; simpl in *.
                 cleanup; eexists; intuition eauto.
                 rewrite Mem.upd_eq; eauto.
             }
             {
-              eapply_fresh H8 in H17; eauto; cleanup.
+              eapply_fresh H8 in H18; eauto; cleanup.
               unfold file_rep; simpl;
               intuition eauto.
-              eapply H21 in H22; cleanup.
+              eapply H22 in H23; cleanup.
               eexists; intuition eauto.
               rewrite Mem.upd_ne; eauto.
               intros Hnot; subst; congruence.
@@ -693,7 +693,7 @@ Proof.
       {
         unfold file_map_rep, addrs_match_exactly in *; cleanup.
         edestruct H2; exfalso.
-        eapply H15; eauto; congruence.
+        eapply H16; eauto; congruence.
       }
     }
     
@@ -703,15 +703,15 @@ Proof.
       destruct_fresh (fm i).
       {
          unfold file_map_rep in *; cleanup.
-         eapply_fresh H13 in H12; eauto.
+         eapply_fresh H14 in H13; eauto.
          unfold file_rep in *; cleanup; eauto.
          intros Hnot; apply In_nth_error in Hnot; cleanup.
-         apply H16 in H17; cleanup; congruence.
+         apply H17 in H18; cleanup; congruence.
       }
       {
         unfold file_map_rep, addrs_match_exactly in *; cleanup.
         edestruct H2; exfalso.
-        eapply H15; eauto; congruence.
+        eapply H16; eauto; congruence.
       }      
     }
   }
@@ -731,17 +731,17 @@ Proof.
     all: eauto.
     simpl in *.
     cleanup; split_ors; cleanup.
-    eapply_fresh (DiskAllocator.block_allocator_rep_inbounds_eq (Mem.upd x3 x v) t (fst s0)) in H11.  
+    eapply_fresh (DiskAllocator.block_allocator_rep_inbounds_eq (Mem.upd x3 x v) t (fst s0)) in H12.  
     {
       left.
       unfold inode_map_rep, inode_map_valid in *; cleanup.
-      eapply_fresh H15 in H5; unfold inode_valid in *.
+      eapply_fresh H16 in H5; unfold inode_valid in *.
       cleanup.
       repeat split; eauto.
       destruct_fresh (fm inum).
       {
         unfold file_map_rep in *; cleanup.
-        eapply_fresh H17 in H5; eauto; cleanup.
+        eapply_fresh H18 in H5; eauto; cleanup.
         unfold file_rep in Hx2; cleanup.
         right; eexists; intuition eauto.
         unfold block_allocator_rep,
@@ -749,12 +749,12 @@ Proof.
         rewrite H7 in H5; simpl in *.
         unfold InodeAllocatorParams.num_of_blocks in *.
         destruct (lt_dec inum inode_count); eauto.
-        rewrite H30 in H5; simpl in *; try congruence; try lia.
+        rewrite H31 in H5; simpl in *; try congruence; try lia.
       }
       {
         unfold file_map_rep, addrs_match_exactly in *; cleanup.
         edestruct H2; exfalso.
-        eapply H19; eauto; congruence.
+        eapply H20; eauto; congruence.
       }
       {
         unfold files_inner_rep; simpl;
@@ -771,15 +771,15 @@ Proof.
       destruct_fresh (fm i).
       {
          unfold file_map_rep in *; cleanup.
-         eapply_fresh H13 in H12; eauto.
+         eapply_fresh H14 in H13; eauto.
          unfold file_rep in *; cleanup; eauto.
          intros Hnot; apply In_nth_error in Hnot; cleanup.
-         apply H16 in H17; cleanup; congruence.
+         apply H17 in H18; cleanup; congruence.
       }
       {
         unfold file_map_rep, addrs_match_exactly in *; cleanup.
         edestruct H2; exfalso.
-        eapply H15; eauto; congruence.
+        eapply H16; eauto; congruence.
       }      
     }    
   }
@@ -1426,6 +1426,7 @@ Lemma create_finished:
     (exists inum, r = Some inum /\
              fm inum = None /\
              inum < inode_count /\
+             (forall i, i < inum -> fm i <> None ) /\ 
              files_rep (Mem.upd fm inum (new_file own)) s').
 Proof.
   unfold create;
@@ -1444,7 +1445,14 @@ Proof.
         destruct_fresh (fm x1); eauto.
         unfold file_map_rep, addrs_match_exactly in *; cleanup.
         edestruct H; exfalso.
-        apply H7; eauto; congruence.
+        apply H8; eauto; congruence.
+      }
+      {
+        unfold file_map_rep in *; cleanup.
+        edestruct H2.
+        eapply H6; eauto.
+        destruct_fresh (x i); eauto.
+        exfalso; eapply H11; eauto.
       }
       {
         unfold files_rep, files_inner_rep; simpl.
@@ -1464,9 +1472,9 @@ Proof.
           {
             destruct (addr_dec inum x1); subst;
             [rewrite Mem.upd_eq in H;
-             rewrite Mem.upd_eq in H7; eauto |
+             rewrite Mem.upd_eq in H8; eauto |
              rewrite Mem.upd_ne in H;
-             rewrite Mem.upd_ne in H7; eauto];
+             rewrite Mem.upd_ne in H8; eauto];
             try congruence; cleanup; eauto.
             {
               unfold file_rep; simpl;
@@ -1657,6 +1665,7 @@ Lemma create_crashed:
     (exists inum, 
     fm inum = None /\
     inum < inode_count /\
+    (forall i, i < inum -> fm i <> None) /\
     files_crash_rep (Mem.upd fm inum (new_file own)) s').
 Proof.
   unfold create, files_rep, files_crash_rep; intros; 
@@ -1681,6 +1690,13 @@ Proof.
         right.
         eapply inode_missing_then_file_missing in H8; eauto.
         eexists; intuition eauto.
+        {
+          unfold file_map_rep in *; cleanup.
+          edestruct H2.
+          eapply H10; eauto.
+          destruct_fresh (x4 i); eauto.
+          exfalso; eapply H7; eauto.
+        }
         eexists; intuition eauto.
         eexists; intuition eauto.
         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
@@ -1719,6 +1735,13 @@ Proof.
         right.
         eapply inode_missing_then_file_missing in H8; eauto.
         eexists; intuition eauto.
+        {
+          unfold file_map_rep in *; cleanup.
+          edestruct H2.
+          eapply H10; eauto.
+          destruct_fresh (x4 i); eauto.
+          exfalso; eapply H7; eauto.
+        }
         eexists; intuition eauto.
         eexists; intuition eauto.
         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.

@@ -1028,25 +1028,6 @@ Proof.
       destruct (H inum).
       exfalso; apply H3; congruence.
     }
-    {
-      exists (RFinished s2 None); simpl.
-      repeat (split; eauto).
-      unfold FD_related_states, same_for_user_except,
-        addrs_match_exactly in *.
-        destruct_fresh (s2 inum); eauto.
-        cleanup; eauto.
-      eapply H2 in H10; eauto; cleanup.
-      repeat split_ors;
-      try solve [ repeat econstructor; eauto].
-
-      cleanup.
-      edestruct H; exfalso.
-      eapply H3; eauto; congruence.
-      {
-        cleanup.
-        intuition eauto.
-      }
-    }
   }
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1380,7 +1361,7 @@ Proof.
         }
         {
           rewrite upd_ne in *; eauto.
-          eapply H2 in H6; eauto; try congruence.
+          eapply H2 in H7; eauto; try congruence.
           cleanup; eauto.
         }
       }
@@ -1394,7 +1375,7 @@ Proof.
         }
         {
           rewrite upd_ne in *; eauto.
-          eapply H2 in H6; eauto; try congruence.
+          eapply H2 in H7; eauto; try congruence.
           cleanup; eauto.
         }
       }
@@ -2273,20 +2254,6 @@ Proof.
         cleanup.
         intuition eauto.
       }
-    }
-    {
-      exists (RFinished s2 None); simpl.
-      unfold FD_related_states, same_for_user_except,
-      addrs_match_exactly in *.
-      destruct_fresh (s2 inum); eauto.
-      cleanup; eauto.
-      eapply H2 in H10; eauto; try congruence; cleanup.      
-      repeat (split; eauto).
-      do 3 econstructor; eauto.
-
-      cleanup; eauto.
-      destruct (H inum).
-      exfalso; apply H3; congruence.
     }
     {
       exists (RFinished s2 None); simpl.

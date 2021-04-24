@@ -95,21 +95,23 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
       intuition eauto.
-      eexists; intuition eauto.
-      destruct t.
       left.
       eexists; intuition eauto.
-      eapply recover_finished in H8; eauto.
-      unify_execs; cleanup.
+      destruct t.
+      eexists; intuition eauto.
+      eexists; intuition eauto.
+      left.
+      eexists; intuition eauto.
+      eapply_fresh recover_finished in H8; eauto.
     }
     { 
       eapply IHl_selector in H12; eauto; cleanup.
       exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x0); simpl.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
-      intros; unify_execs; cleanup.
-      eexists; repeat split; eauto;
-      simpl in *.
+      right.
+      eexists; repeat split; eauto.
+      eexists; repeat split; eauto.
       right.
       eexists; repeat split; eauto.
       intros.
@@ -142,14 +144,15 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
       intuition eauto.
-      eexists; intuition eauto.
       destruct t.
       left.
       eexists; intuition eauto.
-      unfold refines, cached_log_reboot_rep in *; cleanup.
-      eapply recover_finished in H7; eauto.
       eexists; intuition eauto.
-      unify_execs; cleanup.
+      eexists; intuition eauto.
+      unfold refines, cached_log_reboot_rep in *; cleanup.
+      left.
+      eexists; intuition eauto.
+      eapply recover_finished in H7; eauto.
     }
     {
       unfold refines, cached_log_rep in *.
@@ -161,6 +164,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       repeat split; eauto;
       intros; simpl in *; try unify_execs; cleanup.
       eapply recovery_oracles_refine_to_length in H1; eauto.
+      right.
+      eexists; repeat split; eauto.
       eexists; repeat split; eauto.
       right.
       eexists; repeat split; eauto.
@@ -199,7 +204,11 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
       intuition eauto; simpl in *; try unify_execs; cleanup.
+      left.
       eexists; intuition eauto.
+      eexists; intuition eauto.
+      eexists; intuition eauto.
+
       left.
       eexists; intuition eauto.
       eexists; intuition eauto.
@@ -215,9 +224,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x); simpl.
       repeat split; eauto; intros; simpl in *; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H1; eauto.
-      
-      eexists; repeat split; eauto.
+
       right; eexists; intuition eauto.      
+      eexists; intuition eauto.  
       eapply_fresh read_crashed in H10; cleanup; eauto.
       eauto.
       {        
@@ -245,6 +254,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
     {
       exists  [ [OpToken (LoggedDiskOperation log_length data_length) Cont] ]; simpl.
       intuition eauto; try unify_execs; cleanup.
+      left.
+      eexists; intuition eauto.
+      eexists; intuition eauto.
       eexists; intuition eauto.
       left.
       eexists; intuition eauto.
@@ -266,6 +278,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x); simpl.
         repeat split; eauto; intros; try unify_execs; cleanup.
         eapply recovery_oracles_refine_to_length in H1; eauto.
+        right.
+        eexists; repeat split; eauto.
         eexists; repeat split; eauto.
         right.
         eexists; left; intuition eauto.
@@ -280,7 +294,6 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         rewrite H4; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
-        eauto.
       }
       unfold cached_log_crash_rep in *; cleanup.
       split_ors; cleanup.
@@ -289,6 +302,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x); simpl.
         repeat split; eauto; intros; try unify_execs; cleanup.
         eapply recovery_oracles_refine_to_length in H1; eauto.
+        right.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
         eexists; repeat split; eauto; try unify_execs; cleanup.
         right.
         eexists; right; intuition eauto.
@@ -338,6 +353,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x); simpl.
           repeat split; eauto; intros; try unify_execs; cleanup.
           eapply recovery_oracles_refine_to_length in H1; eauto.
+          right.
+          eexists; repeat split; eauto; try unify_execs; cleanup.
           eexists; repeat split; eauto; try unify_execs; cleanup.
           right.
           eexists; right; intuition eauto.
@@ -393,6 +410,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           exists ([OpToken (LoggedDiskOperation log_length data_length) CrashAfter]::x); simpl.
           repeat split; eauto; intros; try unify_execs; cleanup.
           eapply recovery_oracles_refine_to_length in H1; eauto.
+          right.
+          eexists; repeat split; eauto; try unify_execs; cleanup.
           eexists; repeat split; eauto; try unify_execs; cleanup.        
           right.
           eexists; right; intuition eauto.
@@ -454,6 +473,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         exists ([OpToken (LoggedDiskOperation log_length data_length) CrashAfter]::x); simpl.
         repeat split; eauto; intros; try unify_execs; cleanup.
         eapply recovery_oracles_refine_to_length in H1; eauto.
+        right.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
         eexists; repeat split; eauto; try unify_execs; cleanup.        
         right.
         eexists; right; intuition eauto.
@@ -470,13 +491,14 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         setoid_rewrite <- H11; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
-        eauto.
       }
       split_ors; cleanup.
       {
         exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x); simpl.
         repeat split; eauto; intros; try unify_execs; cleanup.
         eapply recovery_oracles_refine_to_length in H1; eauto.
+        right.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
         eexists; repeat split; eauto.
         right.
         eexists; left; intuition eauto.
@@ -508,12 +530,13 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         eapply log_rep_forall2_txns_length_match; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
         }
-        eauto.
       }
       {
         exists ([OpToken (LoggedDiskOperation log_length data_length) CrashBefore]::x); simpl.
         repeat split; eauto; intros; try unify_execs; cleanup.
         eapply recovery_oracles_refine_to_length in H1; eauto.
+        right.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
         eexists; repeat split; eauto.
         right.
         eexists; left; intuition eauto.
@@ -529,7 +552,6 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         setoid_rewrite <- H11; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
-        eauto.
       }
       {
         repeat split_ors.
@@ -627,8 +649,9 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
       {
         rewrite <- H2; simpl.
         exists [[Language.Cont (LoggedDiskOperation log_length data_length)]]; simpl; intuition.
-        right; intuition eauto.
-        unify_execs; cleanup.
+        left.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
       }
       {
         destruct l_selector; simpl in *; try congruence; cleanup.
@@ -639,9 +662,11 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         exists ([Language.Crash (LoggedDiskOperation log_length data_length)]::x0);
         simpl; intuition eauto.
         apply recovery_oracles_refine_to_length in H1; eauto.
+        right.
+        eexists; repeat split; eauto; try unify_execs; cleanup.
+        econstructor.
         left; eexists; intuition eauto.
         econstructor.
-        invert_exec'' H2; eauto.
         unfold refines, cached_log_rep in *.
         cleanup.
         eapply log_rep_to_reboot_rep in H1.
@@ -666,13 +691,15 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         eapply exec_compiled_preserves_refinement_finished in H10; eauto.
         simpl in *; cleanup; try tauto.
         simpl in *.
-        exists ([o0 ++ o]); intuition eauto.
+        exists ([o0 ++ o]); split; eauto.
+        repeat split_ors; cleanup;
+        repeat unify_execs; cleanup.
+        left.
+        cleanup.
+        do 2 eexists; repeat split; eauto.
+        econstructor; eauto.
         do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
-        invert_exec; split_ors; cleanup; repeat (unify_execs; cleanup).        
-        eapply finished_not_crashed_oracle_prefix in H10; eauto.
-        eapply exec_finished_deterministic_prefix in H10; eauto; cleanup.
-        unify_execs; cleanup.
       }
       {
         destruct l_selector; simpl in *; try congruence; cleanup.
@@ -692,24 +719,14 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           eapply exec_compiled_preserves_refinement_finished in H9; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
-          exists ((o0 ++ o)::l); intuition eauto.
-          - invert_exec; try split_ors; repeat (unify_execs; cleanup).
-            eapply exec_finished_deterministic_prefix in H9; eauto; cleanup.
-            unify_execs; cleanup.
-          - invert_exec; cleanup; try split_ors; try cleanup;
-            repeat (unify_execs; cleanup).
-            exfalso; eapply finished_not_crashed_oracle_prefix in H9; eauto.
-            eapply exec_finished_deterministic_prefix in H9; eauto; cleanup.
-            unify_execs; cleanup; eauto.
-            specialize H6 with (1:= H14); cleanup.
+          exists ((o0 ++ o)::l); split; eauto.
+          repeat split_ors; cleanup;
+          repeat unify_execs; cleanup.  
+          right.
+          eexists; intuition eauto.
+          econstructor; eauto.
             do 4 eexists; intuition eauto.
             right; simpl; repeat eexists; intuition eauto.
-          - invert_exec; cleanup; try split_ors; try cleanup;
-            repeat (unify_execs; cleanup).
-            exfalso; eapply finished_not_crashed_oracle_prefix in H9; eauto.
-            eapply exec_finished_deterministic_prefix in H9; eauto; cleanup.
-            unify_execs; cleanup; eauto.
-            specialize H6 with (1:= H14); cleanup; eauto.
         }
         {
           edestruct IHp_abs; eauto.
@@ -718,28 +735,14 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           econstructor; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
-          exists (o::l); intuition eauto.
-          - invert_exec; cleanup; try split_ors;
-            cleanup; repeat (unify_execs; cleanup).            
-            exfalso; eapply finished_not_crashed_oracle_prefix in H6; eauto.
-          - invert_exec; cleanup; try split_ors;
+          exists (o::l); split; eauto.
+          repeat split_ors;
             cleanup; repeat (unify_execs; cleanup).
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H8; eauto; cleanup.
-            specialize H5 with (1:= H8).
-            clear H7.
-            logic_clean; eauto.
+            right.            
+            eexists; intuition eauto.
+            solve [econstructor; eauto].
             exists o1, o2, o, nil; intuition eauto.
             rewrite app_nil_r; eauto.
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
-            eauto; cleanup.
-          - invert_exec; cleanup; try split_ors;
-            cleanup; repeat (unify_execs; cleanup).
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6; eauto; cleanup.
-            specialize H5 with (1:= H8).
-            clear H7.
-            logic_clean; eauto.
-            eapply_fresh exec_deterministic_wrt_oracle_prefix in H6;
-            eauto; cleanup.
         }
       }
     }
