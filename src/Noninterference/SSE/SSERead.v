@@ -1,28 +1,24 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
 Require Import FunctionalExtensionality Lia Language SSECommon.
 
-Definition AD_valid_state := refines_valid FileDiskRefinement FD_valid_state.
-Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_related_states u exc).
+  (******** SSE PROOFS ********)
 
-
-  (******** SSE PROOFS *********)
-
-Theorem SelfSimulation_Exists_write:
-  forall u m inum off v1 v2 ex,
+Theorem SelfSimulation_Exists_read:
+  forall u m inum off,
     SelfSimulation_Exists
-      u (write inum off v1) (write inum off v2) recover
-      AD_valid_state (AD_related_states u ex)
+      u (read inum off) (read inum off) recover
+      AD_valid_state (AD_related_states u None)
       (authenticated_disk_reboot_list m).
 Proof.
-  Opaque write_inner.
+  Opaque read_inner.
   unfold SelfSimulation_Exists, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
-  write, auth_then_exec;
+  read, auth_then_exec;
   intros; cleanup; simpl in *.
   destruct m; simpl in *.
-  {(**write finished **)
+  {(**read finished **)
     invert_exec.
     repeat invert_step.
     4: {
@@ -85,17 +81,15 @@ Proof.
         repeat exec_step.
     }
   }
-  2: {(** write_inner None **)
-    admit.  
-  (*
+  2: {(** read_inner None **)
     unfold  Inode.get_owner in *; simpl in *.
     eapply bind_reorder in H10.
     repeat invert_step;
     unfold Inode.InodeAllocator.read in *;
     repeat invert_step.
     {
-      Transparent write_inner.
-      unfold write_inner in *.
+      Transparent read_inner.
+      unfold read_inner in *.
       repeat invert_step.
       {
         Transparent Inode.get_block_number.
@@ -104,9 +98,9 @@ Proof.
         unfold Inode.InodeAllocator.read in *; cleanup; try congruence.
         repeat invert_step; 
         
-        unfold DiskAllocator.write in *; cleanup; try congruence;
+        unfold DiskAllocator.read in *; cleanup; try congruence;
         repeat invert_step; try congruence; try lia.
-        { symmetry in H16; solve_illegal_state. }
+        { symmetry in H20; solve_illegal_state. }
         {
             unfold DiskAllocatorParams.bitmap_addr,
             DiskAllocatorParams.num_of_blocks in *.
@@ -131,10 +125,10 @@ Proof.
             simpl; rewrite D0.
             repeat exec_step.
             simpl; repeat econstructor.
-            erewrite <- inode_owners_are_same.
+            erewrite inode_owners_are_same'.
+            7: instantiate (1:= (s, (t, t0)) ); simpl; eauto.
             4: eauto.
             all: eauto.
-            simpl; eauto.
             repeat exec_step.
             repeat cleanup_pairs.
             erewrite <- inode_allocations_are_same.
@@ -145,21 +139,119 @@ Proof.
             simpl.
             rewrite nth_error_None_r; eauto.
             repeat exec_step.
-            symmetry in H16; 
-            eapply block_numbers_oob. 
-            3: rewrite H16 in *; eauto.
-            all: eauto.
         }
       }
     }
-    *)
   }
-  {(** write_inner Some **)
-    admit.
+  {(** read_inner Some **)
+  unfold  Inode.get_owner in *; simpl in *.
+  eapply bind_reorder in H10.
+  repeat invert_step;
+  unfold Inode.InodeAllocator.read in *;
+  repeat invert_step.
+  {
+    Transparent read_inner.
+    unfold read_inner in *.
+    repeat invert_step.
+
+    Transparent Inode.get_block_number.
+    unfold Inode.get_block_number in *.
+    repeat invert_step.
+    unfold Inode.InodeAllocator.read in *; cleanup; try congruence.
+    repeat invert_step; 
+    
+    unfold DiskAllocator.read in *; cleanup; try congruence;
+    repeat invert_step; try congruence; try lia.
+
+        exists (RFinished (fst s2, (fst (snd s2), fst (snd s2))) (Some (fst (snd s2) (DiskAllocatorParams.bitmap_addr + S (nth off
+        (Inode.block_numbers
+           (Inode.decode_inode
+              (fst (snd s2)
+                 (Inode.InodeAllocatorParams.bitmap_addr +
+                  S inum)))) 0))))).
+          econstructor.
+          repeat exec_step.
+          repeat cleanup_pairs.
+          erewrite <- inode_allocations_are_same.
+          4: eauto.
+          all: eauto.
+          simpl; rewrite D1.
+          repeat exec_step.
+          simpl; repeat econstructor.
+          erewrite inode_owners_are_same'.
+          7: instantiate (1:= (s, (t, t0)) ); simpl; eauto.
+          4: eauto.
+          all: eauto.
+          repeat exec_step.
+          repeat cleanup_pairs.
+          erewrite <- inode_allocations_are_same.
+          4: eauto.
+          all: eauto.
+          simpl; rewrite D1.
+          repeat exec_step.
+          destruct_fresh (nth_error
+          (Inode.block_numbers
+             (Inode.decode_inode
+                (fst (snd s2)
+                   (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) off).
+          setoid_rewrite D3.
+          repeat exec_step.
+          {
+            
+          simpl.
+
+          repeat eapply bind_reorder_l.
+          
+          rewrite cons_app.
+          setoid_rewrite cons_app at 3. 
+          rewrite app_assoc.
+          setoid_rewrite cons_app at 5. 
+          rewrite app_assoc.
+           econstructor; 
+          [try solve [repeat econstructor; eauto] 
+          | try solve [repeat econstructor; eauto] ].
+          eapply nth_error_nth in D3.
+          instantiate (1:= 0) in D3.
+          rewrite <- D3 in *.
+          destruct (Compare_dec.lt_dec (nth off
+          (Inode.block_numbers
+             (Inode.decode_inode
+                (fst (snd s2)
+                   (Inode.InodeAllocatorParams.bitmap_addr +
+                    S inum)))) 0) DiskAllocatorParams.num_of_blocks).
+          simpl in *; repeat exec_step.
+          simpl; setoid_rewrite used_blocks_are_allocated; eauto.
+          repeat eapply bind_reorder_l.
+          rewrite cons_app.
+           econstructor; 
+          [try solve [repeat econstructor; eauto] 
+          | try solve [repeat econstructor; eauto] ].
+          repeat econstructor.
+          eapply data_block_inbounds; eauto.
+          erewrite <- inode_allocations_are_same.
+          4: eauto.
+          all: eauto.
+          erewrite <- inode_allocations_are_same.
+          4: eauto.
+          all: eauto.
+          exfalso; apply n;
+          eapply block_nums_inbound; eauto.
+          erewrite <- inode_allocations_are_same.
+          4: eauto.
+          all: eauto.
+          repeat exec_step.
+          }
+          {
+            apply nth_error_None in D3.
+            symmetry in H17; 
+            eapply block_numbers_in_length in H4; eauto.
+            try lia.
+          }
+  }
   }
 }
 
-{(** write crashed **)
+{(** read crashed **)
   invert_exec.
   repeat eapply bind_reorder_r in H14.
   invert_step_crash.
@@ -191,16 +283,6 @@ Proof.
       invert_step_crash; try solve [solve_illegal_state].
       { solve_termination. }
       invert_step_crash; try solve [solve_illegal_state].
-
-
-      (* write_inner_crashed *)
-      Transparent write_inner Inode.get_block_number Inode.InodeAllocator.read.
-      unfold write_inner, Inode.get_block_number, 
-      Inode.InodeAllocator.read in *; simpl in *.
-      unfold Inode.InodeAllocator.read in *; simpl in *.
-      cleanup; try solve [solve_illegal_state].
-      invert_step_crash; try solve [solve_illegal_state].
-      invert_step_crash; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
       { solve_termination. }
@@ -217,7 +299,7 @@ Proof.
       invert_step_crash; try solve [solve_illegal_state].
       { solve_termination. }
       invert_step_crash; try solve [solve_illegal_state].
-      unfold DiskAllocator.write in *.
+      unfold DiskAllocator.read in *.
       cleanup; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
@@ -232,103 +314,16 @@ Proof.
       invert_step_crash; try solve [solve_illegal_state].
       { solve_termination. }
       invert_step_crash; try solve [solve_illegal_state].
-      
-      (* write_inner_finished*)
-      simpl in *.
-      unfold Inode.InodeAllocator.read in *.
+      invert_step; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
-      invert_step_crash; try solve [solve_illegal_state].
-      cleanup; try solve [solve_illegal_state].
-      unfold DiskAllocator.write in *.
-      cleanup; try solve [solve_illegal_state].
-      invert_step_crash; try solve [solve_illegal_state].
-      cleanup; try solve [solve_illegal_state].
-      invert_step_crash; try solve [solve_illegal_state].
-      { XXXXX
-        match goal with
-        [H: refines ?s1 ?x,
-        H0: refines ?s2 ?x0, 
-        H1: same_for_user_except _ _ ?x ?x0,
-        A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
-          try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
-          unfold SSECommon.AD_valid_state, refines_valid, FD_valid_state; 
-          intros; eauto
-        end.
-        repeat match goal with
-        |  [A: fst ?x = fst ?y,
-        A0: snd ?x = snd ?y |- _] =>
-        assert(x = y); [repeat cleanup_pairs; eauto|];
-          subst; clear A A0
-        end.
-        match goal with
-        [A : SSECommon.AD_related_states _ _ _ _ -> 
-        exists _, recovery_exec _ _ _ _ _ _ _ _ |- _] =>  
-          edestruct A; clear A
-        end;
-          [ unfold SSECommon.AD_related_states, refines_related, FD_related_states;
-            do 2 eexists; intuition eauto;
-            simpl in *; unfold refines in *;
-            repeat cleanup_pairs;
-            unfold files_rep in *; 
-            cleanup; simpl in *; 
-            subst; eauto
-          |].
-        try match goal with
-          [A : recovery_exec _ _ _ (fst ?s2, _) _ _ _ ?s2' |- _] =>  
-            exists (Recovered (extract_state_r s2'));
-            econstructor_recovery; [|
-              instantiate (1 := s2); eauto ]
-        end.
-          repeat eapply bind_reorder_l;
-     
-            repeat eapply bind_reorder_l;
-            repeat exec_step.
-            substitute_facts.
-            repeat cleanup_pairs.
-            subst.
-            repeat exec_step.
-            substitute_facts.
-            simpl.
-
-            repeat eapply bind_reorder_l;
-  rewrite cons_app; econstructor;
-  [try solve [repeat econstructor; eauto] 
-  | try solve [repeat econstructor; eauto] ].
-  repeat econstructor; eauto.
-  eapply inode_owners_are_same.
-  substitute_facts.
-
-
-            repeat exec_step.
-          repeat eapply bind_reorder_l;
-          try solve[
-            eauto;
-          repeat (rewrite cons_app;
-          eapply ExecBindCrash);
-          repeat cleanup_pairs;
-          repeat econstructor; eauto].
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      solve_termination. }
+      { solve_termination. }
 
       invert_step; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
       { solve_termination. }
       invert_step_crash; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
-      unfold DiskAllocator.write in *.
+      unfold DiskAllocator.read in *.
       cleanup; try solve [solve_illegal_state].
       invert_step_crash; try solve [solve_illegal_state].
       cleanup; try solve [solve_illegal_state].
@@ -432,4 +427,6 @@ Proof.
     { solve_termination_after_abort. }
   }
 }
-Admitted.
+Unshelve.
+all: exact Definitions.impl.
+Qed.

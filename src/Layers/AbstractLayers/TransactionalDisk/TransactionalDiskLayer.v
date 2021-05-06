@@ -10,7 +10,6 @@ Section TransactionalDisk.
   Inductive token' :=
   | CrashBefore : token'
   | CrashAfter : token'
-  | CrashDuringCommit : token'
   | Cont : token'
   | TxnFull : token'.
 

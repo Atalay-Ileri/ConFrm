@@ -2,6 +2,135 @@ Require Import AuthenticationLayer TransactionalDiskLayer AuthenticatedDiskLayer
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
 Require Import FunctionalExtensionality Lia SSECommon SameRetType.
 
+(*
+Lemma write_refines_same_core_input:
+forall u u' o_imp s1_imp s2_imp x x0  get_reboot_state 
+o_abs o_abs' inum off v v',
+    refines s1_imp x ->
+    refines s2_imp x0 ->
+    same_for_user_except u' (Some inum) x x0 ->
+    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    (|Write inum off v|) get_reboot_state  o_imp o_abs ->
+    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    (|Write inum off v'|) get_reboot_state  o_imp o_abs' ->
+    o_abs = o_abs'.
+Proof.
+    simpl; intros; cleanup.
+    repeat match goal with
+    [H: refines ?s _ ,
+    H0: forall _, files_rep _ ?s -> _ |- _] =>
+
+    specialize H0 with (1:= H)
+    end;
+    repeat split_ors; cleanup;
+    repeat unify_execs; cleanup;
+    repeat split_ors; cleanup;
+    eauto; try lia; try congruence.
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    eauto; try congruence].
+    {
+        unfold write in *.
+        eapply auth_then_exec_same_type_ret in H3; eauto.
+        intuition congruence.
+        intros; 
+        eapply write_inner_same_type_ret; eauto.
+    }
+    {
+        repeat split_ors; cleanup; try lia; try congruence.
+        unfold same_for_user_except in *; cleanup.
+        edestruct H1; exfalso.
+        apply H8; eauto; congruence.
+        unfold same_for_user_except in *; cleanup.
+        eapply H8 in H11; eauto; cleanup.
+        split_ors; cleanup; try lia; tauto.
+    }
+    {
+        unfold write in *.
+        eapply auth_then_exec_same_type_ret in H3; eauto.
+        intuition congruence.
+        intros; 
+        eapply write_inner_same_type_ret; eauto.
+    }
+    {
+        repeat split_ors; cleanup; try lia; try congruence.
+        unfold same_for_user_except in *; cleanup.
+        edestruct H1; exfalso.
+        apply H12; eauto; congruence.
+        unfold same_for_user_except in *; cleanup.
+        eapply H11 in H4; eauto; cleanup.
+        split_ors; cleanup; try lia; tauto.
+    }
+    {
+        eapply write_crashed_same_token in H2.
+        5: apply H3.
+        all: eauto.
+        2:{
+            simpl.
+            intros.
+            unfold refines in *;
+            repeat match goal with
+            |[H: files_rep _ ?s,
+            H0 : files_rep _ ?s |- _] =>
+
+            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
+            end.
+            right.
+            eexists; intuition eauto.
+            right; eexists; intuition eauto.
+        }
+        2:{
+            simpl.
+            intros.
+            unfold refines in *;
+            repeat match goal with
+            |[H: files_rep _ ?s,
+            H0 : files_rep _ ?s |- _] =>
+
+            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
+            end.
+            right.
+            eexists; intuition eauto.
+        }
+        congruence.
+    }
+    {
+        eapply write_crashed_same_token in H2.
+        5: apply H3.
+        all: eauto.
+        2:{
+            simpl.
+            intros.
+            unfold refines in *;
+            repeat match goal with
+            |[H: files_rep _ ?s,
+            H0 : files_rep _ ?s |- _] =>
+
+            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
+            end.
+            right.
+            eexists; intuition eauto.
+        }
+        2:{
+            simpl.
+            intros.
+            unfold refines in *;
+            repeat match goal with
+            |[H: files_rep _ ?s,
+            H0 : files_rep _ ?s |- _] =>
+
+            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
+            end.
+            right.
+            eexists; intuition eauto.
+            right; eexists; intuition eauto.
+        }
+        congruence.
+    }
+    Unshelve.
+    all: eauto.
+Qed.
+
+
 
 Lemma write_refines_same_core:
 forall u u' o_imp s1_imp s2_imp x x0  get_reboot_state 
@@ -61,7 +190,7 @@ Proof.
         split_ors; cleanup; try lia; tauto.
     }
     {
-        eapply write_crashed_same_type_ret in H2.
+        eapply write_crashed_same_token in H2.
         5: apply H3.
         all: eauto.
         2:{
@@ -94,7 +223,7 @@ Proof.
         congruence.
     }
     {
-        eapply write_crashed_same_type_ret in H2.
+        eapply write_crashed_same_token in H2.
         5: apply H3.
         all: eauto.
         2:{
@@ -129,7 +258,7 @@ Proof.
     Unshelve.
     all: eauto.
 Qed.
-
+*)
 
 
 Lemma extend_refines_same_core:
@@ -255,10 +384,10 @@ Qed.
 
 Lemma change_owner_refines_same_core:
 forall u u' o_imp s1_imp s2_imp x x0  get_reboot_state 
-o_abs o_abs' inum v ex,
+o_abs o_abs' inum v,
     refines s1_imp x ->
     refines s2_imp x0 ->
-    same_for_user_except u' ex x x0 ->
+    same_for_user_except u' (Some inum) x x0 ->
     oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
     (|ChangeOwner inum v|) get_reboot_state  o_imp o_abs ->
     oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
@@ -800,10 +929,10 @@ Proof.
 Qed.
 
 Lemma ORS_change_owner:
-forall u u' n inum own ex,
+forall u u' n inum own,
 oracle_refines_same_from_related FileDiskRefinement u 
 (|ChangeOwner inum own|) (|ChangeOwner inum own|) (|Recover|) 
-(authenticated_disk_reboot_list n) (same_for_user_except u' ex).
+(authenticated_disk_reboot_list n) (same_for_user_except u' (Some inum)).
 Proof.
     unfold oracle_refines_same_from_related,
     refines_related; intros; destruct n; simpl in *; cleanup.
@@ -916,11 +1045,13 @@ Proof.
         all: eauto.
 Qed.
 
+
+(*
 Lemma ORS_write:
-forall u u' inum n off v v' ex,
+forall u u' inum n off v,
 oracle_refines_same_from_related FileDiskRefinement u 
-(|Write inum off v|) (|Write inum off v'|) (|Recover|) 
-(authenticated_disk_reboot_list n) (same_for_user_except u' ex).
+(|Write inum off v|) (|Write inum off v|) (|Recover|) 
+(authenticated_disk_reboot_list n) (same_for_user_except u' None).
 Proof.
     unfold oracle_refines_same_from_related,
     refines_related; intros; destruct n; simpl in *; cleanup.
@@ -973,6 +1104,65 @@ Proof.
         Unshelve.
         all: eauto.
 Qed.
+
+Lemma ORS_write_input:
+forall u u' inum n off v v',
+oracle_refines_same_from_related FileDiskRefinement u 
+(|Write inum off v|) (|Write inum off v'|) (|Recover|) 
+(authenticated_disk_reboot_list n) (same_for_user_except u' (Some inum)).
+Proof.
+    unfold oracle_refines_same_from_related,
+    refines_related; intros; destruct n; simpl in *; cleanup.
+     {
+        eapply recovery_oracles_refine_to_same; [| | | eauto | |]; eauto.
+        intros.
+        eapply write_refines_same_core_input; [| | eauto| |]; eauto.
+     }
+     {
+         destruct l_o_imp; simpl in *; try tauto.
+         cleanup; try tauto.
+         repeat split_ors; cleanup; 
+         repeat unify_execs; cleanup;
+         simpl in *; try lia.
+
+         erewrite write_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+        eauto.
+        3: eauto.
+        apply H.
+        apply H2.
+        all: try solve [simpl; eexists; intuition eauto].
+
+        erewrite write_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        4: eauto.
+        2: apply H.
+        2: apply H2.
+        all: try solve [simpl; eexists; intuition eauto].
+
+        erewrite ORS_recover_stronger with (l_o_abs:= l0).
+        eauto.
+        2: eauto.
+        2: eauto.
+        unfold refines_related; simpl.
+        repeat match goal with
+        [H: refines ?s _ ,
+        H0: forall _, files_rep _ ?s -> _ |- _] =>
+
+        specialize H0 with (1:= H)
+        end;
+        repeat split_ors; cleanup;
+        repeat unify_execs; cleanup;
+        repeat split_ors; cleanup;
+        eauto; try lia; try congruence.
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        eauto; try congruence].
+        all: repeat unify_execs; cleanup; eauto.
+        all: do 2 eexists; split; [| split; [| eauto]];
+            unfold refines, files_rep, files_crash_rep in *; simpl in *; cleanup; eauto.
+        }
+        Unshelve.
+        all: eauto.
+Qed.
+*)
 
 Lemma ORS_extend:
 forall u u' inum n v v' ex,
@@ -1083,4 +1273,3 @@ Proof.
         repeat (split; eauto).
      }
 Qed.
-

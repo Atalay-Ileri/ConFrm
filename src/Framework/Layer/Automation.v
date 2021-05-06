@@ -30,7 +30,7 @@ Proof.
   do 2 eexists; split; eauto.
  Qed.
 
- Local Lemma lift1_invert_exec :
+Lemma lift1_invert_exec :
     forall O1 O2 (L1: Language O1) (Lc: Language (HorizontalComposition O1 O2))
       T (p1: L1.(prog) T) (o: Lc.(oracle)) u s s' t,
       exec Lc u o s (lift_L1 O2 p1) (Finished s' t) ->
@@ -73,7 +73,7 @@ Proof.
   Qed.
 
     
-Local Lemma lift2_invert_exec :
+Lemma lift2_invert_exec :
     forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
       T (p2: L2.(prog) T) (o: Lc.(oracle)) u s s' t,
       exec Lc u o s (lift_L2 O1 p2) (Finished s' t) ->
@@ -115,7 +115,84 @@ Local Lemma lift2_invert_exec :
     }
   Qed.
 
-  Local Lemma lift1_invert_exec_crashed :
+
+  Lemma lift2_exec_step :
+    forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+      T (p2: L2.(prog) T) o u s s' t fs,
+      exec L2 u o s p2 (Finished s' t) ->
+      exec Lc u (map (fun o =>
+      match o with
+      |OpToken _ o1 =>
+       OpToken (HorizontalComposition O1 O2)
+                (Token2 O1 O2 o1)
+      |Language.Cont _ =>
+       Language.Cont _
+      |Language.Crash _ =>
+       Language.Crash _
+      end) o) (fs, s) (lift_L2 O1 p2) (Finished (fs, s') t).
+       
+  Proof.
+    induction p2; simpl; intros.
+    {
+      invert_exec'' H.
+      simpl.
+      repeat econstructor; eauto.
+    }
+    {
+      invert_exec'' H; simpl.
+      repeat econstructor; eauto.
+    }
+    {
+      invert_exec'' H0.
+      eapply IHp2 in H7.
+      eapply H in H10.
+      rewrite map_app; repeat econstructor; eauto.
+    }
+  Qed.
+
+
+  Lemma lift2_exec_step_crashed :
+  forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+    T (p2: L2.(prog) T) o u s s' fs,
+    exec L2 u o s p2 (Crashed s') ->
+    exec Lc u (map (fun o =>
+    match o with
+    |OpToken _ o1 =>
+     OpToken (HorizontalComposition O1 O2)
+              (Token2 O1 O2 o1)
+    |Language.Cont _ =>
+     Language.Cont _
+    |Language.Crash _ =>
+     Language.Crash _
+    end) o) (fs, s) (lift_L2 O1 p2) (Crashed (fs, s')).
+     
+Proof.
+  induction p2; simpl; intros.
+  {
+    invert_exec'' H.
+    simpl.
+    repeat econstructor; eauto.
+  }
+  {
+    invert_exec'' H; simpl.
+    repeat econstructor; eauto.
+  }
+  {
+    invert_exec'' H0.
+    eapply lift2_exec_step in H7; eauto.
+    eapply H in H10.
+    rewrite map_app; repeat econstructor; eauto.
+    eapply H7.
+
+    eapply IHp2 in H6.
+    rewrite map_app; eapply ExecBindCrash; repeat econstructor; eauto.
+  }
+  Unshelve.
+  eauto.
+Qed.
+
+
+Lemma lift1_invert_exec_crashed :
     forall O1 O2 (L1: Language O1) (Lc: Language (HorizontalComposition O1 O2))
       T (p1: L1.(prog) T) (o: Lc.(oracle)) u s s',
       exec Lc u o s (lift_L1 O2 p1) (Crashed s') ->
@@ -169,7 +246,7 @@ Local Lemma lift2_invert_exec :
   Qed.
 
     
-Local Lemma lift2_invert_exec_crashed :
+Lemma lift2_invert_exec_crashed :
     forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
       T (p2: L2.(prog) T) (o: Lc.(oracle)) u s s',
       exec Lc u o s (lift_L2 O1 p2) (Crashed s') ->

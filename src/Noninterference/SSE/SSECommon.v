@@ -4,6 +4,134 @@ Require Import FunctionalExtensionality Lia Language.
 Definition AD_valid_state := refines_valid FileDiskRefinement FD_valid_state.
 Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_related_states u exc).
 
+Lemma blocks_allocator_rep_upd:
+forall x4 t0 a v1,
+DiskAllocator.block_allocator_rep x4 t0 ->
+nth_error (value_to_bits (t0 DiskAllocatorParams.bitmap_addr)) a =
+Some true ->
+a < DiskAllocatorParams.num_of_blocks ->
+DiskAllocator.block_allocator_rep (Mem.upd x4 a v1)
+(upd t0 (DiskAllocatorParams.bitmap_addr + S a) v1).
+Proof.
+  unfold DiskAllocator.block_allocator_rep; intros.
+  cleanup.
+  exists (t0 DiskAllocatorParams.bitmap_addr), (updn x0 a v1).
+  intuition eauto.
+  rewrite upd_ne; eauto; lia.
+  erewrite <- seln_eq_updn_eq with (l:= (value_to_bits (t0 DiskAllocatorParams.bitmap_addr))).
+  erewrite <- upd_nop.
+  eapply DiskAllocator.valid_bits_upd.
+  eauto.
+  rewrite value_to_bits_length; eauto.
+  rewrite value_to_bits_length; eauto.
+  pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
+  unfold DiskAllocatorParams.num_of_blocks in *; lia.
+  erewrite seln_eq_updn_eq.
+  rewrite value_to_bits_to_value.
+  rewrite upd_ne; eauto; lia.
+  eapply nth_error_nth in H0.
+  rewrite nth_seln_eq; eauto.
+  eapply nth_error_nth in H0.
+  rewrite nth_seln_eq; eauto.
+  rewrite updn_length; eauto.
+  rewrite Mem.upd_ne; eauto; lia.
+  Unshelve.
+  all: constructor.
+Qed.
+
+Lemma file_map_rep_upd:
+forall x inum f off v1 x2 x4 a inode,
+file_map_rep x x2 x4  ->
+nth_error (Inode.block_numbers inode) off = Some a ->
+x inum = Some f ->
+x2 inum = Some inode ->
+Inode.inode_map_valid x2 ->
+file_map_rep (Mem.upd x inum (update_file f off v1)) x2 (Mem.upd x4 a v1).
+Proof.
+  unfold file_map_rep in *; intros; cleanup.
+  split; eauto.
+  unfold addrs_match_exactly in *.
+  intros.
+  destruct (addr_dec inum a0); subst.
+  rewrite Mem.upd_eq; eauto.
+  intuition congruence.
+  rewrite Mem.upd_ne; eauto.
+
+  intros.
+  eapply_fresh H4 in H2; eauto.
+  destruct (addr_dec inum inum0); subst.
+  rewrite Mem.upd_eq in H6; eauto.
+  rewrite H2 in H5.
+  cleanup.
+  unfold file_rep, update_file in *; 
+  simpl in *; cleanup.
+  intuition eauto.
+  rewrite updn_length; eauto.
+  destruct (addr_dec i off); subst.
+  cleanup.
+  exists v1.
+  erewrite FileInnerSpecs.nth_error_updn_eq; eauto.                
+  rewrite Mem.upd_eq; eauto.
+  eapply_fresh Inode.nth_error_some_lt in H0; lia.
+  eapply_fresh H7 in H8; cleanup.
+  exists x0.
+  erewrite FileInnerSpecs.nth_error_updn_ne; eauto.               
+  rewrite Mem.upd_ne; eauto.
+  destruct (addr_dec block_number a); eauto; subst.
+  unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+  eapply H3 in H2; cleanup.
+  eapply NoDup_nth_error in H2; eauto.
+  eapply nth_error_Some; eauto.
+  congruence.
+  congruence.
+  rewrite Mem.upd_ne in H6; eauto.
+  eapply_fresh H4 in H5; eauto.
+  unfold file_rep in *; cleanup.
+  intuition eauto. 
+  eapply_fresh H9 in H13; eauto; cleanup.
+  eexists; intuition eauto.
+  rewrite Mem.upd_ne; eauto.
+
+  destruct (addr_dec block_number a); eauto; subst.
+  unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+  eapply H16 in H2; eauto.
+  eapply NoDup_nth_error in H2.
+  instantiate (1:= i) in H2;
+  instantiate (1:= length (Inode.block_numbers inode0) + off) in H2.
+  eapply_fresh Inode.nth_error_some_lt in H14; lia.
+  
+  rewrite app_length. 
+  eapply_fresh Inode.nth_error_some_lt in H0; lia.
+  rewrite nth_error_app2.
+  rewrite nth_error_app1.
+  replace (length (Inode.block_numbers inode0) + off -
+  length (Inode.block_numbers inode0)) with off.
+  congruence.
+  lia.
+  eapply nth_error_Some; eauto.
+  congruence.
+  lia.
+Qed.
+
+
+
+Lemma same_for_user_except_symmetry:
+   forall u ex x x0,
+   same_for_user_except u ex x x0 ->
+   same_for_user_except u ex x0 x.
+   Proof.
+       unfold same_for_user_except, 
+       addrs_match_exactly; intros.
+       cleanup.
+       split; intuition eauto.
+       eapply H; eauto.
+       apply H in H2; eauto.
+       symmetry; eapply H0; eauto.
+       symmetry; eapply H0; eauto.
+       symmetry; eapply H1; eauto.
+       symmetry; eapply H1; eauto.
+   Qed.
+
 
 Ltac econstructor_recovery :=
   match goal with
@@ -50,10 +178,10 @@ Ltac econstructor_recovery :=
   end.
 
 Theorem SelfSimulation_Exists_recover:
-  forall u n,
+  forall u n ex,
       SelfSimulation_Exists u recover recover recover
-                            AD_valid_state (AD_related_states u None)
-                            (authenticated_disk_reboot_list n).
+          AD_valid_state (AD_related_states u ex)
+          (authenticated_disk_reboot_list n).
 Proof.
   induction n; simpl;
   unfold SelfSimulation_Exists, AD_valid_state,
@@ -79,8 +207,8 @@ Proof.
     edestruct IHn.
     3: apply H15.
     intros; eauto.
-    intros; eauto.    
-    instantiate (1:= (s0, (t2, t2))).
+    intros; eauto.
+    instantiate (2:= (s0, (t2, t2))).
     unfold refines, files_rep in *; simpl in *.
     cleanup; do 2 eexists; intuition eauto.
     eexists.
@@ -493,10 +621,10 @@ Proof.
 Qed.
 
 Lemma block_numbers_oob:
-forall inum off s2 d' x x0 u,
+forall inum off s2 d' x x0 u ex,
 refines d' x ->
 refines s2 x0 ->
-same_for_user_except u None x x0 ->
+same_for_user_except u ex x x0 ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 nth_error
 (value_to_bits

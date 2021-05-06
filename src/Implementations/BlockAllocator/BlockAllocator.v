@@ -520,6 +520,54 @@ Proof.
   rewrite H2; eauto.
 Qed.
 
+Lemma block_allocator_rep_upd:
+forall x4 t0 a v1,
+block_allocator_rep x4 t0 ->
+nth_error (value_to_bits (t0 bitmap_addr)) a =
+Some true ->
+a < num_of_blocks ->
+block_allocator_rep (Mem.upd x4 a v1)
+(upd t0 (bitmap_addr + S a) v1).
+Proof.
+  unfold block_allocator_rep; intros.
+  cleanup.
+  exists (t0 bitmap_addr), (updn x0 a v1).
+  intuition eauto.
+  rewrite upd_ne; eauto; lia.
+  erewrite <- seln_eq_updn_eq with (l:= (value_to_bits (t0 bitmap_addr))).
+  erewrite <- upd_nop.
+  eapply valid_bits_upd.
+  eauto.
+  rewrite value_to_bits_length; eauto.
+  rewrite value_to_bits_length; eauto.
+  pose proof num_of_blocks_in_bounds; lia.
+  erewrite seln_eq_updn_eq.
+  rewrite value_to_bits_to_value.
+  rewrite upd_ne; eauto; lia.
+  eapply nth_error_nth in H0.
+  rewrite nth_seln_eq; eauto.
+  eapply nth_error_nth in H0.
+  rewrite nth_seln_eq; eauto.
+  rewrite updn_length; eauto.
+  rewrite Mem.upd_ne; eauto; lia.
+  Unshelve.
+  all: constructor.
+Qed.
+
+Lemma block_allocator_rep_upd_noop:
+forall x4 t0 a v1,
+block_allocator_rep x4 t0 ->
+a < bitmap_addr \/ a > bitmap_addr + num_of_blocks ->
+block_allocator_rep x4
+(upd t0 a v1).
+Proof.
+  intros.
+  eapply block_allocator_rep_inbounds_eq; eauto.
+  intros; cleanup.
+  rewrite upd_ne; eauto. 
+  intuition.
+Qed.
+
 (*** Specs ***)
 Theorem alloc_finished:
   forall dh u o s v t s',

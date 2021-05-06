@@ -863,13 +863,19 @@ all: eauto.
 Qed.
 
 Lemma get_block_number_finished_oracle_eq:
-forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v inum inum' v',
+forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v inum im1 im2,
 exec (TransactionalDiskLang FSParameters.data_length) 
 u o s1 (get_block_number inum v)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
+inode_rep im1 (fst s1) ->
+inode_rep im2 (fst s2) ->
+(forall inode1 inode2,
+im1 inum = Some inode1 ->
+im2 inum = Some inode2 ->
+length (block_numbers inode1) = length (block_numbers inode2)) ->
 exec (TransactionalDiskLang FSParameters.data_length) 
-u o' s2 (get_block_number inum' v')
+u o' s2 (get_block_number inum v)
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
 Proof.
@@ -887,10 +893,20 @@ split; eauto;
 intuition congruence].
 
 repeat rewrite <- app_assoc in H0; eauto;
-eapply get_inode_finished_oracle_eq in H; eauto; subst;
+eapply_fresh get_inode_finished_oracle_eq in H; eauto; subst;
 cleanup; eauto.
 split; eauto.
-Abort.
+eapply get_inode_finished in H; eauto.
+eapply get_inode_finished in H4; eauto.
+cleanup; repeat split_ors; cleanup.
+split; intros.
+apply nth_error_None in H.
+apply nth_error_None.
+erewrite <- H3; eauto.
+apply nth_error_None in H.
+apply nth_error_None.
+erewrite H3; eauto.
+Qed.
 
 Lemma get_all_block_numbers_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
