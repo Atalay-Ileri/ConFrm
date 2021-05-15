@@ -52,21 +52,6 @@ Section RefinementLift.
     try solve [eapply CoreRefinement.(exec_compiled_preserves_refinement_finished_core); eauto].
   Qed.
 
-  (*
-  Theorem exec_compiled_preserves_refinement_crashed:
-    forall T (p: L_abs.(prog) T) o s_imp s_imp',
-      (exists s_abs, CoreRefinement.(refines_core) s_imp s_abs) ->
-      L_imp.(exec) o s_imp (compile T p) (Crashed s_imp') ->
-      (exists s_abs', CoreRefinement.(refines_crash_core) s_imp' s_abs').
-  Proof.
-    induction p; simpl; intros;
-    try invert_exec; eauto;
-    try solve [eapply CoreRefinement.(exec_compiled_preserves_refinement_crashed_core); eauto].
-    apply refines_then_refines_crash_core; eauto.
-    split_ors; cleanup; eauto.
-    eapply exec_compiled_preserves_refinement_finished in H1; eauto.
-  Qed.
-  *)
   Definition LiftRefinement : Refinement L_imp L_abs :=
     Build_Refinement
       compile

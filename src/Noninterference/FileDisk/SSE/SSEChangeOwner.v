@@ -21,10 +21,10 @@ Opaque change_owner_inner.
 
 
 Theorem SelfSimulation_Exists_change_owner:
-  forall u m inum v1,
+  forall u u' m inum v1,
     SelfSimulation_Exists
       u (change_owner inum v1) (change_owner inum v1) recover
-      AD_valid_state (AD_related_states u (Some inum))
+      AD_valid_state (AD_related_states u' (Some inum))
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque change_owner_inner.
@@ -179,22 +179,22 @@ Proof.
          unfold same_for_user_except in *; cleanup.
          split; intros. 
          unfold addrs_match_exactly in *; intros.
-         destruct (addr_dec a inum);
+         destruct (addr_dec a1 inum);
          [repeat rewrite Mem.upd_eq; eauto; intuition congruence
          |repeat rewrite Mem.upd_ne; eauto; intuition congruence].
          split; intros.
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H5, H19; eauto; cleanup
-         |rewrite Mem.upd_ne in H5, H19; eauto; cleanup].
+          [rewrite Mem.upd_eq in H5, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H5, H4; eauto; cleanup].
          intuition.
          }
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H3, H5; eauto; cleanup
-         |rewrite Mem.upd_ne in H3, H5; eauto; cleanup].
+          [rewrite Mem.upd_eq in H3, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H3, H4; eauto; cleanup].
          unfold extend_file in *; simpl in *.
-         eapply H18 in H7; eauto.
+         eapply a0 in H7; eauto.
          cleanup; intuition eauto.
          }
        }

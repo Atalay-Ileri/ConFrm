@@ -1119,10 +1119,10 @@ Opaque delete_inner.
 
 
 Theorem SelfSimulation_Exists_delete:
-  forall u m inum ex,
+  forall u u' m inum ex,
     SelfSimulation_Exists
       u (delete inum) (delete inum) recover
-      AD_valid_state (AD_related_states u ex)
+      AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque change_owner_inner.
@@ -1223,19 +1223,19 @@ Proof.
          unfold same_for_user_except in *; cleanup.
          split; intros. 
          unfold addrs_match_exactly in *; intros.
-         destruct (addr_dec a inum);
+         destruct (addr_dec a1 inum);
          [repeat rewrite Mem.delete_eq; eauto; intuition congruence
          |repeat rewrite Mem.delete_ne; eauto; intuition congruence].
          split; intros.
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.delete_eq in H5, H19; eauto; cleanup
-         |rewrite Mem.delete_ne in H5, H19; eauto; cleanup].
+          [rewrite Mem.delete_eq in H5, H4; eauto; cleanup
+         |rewrite Mem.delete_ne in H5, H4; eauto; cleanup].
          }
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.delete_eq in H3, H5; eauto; cleanup
-         |rewrite Mem.delete_ne in H3, H5; eauto; cleanup].
+          [rewrite Mem.delete_eq in H3, H4; eauto; cleanup
+         |rewrite Mem.delete_ne in H3, H4; eauto; cleanup].
          }
        }
      }

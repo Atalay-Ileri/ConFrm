@@ -1,2 +1,2 @@
-Require Export TransactionToTransactionalDisk.Definitions.
-(* TransactionToTransactionalDisk.Refinement. *)
+Require Export TransactionToTransactionalDisk.Definitions 
+TransactionToTransactionalDisk.Refinement.

@@ -4,10 +4,10 @@ Require Import FunctionalExtensionality Lia Language SSECommon.
   (******** SSE PROOFS ********)
 
 Theorem SelfSimulation_Exists_read:
-  forall u m inum off,
+  forall u u' m inum off,
     SelfSimulation_Exists
       u (read inum off) (read inum off) recover
-      AD_valid_state (AD_related_states u None)
+      AD_valid_state (AD_related_states u' None)
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque read_inner.
@@ -428,5 +428,5 @@ Proof.
   }
 }
 Unshelve.
-all: exact Definitions.impl.
+all: exact AuthenticatedDisk.
 Qed.

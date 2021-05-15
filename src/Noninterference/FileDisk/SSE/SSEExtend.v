@@ -876,14 +876,14 @@ Proof.
   }
 Unshelve.
 all: eauto.
-all: exact Definitions.impl.
+all: exact AuthenticatedDisk.
 Qed.
 
 Theorem SelfSimulation_Exists_extend:
-  forall u m inum v1 ex,
+  forall u u' m inum v1 ex,
     SelfSimulation_Exists
       u (extend inum v1) (extend inum v1) recover
-      AD_valid_state (AD_related_states u ex)
+      AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque extend_inner.
@@ -981,24 +981,24 @@ Proof.
          unfold same_for_user_except in *; cleanup.
          split; intros. 
          unfold addrs_match_exactly in *; intros.
-         destruct (addr_dec a inum);
+         destruct (addr_dec a1 inum);
          [repeat rewrite Mem.upd_eq; eauto; intuition congruence
          |repeat rewrite Mem.upd_ne; eauto; intuition congruence].
          split; intros.
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H5, H19; eauto; cleanup
-         |rewrite Mem.upd_ne in H5, H19; eauto; cleanup].
+          [rewrite Mem.upd_eq in H5, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H5, H4; eauto; cleanup].
          unfold extend_file in *; simpl in *.
-         eapply H17 in H7; eauto.
+         eapply e in H17; eauto.
          subst; eauto.
          }
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H3, H5; eauto; cleanup
-         |rewrite Mem.upd_ne in H3, H5; eauto; cleanup].
+          [rewrite Mem.upd_eq in H3, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H3, H4; eauto; cleanup].
          unfold extend_file in *; simpl in *.
-         eapply H18 in H7; eauto.
+         eapply a0 in H7; eauto.
          cleanup; intuition eauto.
          repeat rewrite app_length; lia.
          }
@@ -1029,10 +1029,10 @@ Qed.
 
 
 Theorem SelfSimulation_Exists_extend_input:
-  forall u m inum v1 v2,
+  forall u u' m inum v1 v2,
     SelfSimulation_Exists
       u (extend inum v1) (extend inum v2) recover
-      AD_valid_state (AD_related_states u (Some inum))
+      AD_valid_state (AD_related_states u' (Some inum))
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque extend_inner.
@@ -1130,22 +1130,22 @@ Proof.
          unfold same_for_user_except in *; cleanup.
          split; intros. 
          unfold addrs_match_exactly in *; intros.
-         destruct (addr_dec a inum);
+         destruct (addr_dec a1 inum);
          [repeat rewrite Mem.upd_eq; eauto; intuition congruence
          |repeat rewrite Mem.upd_ne; eauto; intuition congruence].
          split; intros.
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H5, H19; eauto; cleanup
-         |rewrite Mem.upd_ne in H5, H19; eauto; cleanup].
+          [rewrite Mem.upd_eq in H5, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H5, H4; eauto; cleanup].
          intuition.
          }
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H3, H5; eauto; cleanup
-         |rewrite Mem.upd_ne in H3, H5; eauto; cleanup].
+          [rewrite Mem.upd_eq in H3, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H3, H4; eauto; cleanup].
          unfold extend_file in *; simpl in *.
-         eapply H18 in H7; eauto.
+         eapply a0 in H7; eauto.
          cleanup; intuition eauto.
          repeat rewrite app_length; simpl; lia.
          }

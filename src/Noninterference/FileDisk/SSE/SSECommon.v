@@ -1,9 +1,6 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
 Require Import FunctionalExtensionality Lia Language.
 
-Definition AD_valid_state := refines_valid FileDiskRefinement FD_valid_state.
-Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_related_states u exc).
-
 Lemma blocks_allocator_rep_upd:
 forall x4 t0 a v1,
 DiskAllocator.block_allocator_rep x4 t0 ->
@@ -178,9 +175,9 @@ Ltac econstructor_recovery :=
   end.
 
 Theorem SelfSimulation_Exists_recover:
-  forall u n ex,
+  forall u u' n ex,
       SelfSimulation_Exists u recover recover recover
-          AD_valid_state (AD_related_states u ex)
+          AD_valid_state (AD_related_states u' ex)
           (authenticated_disk_reboot_list n).
 Proof.
   induction n; simpl;

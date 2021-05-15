@@ -1,34 +1,17 @@
 Require Import Framework Mem FSParameters FileDiskLayer.
-(* 
+
 Require Import File FileDiskRefinement.
-Require Import AuthenticatedDiskLayer.
-Require Import TransactionalDiskLayer TransactionalDiskRefinement.
-Require Import TransactionCacheLayer.
-Require Import LoggedDiskLayer LoggedDiskRefinement.
-Require Import StorageLayer.
-Require Import CryptoDiskLayer CachedDiskLayer.
-
-Notation "'CryptoDisk'" := CryptoDiskLang (at level 0).
-
-Notation "'CachedDisk'" := CachedDiskLang (at level 0).
-
-Notation "'LoggedDisk'" := LoggedDiskLang (at level 0).
-Notation "'LoggedDisk.refinement'" := LoggedDiskRefinement.
-
-Notation "'TransactionCache'" := TransactionCacheLang (at level 0).
-
-Notation "'TransactionalDisk'" := (TransactionalDiskLang data_length) (at level 0).
-Notation "'TransactionalDisk.refinement'" := TransactionalDiskRefinement.
-
-Notation "'AuthenticatedDisk'" := AuthenticatedDiskLang (at level 0).
- *)
+Require AuthenticatedDiskLayer.
+Require TransactionalDiskLayer TransactionalDiskRefinement.
+Require TransactionCacheLayer.
+Require LoggedDiskLayer LoggedDiskRefinement.
+Require StorageLayer.
+Require CryptoDiskLayer CachedDiskLayer.
 
 Notation "'FileDiskOp'" := (FileDiskOperation inode_count). 
 Notation "'FileDisk'" := (FileDiskLang inode_count) (at level 0).
-
-(*
 Notation "'FileDisk.refinement'" := FileDiskRefinement.
- *)
+
 
 Definition same_for_user_except (u: user) (exclude: option addr) (d1 d2: FileDisk.(state)) :=
   addrs_match_exactly d1 d2 /\
@@ -117,48 +100,48 @@ Proof.
 Qed.
  *)
 
-Fixpoint horizontally_compose_valid_prog1 {O1 O2} (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2)) C T (p1: prog L1 T) :=
+Fixpoint horizontally_compose_valid_prog1 {O1 O2} (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2)) {T} (p1: prog L1 T) :=
          match p1 with
-         | @Op _ T' p => C T' (Op (HorizontalComposition O1 O2) (P1 p))
-         | @Ret _ T' t => C T' (Ret t)
+         | @Op _ T' p => Op (HorizontalComposition O1 O2) (P1 p)
+         | @Ret _ T' t => Ret t
          | @Bind _ T1 T2 p1 p2 =>
-           horizontally_compose_valid_prog1 L1 L2 LL C T1 p1 /\
-           (forall r, horizontally_compose_valid_prog1 L1 L2 LL C T2 (p2 r))
+           Bind (horizontally_compose_valid_prog1 L1 L2 LL p1)
+           (fun r => horizontally_compose_valid_prog1 L1 L2 LL (p2 r))
          end.
 
+(*
 Fixpoint horizontally_compose_valid_prog2 {O1 O2} (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2)) C T (p2: prog L2 T) :=
          match p2 with
-         | @Op _ T' p => C T' (Op (HorizontalComposition O1 O2) (P2 p))
-         | @Ret _ T' t => C T' (Ret t)
+         | @Op _ T' p => (Op (HorizontalComposition O1 O2) (P2 p))
+         | @Ret _ T' t => (Ret t)
          | @Bind _ T1 T2 p1 p2 =>
            horizontally_compose_valid_prog2 L1 L2 LL C T1 p1 /\
            (forall r, horizontally_compose_valid_prog2 L1 L2 LL C T2 (p2 r))
          end.
-
+*)
 (*
 Lemma ss_hc_rev_p1:
   forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
-    u R C V,
-    SelfSimulation LL R C V ->
+    u R C V T l_grs1 l_grs2 (p1 p2: L1.(prog) T) rec,
+    @SelfSimulation _ LL u _ (horizontally_compose_valid_prog1 L1 L2 LL p1)
+    (horizontally_compose_valid_prog1 L1 L2 LL p2)
+    (horizontally_compose_valid_prog1 L1 L2 LL rec) R V  C l_grs2 ->
     forall s2,
-      SelfSimulation L1
+      SelfSimulation u p1 p2 rec
         (fun s1 => R (s1, s2))
-        (horizontally_compose_valid_prog1 L1 L2 LL C)
-        (fun s1 s1' =>  V (s1, s2) (s1', s2)).
+        (fun s1 s1' =>  V (s1, s2) (s1', s2))
+        C
+        l_grs1.
 Proof.
-  intros.
-  constructor.
-  intros T o p.
-  generalize dependent s2.
-  generalize dependent o.
-  induction p; intros; cleanup.
+  unfold SelfSimulation;  
+  induction l_grs1; intros; cleanup.
   - (* Op *)
     repeat invert_exec; simpl in *.
     + (* P1 Finished *)
-      edestruct H, self_simulation_correct.
-      apply H0.
-      apply H1.
-      all: simpl in *; eauto.
+      edestruct H.
+      4: eauto.
+      all: eauto.
+
       solve [repeat econstructor; eauto].
       cleanup; simpl in *.
       repeat invert_exec; simpl in *; cleanup; intuition.
@@ -1139,7 +1122,7 @@ Qed.
 
 
 
-Theorem ss_FD_set_owner:
+Theorem ss_FD_change_owner:
   forall n inum u u' u'',
     SelfSimulation u (FileDiskOp.(Op) (ChangeOwner inum u'')) (FileDiskOp.(Op) (ChangeOwner inum u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
@@ -1638,7 +1621,7 @@ Proof.
       eapply_fresh H2 in H9; eauto.
       logic_clean; subst.
              
-      exists (RFinished (delete s2 inum) (Some tt));
+      exists (RFinished (Mem.delete s2 inum) (Some tt));
       simpl; intuition eauto.
       repeat (econstructor; eauto).
       {
@@ -1780,7 +1763,7 @@ Proof.
       eapply_fresh H2 in H4; eauto; try congruence; cleanup.
       
       edestruct ss_FD_Recover; eauto.
-      instantiate (1:= delete s2 inum).
+      instantiate (1:= Mem.delete s2 inum).
       instantiate (1:= None).
       instantiate (1:= u').
       {
@@ -2421,269 +2404,66 @@ Proof.
   do 2 eexists; intuition eauto.
 Qed.
     
-(*
+
 (** Intermediate Layers *)
+Import AuthenticatedDiskLayer.
+Notation "'AuthenticatedDisk'" := AuthenticatedDiskLang (at level 0).
+
 (* Authenticated Disk *)
-Definition AD_valid_state := refines_valid FileDisk.refinement FD_valid_state.
-Definition AD_related_states := refines_related FileDisk.refinement FD_related_states.
+Definition AD_valid_state := refines_valid FileDiskRefinement FD_valid_state.
+Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_related_states u exc).
 
 (* Transactional Disk *)
 Definition TD_valid_state s1 := fun s2 => AD_valid_state (s1, s2).
-Definition TD_related_states s1 := fun s2 s2' => AD_related_states (s1, s2) (s1, s2').
+Definition TD_related_states u exc s1 := fun s2 s2' => AD_related_states u exc (s1, s2) (s1, s2').
+
+Import TransactionCacheLayer TransactionalDiskLayer TransactionalDiskRefinement.
+Notation "'TransactionCache'" := TransactionCacheLang (at level 0).
+
+Notation "'TransactionalDisk'" := (TransactionalDiskLang data_length) (at level 0).
+Notation "'TransactionalDisk.refinement'" := TransactionalDiskRefinement.
 
 (* Transaction Cache *)
 Definition TC_valid_state s1 := refines_valid TransactionalDisk.refinement (TD_valid_state s1).
-Definition TC_valid_prog  := compiles_to_valid TransactionalDisk.refinement TD_valid_prog.
-Definition TC_related_states s1 := refines_related TransactionalDisk.refinement (TD_related_states s1).
+Definition TC_related_states u exc s1 := refines_related TransactionalDisk.refinement (TD_related_states u exc s1).
 
 (* Logged Disk *)
 Definition LD_valid_state s := fun s2 => TC_valid_state (fst s) (snd s, s2).
-Definition LD_valid_prog  := horizontally_compose_valid_prog2 (StorageLang (list (addr * value))) LoggedDisk TransactionCache TC_valid_prog.
-Definition LD_related_states s := fun s2 s2' => TC_related_states (fst s) (snd s, s2) (snd s, s2').
+Definition LD_related_states u exc s := fun s2 s2' => TC_related_states u exc (fst s) (snd s, s2) (snd s, s2').
+
+Import CachedDiskLayer LoggedDiskLayer CryptoDiskLayer LoggedDiskRefinement.
+
+Notation "'LoggedDisk'" := LoggedDiskLang (at level 0).
+Notation "'LoggedDisk.refinement'" := LoggedDiskRefinement.
+
+Notation "'CachedDisk'" := CachedDiskLang (at level 0).
+Notation "'CryptoDisk'" := CryptoDiskLang (at level 0).
 
 (* Cached Disk *)
 Definition CD_valid_state s1 := refines_valid LoggedDisk.refinement (LD_valid_state s1).
-Definition CD_valid_prog  := compiles_to_valid LoggedDisk.refinement LD_valid_prog.
-Definition CD_related_states s1 := refines_related LoggedDisk.refinement (LD_related_states s1).
+Definition CD_related_states u exc s1 := refines_related LoggedDisk.refinement (LD_related_states u exc s1).
 
 (* Crypto Disk *)
 Definition CrD_valid_state s := fun s2 => CD_valid_state (fst s) (snd s, s2).
-Definition CrD_valid_prog  := horizontally_compose_valid_prog2 (CacheLang addr_dec value) CryptoDisk CachedDisk CD_valid_prog.
-Definition CrD_related_states s := fun s2 s2' => CD_related_states (fst s) (snd s, s2) (snd s, s2').
+Definition CrD_related_states u exc s := fun s2 s2' => CD_related_states u exc (fst s) (snd s, s2) (snd s, s2').
 
 (** Bottom Layers *)
 (* Authentication Layer *)
 Definition AL_valid_state s2 := fun s1 => AD_valid_state (s1, s2).
-Definition AL_valid_prog  := horizontally_compose_valid_prog1 AuthenticationLang TransactionalDisk AuthenticatedDisk AD_valid_prog.
-Definition AL_related_states s2 := fun s1 s1' => AD_related_states (s1, s2) (s1', s2).
+Definition AL_related_states u exc s2 := fun s1 s1' => AD_related_states u exc (s1, s2) (s1', s2).
 
 (* Storage Layer *)
 Definition SL_valid_state s := fun s1 => TC_valid_state (fst s) (s1, snd s).
-Definition SL_valid_prog  := horizontally_compose_valid_prog1 (StorageLang (list (addr * value))) LoggedDisk TransactionCache TC_valid_prog.
-Definition SL_related_states s := fun s1 s1' => TC_related_states (fst s) (s1, snd s) (s1', snd s).
+Definition SL_related_states u exc s := fun s1 s1' => TC_related_states u exc (fst s) (s1, snd s) (s1', snd s).
 
 (* Cache Layer *)
 Definition CL_valid_state s := fun s1 => CD_valid_state (fst s) (s1, snd s).
-Definition CL_valid_prog  := horizontally_compose_valid_prog1 (CacheLang addr_dec value) CryptoDisk CachedDisk CD_valid_prog.
-Definition CL_related_states s := fun s1 s1' => CD_related_states (fst s) (s1, snd s) (s1', snd s).
+Definition CL_related_states u exc s := fun s1 s1' => CD_related_states u exc (fst s) (s1, snd s) (s1', snd s).
 
 (* Crypto Layer *)
 Definition CrL_valid_state s := fun s1 => CrD_valid_state (fst s) (s1, snd s).
-Definition CrL_valid_prog  := horizontally_compose_valid_prog1 CryptoLang (DiskLang addr_dec value) CryptoDisk CrD_valid_prog.
-Definition CrL_related_states s := fun s1 s1' =>  CrD_related_states (fst s) (s1, snd s) (s1', snd s).
+Definition CrL_related_states u exc s := fun s1 s1' =>  CrD_related_states u exc (fst s) (s1, snd s) (s1', snd s).
 
 (* Disk Layer *)
 Definition DL_valid_state s := fun s2 => CrD_valid_state (fst s) (snd s, s2).
-Definition DL_valid_prog  := horizontally_compose_valid_prog2 CryptoLang (DiskLang addr_dec value) CryptoDisk CrD_valid_prog.
-Definition DL_related_states s := fun s2 s2' => CrD_related_states (fst s) (snd s, s2) (snd s, s2').
-
-
-
-(** NI Theorems *)
-(** Top Layer *)
-Theorem ss_FD:
-  SelfSimulation FileDisk FD_valid_state FD_related_states.
-Proof. Admitted.
-
-(** Intermediate Layers *)
-Theorem ss_AD:
-  SelfSimulation AuthenticatedDisk AD_valid_state AD_valid_prog AD_related_states.
-Proof.
-  intros.
-  unfold AD_valid_state, AD_valid_prog, AD_related_states; simpl.   
-  (* Theorem from file disk refinement here *)
-Admitted.
-
-Theorem ss_TD:
-  forall s, SelfSimulation TransactionalDisk (TD_valid_state s) TD_valid_prog (TD_related_states s).
-Proof.
-  intros.
-  unfold TD_valid_state, TD_valid_prog, TD_related_states; simpl.  
-  eapply ss_hc_rev_p2 with (R:= AD_valid_state) (V:= AD_related_states).
-  apply ss_AD.
-Qed.
-
-Theorem ss_TC:
-  forall s, SelfSimulation TransactionCache (TC_valid_state s) TC_valid_prog (TC_related_states s).
-Proof.
-  intros.
-  unfold TC_valid_state, TC_valid_prog, TC_related_states; simpl.
-  (* Theorem from transactional disk refinement here *)
-Admitted.
-
-Theorem ss_LD:
-  forall s, SelfSimulation LoggedDisk (LD_valid_state s) LD_valid_prog (LD_related_states s).
-Proof.
-  intros.
-  unfold LD_valid_state, LD_valid_prog, LD_related_states; simpl.
-  eapply ss_hc_rev_p2 with (R:= TC_valid_state (fst s)) (V:= TC_related_states (fst s)).
-  eapply ss_TC.
-Qed.
-
-Theorem ss_CD:
-  forall s, SelfSimulation CachedDisk (CD_valid_state s) CD_valid_prog (CD_related_states s).
-Proof.
-  intros.
-  unfold CD_valid_state, CD_valid_prog, CD_related_states; simpl.
-  (* Need theorem from logged disk refinement here *)
-Admitted.
-
-Theorem ss_CrD:
-  forall s, SelfSimulation CryptoDisk (CrD_valid_state s) CrD_valid_prog (CrD_related_states s).
-Proof.
-  intros.
-  unfold CrD_valid_state, CrD_valid_prog, CrD_related_states; simpl.
-  eapply ss_hc_rev_p2 with (R:= CD_valid_state (fst s)) (V:= CD_related_states (fst s)).
-  eapply ss_CD.
-Qed.
-
-(** Bottom Layers *)
-Theorem ss_AL:
-  forall s, SelfSimulation (AuthenticationLang) (AL_valid_state s) AL_valid_prog (AL_related_states s).
-Proof.
-  intros.
-  unfold AL_valid_state, AL_valid_prog, AL_related_states; simpl.  
-  eapply ss_hc_rev_p1 with (R:= AD_valid_state) (V:= AD_related_states).
-  apply ss_AD.
-Qed.
-
-Theorem ss_SL:
-  forall s, SelfSimulation (StorageLang (list (addr * value))) (SL_valid_state s) SL_valid_prog (SL_related_states s).
-Proof.
-  intros.
-  unfold SL_valid_state, SL_valid_prog, SL_related_states; simpl.
-  eapply ss_hc_rev_p1 with (R:= TC_valid_state (fst s)) (V:= TC_related_states (fst s)).
-  eapply ss_TC.
-Qed.
-
-
-Theorem ss_CL:
-  forall s, SelfSimulation (CacheLang addr_dec value) (CL_valid_state s) CL_valid_prog (CL_related_states s).
-Proof.
-  intros.
-  unfold CL_valid_state, CL_valid_prog, CL_related_states; simpl.
-  eapply ss_hc_rev_p1 with (R:= CD_valid_state (fst s)) (V:= CD_related_states (fst s)).
-  eapply ss_CD.
-Qed.
-
-Theorem ss_DL:
-  forall s, SelfSimulation (DiskLang addr_dec value) (DL_valid_state s) DL_valid_prog (DL_related_states s).
-Proof.
-  intros.
-  unfold DL_valid_state, DL_valid_prog, DL_related_states; simpl.  
-  eapply ss_hc_rev_p2 with (R:= CrD_valid_state (fst s)) (V:= CrD_related_states (fst s)).
-  eapply ss_CrD.
-Qed.
-
-Theorem ss_CrL:
-  forall s, SelfSimulation CryptoLang (CrL_valid_state s) CrL_valid_prog (CrL_related_states s).
-Proof.
-  intros.  
-  unfold CrL_valid_state, CrL_valid_prog, CrL_related_states; simpl.  
-  eapply ss_hc_rev_p1 with (R:= CrD_valid_state (fst s)) (V:= CrD_related_states (fst s)).
-  eapply ss_CrD.
-Qed.
-
-
-(** Required theorems for transfer *)
-Theorem ortsfr_FD:
-  oracle_refines_same_from_related FileDisk.refinement FD_related_states.
-Proof. Admitted.
-
-Theorem ecpv_FD:  
-exec_compiled_preserves_validity FileDisk.refinement AD_valid_state.
-Proof.
-  unfold AD_valid_state, FD_valid_state,
-  exec_compiled_preserves_validity, refines_valid; intros; eauto.
-Qed.
-
-
-Theorem ortsfr_TD:
-  forall s, oracle_refines_same_from_related TransactionalDisk.refinement (TD_related_states s).
-Proof.
-  unfold oracle_refines_same_from_related; simpl.
-  induction p2; simpl; intros.
-  cleanup.
-  eexists; intuition eauto.
-  
-  - destruct p; simpl in *.
-    { (* Start *)
-      split_ors; cleanup.
-      { (* Finished *)
-        destruct sbs.
-        edestruct wp_to_exec with (p:= Transaction.start)
-      (Q:= strongest_postcondition TransactionToTransactionalDisk.Definitions.low Transaction.start
-         (fun o' s' => refines_related TransactionalDisk.refinement (TD_related_states s) s1 s' /\ s' = s2 /\ o' = o)); eauto.
-        simpl.
-        do 2 eexists; intuition eauto; simpl.
-        eexists; intuition eauto; simpl.
-        eexists; intuition eauto; simpl.
-        eexists; intuition eauto; simpl.
-        eexists; intuition eauto; simpl.
-        instantiate (1:= s2);
-        instantiate (1:= fst s2); simpl; eauto.
-        destruct s2; eauto.
-        
-        eapply exec_to_sp with (P:= fun o' s' => refines_related TransactionalDisk.refinement (TD_related_states s) s' s2 /\ s' = s1 /\ o' = o) in H0; eauto.
-        simpl in *; cleanup; eauto.
-      
-      simpl; eauto.
-      cleanup.
-      simpl in H2; cleanup.
-      left; do 2 eexists; intuition eauto.
-      destruct x; simpl in *; cleanup; eauto.
-    + split_ors; cleanup.
-       edestruct wcp_to_exec with (p:= Transaction.start)
-      (Q:= strongest_crash_postcondition TransactionToTransactionalDisk.Definitions.low Transaction.start
-         (fun o' s' =>
-            refines_related TransactionalDisk.refinement (TD_related_states s) s1 s' /\ s' = s2 /\ o' = o)); eauto.
-       do 2 eexists; intuition eauto; simpl.
-
-       eapply exec_to_scp with (P:= fun o' s' => refines_related TransactionalDisk.refinement (TD_related_states s) s' s2 /\ s' = s1 /\ o' = o) in H0; eauto.
-       simpl in *; cleanup; eauto.
-
-       split_ors; cleanup; simpl in *;
-       try match goal with
-       | [H: StorageLayer.strongest_crash_postcondition' _ _ _ |- _ ] =>
-         inversion H; clear H; cleanup
-       end.
-
-      left.
-      eexists; intuition eauto; simpl.
-      eexists; intuition eauto; simpl.
-      eexists; intuition eauto; simpl.
-      left.
-      eexists; intuition eauto; simpl.
-      instantiate (1:= s2);
-      simpl; eauto.
-      destruct s2; eauto.
-
-      right.
-      eexists; intuition eauto; simpl.
-      eexists; intuition eauto; simpl.
-      repeat econstructor.
-      econstructor.
-      solve [repeat econstructor; eauto].
-      eexists; intuition eauto; simpl.
-      left.
-      eexists; intuition eauto; simpl.
-      instantiate (1:= s2);
-      simpl; eauto.
-      destruct s2; eauto.
-
-      
-      
-      
-      simpl; eauto.
-      cleanup.
-      simpl in H2; cleanup.
-      left; do 2 eexists; intuition eauto.
-      destruct x; simpl in *; cleanup; eauto.
-
-      
-      econstructor.
-
-
-      
-Admitted.
-*)
+Definition DL_related_states u exc s := fun s2 s2' => CrD_related_states u exc (fst s) (snd s, s2) (snd s, s2').

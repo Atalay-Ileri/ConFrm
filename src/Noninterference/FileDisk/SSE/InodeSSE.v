@@ -500,6 +500,250 @@ all: eauto.
 Qed.
 Opaque Inode.get_all_block_numbers.
   
+Fixpoint get_all_file_sizes_up_to fm n :=
+  match n with
+  | 0 => 
+    match fm 0 with
+    |Some f => length (f.(blocks))
+    |None => 0
+    end
+  | S n' =>
+    match fm n with
+    |Some f => length (f.(blocks))
+    |None => 0
+    end + get_all_file_sizes_up_to fm n'
+  end.
+
+Lemma get_all_file_sizes_up_to_related_equal:
+forall n fm1 fm2 ex u,
+same_for_user_except u ex fm1 fm2 ->
+get_all_file_sizes_up_to fm1 n = get_all_file_sizes_up_to fm2 n.
+Proof.
+  unfold same_for_user_except; 
+  induction n; simpl; intros; 
+  cleanup; eauto.
+  {
+    destruct_fresh (fm1 0);
+    destruct_fresh (fm2 0); eauto.
+    {
+      eapply H1 in D; eauto; cleanup; eauto.
+    }
+    {
+      edestruct H; exfalso; intuition.
+      eapply H2; eauto; congruence.
+    }
+    {
+      edestruct H; exfalso; intuition.
+      eapply H3; eauto; congruence.
+    }
+  }
+  {
+    erewrite IHn; eauto.
+    destruct_fresh (fm1 (S n));
+    destruct_fresh (fm2 (S n)); eauto.
+    {
+      eapply H1 in D; eauto; cleanup; eauto.
+    }
+    {
+      edestruct H; exfalso; intuition.
+      eapply H2; eauto; congruence.
+    }
+    {
+      edestruct H; exfalso; intuition.
+      eapply H3; eauto; congruence.
+    }
+  }
+Qed. 
+
+Lemma get_all_file_sizes_0_empty_disk:
+forall n fm,
+(forall i, i > 0 -> fm i = None) ->
+get_all_file_sizes_up_to fm n = get_all_file_sizes_up_to fm 0.
+Proof.
+  induction n; simpl; intros; eauto.
+  rewrite H; eauto.
+  lia.
+Qed.
+
+Lemma get_all_file_sizes_equal_after_disk:
+forall a n fm,
+(forall i, i > n -> fm i = None) ->
+get_all_file_sizes_up_to fm n = get_all_file_sizes_up_to fm (n + a).
+Proof.
+  induction a; simpl; intros.
+  {
+    rewrite PeanoNat.Nat.add_0_r; eauto.
+  }
+  {
+    replace (n + S a) with (S n + a) by lia.
+    rewrite IHa; simpl; eauto.
+    setoid_rewrite H; eauto; simpl.
+    lia.
+  }
+Qed.
+
+Fixpoint count_trues bl :=
+match bl with
+| nil => 0
+| true :: bl' => 1 + count_trues bl'
+| false :: bl' => count_trues bl'
+end.
+
+Lemma count_trues_le :
+forall bl,
+count_trues bl <= length bl.
+Proof.
+  induction bl; simpl in *; intros;
+  cleanup; try lia.
+  destruct a; simpl; try lia.
+Qed.
+
+Lemma get_first_zero_index_count_trues:
+forall bl,
+get_first_zero_index bl < length bl <->
+count_trues bl < length bl.
+Proof.
+  induction bl; simpl in *; intros;
+  cleanup; try lia.
+  destruct a; simpl; try lia.
+  intuition try lia.
+  pose proof (count_trues_le bl); lia.
+Qed.
+
+Lemma count_trues_lt_exists_empty:
+forall bl,
+count_trues bl < length bl ->
+exists i, i < length bl /\ seln bl i false = false.
+Proof.
+  induction bl; simpl in *; intros;
+  cleanup; try lia.
+  edestruct IHbl; try lia.
+  cleanup.
+  exists (S x); simpl; eauto.
+  split; eauto; try lia.
+  exists 0; simpl; split; eauto.
+  lia.
+Qed.
+
+Set Nested Proofs Allowed.
+Lemma count_trues_ge_all_some:
+forall l bm s,
+DiskAllocator.block_allocator_rep bm s ->
+Forall (fun a => bm a <> None) l ->
+NoDup l ->
+count_trues (firstn DiskAllocatorParams.num_of_blocks (value_to_bits (s DiskAllocatorParams.bitmap_addr)) ) >= length l.
+Proof. Admitted.
+
+
+Lemma block_counts_up_to_le:
+forall n fm im bm s,
+file_map_rep fm im bm ->
+Inode.inode_rep im s ->
+DiskAllocator.block_allocator_rep bm s ->
+count_trues (firstn DiskAllocatorParams.num_of_blocks
+(value_to_bits (s DiskAllocatorParams.bitmap_addr))) >=
+get_all_file_sizes_up_to fm n.
+Proof.
+  unfold file_map_rep, file_rep, 
+  Inode.inode_rep, Inode.inode_map_rep,
+  Inode.inode_map_valid, Inode.inode_valid;
+  induction n; simpl; intros; cleanup.
+  {
+    destruct_fresh (fm 0); try lia.
+    destruct_fresh (im 0).
+    {
+      eapply_fresh H5 in D; eauto; cleanup.
+      eapply_fresh H3 in D0; cleanup.
+      eapply count_trues_ge_all_some; eauto.
+      eapply Forall_forall; intros.
+      eapply in_seln_exists in H11; cleanup.
+      rewrite nth_seln_eq in H12.
+      eapply nth_error_nth' in H11.
+      apply H8 in H11; cleanup; try congruence.
+      rewrite H12 in H13; congruence.
+    }
+    edestruct H; exfalso.
+    eapply H6; eauto; congruence.
+  }
+  admit.
+  Unshelve.
+  all: eauto.
+Admitted.
+
+Lemma block_counts_eq:
+forall n fm im bm s,
+file_map_rep fm im bm ->
+Inode.inode_rep im s ->
+DiskAllocator.block_allocator_rep bm s ->
+n >= FSParameters.inode_count ->
+count_trues (firstn DiskAllocatorParams.num_of_blocks
+(value_to_bits (s DiskAllocatorParams.bitmap_addr))) <=
+get_all_file_sizes_up_to fm n.
+Proof. (*
+  unfold file_map_rep, file_rep, 
+  Inode.inode_rep, Inode.inode_map_rep,
+  Inode.inode_map_valid, Inode.inode_valid;
+  induction n; intros; cleanup.
+  { pose proof FSParameters.inode_count_nonzero.
+  lia. }
+  {
+    inversion H2.
+    {
+      destruct_fresh (fm (S n)); simpl; eauto.
+      {
+        unfold Inode.InodeAllocator.block_allocator_rep in *; 
+        cleanup.
+        destruct_fresh (im (S n)).
+        rewrite H3, H10 in D0; eauto; simpl in *. 
+        congruence. 
+        unfold Inode.InodeAllocatorParams.num_of_blocks;
+        lia.
+        edestruct H; exfalso.
+        eapply H0; eauto; congruence.
+      }
+      {
+        rewrite H8; simpl; rewrite D; simpl.
+        erewrite get_all_file_sizes_equal_after_disk with (a:= 1).
+        replace (n + 1) with (S n) by lia.
+        eapply IHn; eauto.
+      }
+  }
+
+    destruct_fresh (fm 0); try lia.
+    destruct_fresh (im 0).
+    {
+      eapply_fresh H5 in D; eauto; cleanup.
+      eapply_fresh H3 in D0; cleanup.
+      eapply count_trues_ge_all_some; eauto.
+      eapply Forall_forall; intros.
+      eapply in_seln_exists in H11; cleanup.
+      rewrite nth_seln_eq in H12.
+      eapply nth_error_nth' in H11.
+      apply H8 in H11; cleanup; try congruence.
+      rewrite H12 in H13; congruence.
+    }
+    edestruct H; exfalso.
+    eapply H6; eauto; congruence.
+  }
+  admit.
+  Unshelve.
+  all: eauto.
+  *)
+Admitted.
+
+Lemma block_counts_match:
+forall fm im bm s,
+file_map_rep fm im bm ->
+DiskAllocator.block_allocator_rep bm s ->
+count_trues (firstn DiskAllocatorParams.num_of_blocks
+(value_to_bits (s DiskAllocatorParams.bitmap_addr))) =
+get_all_file_sizes_up_to fm (FSParameters.inode_count - 1).
+Proof.
+  unfold file_map_rep, DiskAllocator.block_allocator_rep;
+  intros; cleanup.
+Admitted.
+
+
 
 Set Nested Proofs Allowed.
 Lemma free_block_exists:
@@ -517,7 +761,36 @@ DiskAllocatorParams.num_of_blocks ->
         (value_to_bits
             (s2 DiskAllocatorParams.bitmap_addr)))) <
   DiskAllocatorParams.num_of_blocks.
-Proof. Admitted.
+Proof. 
+unfold files_inner_rep; intros; cleanup.
+replace DiskAllocatorParams.num_of_blocks with (length (firstn DiskAllocatorParams.num_of_blocks
+(value_to_bits (s2 DiskAllocatorParams.bitmap_addr)))) at 2.
+
+eapply get_first_zero_index_count_trues.
+
+replace DiskAllocatorParams.num_of_blocks with (length (firstn DiskAllocatorParams.num_of_blocks
+(value_to_bits (s1 DiskAllocatorParams.bitmap_addr)))) in H2 at 2.
+
+eapply get_first_zero_index_count_trues in H2.
+
+erewrite block_counts_match in H2.
+erewrite block_counts_match.
+erewrite get_all_file_sizes_up_to_related_equal in H2; eauto.
+rewrite firstn_length_l in *.
+eauto.
+rewrite value_to_bits_length;
+pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
+unfold DiskAllocatorParams.num_of_blocks; eauto.
+rewrite value_to_bits_length;
+pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
+unfold DiskAllocatorParams.num_of_blocks; eauto.
+2: eauto. eauto.
+eauto.
+eauto.
+all: apply firstn_length_l; rewrite value_to_bits_length;
+pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
+unfold DiskAllocatorParams.num_of_blocks; eauto.
+Qed.
 
 Lemma free_block_exists_iff:
 forall fm1 fm2 s1 s2 u' ex,
@@ -2369,5 +2642,5 @@ Proof.
   }
 Unshelve.
 all: eauto.
-all: exact Definitions.impl.
+all: exact AuthenticatedDisk.
 Qed.

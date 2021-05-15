@@ -9,9 +9,9 @@ o_abs o_abs' inum off v v',
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' (Some inum) x x0 ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
     (|Write inum off v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
     (|Write inum off v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -138,9 +138,9 @@ o_abs o_abs' inum off v v' ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
     (|Write inum off v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
     (|Write inum off v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -267,9 +267,9 @@ o_abs o_abs' inum v v' ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
     (|Extend inum v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
     (|Extend inum v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -388,9 +388,9 @@ o_abs o_abs' inum v,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' (Some inum) x x0 ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
     (|ChangeOwner inum v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
     (|ChangeOwner inum v|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -508,9 +508,9 @@ o_abs o_abs' inum ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
     (|Delete inum|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
     (|Delete inum|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -627,9 +627,9 @@ o_abs o_abs' own ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
     (|Create own|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ Definitions.abs FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
     (|Create own|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -773,7 +773,7 @@ Qed.
 
 
 Lemma recovery_oracles_refine_to_same:
-    forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp x x0 u u' ex T (p1 p2: Definitions.abs.(prog) T),
+    forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp x x0 u u' ex T (p1 p2: FileDisk.(prog) T),
     (forall o_imp o_abs o_abs' get_reboot_state,
     refines s1_imp x ->
     refines s2_imp x0 ->
@@ -803,10 +803,10 @@ Qed.
 
 Lemma ORS_recover_stronger:
 forall (u: user)(n : nat)
-  (l_o_imp : list (oracle Definitions.impl))
-  (l_o_abs l_o_abs' : list (oracle Definitions.abs))
-  (s1_imp s2_imp : state Definitions.impl),
-  (exists sa1 sa2 : state Definitions.abs,
+  (l_o_imp : list (oracle AuthenticatedDisk))
+  (l_o_abs l_o_abs' : list (oracle FileDisk))
+  (s1_imp s2_imp : state AuthenticatedDisk),
+  (exists sa1 sa2 : state FileDisk,
    Simulation.Definitions.refines FileDiskRefinement s1_imp sa1 /\
    Simulation.Definitions.refines FileDiskRefinement s2_imp sa2) ->
 recovery_oracles_refine_to FileDiskRefinement u s1_imp 
@@ -1046,13 +1046,13 @@ Proof.
 Qed.
 
 
-(*
+
 Lemma ORS_write:
 forall u u' inum n off v,
 oracle_refines_same_from_related FileDiskRefinement u 
 (|Write inum off v|) (|Write inum off v|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' None).
-Proof.
+Proof. Admitted. (*
     unfold oracle_refines_same_from_related,
     refines_related; intros; destruct n; simpl in *; cleanup.
      {
@@ -1104,13 +1104,14 @@ Proof.
         Unshelve.
         all: eauto.
 Qed.
+*)
 
 Lemma ORS_write_input:
 forall u u' inum n off v v',
 oracle_refines_same_from_related FileDiskRefinement u 
 (|Write inum off v|) (|Write inum off v'|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' (Some inum)).
-Proof.
+Proof. Admitted. (*
     unfold oracle_refines_same_from_related,
     refines_related; intros; destruct n; simpl in *; cleanup.
      {

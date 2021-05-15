@@ -30,10 +30,11 @@ Proof.
     exfalso; eapply exec_empty_oracle; eauto.
 Qed.
 
+
 Lemma exec_finished_no_crash_tokens:
-forall u T (p: Definitions.impl.(prog) T) o s s' r,
-exec Definitions.impl u o s p (Finished s' r) -> 
-(forall (t: Definitions.impl.(token)), In t o -> 
+forall u T (p: AuthenticatedDisk.(prog) T) o s s' r,
+exec AuthenticatedDisk u o s p (Finished s' r) -> 
+(forall (t: AuthenticatedDisk.(token)), In t o -> 
 t <> Language.Crash _ /\ 
 t <> OpToken AuthenticatedDiskOperation (Token1 AuthenticationOperation _ Crash) /\
 t <> OpToken AuthenticatedDiskOperation (Token2 _ (TransactionalDiskOperation FSParameters.data_length) CrashBefore) /\
@@ -59,9 +60,9 @@ Proof.
 Qed.   
 
 Lemma exec_crashed_exists_crash_token:
-forall u T (p: Definitions.impl.(prog) T) o s s',
-exec Definitions.impl u o s p (Crashed s') -> 
-(exists (t: Definitions.impl.(token)), 
+forall u T (p: AuthenticatedDisk.(prog) T) o s s',
+exec AuthenticatedDisk u o s p (Crashed s') -> 
+(exists (t: AuthenticatedDisk.(token)), 
 In t o /\
 ( 
 t = Language.Crash _ \/
@@ -97,9 +98,9 @@ Proof.
 Qed.   
 
 Lemma exec_finished_not_crashed_AuthenticatedDisk:
-forall u T (p1 p2: Definitions.impl.(prog) T) o s s' s1 s1' r,
-exec Definitions.impl u o s p1 (Finished s' r) -> 
-~exec Definitions.impl u o s1 p2 (Crashed s1').
+forall u T (p1 p2: AuthenticatedDisk.(prog) T) o s s' s1 s1' r,
+exec AuthenticatedDisk u o s p1 (Finished s' r) -> 
+~exec AuthenticatedDisk u o s1 p2 (Crashed s1').
 Proof.
   unfold not; intros.
   eapply exec_crashed_exists_crash_token in H0; cleanup.
@@ -171,8 +172,8 @@ forall u o s1 s2 T (p1 p2: addr -> (TransactionalDiskLang FSParameters.data_leng
  exec (TransactionalDiskLang FSParameters.data_length) u o' s1' (p1 inum) (Finished sr1' ret1) ->
  exec (TransactionalDiskLang FSParameters.data_length) u o' s2' (p2 inum) (Finished sr2' ret2) ->
  ret1 = None <-> ret2 = None) ->
- exec Definitions.impl u o s1 (auth_then_exec inum p1) (Finished sr1 r1) ->
- exec Definitions.impl u o s2 (auth_then_exec inum p2) (Finished sr2 r2) ->
+ exec AuthenticatedDisk u o s1 (auth_then_exec inum p1) (Finished sr1 r1) ->
+ exec AuthenticatedDisk u o s2 (auth_then_exec inum p2) (Finished sr2 r2) ->
  r1 = None <-> r2 = None.
  Proof.
      Transparent Inode.get_owner Inode.get_inode.
@@ -1525,11 +1526,11 @@ Lemma extend_crashed_exfalso:
      same_for_user_except u' ex x x0 ->
    refines s1 x ->
     refines s2 x0 ->
-   exec Definitions.impl (owner x3) o s1 (extend inum v) (Crashed x2) ->
+   exec AuthenticatedDisk (owner x3) o s1 (extend inum v) (Crashed x2) ->
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    files_crash_rep (Mem.upd x inum (extend_file x3 v)) x2 ->
-   exec Definitions.impl (owner x3) o s2 (extend inum v') (Crashed sr2) ->
+   exec AuthenticatedDisk (owner x3) o s2 (extend inum v') (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
@@ -1681,7 +1682,7 @@ Lemma extend_crashed_exfalso:
        intros; cleanup; congruence.
    }
    Unshelve.
-   all: exact Definitions.impl.
+   all: exact AuthenticatedDisk.
    Qed.
    
    Lemma change_owner_crashed_exfalso:
@@ -1689,12 +1690,12 @@ Lemma extend_crashed_exfalso:
      same_for_user_except u' (Some inum) x x0 ->
    refines s1 x ->
     refines s2 x0 ->
-   exec Definitions.impl (owner x3) o s1 (change_owner inum v) (Crashed x2) ->
+   exec AuthenticatedDisk (owner x3) o s1 (change_owner inum v) (Crashed x2) ->
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    v<> owner x3 ->
    files_crash_rep (Mem.upd x inum (change_file_owner x3 v)) x2 ->
-   exec Definitions.impl (owner x3) o s2 (change_owner inum v) (Crashed sr2) ->
+   exec AuthenticatedDisk (owner x3) o s2 (change_owner inum v) (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
@@ -1940,7 +1941,7 @@ Lemma extend_crashed_exfalso:
        intros; cleanup; congruence.
    }
    Unshelve.
-   all: exact Definitions.impl.
+   all: exact AuthenticatedDisk.
    Qed.
 
 
@@ -1950,7 +1951,7 @@ Lemma extend_crashed_exfalso:
     same_for_user_except u' ex x x0 ->
   refines s1 x ->
    refines s2 x0 ->
-  exec Definitions.impl (owner x3) o s1 (write inum off v) (Crashed x2) ->
+  exec AuthenticatedDisk (owner x3) o s1 (write inum off v) (Crashed x2) ->
   inum < FSParameters.inode_count ->
   x inum = Some x3 ->
   off < length (blocks x3) ->
@@ -1958,7 +1959,7 @@ Lemma extend_crashed_exfalso:
   x0 inum = Some f2 ->
   seln (blocks f2) off value0 <> v' ->
   files_crash_rep (Mem.upd x inum (update_file x3 off v)) x2 ->
-  exec Definitions.impl (owner x3) o s2 (write inum off v') (Crashed sr2) ->
+  exec AuthenticatedDisk (owner x3) o s2 (write inum off v') (Crashed sr2) ->
   files_crash_rep x0 sr2 ->
   False.
   Proof. 
@@ -2983,7 +2984,7 @@ Lemma extend_crashed_exfalso:
     end. 
    }
 Unshelve.
-all: exact Definitions.impl.
+all: exact AuthenticatedDisk.
 Qed.
 
     Opaque delete_inner.
@@ -2992,11 +2993,11 @@ Qed.
      same_for_user_except u' ex x x0 ->
    refines s1 x ->
     refines s2 x0 ->
-   exec Definitions.impl (owner x3) o s1 (delete inum) (Crashed x2) ->
+   exec AuthenticatedDisk (owner x3) o s1 (delete inum) (Crashed x2) ->
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    files_crash_rep (Mem.delete x inum) x2 ->
-   exec Definitions.impl (owner x3) o s2 (delete inum') (Crashed sr2) ->
+   exec AuthenticatedDisk (owner x3) o s2 (delete inum') (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
@@ -3417,7 +3418,7 @@ Qed.
        intros; cleanup; congruence.
    }
    Unshelve.
-   all: exact Definitions.impl.
+   all: exact AuthenticatedDisk.
    Qed.
 
    Opaque Inode.alloc.
@@ -3426,11 +3427,11 @@ Qed.
     same_for_user_except u' ex x x0 ->
   refines s1 x ->
    refines s2 x0 ->
-  exec Definitions.impl u o s1 (create own) (Crashed x2) ->
+  exec AuthenticatedDisk u o s1 (create own) (Crashed x2) ->
   inum < FSParameters.inode_count ->
   x inum = None ->
   files_crash_rep (Mem.upd x inum (new_file own)) x2 ->
-  exec Definitions.impl u o s2 (create own') (Crashed sr2) ->
+  exec AuthenticatedDisk u o s2 (create own') (Crashed sr2) ->
   files_crash_rep x0 sr2 ->
   False.
   Proof. 
@@ -3561,7 +3562,7 @@ Qed.
         congruence.
     }
   Unshelve.
-  all: exact Definitions.impl.
+  all: exact AuthenticatedDisk.
   Qed.
 
  Lemma extend_crashed_same_token:
@@ -3569,8 +3570,8 @@ Qed.
  same_for_user_except u' ex x x0 ->
   refines s1 x ->
      refines s2 x0 ->
-  exec Definitions.impl u o s1 (extend inum v) (Crashed sr1) ->
-  exec Definitions.impl u o s2 (extend inum v') (Crashed sr2) ->
+  exec AuthenticatedDisk u o s1 (extend inum v) (Crashed sr1) ->
+  exec AuthenticatedDisk u o s2 (extend inum v') (Crashed sr2) ->
   token_refines _ u s1 (Extend inum v) get_reboot_state o tk1 -> 
   token_refines _ u s2 (Extend inum v') get_reboot_state o tk2 -> 
   tk1 = tk2.
@@ -3600,8 +3601,8 @@ all: eauto.
   same_for_user_except u' (Some inum) x x0 ->
    refines s1 x ->
       refines s2 x0 ->
-   exec Definitions.impl u o s1 (change_owner inum v) (Crashed sr1) ->
-   exec Definitions.impl u o s2 (change_owner inum v) (Crashed sr2) ->
+   exec AuthenticatedDisk u o s1 (change_owner inum v) (Crashed sr1) ->
+   exec AuthenticatedDisk u o s2 (change_owner inum v) (Crashed sr2) ->
    token_refines _ u s1 (ChangeOwner inum v) get_reboot_state o tk1 -> 
    token_refines _ u s2 (ChangeOwner inum v) get_reboot_state o tk2 -> 
    tk1 = tk2.
@@ -3632,8 +3633,8 @@ all: eauto.
    same_for_user_except u' ex x x0 ->
     refines s1 x ->
        refines s2 x0 ->
-    exec Definitions.impl u o s1 (delete inum) (Crashed sr1) ->
-    exec Definitions.impl u o s2 (delete inum') (Crashed sr2) ->
+    exec AuthenticatedDisk u o s1 (delete inum) (Crashed sr1) ->
+    exec AuthenticatedDisk u o s2 (delete inum') (Crashed sr2) ->
     token_refines _ u s1 (Delete inum) get_reboot_state o tk1 -> 
     token_refines _ u s2 (Delete inum') get_reboot_state o tk2 -> 
     tk1 = tk2.
@@ -3664,8 +3665,8 @@ all: eauto.
    same_for_user_except u' ex x x0 ->
     refines s1 x ->
        refines s2 x0 ->
-    exec Definitions.impl u o s1 (create own) (Crashed sr1) ->
-    exec Definitions.impl u o s2 (create own') (Crashed sr2) ->
+    exec AuthenticatedDisk u o s1 (create own) (Crashed sr1) ->
+    exec AuthenticatedDisk u o s2 (create own') (Crashed sr2) ->
     token_refines _ u s1 (Create own) get_reboot_state o tk1 -> 
     token_refines _ u s2 (Create own') get_reboot_state o tk2 -> 
     tk1 = tk2.
@@ -3708,39 +3709,40 @@ all: eauto.
 Qed.
 
 
-
+(*
 Lemma write_crashed_same_token:
-forall u u' o s1 s2 x x0 inum off v v' get_reboot_state sr1 sr2  ex tk1 tk2,
- same_for_user_except u' ex x x0 ->
+forall u u' o s1 s2 x x0 inum off v v' get_reboot_state sr1 sr2 tk1 tk2,
+ same_for_user_except u' (Some inum) x x0 ->
  refines s1 x ->
  refines s2 x0 ->
- exec Definitions.impl u o s1 (write inum off v) (Crashed sr1) ->
- exec Definitions.impl u o s2 (write inum off v') (Crashed sr2) ->
+ exec AuthenticatedDisk u o s1 (write inum off v) (Crashed sr1) ->
+ exec AuthenticatedDisk u o s2 (write inum off v') (Crashed sr2) ->
  token_refines _ u s1 (Write inum off v) get_reboot_state o tk1 -> 
  token_refines _ u s2 (Write inum off v') get_reboot_state o tk2 -> 
  tk1 = tk2.
-    Proof. 
-        simpl; intros.
-        repeat match goal with
-        [H: refines ?s _ ,
-        H0: forall _, files_rep _ ?s -> _ |- _] =>
-        specialize H0 with (1:= H)
-        end;
-        repeat split_ors; cleanup;
-        repeat unify_execs; cleanup;
-        repeat split_ors; cleanup;
-        eauto; try lia; try congruence;
-        repeat unify_execs; cleanup;
-        repeat split_ors; cleanup;
-        eauto; try lia; 
-        try congruence; eauto.
-        {
-            destruct_fresh (x0 inum).
-            destruct (value_dec (seln (blocks f) off value0) v'); subst.
-            
-        }
-       exfalso; eapply write_crashed_exfalso; eauto.
-       exfalso; eapply write_crashed_exfalso.
-       apply same_for_user_except_symmetry; eauto.
-       all: eauto.
-         Qed.
+Proof. 
+    simpl; intros.
+    repeat match goal with
+    [H: refines ?s _ ,
+    H0: forall _, files_rep _ ?s -> _ |- _] =>
+    specialize H0 with (1:= H)
+    end;
+    repeat split_ors; cleanup;
+    repeat unify_execs; cleanup;
+    repeat split_ors; cleanup;
+    eauto; try lia; try congruence;
+    repeat unify_execs; cleanup;
+    repeat split_ors; cleanup;
+    eauto; try lia; 
+    try congruence; eauto.
+    {
+        destruct_fresh (x0 inum).
+        destruct (value_dec (seln (blocks f) off value0) v'); subst.
+        
+    }
+    exfalso; eapply write_crashed_exfalso; eauto.
+    exfalso; eapply write_crashed_exfalso.
+    apply same_for_user_except_symmetry; eauto.
+    all: eauto.
+Qed.
+*)

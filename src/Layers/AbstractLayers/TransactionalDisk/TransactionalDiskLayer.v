@@ -25,13 +25,7 @@ Section TransactionalDisk.
   | Init : list (addr * value) -> transactional_disk_prog unit.
 
   Inductive exec' :
-    forall T, user -> token' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=
-  (* | ExecStart : 
-      forall s u,
-        let c := fst s in
-        let d := snd s in
-        exec' u Cont s Start (Finished (empty_mem, d) tt) *)
-              
+    forall T, user -> token' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=              
   | ExecReadInbound : 
       forall s a u,
         let c := fst s in
@@ -89,12 +83,6 @@ Section TransactionalDisk.
       forall s u,
         let c := fst s in
         exec' u CrashAfter s Commit (Crashed (c, c)).
-
-  (* 
-     | ExecCrashDuringCommit :
-      forall s c d u,
-        (exists v, exec' u Cont s Commit (Finished (c, d) v)) ->
-        exec' u CrashDuringCommit s Commit (Crashed (fst s, d)). *)
 
   Hint Constructors exec' : core.
 

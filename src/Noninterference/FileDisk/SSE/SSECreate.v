@@ -3,10 +3,10 @@ Require Import FunctionalExtensionality Lia Language SameRetType SSECommon Inode
 
 
 Theorem SelfSimulation_Exists_create:
-  forall u m own ex,
+  forall u u' m own ex,
     SelfSimulation_Exists
       u (create own) (create own) recover
-      AD_valid_state (AD_related_states u ex)
+      AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
 Proof.
   unfold SelfSimulation_Exists, AD_valid_state,
@@ -107,7 +107,7 @@ Proof.
         unfold file_map_rep in *; cleanup; split.
         {
           unfold addrs_match_exactly in *; intros.
-          destruct (addr_dec a x7); subst.
+          destruct (addr_dec a1 x7); subst.
           repeat rewrite Mem.upd_eq; eauto.
           intuition congruence.
           repeat rewrite Mem.upd_ne; eauto.
@@ -116,7 +116,7 @@ Proof.
           intros.
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H1, H14; eauto.
+          rewrite Mem.upd_eq in H1, H3; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -126,7 +126,7 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H14; eauto.
+            rewrite Mem.upd_ne in H1, H3; eauto.
           }
         }
       }
@@ -142,7 +142,7 @@ Proof.
         unfold file_map_rep in *; cleanup; split.
         {
           unfold addrs_match_exactly in *; intros.
-          destruct (addr_dec a x6); subst.
+          destruct (addr_dec a1 x6); subst.
           repeat rewrite Mem.upd_eq; eauto.
           intuition congruence.
           repeat rewrite Mem.upd_ne; eauto.
@@ -151,7 +151,7 @@ Proof.
           intros.
           destruct (addr_dec inum x6); subst.
           {
-          rewrite Mem.upd_eq in H1, H14; eauto.
+          rewrite Mem.upd_eq in H1, H3; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -161,7 +161,7 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H14; eauto.
+            rewrite Mem.upd_ne in H1, H3; eauto.
           }
         }
       }
@@ -173,7 +173,7 @@ Proof.
           destruct (Compare_dec.lt_dec x6 x7).
           {
             exfalso; eapply H23; eauto.
-            edestruct H3.
+            edestruct a.
             destruct_fresh (x3 x6); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
             exfalso; eapply H1; eauto.
@@ -184,10 +184,10 @@ Proof.
             inversion n; eauto.
             exfalso; eapply H19 with (i:=x7).
             lia.
-            edestruct H3.
+            edestruct a.
             destruct_fresh (x2 x7); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
-            exfalso; eapply H25; eauto.
+            exfalso; eapply H6; eauto.
             congruence.
           }
         }
@@ -195,7 +195,7 @@ Proof.
         split.
         {
           unfold addrs_match_exactly in *; intros.
-          destruct (addr_dec a x7); subst.
+          destruct (addr_dec a1 x7); subst.
           repeat rewrite Mem.upd_eq; eauto.
           intuition congruence.
           repeat rewrite Mem.upd_ne; eauto.
@@ -204,23 +204,23 @@ Proof.
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H13, H14; eauto.
+          rewrite Mem.upd_eq in H3, H4; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H13, H14; eauto.
+            rewrite Mem.upd_ne in H3, H4; eauto.
           }
         }
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H13, H1; eauto.
+          rewrite Mem.upd_eq in H3, H1; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H13, H1; eauto.
+            rewrite Mem.upd_ne in H3, H1; eauto.
           }
         }
       }
@@ -300,7 +300,7 @@ Proof.
         unfold file_map_rep in *; cleanup; split.
         {
           unfold addrs_match_exactly in *; intros.
-          destruct (addr_dec a x7); subst.
+          destruct (addr_dec a1 x7); subst.
           repeat rewrite Mem.upd_eq; eauto.
           intuition congruence.
           repeat rewrite Mem.upd_ne; eauto.
@@ -309,7 +309,7 @@ Proof.
           intros.
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H1, H14; eauto.
+          rewrite Mem.upd_eq in H1, H3; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -319,7 +319,7 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H14; eauto.
+            rewrite Mem.upd_ne in H1, H3; eauto.
           }
         }
       }
@@ -335,7 +335,7 @@ Proof.
         unfold file_map_rep in *; cleanup; split.
         {
           unfold addrs_match_exactly in *; intros.
-          destruct (addr_dec a x6); subst.
+          destruct (addr_dec a1 x6); subst.
           repeat rewrite Mem.upd_eq; eauto.
           intuition congruence.
           repeat rewrite Mem.upd_ne; eauto.
@@ -344,7 +344,7 @@ Proof.
           intros.
           destruct (addr_dec inum x6); subst.
           {
-          rewrite Mem.upd_eq in H1, H14; eauto.
+          rewrite Mem.upd_eq in H1, H3; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -354,7 +354,7 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H14; eauto.
+            rewrite Mem.upd_ne in H1, H3; eauto.
           }
         }
       }
@@ -366,7 +366,7 @@ Proof.
           destruct (Compare_dec.lt_dec x6 x7).
           {
             exfalso; eapply H23; eauto.
-            edestruct H3.
+            edestruct a.
             destruct_fresh (x3 x6); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
             exfalso; eapply H1; eauto.
@@ -377,10 +377,10 @@ Proof.
             inversion n; eauto.
             exfalso; eapply H19 with (i:=x7).
             lia.
-            edestruct H3.
+            edestruct a.
             destruct_fresh (x2 x7); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
-            exfalso; eapply H25; eauto.
+            exfalso; eapply H6; eauto.
             congruence.
           }
         }
@@ -388,7 +388,7 @@ Proof.
         split.
         {
           unfold addrs_match_exactly in *; intros.
-          destruct (addr_dec a x7); subst.
+          destruct (addr_dec a1 x7); subst.
           repeat rewrite Mem.upd_eq; eauto.
           intuition congruence.
           repeat rewrite Mem.upd_ne; eauto.
@@ -397,23 +397,23 @@ Proof.
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H13, H14; eauto.
+          rewrite Mem.upd_eq in H3, H4; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H13, H14; eauto.
+            rewrite Mem.upd_ne in H3, H4; eauto.
           }
         }
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H13, H1; eauto.
+          rewrite Mem.upd_eq in H3, H1; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H13, H1; eauto.
+            rewrite Mem.upd_ne in H3, H1; eauto.
           }
         }
       }
@@ -527,5 +527,5 @@ Proof.
   }
 Unshelve.
 all: eauto.
-all: exact Definitions.impl.
+all: exact AuthenticatedDisk.
 Qed.

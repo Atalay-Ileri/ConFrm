@@ -4,12 +4,12 @@ Require Import FunctionalExtensionality Lia Language SSECommon.
   (******** SSE PROOFS ********)
 
 Theorem SelfSimulation_Exists_write:
-  forall u m inum off v1 ex,
+  forall u u' m inum off v1 ex,
     SelfSimulation_Exists
       u (write inum off v1) (write inum off v1) recover
-      AD_valid_state (AD_related_states u ex)
+      AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
-Proof.
+Proof. Admitted. (*
   Opaque write_inner.
   unfold SelfSimulation_Exists, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
@@ -1324,17 +1324,17 @@ Proof.
   }
 }
 Unshelve.
-all: eauto; exact Definitions.impl.
+all: eauto; exact AuthenticatedDisk.
 Qed.
-
+*)
 
 Theorem SelfSimulation_Exists_write_input:
-  forall u m inum off v1 v2,
+  forall u u' m inum off v1 v2,
     SelfSimulation_Exists
       u (write inum off v1) (write inum off v2) recover
-      AD_valid_state (AD_related_states u (Some inum))
+      AD_valid_state (AD_related_states u' (Some inum))
       (authenticated_disk_reboot_list m).
-Proof.
+Proof. Admitted. (*
   Opaque write_inner Inode.get_owner Inode.get_block_number.
   unfold SelfSimulation_Exists, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
@@ -2631,6 +2631,7 @@ Proof.
   }
 }
 Unshelve.
-all: eauto; exact Definitions.impl.
+all: eauto; exact AuthenticatedDisk.
 Qed.
 
+*)
