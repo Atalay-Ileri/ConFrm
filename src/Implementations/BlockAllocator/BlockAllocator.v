@@ -234,6 +234,7 @@ Proof.
   repeat (split; eauto).
 Qed.
 
+
 Lemma valid_bits'_bitlist_upd_after:
   forall values bl1 bl2 dh s n i,
   valid_bits' dh values bl1 n s ->
@@ -254,8 +255,11 @@ Lemma valid_bits'_bitlist_upd_after:
     generalize dependent bl2.
     generalize dependent b.
     generalize dependent i.
-    induction i; simpl; intros; cleanup; eauto.
-    try congruence.
+    induction i; intros; cleanup; eauto.
+    simpl in *; cleanup; try congruence.
+    destruct bl2; simpl in *; try congruence.
+    eauto.
+
   Qed.
 
   Lemma valid_bits'_bitlist_upd_after_rev:
@@ -278,8 +282,11 @@ Lemma valid_bits'_bitlist_upd_after:
     generalize dependent bl2.
     generalize dependent b.
     generalize dependent i.
-    induction i; simpl; intros; cleanup; eauto.
-    try congruence.
+    induction i; intros; cleanup; eauto;
+    try solve [ simpl in *; congruence];
+    simpl in *;
+    destruct bl2; try congruence. 
+    eauto.
   Qed.
 
 
@@ -310,6 +317,7 @@ Lemma valid_bits'_bitlist_upd_after:
     generalize dependent i.
     induction i; simpl; intros; cleanup; eauto.
     try congruence.
+    simpl in *; eauto.
   Qed.
 
   Lemma valid_bits'_upd_values_empty:
@@ -567,6 +575,56 @@ Proof.
   rewrite upd_ne; eauto. 
   intuition.
 Qed.
+
+
+Lemma block_allocator_rep_delete :
+  forall bm s a,
+  block_allocator_rep bm s ->
+  block_allocator_rep (Mem.delete bm a) 
+  (upd s bitmap_addr 
+  (bits_to_value (updn (value_to_bits (s bitmap_addr)) a false))).
+  Proof.
+    intros.
+    unfold block_allocator_rep in *; cleanup.
+    simpl; do 2 eexists; intuition eauto.
+    {
+      rewrite upd_eq; eauto.
+      rewrite bits_to_value_to_bits_exact.
+      unfold valid_bits in *.
+      eapply valid_bits'_delete in H0; simpl in *; eauto.
+      rewrite updn_length, value_to_bits_length; eauto. 
+    }
+    destruct (PeanoNat.Nat.eq_dec a i); subst.
+    rewrite delete_eq; eauto.
+    rewrite delete_ne; eauto; lia.
+  Qed.
+   
+
+
+  Lemma block_allocator_rep_delete_list :
+  forall (l_a: list addr) (bm: @mem addr addr_dec value) s,
+    block_allocator_rep bm s ->
+    NoDup l_a ->
+  block_allocator_rep (repeated_apply (@Mem.delete addr value addr_dec) bm l_a) 
+  (upd s bitmap_addr 
+  (bits_to_value (repeated_apply (fun l a => updn l a false) (value_to_bits (s bitmap_addr)) l_a))).
+  Proof.
+    induction l_a; simpl; intros; eauto.
+    {
+      rewrite value_to_bits_to_value.
+      rewrite upd_nop; eauto.
+    }
+    {
+      inversion H0; clear H0; cleanup.
+      rewrite repeated_apply_delete_comm, repeated_apply_updn_comm; eauto.
+      eapply block_allocator_rep_delete with (a:= a) in H.
+      eapply IHl_a in H; eauto.
+      rewrite upd_eq in H; eauto.
+      rewrite upd_repeat in H; eauto.
+      rewrite bits_to_value_to_bits_exact in H; eauto.
+      rewrite updn_length, value_to_bits_length; eauto.
+    }
+  Qed.
 
 (*** Specs ***)
 Theorem alloc_finished:
@@ -990,6 +1048,9 @@ cleanup; repeat invert_exec;
 repeat (try split_ors; cleanup; repeat invert_exec;
 try solve [simpl in *; cleanup]).
 Qed.
+
+
+
 
 
 End BlockAllocator.

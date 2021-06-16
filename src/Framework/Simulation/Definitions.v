@@ -220,10 +220,6 @@ Definition Simulation rec_abs l_get_reboot_state_imp l_get_reboot_state_abs
          SimulationForProgram u T p_abs rec_abs l_get_reboot_state_imp l_get_reboot_state_abs.
 
 
-
-
-
-
 (*** ALL VALID EXPERIMENT ***)
 Definition SelfSimulation_All_Valid (u: user) {T} (p1 p2: L_abs.(prog) T)
        (rec: L_abs.(prog) unit)
@@ -322,18 +318,6 @@ exists s2' r2,
     exists s2', 
       L_abs.(exec) u o s2 p2 (Crashed s2').
 
-Lemma exec_empty_oracle:
-      forall u T (p: L_abs.(prog) T) s s',
-      ~ exec L_abs u [] s p s'.
-      induction p; unfold not; intros;
-      invert_exec.
-      symmetry in H2; apply app_eq_nil in H2; cleanup.
-      simpl in *; eauto.
-      eapply IHp; eauto.
-      symmetry in H0; apply app_eq_nil in H0; cleanup.
-      simpl in *; eauto.
-      split_ors; cleanup;  eapply IHp; eauto.
-  Qed.
 
 (******* SSE EXPERIMENT END ******)
 End Relations.

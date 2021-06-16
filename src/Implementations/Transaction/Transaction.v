@@ -13,8 +13,7 @@ Fixpoint get_first (txn: list (addr * value)) a :=
   end.
 
 Definition abort :=
-  _ <- |TCCO| Delete _;
-  Ret tt.
+  |TCCO| Delete _.
 
 (** Reverses before writing back **)
 Definition commit :=
@@ -24,8 +23,7 @@ Definition commit :=
   let dedup_al := dedup_last addr_dec (rev al) in
   let dedup_vl := dedup_by_list addr_dec (rev al) (rev vl) in
   _ <- |TCDO| Write dedup_al dedup_vl;
-  _ <- |TCCO| Delete _;
-  Ret tt.
+  |TCCO| Delete _.
 
 (** If you read out of bounds, you get 0 block *)
 Definition read a :=
@@ -56,8 +54,7 @@ Definition write a v :=
 
 Definition recover :=
   _ <- |TCCO| Delete _;
-  _ <- |TCDO| Recover;
-Ret tt.
+  |TCDO| Recover.
 
 Definition init l_av :=
   _ <- |TCCO| Delete _;
@@ -185,7 +182,6 @@ Theorem abort_crashed:
     snd s' = snd s.
 Proof.
   unfold abort; intros; repeat invert_exec; eauto.
-  split_ors; cleanup; repeat invert_exec; eauto.
 Qed.
 
 Theorem commit_finished :
@@ -408,7 +404,6 @@ Definition recover_crashed :
 Proof.
   unfold recover, transaction_reboot_rep, transaction_rep; intros.
   repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
-  split_ors; cleanup; repeat invert_exec; eauto.
   split_ors; cleanup; repeat invert_exec; eauto.
 Qed.
 

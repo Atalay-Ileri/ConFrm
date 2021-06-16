@@ -1,6 +1,6 @@
 (include_subdirs qualified)
 (coq.theory
  (name ConFrm)
- ;(flags -vio src/Noninterference/RefinesSameOracle/SameRetType.v)
+ ;(flags -verbose)
  )
 (dirs :standard \ Extraction*)

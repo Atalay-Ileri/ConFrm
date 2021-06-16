@@ -1,1 +1,2 @@
-Require Export Simulation.Definitions Simulation.RefinementLift.
+Require Export Simulation.Definitions Simulation.RefinementLift
+Simulation.HorizontalCompositionRefinement.

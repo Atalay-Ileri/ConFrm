@@ -593,3 +593,62 @@ Definition apply_mem {A AEQ V} (m: @mem A AEQ V) (tm: @total_mem A AEQ V):=
 
 
 
+
+
+Fixpoint repeated_apply {A B} (f: A -> B -> A) a l_b :=
+  match l_b with
+    | nil => a
+    | b:: l_b' =>
+      f (repeated_apply f a l_b') b
+  end.
+
+Lemma seln_repeated_apply_updn :
+  forall V l_b (l: list V) v n def,
+    ~ In n l_b ->
+    seln (repeated_apply (fun l0 a0 => updn l0 a0 v) l l_b)
+         n def = seln l n def.
+Proof.
+  induction l_b; simpl; eauto. 
+  intros; rewrite seln_updn_ne; intuition.
+Qed.
+
+Lemma repeated_apply_length :
+  forall A B l_b (l: list A) (f: list A -> B -> list A),
+    (forall b l, length (f l b) = length l) ->
+    length (repeated_apply f l l_b) = length l.
+Proof.
+  induction l_b; simpl; intros; eauto.
+  rewrite H; eauto.
+Qed.
+
+Lemma repeated_apply_delete_comm:
+     forall  A AEQ V (l_a: list A) (m: @mem A AEQ V) a,
+       Mem.delete (repeated_apply (@Mem.delete A V AEQ) m l_a) a =
+       repeated_apply (@Mem.delete A V AEQ) (Mem.delete m a) l_a.
+   Proof.
+     induction l_a; simpl; intros; eauto.
+     rewrite <- IHl_a.
+     destruct (AEQ a a0); subst; eauto.
+     rewrite Mem.delete_comm; eauto.
+   Qed.
+
+   Lemma repeated_apply_updn_comm:
+     forall V (l_a: list addr) (l: list V) a v v',
+       ~ In a l_a ->
+       updn (repeated_apply (fun l a => updn l a v) l l_a) a v' =
+       repeated_apply (fun l a => updn l a v) (updn l a v') l_a.
+   Proof.
+     induction l_a; simpl; intros; eauto.
+     rewrite <- IHl_a; intuition.
+     rewrite updn_comm; intuition.
+   Qed.
+
+   Lemma repeated_apply_delete_not_in :
+     forall A AEQ V (l_a: list A) m a,
+       ~In a l_a ->
+       repeated_apply (@Mem.delete A V AEQ) m l_a a =
+       m a.
+   Proof.
+     induction l_a; simpl; intros; eauto.
+     rewrite Mem.delete_ne; intuition.
+   Qed.

@@ -15,10 +15,10 @@ Lemma bind_sep:
        exec L u o2 d1 (p2 r1) ret /\
        o = o1++o2)
   | Crashed d' =>
-    (exists o1 o2,
-    o = o1++o2 /\    
-    (exec L u o1 d p1 (Crashed d') \/
-     (exists d1 r1,
+    (
+    (exec L u o d p1 (Crashed d') \/
+     (exists d1 r1 o1 o2,
+     o = o1++o2 /\
         exec L u o1 d p1 (Finished d1 r1) /\
         exec L u o2 d1 (p2 r1) ret)))
     end.
@@ -27,7 +27,7 @@ Proof.
   invert_exec'' H; eauto.
   destruct ret.
   do 2 eexists; eauto.
-  do 2 eexists; split; eauto.
+  right; do 4 eexists; intuition eauto.
  Qed.
 
 Lemma lift1_invert_exec :
@@ -185,7 +185,7 @@ Proof.
     eapply H7.
 
     eapply IHp2 in H6.
-    rewrite map_app; eapply ExecBindCrash; repeat econstructor; eauto.
+    eapply ExecBindCrash; repeat econstructor; eauto.
   }
   Unshelve.
   eauto.
@@ -235,11 +235,7 @@ Lemma lift1_invert_exec_crashed :
 
       edestruct IHp1; eauto; cleanup.
       do 2 eexists; intuition eauto.
-      2: solve [econstructor; eauto].
-      rewrite map_app;
-      repeat rewrite <- app_assoc; eauto.
-      instantiate (1:= x0++o2).
-      instantiate (1:= []); simpl; eauto.
+      solve [econstructor; eauto].
     }
     Unshelve.
     eauto.
@@ -289,15 +285,12 @@ Lemma lift2_invert_exec_crashed :
 
       edestruct IHp2; eauto; cleanup.
       do 2 eexists; intuition eauto.
-      2: solve [econstructor; eauto].
-      rewrite map_app;
-      repeat rewrite <- app_assoc; eauto.
-      instantiate (1:= x++o2).
-      instantiate (1:= []); simpl; eauto.
+      solve [econstructor; eauto].
     }
     Unshelve.
     eauto.
   Qed.
+
 
   Ltac invert_exec' :=
     match goal with
@@ -393,14 +386,11 @@ Proof.
     split_ors; cleanup; 
     repeat invert_exec.
     {
-    repeat eapply ExecBindCrash.
-    rewrite <- app_nil_r with (l:=x).
-    eapply ExecBindCrash; eauto.
+    repeat eapply ExecBindCrash; eauto.
     }
     split_ors; cleanup; 
     repeat invert_exec.
     {
-      rewrite app_assoc.
       eapply ExecBindCrash.
       econstructor; eauto.
     }
@@ -420,11 +410,9 @@ Proof.
     split_ors; cleanup; 
     repeat invert_exec.
     {
-      rewrite <- app_assoc.
     repeat eapply ExecBindCrash; eauto.
     }
     {
-      rewrite <- app_assoc.
       eapply ExecBind; eauto.
       eapply ExecBindCrash; eauto.
     }
