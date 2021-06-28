@@ -85,12 +85,7 @@ Proof.
         split_ors; cleanup.
         edestruct IHp; eauto.
         cleanup.
-        eexists; split.
-        apply in_app_iff; eauto.
-        eauto.
-
-        edestruct H; eauto.
-        cleanup.
+        edestruct H; eauto; cleanup.
         eexists; split.
         apply in_app_iff; eauto.
         eauto.
@@ -111,6 +106,7 @@ Qed.
 Import FileDiskLayer.
 
 Local Ltac solve_ret_iff_goal:=
+try solve [intuition; congruence];
 try solve [try lia; try congruence];
 try solve [
         pose proof DiskAllocatorParams.blocks_fit_in_disk;
@@ -996,7 +992,6 @@ Proof.
     unfold DiskAllocator.free in *; 
     cleanup; repeat invert_exec; simpl in *; cleanup].
     {
-        rewrite <- app_assoc in H0.
         split_ors; cleanup;
          repeat invert_exec; simpl in *; cleanup.
         unfold DiskAllocator.free in *; 
@@ -1019,6 +1014,7 @@ Proof.
          repeat invert_exec; simpl in *; cleanup.
          eapply DiskAllocator.free_finished_not_crashed; eauto.
          eapply DiskAllocator.free_finished_oracle_eq in H; eauto; cleanup.
+         rewrite <- app_assoc in H0; cleanup; eauto.
          eapply IHblocks.
          eauto.
          4: eauto.
@@ -1026,7 +1022,9 @@ Proof.
          inversion H1; eauto.
          inversion H2; eauto.
 
-         eapply DiskAllocator.free_finished_oracle_eq in H; eauto;
+         rewrite <- app_assoc in H0; cleanup; eauto.
+         rewrite <- app_assoc in H0; cleanup; eauto.
+        eapply DiskAllocator.free_finished_oracle_eq in H; eauto;
         cleanup; intuition congruence.
     }
     {
@@ -1034,9 +1032,11 @@ Proof.
         split_ors; cleanup;
          repeat invert_exec; simpl in *; cleanup.
          eapply DiskAllocator.free_finished_not_crashed; eauto.
+         rewrite <- app_assoc in H0; cleanup; eauto.
          eapply DiskAllocator.free_finished_oracle_eq in H; eauto; cleanup;
          intuition congruence.
-
+        
+         rewrite <- app_assoc in H0; cleanup; eauto.
          eapply DiskAllocator.free_finished_oracle_eq in H; eauto; cleanup.
          repeat invert_exec; simpl in *; cleanup.
     }
@@ -1091,7 +1091,7 @@ all: eauto.
     }
     {
     unfold files_inner_rep in *; cleanup.
-    eapply Inode.get_all_block_numbers_finished in H4; eauto.
+    eapply Inode.get_all_block_numbers_finished in H6; eauto.
     cleanup; split_ors; cleanup.
 
     eapply all_block_numbers_in_bound. 
@@ -1105,12 +1105,12 @@ all: eauto.
     repeat rewrite <- app_assoc in H0; eauto;
     eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H; eauto; subst;
     cleanup; eauto.
-    eapply free_all_blocks_finished_oracle_eq in H3; eauto.
+    eapply free_all_blocks_finished_oracle_eq in H4; eauto.
     cleanup.
     eapply Inode.free_finished_not_crashed; eauto.
     {
     unfold files_inner_rep in *; cleanup.
-    eapply Inode.get_all_block_numbers_finished in H4; eauto.
+    eapply Inode.get_all_block_numbers_finished in H6; eauto.
     cleanup; split_ors; cleanup.
     eapply all_block_numbers_in_bound. 
     4: eauto.
@@ -1135,12 +1135,12 @@ all: eauto.
     repeat rewrite <- app_assoc in H0; eauto;
     eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H; eauto; subst;
     cleanup; eauto.
-    eapply free_all_blocks_finished_oracle_eq in H3; eauto.
+    eapply free_all_blocks_finished_oracle_eq in H4; eauto.
     cleanup.
     intuition congruence.
     {
     unfold files_inner_rep in *; cleanup.
-    eapply Inode.get_all_block_numbers_finished in H4; eauto.
+    eapply Inode.get_all_block_numbers_finished in H6; eauto.
     cleanup; split_ors; cleanup.
     eapply all_block_numbers_in_bound. 
     4: eauto.
@@ -1180,7 +1180,7 @@ all: eauto.
     }
     {
     unfold files_inner_rep in *; cleanup.
-    eapply Inode.get_all_block_numbers_finished in H4; eauto.
+    eapply Inode.get_all_block_numbers_finished in H5; eauto.
     cleanup; split_ors; cleanup.
 
     eapply all_block_numbers_in_bound. 
@@ -1194,11 +1194,11 @@ all: eauto.
     repeat rewrite <- app_assoc in H0; eauto;
 eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H; eauto; subst;
 cleanup; eauto.
-eapply free_all_blocks_finished_oracle_eq in H3; eauto; cleanup.
+eapply free_all_blocks_finished_oracle_eq in H4; eauto; cleanup.
 intuition congruence.
     {
     unfold files_inner_rep in *; cleanup.
-    eapply Inode.get_all_block_numbers_finished in H4; eauto.
+    eapply Inode.get_all_block_numbers_finished in H5; eauto.
     cleanup; split_ors; cleanup.
     eapply all_block_numbers_in_bound. 
     4: eauto.
@@ -1222,11 +1222,11 @@ intuition congruence.
     repeat rewrite <- app_assoc in H0; eauto;
 eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H; eauto; subst;
 cleanup; eauto.
-eapply free_all_blocks_finished_oracle_eq in H3; eauto; cleanup.
+eapply free_all_blocks_finished_oracle_eq in H4; eauto; cleanup.
 simpl in *; cleanup.
     {
     unfold files_inner_rep in *; cleanup.
-    eapply Inode.get_all_block_numbers_finished in H4; eauto.
+    eapply Inode.get_all_block_numbers_finished in H5; eauto.
     cleanup; split_ors; cleanup.
     eapply all_block_numbers_in_bound. 
     4: eauto.
@@ -1287,6 +1287,21 @@ match goal with
     try lia; eauto
 end. 
 
+Lemma updn_ne_itself:
+forall T (l: list T) n t def,
+seln l n def <> t ->
+n < length l ->
+~ l = updn l n t.
+Proof.
+    induction l; simpl in *; intros; eauto.
+    lia.
+    destruct n; simpl in *; eauto.
+    congruence.
+    intuition.
+    eapply IHl; eauto. 
+    lia.
+    congruence.
+Qed.
 
 Ltac solve_write :=
     repeat apply_specs; 
@@ -1328,7 +1343,7 @@ match goal with
 {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
 inversion H
 end;
-exfalso; eapply list_extend_ne; eauto.   
+exfalso; eapply updn_ne_itself; [ | | eauto]; eauto.   
 
 
 
@@ -1378,9 +1393,8 @@ exfalso; eapply list_extend_ne; eauto.
 
 
 
-   Ltac solve_change_owner :=
-    repeat apply_specs; 
-simpl in *; cleanup;
+Ltac solve_change_owner :=
+    repeat apply_specs; simpl in *; cleanup;
 unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
 repeat cleanup_pairs; repeat unify_invariants;
 repeat match goal with
@@ -1421,8 +1435,7 @@ end.
 
 
 Ltac solve_delete :=
-    repeat apply_specs; 
-simpl in *; cleanup;
+repeat apply_specs; simpl in *; cleanup;
 unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
 repeat cleanup_pairs; repeat unify_invariants;
 repeat match goal with
@@ -1456,9 +1469,8 @@ match goal with
    end.   
 
 
-   Ltac solve_create :=
-    repeat apply_specs; 
-simpl in *; cleanup;
+Ltac solve_create :=
+repeat apply_specs; simpl in *; cleanup;
 unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
 repeat cleanup_pairs; repeat unify_invariants;
 match goal with
@@ -1468,58 +1480,269 @@ match goal with
    rewrite Mem.upd_eq in H0; eauto; congruence
 end.  
 
-   Ltac invert_exec' :=
-    match goal with
-    |[H : recovery_exec _ _ _ _ _ _ _ _ |- _ ] =>
-     invert_exec'' H
-    | [ H: exec _ _ _ _ ?p _ |- _ ] =>
-      match p with
-      | Bind _ _ => fail
-      | Op _ _ => invert_exec'' H
-      | Ret _ => invert_exec'' H
-      end
-    | [ H: Language.exec' _ _ _ ?p _ |- _ ] =>
-      match p with
-      | Bind _ _ => fail
-      | Op _ _ => invert_exec'' H
-      | Ret _ => invert_exec'' H
-      end
-    | [ H: exec _ _ _ _ (lift_L1 _ _) (Finished _ _) |- _ ] =>
-      eapply Automation.lift1_invert_exec in H; logic_clean
-    | [ H: exec _ _ _ _ (lift_L2 _ _) (Finished _ _) |- _ ] =>
-      eapply Automation.lift2_invert_exec in H; logic_clean
-    | [ H: exec _ _ _ _ (lift_L1 _ _) (Crashed _) |- _ ] =>
-      eapply Automation.lift1_invert_exec_crashed in H; logic_clean
-    | [ H: exec _ _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
-      eapply Automation.lift2_invert_exec_crashed in H; logic_clean
-    | [ H: Language.exec' _ _ _ (lift_L1 _ _) (Finished _ _) |- _ ] =>
-      eapply Automation.lift1_invert_exec in H; logic_clean
-    | [ H: Language.exec' _ _ _ (lift_L2 _ _) (Finished _ _) |- _ ] =>
-      eapply Automation.lift2_invert_exec in H; logic_clean
-    | [ H: Language.exec' _ _ _ (lift_L1 _ _) (Crashed _) |- _ ] =>
-      eapply Automation.lift1_invert_exec_crashed in H; logic_clean
-    | [ H: Language.exec' _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
-      eapply Automation.lift2_invert_exec_crashed in H; logic_clean
-    | [H: Language.exec' _ _ _ (Op _ (P1 _)) _ |- _ ]=>
-        invert_exec'' H
-    | [H: Language.exec' _ _ _ (Op _ (P2 _)) _ |- _ ]=>
-        invert_exec'' H
-    | [ H: HorizontalComposition.exec' _ _ _ _ _ |- _ ] =>
-      invert_exec'' H
-    | [ H: Core.exec _ _ _ _ _ _ |- _ ] =>
-      invert_exec'' H
-    end.
+Ltac invert_exec' :=
+match goal with
+|[H : recovery_exec _ _ _ _ _ _ _ _ |- _ ] =>
+    invert_exec'' H
+| [ H: exec _ _ _ _ ?p _ |- _ ] =>
+    match p with
+    | Bind _ _ => fail
+    | Op _ _ => invert_exec'' H
+    | Ret _ => invert_exec'' H
+    end
+| [ H: Language.exec' _ _ _ ?p _ |- _ ] =>
+    match p with
+    | Bind _ _ => fail
+    | Op _ _ => invert_exec'' H
+    | Ret _ => invert_exec'' H
+    end
+| [ H: exec _ _ _ _ (lift_L1 _ _) (Finished _ _) |- _ ] =>
+    eapply Automation.lift1_invert_exec in H; logic_clean
+| [ H: exec _ _ _ _ (lift_L2 _ _) (Finished _ _) |- _ ] =>
+    eapply Automation.lift2_invert_exec in H; logic_clean
+| [ H: exec _ _ _ _ (lift_L1 _ _) (Crashed _) |- _ ] =>
+    eapply Automation.lift1_invert_exec_crashed in H; logic_clean
+| [ H: exec _ _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
+    eapply Automation.lift2_invert_exec_crashed in H; logic_clean
+| [ H: Language.exec' _ _ _ (lift_L1 _ _) (Finished _ _) |- _ ] =>
+    eapply Automation.lift1_invert_exec in H; logic_clean
+| [ H: Language.exec' _ _ _ (lift_L2 _ _) (Finished _ _) |- _ ] =>
+    eapply Automation.lift2_invert_exec in H; logic_clean
+| [ H: Language.exec' _ _ _ (lift_L1 _ _) (Crashed _) |- _ ] =>
+    eapply Automation.lift1_invert_exec_crashed in H; logic_clean
+| [ H: Language.exec' _ _ _ (lift_L2 _ _) (Crashed _) |- _ ] =>
+    eapply Automation.lift2_invert_exec_crashed in H; logic_clean
+| [H: Language.exec' _ _ _ (Op _ (P1 _)) _ |- _ ]=>
+    invert_exec'' H
+| [H: Language.exec' _ _ _ (Op _ (P2 _)) _ |- _ ]=>
+    invert_exec'' H
+| [ H: HorizontalComposition.exec' _ _ _ _ _ |- _ ] =>
+    invert_exec'' H
+| [ H: Core.exec _ _ _ _ _ _ |- _ ] =>
+    invert_exec'' H
+end.
 
-    Ltac depth_first_crash_solve := 
+Ltac depth_first_crash_solve := 
+match goal with
+| [H: exec _ _ _ _ (Bind _ _) _,
+H0: exec _ _ _ _ (Bind _ _) _ |- _] =>
+invert_exec'' H; invert_exec'' H0
+| [H: Language.exec' _ _ _ (Bind _ _) _,
+H0: Language.exec' _ _ _ (Bind _ _) _ |- _] =>
+invert_exec'' H; invert_exec'' H0
+end; repeat split_crash; cleanup; simpl in *; repeat invert_exec'; 
+repeat invert_exec_local; repeat unify_invariants; solve_ret_iff_goal.
+
+
+
+Lemma map_ext_eq_prefix:
+forall (A B : Type) (l1 l2 : list A) l3 l4 (f : A -> B),
+map f l1 ++ l3 = map f l2 ++ l4 -> 
+(forall a a' : A, f a = f a' -> a = a') -> 
+exists l3' l4', 
+l1 ++ l3' = l2 ++ l4'.
+Proof.
+    induction l1; simpl; intros; eauto.
+    destruct l2; simpl in *; cleanup; eauto.
+    apply H0 in H2; rewrite H2; eauto.
+    edestruct IHl1; eauto; cleanup; eauto.
+    do 2 eexists; rewrite H; eauto.
+    Unshelve.
+    all: eauto.
+Qed.
+
+Lemma HC_oracle_map_prefix :
+forall x7 x8 o2 o3,
+map
+    (fun
+        o : Language.token'
+            (TransactionalDiskOperation FSParameters.data_length) =>
+    match o with
+    | OpToken _ o1 =>
+        OpToken
+            (HorizontalComposition AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length))
+            (Token2 AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length) o1)
+    | Language.Crash _ =>
+        Language.Crash
+            (HorizontalComposition AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length))
+    | Language.Cont _ =>
+        Language.Cont
+            (HorizontalComposition AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length))
+    end) x7 ++ o3 =
+    map
+    (fun
+        o : Language.token'
+            (TransactionalDiskOperation FSParameters.data_length) =>
+    match o with
+    | OpToken _ o1 =>
+        OpToken
+            (HorizontalComposition AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length))
+            (Token2 AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length) o1)
+    | Language.Crash _ =>
+        Language.Crash
+            (HorizontalComposition AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length))
+    | Language.Cont _ =>
+        Language.Cont
+            (HorizontalComposition AuthenticationOperation
+                (TransactionalDiskOperation FSParameters.data_length))
+    end) x8 ++ o2 ->
+    exists l3' l4', 
+        x7 ++ l3' = x8 ++ l4'.
+        Proof.
+            intros; eapply map_ext_eq_prefix; eauto.
+            intros; destruct a, a'; cleanup; congruence.
+        Qed.
+        
+
+Ltac unify_oracle_and_ret_equality:=
+match goal with
+| [ H: exec TransactionalDisk ?u ?o _ (Inode.get_owner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TransactionalDisk ?u ?o' _ (Inode.get_owner _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh Inode.get_owner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TransactionalDisk ?u ?o _ (Inode.get_owner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TransactionalDisk ?u ?o' _ (Inode.get_owner _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply Inode.get_owner_finished_not_crashed; 
+    eauto; cleanup_no_match
+
+| [ H: exec TransactionalDisk ?u ?o _ (extend_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TransactionalDisk ?u ?o' _ (extend_inner _ _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh extend_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TransactionalDisk ?u ?o _ (extend_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TransactionalDisk ?u ?o' _ (extend_inner _ _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix;
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply extend_inner_finished_not_crashed; 
+    eauto; cleanup_no_match
+
+| [ H: exec TransactionalDisk ?u ?o _ (change_owner_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TransactionalDisk ?u ?o' _ (change_owner_inner _ _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh change_owner_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TransactionalDisk ?u ?o _ (change_owner_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TransactionalDisk ?u ?o' _ (change_owner_inner _ _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix;
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply change_owner_inner_finished_not_crashed; 
+    eauto; cleanup_no_match
+
+| [ H: exec TransactionalDisk ?u ?o _ (write_inner _ _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TransactionalDisk ?u ?o' _ (write_inner _ _ _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh write_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match;
+    try solve [
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+| [ H: exec TransactionalDisk ?u ?o _ (write_inner _ _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TransactionalDisk ?u ?o' _ (write_inner _ _ _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply write_inner_finished_not_crashed; 
+    eauto; cleanup_no_match;
+    try solve [
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+
+| [ H: exec TransactionalDisk ?u ?o _ (delete_inner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TransactionalDisk ?u ?o' _ (delete_inner _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh delete_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match;
+    try solve [
+        eexists;
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+| [ H: exec TransactionalDisk ?u ?o _ (delete_inner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TransactionalDisk ?u ?o' _ (delete_inner _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply delete_inner_finished_not_crashed; 
+    eauto; cleanup_no_match;
+    try solve [
+        eexists;
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+end.
+
+Ltac invert_binds:=
     match goal with
-    | [H: exec _ _ _ _ (Bind _ _) _,
-    H0: exec _ _ _ _ (Bind _ _) _ |- _] =>
-    invert_exec'' H; invert_exec'' H0
-    | [H: Language.exec' _ _ _ (Bind _ _) _,
-    H0: Language.exec' _ _ _ (Bind _ _) _ |- _] =>
-    invert_exec'' H; invert_exec'' H0
-    end; repeat split_crash; cleanup; simpl in *; repeat invert_exec'; 
-    repeat invert_exec_local; repeat unify_invariants; solve_ret_iff_goal.
+| [H: exec _ _ _ _ (Bind _ _) _,
+H0: exec _ _ _ _ (Bind _ _) _ |- _] =>
+invert_exec'' H; invert_exec'' H0
+| [H: Language.exec' _ _ _ (Bind _ _) _,
+H0: Language.exec' _ _ _ (Bind _ _) _ |- _] =>
+invert_exec'' H; invert_exec'' H0
+end.
+
+Theorem inode_owners_are_same_3:
+forall s s' u ex x x0 x1 x4 x5 x6 x8 x9 inum,
+    same_for_user_except u ex x x0 ->
+    Inode.inode_rep x5 s ->
+    file_map_rep x x5 x6 ->
+    Inode.inode_rep x1 s' ->
+    file_map_rep x0 x1 x4 ->
+    x1 inum = Some x8 ->
+    x5 inum = Some x9 ->
+    Inode.owner x8 = Inode.owner x9.
+Proof.
+intros; cleanup.
+edestruct FileInnerSpecs.inode_exists_then_file_exists; eauto.
+edestruct FileInnerSpecs.inode_exists_then_file_exists.
+2: apply H5. 
+eauto.
+
+unfold same_for_user_except, file_map_rep, Inode.inode_rep in *; cleanup.
+eapply_fresh H13 in H6; eauto; cleanup.
+eapply_fresh H10 in H5; eauto.
+eapply_fresh H8 in H4; eauto.
+unfold file_rep in *; cleanup; eauto.
+Qed.
 
 Lemma extend_crashed_exfalso:
     forall u' ex x x0 s1 s2 x3 inum v v' x2 sr2 o,
@@ -1534,158 +1757,36 @@ Lemma extend_crashed_exfalso:
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
-   intros;
+    intros;
     unfold refines, files_rep, files_inner_rep in *; cleanup.
     unfold extend, auth_then_exec in *.
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [|try solve [solve_extend]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2:    invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_extend.
+    invert_binds; cleanup_no_match; try solve [repeat invert_exec'; solve_extend].
+
+    eapply_fresh inode_owners_are_same_3 with (x1:= x1)(x5 := x5)in H; eauto.
+    repeat invert_exec'; cleanup_no_match; try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2: invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_extend.
+
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [| try solve [solve_extend]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    
+    destruct r, r0; repeat unify_invariants; solve_ret_iff_goal.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_extend.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_extend.
+
+    Unshelve.
+    all: exact AuthenticatedDiskLang.
+Qed.
+
    
-    depth_first_crash_solve; try solve [solve_extend].
-   
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-   
-       depth_first_crash_solve; try solve [ solve_extend ].
-       depth_first_crash_solve; try solve [ solve_extend ].
-   
-       {
-        cleanup.
-        repeat rewrite <- app_assoc in H2.
-        eapply_fresh map_app_ext in H2.
-        logic_clean.
-       eapply_fresh extend_inner_finished_oracle_eq in H20; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_extend ].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh extend_inner_finished_oracle_eq in H20; eauto;
-           cleanup; subst.
-           intuition congruence.
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh extend_inner_finished_oracle_eq in H20; eauto;
-           cleanup; subst.
-           intuition congruence.
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh extend_inner_finished_oracle_eq in H20; eauto;
-           cleanup; subst.
-           depth_first_crash_solve; try solve [ solve_extend ].
-           intros; cleanup; congruence.
-       }
-       {
-            cleanup.
-            repeat rewrite <- app_assoc in H2.
-            eapply_fresh map_app_ext in H2.
-            logic_clean.
-            symmetry in H6.
-           eapply extend_inner_finished_not_crashed; eauto.
-           intros; cleanup; congruence.
-       }
-       {
-            cleanup.
-            repeat rewrite <- app_assoc in H2.
-            eapply_fresh map_app_ext in H2.
-            logic_clean.
-            symmetry in H6.
-        eapply extend_inner_finished_not_crashed; eauto.
-        intros; cleanup; congruence.
-       }
-       depth_first_crash_solve; try solve [ solve_extend ].
-       depth_first_crash_solve; try solve [ solve_extend ].
-       {
-         Transparent extend_inner.
-             unfold extend_inner, DiskAllocator.alloc in *;
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-            unfold extend_inner, DiskAllocator.alloc in *;
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold extend_inner, DiskAllocator.alloc in *;
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold extend_inner, DiskAllocator.alloc in *;
-            repeat invert_exec; simpl in *; cleanup.
-            Opaque extend_inner.
-       }
-       depth_first_crash_solve; try solve [ solve_extend ].
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_extend ].
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   Unshelve.
-   all: exact AuthenticatedDisk.
-   Qed.
-   
-   Lemma change_owner_crashed_exfalso:
+Lemma change_owner_crashed_exfalso:
     forall u' x x0 s1 s2 x3 inum v x2 sr2 o,
      same_for_user_except u' (Some inum) x x0 ->
    refines s1 x ->
@@ -1699,31 +1800,29 @@ Lemma extend_crashed_exfalso:
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
-   intros;
+    intros;
     unfold refines, files_rep, files_inner_rep in *; cleanup.
     unfold change_owner, auth_then_exec in *.
-   
-    depth_first_crash_solve; try solve [solve_change_owner].
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H16; eauto;
-       cleanup; subst.
-   
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-   
-       {
-        cleanup.
-        repeat rewrite <- app_assoc in H2.
-        eapply_fresh map_app_ext in H2.
-        logic_clean.
-       eapply_fresh change_owner_inner_finished_oracle_eq in H21; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-       {
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [ |try solve [solve_change_owner]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2:    invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_change_owner.
+    invert_binds; cleanup_no_match; try solve [repeat invert_exec'; solve_change_owner].
+
+    eapply_fresh inode_owners_are_same_3 with (x1:= x1)(x5 := x5)in H; eauto.
+    repeat invert_exec'; cleanup_no_match; try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2: invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_change_owner.
+
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [ |try solve [solve_change_owner]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    
+    destruct r, r0; repeat unify_invariants; solve_ret_iff_goal.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; try solve_change_owner.
+    {
            cleanup.
            unfold files_crash_rep, files_inner_rep in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants.
@@ -1764,11 +1863,11 @@ Lemma extend_crashed_exfalso:
            end.
            inversion H6; subst; try congruence.
            unfold file_map_rep in H11; cleanup.
-           eapply H7 in H0; eauto.
+           eapply H8 in H0; eauto.
            unfold file_rep in H0; cleanup;
            simpl in *; congruence.
-       }
-       { 
+    }
+    {
            cleanup.
            unfold files_crash_rep, files_inner_rep in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants.
@@ -1809,144 +1908,19 @@ Lemma extend_crashed_exfalso:
            end.
            inversion H6; subst; try congruence.
            unfold file_map_rep in H11; cleanup.
-           eapply H7 in H0; eauto.
+           eapply H8 in H0; eauto.
            unfold file_rep in H0; cleanup;
            simpl in *; congruence.
        }
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh change_owner_inner_finished_oracle_eq in H21; eauto;
-           cleanup; subst.
-           intuition congruence.
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh change_owner_inner_finished_oracle_eq in H21; eauto;
-           cleanup; subst.
-           intuition congruence.
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh change_owner_inner_finished_oracle_eq in H21; eauto;
-           cleanup; subst.
-           depth_first_crash_solve; try solve [ solve_change_owner ].
-           intros; cleanup; congruence.
-       }
-       {
-            cleanup.
-            repeat rewrite <- app_assoc in H2.
-            eapply_fresh map_app_ext in H2.
-            logic_clean.
-            symmetry in H7.
-           eapply change_owner_inner_finished_not_crashed; eauto.
-           intros; cleanup; congruence.
-       }
-       {
-            cleanup.
-            repeat rewrite <- app_assoc in H2.
-            eapply_fresh map_app_ext in H2.
-            logic_clean.
-            symmetry in H7.
-        eapply change_owner_inner_finished_not_crashed; eauto.
-        intros; cleanup; congruence.
-       }
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-       {
-         Transparent change_owner_inner Inode.change_owner.
-             unfold change_owner_inner, Inode.change_owner, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold change_owner_inner, Inode.change_owner, 
-        Inode.get_inode, Inode.InodeAllocator.read in *.
-       repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold change_owner_inner, Inode.change_owner, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold change_owner_inner, Inode.change_owner, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-            Opaque change_owner_inner Inode.change_owner.
-       }
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H16; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H16; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H16; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_change_owner ].
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   Unshelve.
-   all: exact AuthenticatedDisk.
-   Qed.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_change_owner.
+
+    Unshelve.
+    all: exact AuthenticatedDiskLang.
+Qed.
 
 
-   Opaque write_inner.
-   Lemma write_crashed_exfalso:
+Opaque write_inner.
+Lemma write_crashed_exfalso:
    forall u' ex x x0 s1 s2 x3  f2 inum off v v' x2 sr2 o,
     same_for_user_except u' ex x x0 ->
   refines s1 x ->
@@ -1963,29 +1937,91 @@ Lemma extend_crashed_exfalso:
   files_crash_rep x0 sr2 ->
   False.
   Proof. 
-  intros;
-   unfold refines, files_rep, files_inner_rep in *; cleanup.
-   unfold write, auth_then_exec in *.
-  
-   depth_first_crash_solve; try solve [solve_write].
-  {
-      cleanup.
-      repeat rewrite <- app_assoc in H2.
-      eapply_fresh map_app_ext in H2.
-      logic_clean.
-      eapply_fresh Inode.get_owner_finished_oracle_eq in H19; eauto;
-      cleanup; subst.
-  
-      depth_first_crash_solve; try solve [ solve_write ].
-      depth_first_crash_solve; try solve [ solve_write ].
-      {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-      eapply_fresh write_inner_finished_oracle_eq in H24; eauto;
-      cleanup; subst.
-      depth_first_crash_solve; try solve [ solve_write ].
+    intros;
+    unfold refines, files_rep, files_inner_rep in *; cleanup.
+    unfold write, auth_then_exec in *.
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [ |try solve [solve_write]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2: {
+        invert_binds; cleanup; simpl in *; repeat invert_exec'; simpl in *; cleanup_no_match.
+        solve_write.
+        solve_write.
+    }
+    invert_binds; cleanup_no_match; try solve [repeat invert_exec'; solve_write].
+    2: {
+        repeat invert_exec'; simpl in *; cleanup_no_match; try congruence.
+    }
+
+    eapply_fresh inode_owners_are_same_3 with (x1:= x1)(x5 := x5)in H; eauto.
+    repeat invert_exec'; cleanup_no_match; try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2: {
+        invert_binds; cleanup; simpl in *; repeat invert_exec'; simpl in *; cleanup_no_match.
+        solve_write.
+        solve_write.
+    }
+
+    invert_binds; repeat invert_exec'; cleanup_no_match.
+    try unify_oracle_and_ret_equality.
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    
+    destruct r, r0; repeat unify_invariants; solve_ret_iff_goal.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; 
+    simpl in *; cleanup; try solve_write.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; 
+    simpl in *; cleanup; try solve_write.
+    {
+          cleanup.
+          unfold files_crash_rep, files_inner_rep in *; cleanup.
+          repeat cleanup_pairs; repeat unify_invariants.
+          repeat apply_specs; cleanup; eauto;
+          repeat split_ors; cleanup.
+          simpl in *; cleanup.
+          repeat cleanup_pairs; repeat unify_invariants.
+          repeat match goal with
+           | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
+           eapply FileInnerSpecs.write_inner_crashed in H;
+           [|
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+           | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
+           eapply FileInnerSpecs.write_inner_finished in H;
+           [|
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+           end;
+          eauto; simpl in *; cleanup;
+          repeat split_ors; cleanup;
+          simpl in *; cleanup;
+          unfold files_inner_rep in *; cleanup;
+          repeat cleanup_pairs; repeat unify_invariants;
+          match goal with
+          | [H: Mem.upd ?m _ _ = ?m,
+          H0: ?m _ = Some ?x3 |- _] =>
+          apply upd_nop_rev in H;
+          rewrite H0 in H; inversion H;
+          unfold update_file in *; 
+          destruct x3; simpl in *
+          end;
+          match goal with 
+            [H: {| owner := ?owner; blocks := ?blocks |} =
+            {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
+            inversion H
+          end;
+          match goal with 
+            [H: ?l = updn ?l _ _ |-_] =>
+          symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
+          end. 
+      }
       {
           cleanup.
           unfold files_crash_rep, files_inner_rep in *; cleanup.
@@ -2013,10 +2049,10 @@ Lemma extend_crashed_exfalso:
            intros; solve_bounds]
            end;
           eauto; simpl in *; cleanup;
-          repeat split_ors; cleanup.
-          simpl in *; cleanup.
+          repeat split_ors; cleanup;
+          simpl in *; cleanup;
           unfold files_inner_rep in *; cleanup;
-          repeat cleanup_pairs; repeat unify_invariants.
+          repeat cleanup_pairs; repeat unify_invariants;
           match goal with
           | [H: Mem.upd ?m _ _ = ?m,
           H0: ?m _ = Some ?x3 |- _] =>
@@ -2024,972 +2060,40 @@ Lemma extend_crashed_exfalso:
           rewrite H0 in H; inversion H;
           unfold update_file in *; 
           destruct x3; simpl in *
-          end.
+          end;
           match goal with 
             [H: {| owner := ?owner; blocks := ?blocks |} =
             {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
             inversion H
-          end.
+          end;
           match goal with 
             [H: ?l = updn ?l _ _ |-_] =>
           symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
           end. 
       }
-      {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         end;
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants.
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end.
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end.
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-      }
-      {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         end;
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants.
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end.
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end.
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-      }
-      
-  {
-    repeat cleanup_pairs;
-      eapply_fresh Inode.get_owner_finished in H22; eauto.
-      cleanup; subst.
-      repeat cleanup_pairs;
-       unfold files_crash_rep, files_inner_rep in *;
-      cleanup; repeat unify_invariants; eauto.
-      eexists; split; eauto.
-      eexists; split; eauto.
-      eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-      intros; repeat solve_bounds.
-  }
-  {
-    repeat cleanup_pairs;
-      eapply_fresh Inode.get_owner_finished in H19; eauto.
-      cleanup; subst.
-      repeat cleanup_pairs;
-       unfold files_crash_rep, files_inner_rep in *;
-      cleanup; repeat unify_invariants; eauto.
-      eexists; split; eauto.
-      eexists; split; eauto.
-      eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-      intros; repeat solve_bounds.
-  }
-  intros; cleanup; congruence.
-}
-{
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh write_inner_finished_oracle_eq in H24; eauto;
-           cleanup; subst.
-           intuition congruence.
-           {
-                repeat cleanup_pairs;
-                eapply_fresh Inode.get_owner_finished in H22; eauto.
-                cleanup; subst.
-                repeat cleanup_pairs;
-                unfold files_crash_rep, files_inner_rep in *;
-                cleanup; repeat unify_invariants; eauto.
-                eexists; split; eauto.
-                eexists; split; eauto.
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-                intros; repeat solve_bounds.
-            }
-            {
-                repeat cleanup_pairs;
-                eapply_fresh Inode.get_owner_finished in H19; eauto.
-                cleanup; subst.
-                repeat cleanup_pairs;
-                unfold files_crash_rep, files_inner_rep in *;
-                cleanup; repeat unify_invariants; eauto.
-                eexists; split; eauto.
-                eexists; split; eauto.
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-                intros; repeat solve_bounds.
-            }
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh write_inner_finished_oracle_eq in H24; eauto;
-           cleanup; subst.
-           intuition congruence.
-           {
-                repeat cleanup_pairs;
-                eapply_fresh Inode.get_owner_finished in H22; eauto.
-                cleanup; subst.
-                repeat cleanup_pairs;
-                unfold files_crash_rep, files_inner_rep in *;
-                cleanup; repeat unify_invariants; eauto.
-                eexists; split; eauto.
-                eexists; split; eauto.
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-                intros; repeat solve_bounds.
-            }
-            {
-                repeat cleanup_pairs;
-                eapply_fresh Inode.get_owner_finished in H19; eauto.
-                cleanup; subst.
-                repeat cleanup_pairs;
-                unfold files_crash_rep, files_inner_rep in *;
-                cleanup; repeat unify_invariants; eauto.
-                eexists; split; eauto.
-                eexists; split; eauto.
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-                intros; repeat solve_bounds.
-            }
-           intros; cleanup; congruence.
-       }
-        {
-            depth_first_crash_solve; try solve [ solve_delete ].
-            {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-      }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh write_inner_finished_oracle_eq in H24; eauto;
-       cleanup; subst.
-       simpl in *; cleanup.
-       {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H22; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H19; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh write_inner_finished_oracle_eq in H24; eauto;
-       cleanup; subst.
-       simpl in *; cleanup.
-       {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H22; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H19; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        intros; cleanup; congruence.
-   }
-   {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-      }
-    }
-    {
-        cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       symmetry in H10; eapply write_inner_finished_not_crashed; eauto. 
-       {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H22; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H19; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        intros; cleanup; congruence.
-    }
-    {
-        cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       symmetry in H10; eapply write_inner_finished_not_crashed; eauto. 
-       {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H22; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H19; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        intros; cleanup; congruence.
-    }
-    {
-        cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply write_inner_finished_not_crashed. 
-       5: eapply same_for_user_except_symmetry; eauto.
-       all: eauto. 
-       {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H19; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; 
-            simpl in *; repeat cleanup_pairs;
-            repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H22; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        intros; cleanup; congruence.
-    }
-    {
-        cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply write_inner_finished_not_crashed. 
-       5: eapply same_for_user_except_symmetry; eauto.
-       all: eauto. 
-       {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H19; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; 
-            simpl in *; repeat cleanup_pairs;
-            repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        {
-            repeat cleanup_pairs;
-            eapply_fresh Inode.get_owner_finished in H22; eauto.
-            cleanup; subst.
-            repeat cleanup_pairs;
-            unfold files_crash_rep, files_inner_rep in *;
-            cleanup; repeat unify_invariants; eauto.
-            eexists; split; eauto.
-            eexists; split; eauto.
-            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
-            intros; repeat solve_bounds.
-        }
-        intros; cleanup; congruence.
-    }
-    {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-    } 
-    {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        unfold same_for_user_except in *; cleanup.
-        eapply_fresh H19 in H4; eauto.
-        cleanup.
-        subst.
-        unfold file_map_rep in *; cleanup.
-        eapply_fresh H36 in H29; eauto.
-        unfold file_rep in *; cleanup; congruence.
-    }
-    {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        unfold same_for_user_except in *; cleanup.
-        eapply_fresh H19 in H4; eauto.
-        cleanup.
-        subst.
-        unfold file_map_rep in *; cleanup.
-        eapply_fresh H35 in H28; eauto.
-        unfold file_rep in *; cleanup; congruence.
-    }
-    {
-        depth_first_crash_solve; try solve [ solve_write ].
-        {
-            cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-        }
-        {
-            cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-        }
-    }
-    {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-    }
-    intros; cleanup; congruence.
-  }
-    {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H19; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H19; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H19; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_write ].
-       {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-       }
-       {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat match goal with
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-         eapply FileInnerSpecs.write_inner_crashed in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-         | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-         eapply FileInnerSpecs.write_inner_finished in H;
-         [|
-         unfold files_inner_rep in *; cleanup;
-         simpl; eexists; repeat (split; eauto);
-         simpl; eexists; split; eauto;
-         eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-         intros; solve_bounds]
-        end.
-        eauto; simpl in *; cleanup;
-        repeat split_ors; cleanup;
-        simpl in *; cleanup;
-        unfold files_inner_rep in *; cleanup;
-        repeat cleanup_pairs; repeat unify_invariants;
-        match goal with
-        | [H: Mem.upd ?m _ _ = ?m,
-        H0: ?m _ = Some ?x3 |- _] =>
-        apply upd_nop_rev in H;
-        rewrite H0 in H; inversion H;
-        unfold update_file in *; 
-        destruct x3; simpl in *
-        end;
-        match goal with 
-          [H: {| owner := ?owner; blocks := ?blocks |} =
-          {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-          inversion H
-        end;
-        match goal with 
-          [H: ?l = updn ?l _ _ |-_] =>
-        symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-        end. 
-       }
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-    cleanup.
-    unfold files_crash_rep, files_inner_rep in *; cleanup.
-    repeat cleanup_pairs; repeat unify_invariants.
-    repeat apply_specs; cleanup; eauto;
-    repeat split_ors; cleanup.
-    simpl in *; cleanup.
-    repeat cleanup_pairs; repeat unify_invariants.
-    repeat match goal with
-     | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
-     eapply FileInnerSpecs.write_inner_crashed in H;
-     [|
-     unfold files_inner_rep in *; cleanup;
-     simpl; eexists; repeat (split; eauto);
-     simpl; eexists; split; eauto;
-     eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-     intros; solve_bounds]
-     | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
-     eapply FileInnerSpecs.write_inner_finished in H;
-     [|
-     unfold files_inner_rep in *; cleanup;
-     simpl; eexists; repeat (split; eauto);
-     simpl; eexists; split; eauto;
-     eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-     intros; solve_bounds]
-    end.
-    eauto; simpl in *; cleanup;
-    repeat split_ors; cleanup;
-    simpl in *; cleanup;
-    unfold files_inner_rep in *; cleanup;
-    repeat cleanup_pairs; repeat unify_invariants;
-    match goal with
-    | [H: Mem.upd ?m _ _ = ?m,
-    H0: ?m _ = Some ?x3 |- _] =>
-    apply upd_nop_rev in H;
-    rewrite H0 in H; inversion H;
-    unfold update_file in *; 
-    destruct x3; simpl in *
-    end;
-    match goal with 
-      [H: {| owner := ?owner; blocks := ?blocks |} =
-      {| owner := ?owner; blocks := updn ?blocks _ _ |} |-_] =>
-      inversion H
-    end;
-    match goal with 
-      [H: ?l = updn ?l _ _ |-_] =>
-    symmetry in H; eapply seln_eq_updn_eq_rev in H; eauto
-    end. 
-   }
-Unshelve.
+      try unify_oracle_and_ret_equality.
+
+      edestruct HC_oracle_map_prefix; [setoid_rewrite app_nil_r at 2; eauto|]; 
+    cleanup_no_match; exfalso.
+    eapply write_inner_finished_not_crashed.
+    5: eapply same_for_user_except_symmetry; eauto.
+    all: eauto.
+
+    all: try solve [unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds].
+
+    solve_write.
+    Unshelve.
 all: exact AuthenticatedDisk.
 Qed.
 
+(**Jun 22: Changed from different inum to same inum*)
     Opaque delete_inner.
    Lemma delete_crashed_exfalso:
-    forall u' ex x x0 s1 s2 x3 inum inum' x2 sr2 o,
+    forall u' ex x x0 s1 s2 x3 inum x2 sr2 o,
      same_for_user_except u' ex x x0 ->
    refines s1 x ->
     refines s2 x0 ->
@@ -2997,34 +2101,34 @@ Qed.
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    files_crash_rep (Mem.delete x inum) x2 ->
-   exec AuthenticatedDisk (owner x3) o s2 (delete inum') (Crashed sr2) ->
+   exec AuthenticatedDisk (owner x3) o s2 (delete inum) (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
-   intros;
+    intros;
     unfold refines, files_rep, files_inner_rep in *; cleanup.
     unfold delete, auth_then_exec in *.
-   
-    depth_first_crash_solve; try solve [solve_delete].
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-   
-       depth_first_crash_solve; try solve [ solve_delete ].
-       depth_first_crash_solve; try solve [ solve_delete ].
-       {
-        cleanup.
-        repeat rewrite <- app_assoc in H2.
-        eapply_fresh map_app_ext in H2.
-        logic_clean.
-       eapply_fresh delete_inner_finished_oracle_eq in H20; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_delete ].
-       {
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [ |try solve [solve_delete]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2:    invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_delete.
+    invert_binds; cleanup_no_match; try solve [repeat invert_exec'; solve_delete].
+
+    eapply_fresh inode_owners_are_same_3 with (x1:= x1)(x5 := x5)in H; eauto.
+    repeat invert_exec'; cleanup_no_match; try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    2: invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_delete.
+
+    invert_binds; repeat invert_exec'; cleanup_no_match;
+    try unify_oracle_and_ret_equality; [ |try solve [solve_delete]].
+    repeat apply_specs; repeat (repeat split_ors; cleanup_no_match); try congruence;
+    repeat unify_invariants; solve_ret_iff_goal.
+    
+    destruct r, r0; repeat unify_invariants; solve_ret_iff_goal.
+    invert_binds; cleanup; simpl in *; repeat invert_exec'; 
+    simpl in *; cleanup; try solve_delete.
+    {
            cleanup.
            unfold files_crash_rep, files_inner_rep in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants.
@@ -3055,7 +2159,7 @@ Qed.
            simpl in *; cleanup.
            unfold files_inner_rep in *; cleanup;
            repeat cleanup_pairs; repeat unify_invariants.
-           eapply FileInnerSpecs.inode_exists_then_file_exists in H26; eauto.
+           eapply FileInnerSpecs.inode_exists_then_file_exists in H25; eauto.
            cleanup.
            match goal with
             | [H: Mem.delete ?m _ = ?m,
@@ -3096,7 +2200,7 @@ Qed.
            simpl in *; cleanup.
            unfold files_inner_rep in *; cleanup;
            repeat cleanup_pairs; repeat unify_invariants.
-           eapply FileInnerSpecs.inode_exists_then_file_exists in H26; eauto.
+           eapply FileInnerSpecs.inode_exists_then_file_exists in H25; eauto.
            cleanup.
            match goal with
             | [H: Mem.delete ?m _ = ?m,
@@ -3106,319 +2210,11 @@ Qed.
             congruence
             end. 
        }
-       {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-           simpl in *; repeat cleanup_pairs; repeat unify_invariants.
+       invert_binds; cleanup; simpl in *; repeat invert_exec'; 
+    simpl in *; cleanup; try solve_delete.
 
-        eexists; unfold files_inner_rep in *; cleanup;
-        simpl; eexists; repeat (split; eauto);
-        simpl; eexists; split; eauto;
-        eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-        intros; solve_bounds.
-       }
-       {
-        cleanup.
-        unfold files_crash_rep, files_inner_rep in *; cleanup.
-        repeat cleanup_pairs; repeat unify_invariants.
-        repeat apply_specs; cleanup; eauto;
-        repeat split_ors; cleanup.
-        simpl in *; cleanup.
-           simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-        eexists; unfold files_inner_rep in *; cleanup;
-        simpl; eexists; repeat (split; eauto);
-        simpl; eexists; split; eauto;
-        eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-        intros; solve_bounds.
-       }
-       intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh delete_inner_finished_oracle_eq in H20; eauto;
-           cleanup; subst.
-           intuition congruence.
-           {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-            {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh delete_inner_finished_oracle_eq in H20; eauto;
-           cleanup; subst.
-           intuition congruence.
-           {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-            {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-           intros; cleanup; congruence.
-       }
-       {
-           cleanup.
-           repeat rewrite <- app_assoc in H2.
-           eapply_fresh map_app_ext in H2.
-           logic_clean.
-           eapply_fresh delete_inner_finished_oracle_eq in H20; eauto;
-           cleanup; subst.
-           depth_first_crash_solve; try solve [ solve_delete ].
-           {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-            {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-           intros; cleanup; congruence.
-       }
-       {
-            cleanup.
-            repeat rewrite <- app_assoc in H2.
-            eapply_fresh map_app_ext in H2.
-            logic_clean.
-            symmetry in H6.
-           eapply delete_inner_finished_not_crashed; eauto.
-           {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-            {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-           intros; cleanup; congruence.
-       }
-       {
-            cleanup.
-            repeat rewrite <- app_assoc in H2.
-            eapply_fresh map_app_ext in H2.
-            logic_clean.
-            symmetry in H6.
-            eapply delete_inner_finished_not_crashed; eauto.
-            {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-            {
-                cleanup.
-                unfold files_crash_rep, files_inner_rep in *; cleanup.
-                repeat cleanup_pairs; repeat unify_invariants.
-                repeat apply_specs; cleanup; eauto;
-                repeat split_ors; cleanup.
-                simpl in *; cleanup.
-                simpl in *; repeat cleanup_pairs; repeat unify_invariants.
-
-                eexists; unfold files_inner_rep in *; cleanup;
-                simpl; eexists; repeat (split; eauto);
-                simpl; eexists; split; eauto;
-                eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-                intros; solve_bounds.
-            }
-            intros; cleanup; congruence.
-       }
-       depth_first_crash_solve; try solve [ solve_delete ].
-       depth_first_crash_solve; try solve [ solve_delete ].
-       {
-         Transparent delete_inner Inode.get_all_block_numbers.
-             unfold delete_inner,
-             Inode.get_all_block_numbers, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold delete_inner,
-             Inode.get_all_block_numbers, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold delete_inner,
-             Inode.get_all_block_numbers, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-       }
-       {
-        unfold delete_inner,
-             Inode.get_all_block_numbers, 
-             Inode.get_inode, Inode.InodeAllocator.read in *.
-            repeat invert_exec; simpl in *; cleanup.
-            Opaque delete_inner Inode.get_all_block_numbers.
-       }
-       depth_first_crash_solve; try solve [ solve_delete ].
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-       intuition congruence.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       eapply_fresh Inode.get_owner_finished_oracle_eq in H15; eauto;
-       cleanup; subst.
-       depth_first_crash_solve; try solve [ solve_delete ].
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   {
-       cleanup.
-       repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2.
-       logic_clean.
-       exfalso; eapply Inode.get_owner_finished_not_crashed; 
-       [eauto| |eauto].
-       symmetry; eauto.
-       intros; cleanup; congruence.
-   }
-   Unshelve.
-   all: exact AuthenticatedDisk.
+    Unshelve.
+    all: exact AuthenticatedDiskLang.
    Qed.
 
    Opaque Inode.alloc.
@@ -3470,7 +2266,7 @@ Qed.
         repeat cleanup_pairs; repeat unify_invariants.
         
         unfold file_map_rep in *; cleanup.
-        edestruct H0; edestruct H6.
+        edestruct H0; edestruct H7.
         eapply H17; eauto.
         eapply H16; eauto.
         rewrite Mem.upd_eq; eauto.
@@ -3511,7 +2307,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2; subst.
+       rewrite <- app_nil_r in H15.
+       eapply_fresh map_app_ext in H15; subst.
        cleanup.
        symmetry in H6;
       eapply Inode.alloc_finished_not_crashed; eauto.
@@ -3520,7 +2317,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2; subst.
+       rewrite <- app_nil_r in H15.
+       eapply_fresh map_app_ext in H15; subst.
        cleanup.
        symmetry in H6;
       eapply Inode.alloc_finished_not_crashed; eauto.
@@ -3529,7 +2327,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2; subst.
+       rewrite <- app_nil_r in H15.
+       eapply_fresh map_app_ext in H15; subst.
        cleanup.
       eapply Inode.alloc_finished_not_crashed; eauto.
       intros; cleanup; congruence.
@@ -3537,7 +2336,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       eapply_fresh map_app_ext in H2; subst.
+       rewrite <- app_nil_r in H15.
+       eapply_fresh map_app_ext in H15; subst.
        cleanup.
       eapply Inode.alloc_finished_not_crashed; eauto.
       intros; cleanup; congruence.
@@ -3550,8 +2350,8 @@ Qed.
         repeat split_ors; cleanup;
         repeat cleanup_pairs; repeat unify_invariants.
 
-        eapply Inode.alloc_crashed in H15; eauto.
-        eapply Inode.alloc_crashed in H18; eauto.
+        eapply Inode.alloc_crashed in H14; eauto.
+        eapply Inode.alloc_crashed in H17; eauto.
 
         unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
         repeat split_ors; cleanup;
@@ -3627,16 +2427,16 @@ all: eauto.
  all: eauto.
    Qed.
 
-
+    (**Changed to same inum *)
    Lemma delete_crashed_same_token:
-   forall u u' o s1 s2 x x0 inum inum' get_reboot_state sr1 sr2  ex tk1 tk2,
+   forall u u' o s1 s2 x x0 inum get_reboot_state sr1 sr2  ex tk1 tk2,
    same_for_user_except u' ex x x0 ->
     refines s1 x ->
        refines s2 x0 ->
     exec AuthenticatedDisk u o s1 (delete inum) (Crashed sr1) ->
-    exec AuthenticatedDisk u o s2 (delete inum') (Crashed sr2) ->
+    exec AuthenticatedDisk u o s2 (delete inum) (Crashed sr2) ->
     token_refines _ u s1 (Delete inum) get_reboot_state o tk1 -> 
-    token_refines _ u s2 (Delete inum') get_reboot_state o tk2 -> 
+    token_refines _ u s2 (Delete inum) get_reboot_state o tk2 -> 
     tk1 = tk2.
     Proof. 
    simpl; intros.
@@ -3657,7 +2457,7 @@ all: eauto.
   exfalso; eapply delete_crashed_exfalso.
   apply same_for_user_except_symmetry; eauto.
   all: eauto.
-    Qed.
+Qed.
 
 
     Lemma create_crashed_same_token:

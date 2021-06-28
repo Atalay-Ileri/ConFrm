@@ -28,17 +28,16 @@ Section RefinementLift.
          o2 = [Cont _])
 
     | @Bind _ T1 T2 p1 p2 =>
-      exists o1' o1'' o2' o2'',
+      (exists d1', exec L_imp u o1 d1 (compile T1 p1) (Crashed d1') /\
+         oracle_refines T1 u d1 p1 get_reboot_state_imp o1 o2) \/
+      (exists o1' o1'' o2' o2'' d1' r ret,
       o1 = o1'++o1'' /\
       o2 = o2' ++ o2'' /\
-     ((exists d1', exec L_imp u o1' d1 (compile T1 p1) (Crashed d1') /\
-         oracle_refines T1 u d1 p1 get_reboot_state_imp o1' o2') \/
-      (exists d1' r ret,
          exec L_imp u o1' d1 (compile T1 p1) (Finished d1' r) /\
          exec L_imp u o1'' d1' (compile T2 (p2 r)) ret /\
          oracle_refines T1 u d1 p1 (fun s => s) o1' o2' /\
          oracle_refines T2 u d1' (p2 r) get_reboot_state_imp o1'' o2''
-         ))
+         )
     end.
 
   Theorem exec_compiled_preserves_refinement_finished:
@@ -197,8 +196,7 @@ Proof.
         do 2 eexists; econstructor; eauto.
         econstructor; eauto.
         intuition eauto.
-        do 4 eexists; intuition eauto. 
-        right; do 3 eexists; intuition eauto.
+        right; do 7 eexists; intuition eauto.
     }
     {
         invert_exec'' H11.
@@ -219,8 +217,7 @@ Proof.
             eexists; econstructor; eauto.
             econstructor; eauto.
             intuition eauto.
-            do 4 eexists; intuition eauto. 
-            right; do 3 eexists; intuition eauto.
+            right; do 7 eexists; intuition eauto.
         }
         {
             edestruct H0; eauto.
@@ -233,13 +230,8 @@ Proof.
             right.
             eexists; econstructor; eauto.
             eapply ExecBindCrash; eauto.
-            intuition eauto.
-            do 4 eexists; intuition eauto. 
-            rewrite app_nil_r; eauto.
         }
     }
-    Unshelve.
-    eauto.
 Qed.
 
 (*
@@ -333,5 +325,5 @@ Qed.
 End RefinementLift.
 
 Arguments LiftRefinement {_ _ _}.
-(* Arguments SimulationForProgram_compositional_lifted {_ _ _ _}. *)
-Arguments abstract_oracles_exist_wrt_compositional {_ _ _ _}.
+(* Arguments SimulationForProgram_compositional_lifted {_ _ _ _}. 
+Arguments abstract_oracles_exist_wrt_compositional {_ _ _ _}. *)

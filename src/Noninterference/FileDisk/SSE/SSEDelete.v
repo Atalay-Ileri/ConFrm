@@ -229,7 +229,7 @@ Proof.
      {
         eapply_fresh SSE_free in H1.
         cleanup.
-        destruct x1; simpl in *; try solve [intuition congruence].
+        destruct x; simpl in *; try solve [intuition congruence].
 
         exists (Crashed s0); split.
         eapply ExecBindCrash.
@@ -242,17 +242,17 @@ Proof.
         setoid_rewrite H15; eauto.
       }
       {
-        eapply_fresh SSE_free in H1.
+        eapply_fresh SSE_free in H9.
         logic_clean.
         destruct x3; simpl in *; try solve [intuition congruence].
-        eapply_fresh DiskAllocator.free_finished_oracle_eq in H1; eauto.
+        eapply_fresh DiskAllocator.free_finished_oracle_eq in H9; eauto.
       eapply_fresh DiskAllocator.free_finished in H1; eauto.
-      eapply_fresh DiskAllocator.free_finished in H10; only 2: apply H0; eauto.
+      eapply_fresh DiskAllocator.free_finished in H9; only 2: apply H; eauto.
       cleanup; repeat split_ors; cleanup; simpl in *; try solve [intuition congruence].
       {
-        eapply IHbnl1 in H9.
+        eapply IHbnl1 in H10.
    cleanup.
-   destruct x2; simpl in *; try solve [intuition congruence].
+   destruct x0; simpl in *; try solve [intuition congruence].
   exists (Crashed s3); split.
   econstructor.
   eauto.
@@ -271,34 +271,9 @@ Proof.
     unfold DiskAllocator.block_allocator_rep in *; cleanup.
     eapply Forall_forall; intros.
     eapply Forall_forall in H22; eauto.
-    eapply DiskAllocator.valid_bits_extract with (n:= x1) in H32.
+    eapply DiskAllocator.valid_bits_extract with (n:= x) in H32.
     cleanup.
-    eapply DiskAllocator.valid_bits_extract with (n:= x1) in H20.
-    cleanup.
-    repeat rewrite nth_seln_eq in *.
-    eapply Forall_forall in H26; eauto.
-    eapply nth_error_nth with (d:= false) in H26.
-    setoid_rewrite H26 in H12.
-    setoid_rewrite Mem.delete_ne in H20; eauto.
-    repeat split_ors; cleanup; try congruence; eauto.
-    erewrite nth_error_nth'. 
-    setoid_rewrite H20; eauto.
-    all: try rewrite value_to_bits_length;
-    pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
-    unfold DiskAllocatorParams.num_of_blocks in *; try lia.
-    all: intros Hx; subst; intuition.
-  }
-  {
-    inversion H4; eauto.
-    inversion H6; eauto; cleanup.
-    inversion H8; subst.
-    repeat cleanup_pairs.
-    unfold DiskAllocator.block_allocator_rep in *; cleanup.
-    eapply Forall_forall; intros.
-    eapply Forall_forall in H22; eauto.
-    eapply DiskAllocator.valid_bits_extract with (n:= x1) in H29.
-    cleanup.
-    eapply DiskAllocator.valid_bits_extract with (n:= x1) in H15.
+    eapply DiskAllocator.valid_bits_extract with (n:= x) in H15.
     cleanup.
     repeat rewrite nth_seln_eq in *.
     eapply Forall_forall in H26; eauto.
@@ -313,6 +288,31 @@ Proof.
     unfold DiskAllocatorParams.num_of_blocks in *; try lia.
     all: intros Hx; subst; intuition.
   }
+  {
+    inversion H4; eauto.
+    inversion H6; eauto; cleanup.
+    inversion H8; subst.
+    repeat cleanup_pairs.
+    unfold DiskAllocator.block_allocator_rep in *; cleanup.
+    eapply Forall_forall; intros.
+    eapply Forall_forall in H22; eauto.
+    eapply DiskAllocator.valid_bits_extract with (n:= x) in H29.
+    cleanup.
+    eapply DiskAllocator.valid_bits_extract with (n:= x) in H20.
+    cleanup.
+    repeat rewrite nth_seln_eq in *.
+    eapply Forall_forall in H26; eauto.
+    eapply nth_error_nth with (d:= false) in H26.
+    setoid_rewrite H26 in H12.
+    setoid_rewrite Mem.delete_ne in H20; eauto.
+    repeat split_ors; cleanup; try congruence; eauto.
+    erewrite nth_error_nth'. 
+    setoid_rewrite H20; eauto.
+    all: try rewrite value_to_bits_length;
+    pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
+    unfold DiskAllocatorParams.num_of_blocks in *; try lia.
+    all: intros Hx; subst; intuition.
+  }
   inversion H7; eauto.
   inversion H8; eauto.
   }
@@ -322,6 +322,7 @@ Proof.
    econstructor.
    eauto.
    simpl; eauto.
+
    repeat econstructor.
    simpl; intuition congruence.
   }
@@ -764,27 +765,27 @@ invert_step.
   {
     eapply_fresh SSE_get_all_block_numbers in H2; eauto.
     cleanup.
-    destruct x1; simpl in *; try solve [intuition congruence].
+    destruct x; simpl in *; try solve [intuition congruence].
     
     exists (Crashed s0); split.
     eapply ExecBindCrash; eauto.
     simpl; intuition congruence.
   }
   {
-    eapply_fresh SSE_get_all_block_numbers in H2; eauto.
+    eapply_fresh SSE_get_all_block_numbers in H3; eauto.
     logic_clean.
     destruct x3; simpl in *; try solve [intuition congruence].
-    eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H2; eauto.
+    eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H3; eauto.
     unfold files_inner_rep in *; logic_clean.
+    eapply_fresh Inode.get_all_block_numbers_finished in H3; eauto.
     eapply_fresh Inode.get_all_block_numbers_finished in H2; eauto.
-    eapply_fresh Inode.get_all_block_numbers_finished in H4; eauto.
     cleanup; repeat split_ors; cleanup; try solve [intuition congruence].
     {
       repeat invert_step_crash.
       {
-        eapply_fresh SSE_free_all_blocks in H3.
+        eapply_fresh SSE_free_all_blocks in H4.
         cleanup.
-        destruct x0; simpl in *; try solve [intuition congruence].
+        destruct x8; simpl in *; try solve [intuition congruence].
 
         exists (Crashed s3); split.
         econstructor; eauto.
@@ -867,7 +868,7 @@ invert_step.
       eapply Forall_forall; eauto; intros.
       eapply In_nth in H23; cleanup.
       eapply nth_error_Some in H23.
-      destruct_fresh (nth_error (Inode.block_numbers x2) x9); try congruence.
+      destruct_fresh (nth_error (Inode.block_numbers x0) x9); try congruence.
       eapply_fresh H22 in D; cleanup.
       unfold DiskAllocator.block_allocator_rep in *; cleanup.
       eapply nth_error_nth in D.
@@ -901,18 +902,18 @@ invert_step.
     }
       }
       {
-        eapply_fresh SSE_free_all_blocks in H3.
+        eapply_fresh SSE_free_all_blocks in H6.
         logic_clean.
-        destruct x11; simpl in *; try solve [intuition congruence].
-        eapply_fresh free_all_blocks_finished_oracle_eq in H3.
-        2: apply H12.
-        eapply_fresh FileInnerSpecs.free_all_blocks_finished in H3; eauto.
-        eapply_fresh FileInnerSpecs.free_all_blocks_finished in H12.
+        destruct x2; simpl in *; try solve [intuition congruence].
+        eapply_fresh free_all_blocks_finished_oracle_eq in H6.
+        2: apply H4.
+        eapply_fresh FileInnerSpecs.free_all_blocks_finished in H6; eauto.
+        eapply_fresh FileInnerSpecs.free_all_blocks_finished in H4.
         cleanup; repeat split_ors; cleanup; try solve [intuition congruence].
         {
-          eapply_fresh SSE_free_inode in H6.
+          eapply_fresh SSE_free_inode in H12.
           cleanup.
-          destruct x10; simpl in *; try solve [intuition congruence].
+          destruct x9; simpl in *; try solve [intuition congruence].
           exists (Crashed s4); split.
           repeat (econstructor; simpl; eauto).
           simpl; eauto.
@@ -995,28 +996,28 @@ invert_step.
       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H16; eauto.
       logic_clean.
       clear H6.
-      unfold same_for_user_except in *; cleanup.
-      eapply_fresh H19 in H15; eauto; cleanup.
-      unfold file_map_rep, file_rep in *; cleanup.
-      eapply_fresh H24 in H20; eauto; cleanup.
-      eapply_fresh H23 in H16; eauto; cleanup.
+      unfold same_for_user_except in *; cleanup_no_match.
+      eapply_fresh H19 in H15; eauto; cleanup_no_match.
+      unfold file_map_rep, file_rep in *; cleanup_no_match.
+      eapply_fresh H24 in H20; eauto; cleanup_no_match.
+      eapply_fresh H23 in H16; eauto; cleanup_no_match.
       eauto.
     }
     
     {
       repeat cleanup_pairs;
       repeat unify_invariants.
-      clear H6.
-      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup.
-      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+      clear H5.
+      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup_no_match.
+      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup_no_match.
       eapply H23 in H20; cleanup; eauto.
     }
     {
       repeat cleanup_pairs;
       repeat unify_invariants.
       clear H6.
-      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup.
-      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup_no_match.
+      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup_no_match.
       eapply H15 in H16; cleanup; eauto.
   }
     {
@@ -1024,19 +1025,19 @@ invert_step.
       repeat unify_invariants.
       clear H6.
       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
-      cleanup.
-      unfold file_map_rep, file_rep in *; cleanup.
-      eapply_fresh H15 in H20; eauto; cleanup.
+      cleanup_no_match.
+      unfold file_map_rep, file_rep in *; cleanup_no_match.
+      eapply_fresh H15 in H20; eauto; cleanup_no_match.
       eapply Forall_forall; eauto; intros.
-      eapply In_nth in H23; cleanup.
+      eapply In_nth in H23; cleanup_no_match.
       eapply nth_error_Some in H23.
-      destruct_fresh (nth_error (Inode.block_numbers x7) x11); try congruence.
-      eapply_fresh H22 in D; cleanup.
-      unfold DiskAllocator.block_allocator_rep in *; cleanup.
+      destruct_fresh (nth_error (Inode.block_numbers x7) x10); try congruence.
+      eapply_fresh H22 in D; cleanup_no_match.
+      unfold DiskAllocator.block_allocator_rep in *; cleanup_no_match.
       eapply nth_error_nth in D.
       rewrite H24 in D; subst.
-      eapply DiskAllocator.valid_bits_extract with (n:= a) in v0; eauto; cleanup.
-      split_ors; cleanup.
+      eapply DiskAllocator.valid_bits_extract with (n:= a) in v0; eauto; cleanup_no_match.
+      split_ors; cleanup_no_match.
       rewrite nth_seln_eq in H10; erewrite nth_error_nth'; eauto.
       rewrite H18, H10; eauto.
       all: try rewrite value_to_bits_length;
@@ -1053,19 +1054,19 @@ invert_step.
       repeat unify_invariants.
       clear H6.
       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H16; eauto.
-      cleanup.
-      unfold file_map_rep, file_rep in *; cleanup.
-      eapply_fresh H12 in H16; eauto; cleanup.
+      cleanup_no_match.
+      unfold file_map_rep, file_rep in *; cleanup_no_match.
+      eapply_fresh H9 in H16; eauto; cleanup_no_match.
       eapply Forall_forall; eauto; intros.
-      eapply In_nth in H23; cleanup.
+      eapply In_nth in H23; cleanup_no_match.
       eapply nth_error_Some in H23.
-      destruct_fresh (nth_error (Inode.block_numbers x2) x11); try congruence.
-      eapply_fresh H22 in D; cleanup.
-      unfold DiskAllocator.block_allocator_rep in *; cleanup.
+      destruct_fresh (nth_error (Inode.block_numbers x0) x10); try congruence.
+      eapply_fresh H22 in D; cleanup_no_match.
+      unfold DiskAllocator.block_allocator_rep in *; cleanup_no_match.
       eapply nth_error_nth in D.
       rewrite H24 in D; subst.
-      eapply DiskAllocator.valid_bits_extract with (n:= a) in v; eauto; cleanup.
-      split_ors; cleanup.
+      eapply DiskAllocator.valid_bits_extract with (n:= a) in v; eauto; cleanup_no_match.
+      split_ors; cleanup_no_match.
       rewrite nth_seln_eq in H10; erewrite nth_error_nth'; eauto.
       rewrite H14, H10; eauto.
       all: try rewrite value_to_bits_length;
@@ -1081,26 +1082,26 @@ invert_step.
       repeat cleanup_pairs;
       repeat unify_invariants.
       clear H6.
-      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup.
-      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup_no_match.
+      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup_no_match.
       eapply H23 in H20; cleanup; eauto.
     }
     {
       repeat cleanup_pairs;
       repeat unify_invariants.
       clear H6.
-      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup.
-      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+      unfold Inode.inode_rep, file_map_rep, file_rep, Inode.inode_map_rep in *; cleanup_no_match.
+      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup_no_match.
       eapply H15 in H16; cleanup; eauto.
     }
       }
     }
     {
       invert_exec.
-      eapply_fresh SSE_get_all_block_numbers in H2; eauto.
+      eapply_fresh SSE_get_all_block_numbers in H3; eauto.
       logic_clean.
-      destruct x0; simpl in *; try solve [intuition congruence].
-      eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H2; eauto.
+      destruct x; simpl in *; try solve [intuition congruence].
+      eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H3; eauto.
       destruct o; simpl in *; try solve [intuition congruence].
 
       exists (Crashed s3); split.

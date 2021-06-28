@@ -741,16 +741,16 @@ Proof.
 
   {
     unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_block_number_finished in H0; cleanup; eauto;
+    eapply get_block_number_finished in H1; cleanup; eauto;
     repeat invert_exec; eauto.
     {
       repeat split_ors; cleanup.
       {
-        eapply DiskAllocator.read_crashed in H1; eauto;
+        eapply DiskAllocator.read_crashed in H2; eauto;
         repeat cleanup_pairs; eauto.
       }
       {
-        eapply DiskAllocator.read_finished in H1; eauto; cleanup_no_match.
+        eapply DiskAllocator.read_finished in H9; eauto; cleanup_no_match.
         repeat cleanup_pairs; eauto.
         2: {
           clear H3.
@@ -778,12 +778,12 @@ Proof.
 
   {
     unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_block_number_finished in H0; cleanup; eauto;
+    eapply get_block_number_finished in H1; cleanup; eauto;
     repeat invert_exec; eauto.
     {
       repeat split_ors; cleanup.
       {
-        eapply DiskAllocator.write_crashed in H1; eauto;
+        eapply DiskAllocator.write_crashed in H2; eauto;
         repeat cleanup_pairs; eauto.
       }
     } 
@@ -806,12 +806,12 @@ Proof.
 
   {
     unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply DiskAllocator.alloc_finished in H0; cleanup; eauto;
+    eapply DiskAllocator.alloc_finished in H1; cleanup; eauto;
     repeat invert_exec; eauto.
     {
       repeat split_ors; cleanup.
       {
-        eapply Inode.extend_crashed in H1; eauto;
+        eapply Inode.extend_crashed in H2; eauto;
         repeat cleanup_pairs; eauto.
         unfold inode_rep in *; cleanup.
         eexists; intuition eauto.
@@ -837,10 +837,10 @@ Proof.
 
   {
     unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply DiskAllocator.free_finished in H0; cleanup; eauto;
+    eapply DiskAllocator.free_finished in H1; cleanup; eauto;
     repeat invert_exec; eauto;
     repeat split_ors; cleanup; eauto.
-    repeat cleanup_pairs; eapply IHl_a in H1; eauto.
+    repeat cleanup_pairs; eapply IHl_a in H2; eauto.
   }
 Qed.
 
@@ -859,24 +859,24 @@ Proof.
 
   {
     unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
-    eapply get_all_block_numbers_finished in H0; cleanup; eauto;
+    eapply get_all_block_numbers_finished in H1; cleanup; eauto;
     repeat invert_exec; eauto.
     {
       repeat split_ors; cleanup.
       {
         repeat cleanup_pairs.
-        eapply free_all_blocks_crashed in H1; eauto;
+        eapply free_all_blocks_crashed in H2; eauto;
         repeat cleanup_pairs; eauto.
         clear H3; simpl; eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
         intros; repeat solve_bounds.
       }
       repeat cleanup_pairs; simpl in *.
-      eapply free_all_blocks_finished in H1; simpl; eauto.
+      eapply free_all_blocks_finished in H8; simpl; eauto.
       2: simpl; eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
         intros; repeat solve_bounds.
       simpl in *; cleanup; split_ors; cleanup;
       repeat invert_exec; eauto.
-      eapply free_crashed in H8; eauto.
+      eapply free_crashed in H9; eauto.
     } 
   }
 Qed.

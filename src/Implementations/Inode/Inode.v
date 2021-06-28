@@ -590,12 +590,12 @@ Proof.
   - unfold inode_rep in *; cleanup; eauto.
     eapply get_inode_crashed; eauto.
     
-  - eapply get_inode_finished in H0; eauto.
+  - eapply get_inode_finished in H1; eauto.
     cleanup.
-    eapply set_inode_crashed in H1; eauto;
+    eapply set_inode_crashed in H2; eauto;
     cleanup; eauto.
 
-  - eapply get_inode_finished in H0; eauto;
+  - eapply get_inode_finished in H1; eauto;
     cleanup; eauto.
 Qed.
 
@@ -611,12 +611,12 @@ Proof.
   - unfold inode_rep in *; cleanup; eauto.
     eapply get_inode_crashed; eauto.
     
-  - eapply get_inode_finished in H0; eauto.
+  - eapply get_inode_finished in H1; eauto.
     cleanup.
-    eapply set_inode_crashed in H1; eauto;
+    eapply set_inode_crashed in H2; eauto;
     cleanup; eauto.
 
-  - eapply get_inode_finished in H0; eauto;
+  - eapply get_inode_finished in H1; eauto;
     cleanup; eauto.
 Qed.
 
@@ -632,10 +632,10 @@ Proof.
   - unfold inode_rep in *; cleanup; eauto.
     eapply get_inode_crashed; eauto.
     
-  - eapply get_inode_finished in H0; eauto.
+  - eapply get_inode_finished in H1; eauto.
     cleanup; eauto.
 
-  - eapply get_inode_finished in H0; eauto;
+  - eapply get_inode_finished in H1; eauto;
     cleanup; eauto.
 Qed.
 
@@ -651,10 +651,10 @@ Proof.
   - unfold inode_rep in *; cleanup; eauto.
     eapply get_inode_crashed; eauto.
     
-  - eapply get_inode_finished in H0; eauto.
+  - eapply get_inode_finished in H1; eauto.
     cleanup; eauto.
 
-  - eapply get_inode_finished in H0; eauto;
+  - eapply get_inode_finished in H1; eauto;
     cleanup; eauto.
 Qed.
 
@@ -670,10 +670,10 @@ Proof.
   - unfold inode_rep in *; cleanup; eauto.
     eapply get_inode_crashed; eauto.
     
-  - eapply get_inode_finished in H0; eauto.
+  - eapply get_inode_finished in H1; eauto.
     cleanup; eauto.
 
-  - eapply get_inode_finished in H0; eauto;
+  - eapply get_inode_finished in H1; eauto;
     cleanup; eauto.
 Qed.
 

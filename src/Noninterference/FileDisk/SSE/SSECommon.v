@@ -1168,6 +1168,7 @@ Ltac solve_termination :=
       eauto;
     repeat (rewrite cons_app;
     eapply ExecBindCrash);
+    repeat rewrite app_nil_r;
     repeat cleanup_pairs;
     repeat econstructor; eauto].
 

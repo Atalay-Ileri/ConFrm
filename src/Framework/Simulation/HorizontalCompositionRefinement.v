@@ -4,6 +4,8 @@ Import ListNotations.
 
 Set Implicit Arguments.
 
+(* This module automates the construction of a refinement
+L + L1 refines L + L2 if L1 refines L2 *)
 Section HC_Refinement.
 
 Variable O O1 O2: Core.
@@ -285,6 +287,71 @@ x0 = map
     rewrite map_app; eauto.
     }
   Qed.
+
+
+    (* HC preserving simulations *)
+    Lemma HC_exec_exists_2_to_1:
+    forall T (p: HCL2.(prog) T) o1 o2 u s1 s2 s1' r grs,
+     let HCR := HC_Refinement in
+     (forall T (o : operation O2 T) s1 s2 s1' r x1 x2 grs',
+    exec L1 u x1 s1 (compile_core RC o) (Finished s1' r) ->
+    Simulation.Definitions.token_refines RC u s1 o grs' x1 x2 ->
+    RC.(refines_core) s1 s2 ->
+    exists s2', Core.exec O2 u x2 s2 o (Finished s2' r) /\
+    RC.(refines_core) s1' s2') ->
+    
+    exec HCL1 u o1 s1 (HCR.(Simulation.Definitions.compile) p) (Finished s1' r) ->
+    HCR.(Simulation.Definitions.oracle_refines) u s1 p grs o1 o2 ->
+    HCR.(Simulation.Definitions.refines) s1 s2 ->
+    exists s2', exec HCL2 u o2 s2 p (Finished s2' r) /\
+    HCR.(Simulation.Definitions.refines) s1' s2'.
+      Proof.
+        induction p; simpl; intros.
+        {
+          cleanup.
+          unfold HC_refines in *; cleanup; eauto.
+          destruct o.
+          {
+            invert_exec'' H0.
+            repeat invert_exec.
+            simpl in *; cleanup.
+            eexists; repeat econstructor; eauto.
+          }
+          {
+            simpl in *; cleanup.
+            repeat invert_exec.
+            simpl in *; cleanup.
+            apply HC_oracle_transformation_id in H4; subst.
+            edestruct H; eauto; cleanup.
+            eexists; repeat econstructor; eauto.
+          }
+        }
+        {
+          unfold HC_refines in *; cleanup; eauto.
+          split_ors; cleanup; simpl in *; 
+          repeat invert_exec.
+          eexists; repeat econstructor; eauto.
+        }
+        {
+        invert_exec; simpl in *.
+        split_ors; cleanup.
+        eapply exec_deterministic_wrt_oracle_prefix in H1; eauto; cleanup.
+        rewrite <- app_assoc; eauto.
+    
+        eapply exec_finished_deterministic_prefix in H1; eauto; cleanup.
+        eapply exec_deterministic_wrt_oracle in H4; eauto; cleanup.
+    
+        simpl in *; eauto.
+        cleanup.
+        edestruct IHp; eauto; cleanup.
+        edestruct H; eauto; cleanup.
+    
+        eexists; split; eauto. 
+        repeat econstructor; eauto.
+      }
+      Unshelve.
+      eauto.
+      Qed.
 
 End HC_Refinement.
 

@@ -262,8 +262,7 @@ Proof.
     { solve_termination. }
     {
       invert_step_crash.
-      cleanup; repeat invert_step_crash;
-      solve_termination.
+      cleanup; repeat invert_step_crash; solve_termination.
     }
     {
       invert_step_crash; solve_termination.
@@ -349,7 +348,13 @@ Proof.
         invert_step_crash; try solve [solve_illegal_state].
         invert_step_crash; try solve [solve_illegal_state].
         invert_step_crash; try solve [solve_illegal_state].
-        { solve_termination. }
+        { solve_termination.
+        repeat invert_exec; simpl in *; eauto.
+        clear H5.
+        repeat invert_exec_no_match; simpl in *; eauto.
+        eapply ExecBindCrash; repeat econstructor; eauto.
+        destruct s2; simpl in *;
+        repeat econstructor. }
         invert_step_crash; try solve [solve_illegal_state].
         { solve_termination_after_abort. }
         invert_step_crash; try solve [solve_illegal_state].

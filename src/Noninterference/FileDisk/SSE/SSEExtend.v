@@ -105,7 +105,7 @@ invert_step.
   {
     eapply_fresh SSE_alloc in H2; eauto.
     cleanup.
-    destruct x1; simpl in *; try solve [intuition congruence]. 
+    destruct x; simpl in *; try solve [intuition congruence]. 
   
     exists (Crashed s0); split.
     repeat exec_step.
@@ -113,18 +113,18 @@ invert_step.
     simpl; intuition eauto.
   }
   {
-    eapply_fresh SSE_alloc in H2; eauto.
+    eapply_fresh SSE_alloc in H3; eauto.
     logic_clean.
     destruct x3; simpl in *; try solve [intuition congruence]. 
     
-    eapply_fresh DiskAllocator.alloc_finished_oracle_eq in H2; eauto.
+    eapply_fresh DiskAllocator.alloc_finished_oracle_eq in H3; eauto.
     logic_clean.
     unfold refines, files_rep, files_inner_rep in *; logic_clean.
-    eapply DiskAllocator.alloc_finished in H2; eauto.
-    eapply_fresh DiskAllocator.alloc_finished in H4; eauto.
+    eapply DiskAllocator.alloc_finished in H3; eauto.
+    eapply_fresh DiskAllocator.alloc_finished in H2; eauto.
     cleanup; repeat split_ors; cleanup; try solve [intuition congruence].
     {
-      eapply_fresh SSE_extend in H3; eauto.
+      eapply_fresh SSE_extend in H4; eauto.
       cleanup.
       destruct x8; simpl in *; try solve [intuition congruence].
       exists (Crashed s3); split.
@@ -424,7 +424,7 @@ Proof.
   split_ors; repeat invert_exec; cleanup.
   {
      eapply_fresh SSE_get_owner in H5; eauto; cleanup.
-     destruct x; simpl in *; try solve [ intuition congruence]. 
+     destruct x0; simpl in *; try solve [ intuition congruence]. 
      destruct s2.
      exists (Crashed (s2, s0)); split.
      repeat rewrite <- app_assoc.
@@ -452,7 +452,7 @@ Proof.
     }
     {
       eapply H in H10; eauto; cleanup.
-      destruct x; simpl in *; try solve [ intuition congruence]. 
+      destruct x1; simpl in *; try solve [ intuition congruence]. 
       
       destruct s2.
       {
@@ -523,7 +523,7 @@ Proof.
     }
     {
      eapply H in H11; eauto; try logic_clean.
-     destruct x; simpl in *; try solve [ intuition congruence].
+     destruct x2; simpl in *; try solve [ intuition congruence].
      {
        cleanup; repeat invert_step_crash.
        {
@@ -769,7 +769,7 @@ Proof.
 }
 {
      eapply_fresh SSE_get_owner in H6; eauto; cleanup.
-     destruct x; simpl in *; try solve [ intuition congruence]. 
+     destruct x0; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
      destruct s2.
@@ -811,7 +811,7 @@ Proof.
    }
    {
      eapply_fresh SSE_get_owner in H6; eauto; cleanup.
-     destruct x; simpl in *; try solve [ intuition congruence]. 
+     destruct x0; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
      destruct s2.

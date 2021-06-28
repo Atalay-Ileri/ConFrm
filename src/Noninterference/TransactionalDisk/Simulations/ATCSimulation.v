@@ -1,6 +1,6 @@
 Require Import Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
-Require Import ATCLayer TransferProofs.
+Require Import ATCLayer. (** TransferProofs. *)
 Require Import TransactionalDiskRefinement.
 Require Import Coq.Program.Equality.
 Require Import Eqdep.
@@ -70,48 +70,13 @@ Proof.
     }
     {
       eapply lift2_invert_exec in H0; cleanup.
-      (*apply HC_oracle_transformation_id in h; subst. *)
+      apply HC_oracle_transformation_id in h; subst.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold authenticated_disk_reboot_list; simpl.
       eapply_fresh H3 in H4; eauto; cleanup.
       eexists (RFinished _ _); split.
       repeat econstructor; eauto.
       simpl; intuition eauto.
-      eapply_fresh minimal_oracle_finished_same in H4.
-
-      Lemma minimal_oracle_prefix:
-      forall o1 o2 o3 o4 u s T (p: TransactionCacheLang.(prog) T) ret,
-      minimal_oracle p u s o4 ->
-      minimal_oracle p u s o3 ->
-      @HC_oracle_transformation _ _ TransactionCacheLang ATCLang o1 o4 ->
-      exec Definitions.imp u o3 s p ret ->
-      o1 ++ o2 = map (fun o : Language.token' TransactionCacheOperation =>
-      match o with
-      | OpToken _ o1 =>
-          OpToken
-            (HorizontalComposition AuthenticationOperation
-               TransactionCacheOperation)
-            (Token2 AuthenticationOperation TransactionCacheOperation o1)
-      | Language.Crash _ =>
-          Language.Crash
-            (HorizontalComposition AuthenticationOperation
-               TransactionCacheOperation)
-      | Language.Cont _ =>
-          Language.Cont
-            (HorizontalComposition AuthenticationOperation
-               TransactionCacheOperation)
-      end) o3 ->
-      o4 = o3.
-      Proof.
-        unfold minimal_oracle, HC_oracle_transformation; 
-        induction o1; simpl; intros; cleanup.
-        
-        subst,
-
-
-
-      (* Minimal oracle unique *)
-      admit.
     }
   }
   {
@@ -130,11 +95,12 @@ Proof.
     split_ors; cleanup; simpl in *;
     repeat unify_execs; cleanup.
     {
-      exfalso; eapply finished_not_crashed_oracle_prefix; eauto.
-      eauto.
+      exfalso; eapply finished_not_crashed_oracle_prefix in H12.
+      apply H12; eauto.
+      setoid_rewrite app_nil_r at 2; eauto.
     }
     {
-      eapply exec_finished_deterministic_prefix in H1; eauto; cleanup.
+      eapply exec_finished_deterministic_prefix in H6; eauto; cleanup.
       repeat unify_execs; cleanup.
 
       edestruct IHp; eauto.
@@ -146,7 +112,7 @@ Proof.
       simpl; eauto.
     }
   }
-Admitted.
+Qed.
 
 
 Lemma HC_exec_same_crashed:
@@ -166,11 +132,10 @@ Lemma HC_exec_same_crashed:
 
  ATC_Refinement.(Simulation.Definitions.refines) s_imp s_abs -> 
 
-  (forall u s_imp s_abs T o x x2 x3 x4 x5,
-
+  (forall u s_imp s_abs T o x x2 x3 x4,
       exec Definitions.imp u x3 s_imp
     (compile T o) (Crashed x) ->
-    token_refines T u s_imp o x4 (x3 ++ x5) x2 ->
+    token_refines T u s_imp o x4 x3 x2 ->
     refines s_imp s_abs ->
     (forall l, ~eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
     exists s_abs',
@@ -189,6 +154,7 @@ Lemma HC_exec_same_crashed:
     s_abs o (Finished s_abs' x0) /\
   refines x s_abs') ->
 
+  (*
   (forall T o2 u s_imp x x1 x2 x3 x4 x5 x6 x7,
     @HC_oracle_transformation AuthenticationOperation _ TransactionCacheLang ATCLang x5 x4 ->
     minimal_oracle (compile T o2) u s_imp x4 ->
@@ -213,6 +179,7 @@ Lemma HC_exec_same_crashed:
         end) x2 ++ x1 ->
         exec Definitions.imp u x2 s_imp (compile T o2) (Crashed x) ->
     token_refines T u s_imp o2 x7 x2 x3) -> 
+    *)
 
  exists s_abs',
  Language.exec' u o0 s_abs p (Crashed s_abs') /\
@@ -236,13 +203,12 @@ Proof.
     {
       eapply lift2_invert_exec_crashed in H0; cleanup.
       unfold HC_refines in *; simpl in *; cleanup.
-      (* apply HC_oracle_transformation_id_crashed in H5; cleanup.  *)
+      apply HC_oracle_transformation_id in h; cleanup.
       unfold authenticated_disk_reboot_list; simpl.
-      eapply H3 in H6; eauto; cleanup.
+      eapply H3 in H5; eauto; cleanup.
       eexists; split.
       repeat econstructor; eauto.
       simpl; intuition eauto.
-      rewrite app_nil_r; eauto.
     }
   }
   {
@@ -265,11 +231,11 @@ Proof.
     split_ors; cleanup; simpl in *;
     repeat unify_execs; cleanup.
     {
-      exfalso; eapply finished_not_crashed_oracle_prefix; eauto.
-      eauto.
+      exfalso; eapply finished_not_crashed_oracle_prefix in H13; eauto.
+      setoid_rewrite app_nil_r at 2; eauto.
     }
     {
-      eapply exec_finished_deterministic_prefix in H1; eauto; cleanup.
+      eapply exec_finished_deterministic_prefix in H7; eauto; cleanup.
       repeat unify_execs; cleanup.
 
       edestruct HC_exec_same_finished; eauto.
@@ -283,7 +249,7 @@ Proof.
       split_ors; cleanup; simpl in *;
       repeat unify_execs; cleanup.
       {
-        eapply_fresh exec_deterministic_wrt_oracle_prefix in H1; eauto; cleanup.
+        eapply_fresh exec_deterministic_wrt_oracle_prefix in H12; eauto; cleanup.
         edestruct IHp.
         3: eauto.
         eauto.
@@ -294,12 +260,13 @@ Proof.
         solve [econstructor; eauto].
       }
       {
-        symmetry in H2; 
-        exfalso; eapply finished_not_crashed_oracle_prefix; eauto.
-        eauto.
+        exfalso; eapply finished_not_crashed_oracle_prefix in H7; eauto.
+        setoid_rewrite app_nil_r at 2; eauto.
       }
     }
   }
+  Unshelve.
+  eauto.
 Qed.
 
 Theorem recover_simulation:
@@ -323,8 +290,8 @@ u _
           destruct l; simpl in *; try lia.
           split_ors; cleanup; repeat unify_execs; cleanup.
           invert_exec'' H8; repeat invert_exec.
-          invert_exec'' H11; repeat invert_exec.
-          invert_exec'' H14; repeat invert_exec.
+          invert_exec'' H10; repeat invert_exec.
+          invert_exec'' H13; repeat invert_exec.
           simpl in *; cleanup.
           inversion H; inversion H2; subst.
           unfold HC_refines in *; simpl in *;
@@ -350,7 +317,7 @@ u _
              unfold transactional_disk_reboot_list,
              authenticated_disk_reboot_list in *; simpl in *; invert_exec.
              simpl in *; cleanup; 
-             invert_exec'' H14; repeat invert_exec.
+             invert_exec'' H11; repeat invert_exec.
              
              eexists (RFinished _ _); split.
              repeat (econstructor; eauto).
@@ -367,9 +334,10 @@ u _
             unfold Transaction.recover in *; repeat invert_exec.
             split_ors; cleanup; repeat invert_exec;
             simpl in *; cleanup.
+            (*
             eexists; intuition eauto.
             unfold authenticated_disk_reboot_list; simpl.
-            .
+            *)
           }
       }
       {
@@ -412,7 +380,7 @@ u _
               edestruct IHn; eauto.
               instantiate (1:= (_, (_, _))); simpl; intuition eauto.
 
-              exists (Recovered (extract_state_r x1)).
+              eexists (Recovered (extract_state_r _)).
               simpl; intuition eauto.
               
               repeat econstructor; eauto.
@@ -448,10 +416,10 @@ u _
        s_abs o (Finished s_abs' x0) /\
      refines x s_abs') ->
 
-     (forall u s_imp s_abs T o x x2 x3 x4 x5,
+     (forall u s_imp s_abs T o x x2 x3 x4,
      exec Definitions.imp u x3 s_imp
    (compile T o) (Crashed x) ->
-   token_refines T u s_imp o x4 (x3 ++ x5) x2 ->
+   token_refines T u s_imp o x4 x3 x2 ->
    refines s_imp s_abs ->
    (forall l, ~eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
    exists s_abs',
@@ -480,10 +448,10 @@ u _
         simpl in *.
         edestruct HC_exec_same_crashed; eauto; cleanup.
         edestruct recover_simulation.
-        2: {
+        eauto.
+        {
           simpl in *;
           instantiate (1:= (fst x0, (snd (snd x0), snd (snd x0)))); 
-          instantiate (1:= (fst x, ([], snd (snd x)))); 
           simpl; intuition eauto.
         }
         all: eauto.
@@ -612,10 +580,9 @@ Lemma operation_simulation_crashed:
   (x : Language.state' TransactionCacheOperation)
   (x2 : TransactionalDiskLayer.token')
   (x3 : oracle' TransactionCacheOperation)
-  (x4 : state Definitions.imp -> state Definitions.imp)
-  (x5 : list (Language.token' TransactionCacheOperation)),
+  (x4 : state Definitions.imp -> state Definitions.imp),
 exec Definitions.imp u0 x3 s_imp0 (compile T0 o) (Crashed x) ->
-token_refines T0 u0 s_imp0 o x4 (x3 ++ x5) x2 ->
+token_refines T0 u0 s_imp0 o x4 x3 x2 ->
 refines s_imp0 s_abs0 ->
 (forall l, ~eq_dep Type (operation Definitions.abs_op) _ o unit (TransactionalDiskLayer.Init l)) ->
 exists s_abs' : TransactionalDiskLayer.state',
@@ -626,7 +593,6 @@ exists s_abs' : TransactionalDiskLayer.state',
       {
         intuition cleanup.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
-        rewrite <- app_assoc; eauto.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
 
         eexists; intuition eauto.
@@ -634,12 +600,10 @@ exists s_abs' : TransactionalDiskLayer.state',
         unfold refines, refines_reboot,
         Transaction.transaction_rep,
         Transaction.transaction_reboot_rep in *; cleanup; eauto.
-        rewrite <- app_assoc; eauto.
       }
       {
         intuition cleanup.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
-        rewrite <- app_assoc; eauto.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
 
         eexists; intuition eauto.
@@ -648,12 +612,10 @@ exists s_abs' : TransactionalDiskLayer.state',
         unfold refines, refines_reboot,
         Transaction.transaction_rep,
         Transaction.transaction_reboot_rep in *; cleanup; eauto.
-        rewrite <- app_assoc; eauto.
       }
       {
         intuition cleanup.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
-        rewrite <- app_assoc; eauto.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
 
         split_ors; cleanup.
@@ -669,13 +631,10 @@ exists s_abs' : TransactionalDiskLayer.state',
         unfold refines, refines_reboot,
         Transaction.transaction_rep,
         Transaction.transaction_reboot_rep in *; cleanup; eauto.
-
-        rewrite <- app_assoc; eauto.
       }
       {
         intuition cleanup.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
-        rewrite <- app_assoc; eauto.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
 
         eexists; intuition eauto.
@@ -684,12 +643,10 @@ exists s_abs' : TransactionalDiskLayer.state',
         unfold refines, refines_reboot,
         Transaction.transaction_rep,
         Transaction.transaction_reboot_rep in *; cleanup; eauto.
-        rewrite <- app_assoc; eauto.
       }
       {
         intuition cleanup.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
-        rewrite <- app_assoc; eauto.
         eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
 
         eexists; intuition eauto.
@@ -698,7 +655,6 @@ exists s_abs' : TransactionalDiskLayer.state',
         unfold refines, refines_reboot,
         Transaction.transaction_rep,
         Transaction.transaction_reboot_rep in *; cleanup; eauto.
-        rewrite <- app_assoc; eauto.
       }
       { exfalso; eapply H2; eauto. }
     Unshelve.
@@ -719,5 +675,5 @@ SimulationForProgram ATC_Refinement u
     intros.
     eapply HC_recovery_exec_same; eauto.
     eapply operation_simulation_finished.
-    apply operation_simulation_crashed.
+    eapply operation_simulation_crashed.
   Qed.

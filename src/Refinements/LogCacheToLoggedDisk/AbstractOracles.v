@@ -698,7 +698,6 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         cleanup.
         do 2 eexists; repeat split; eauto.
         econstructor; eauto.
-        do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
       }
       {
@@ -725,8 +724,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           right.
           eexists; intuition eauto.
           econstructor; eauto.
-            do 4 eexists; intuition eauto.
-            right; simpl; repeat eexists; intuition eauto.
+          right; simpl; repeat eexists; intuition eauto.
         }
         {
           edestruct IHp_abs; eauto.
@@ -735,49 +733,13 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           econstructor; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
-          exists (o::l); split; eauto.
+          eexists (_::l); split; eauto.
           repeat split_ors;
             cleanup; repeat (unify_execs; cleanup).
             right.            
             eexists; intuition eauto.
             solve [econstructor; eauto].
-            exists o1, o2, o, nil; intuition eauto.
-            rewrite app_nil_r; eauto.
         }
       }
     }
   Qed.
-
-
-(*
-Section TransferToCachedDisk.
-
-  Theorem transfer_to_CachedDisk:
-    forall related_states_h
-      valid_state_h
-      valid_prog_h,
-      
-      SelfSimulation
-        LoggedDiskLang
-        valid_state_h
-        valid_prog_h
-        related_states_h ->
-      
-      oracle_refines_same_from_related LoggedDiskRefinement related_states_h ->
-      
-      exec_compiled_preserves_validity LoggedDiskRefinement                           
-                                       (refines_valid LoggedDiskRefinement valid_state_h) ->
-      
-      SelfSimulation
-        CachedDiskLang
-        (refines_valid LoggedDiskRefinement valid_state_h)
-        (compiles_to_valid LoggedDiskRefinement valid_prog_h)
-        (refines_related LoggedDiskRefinement related_states_h).
-  Proof.
-    intros; eapply transfer_high_to_low; eauto.
-    apply sbs.
-    apply high_oracle_exists_ok.
-  Qed.
-
-End TransferToCachedDisk.
-*)

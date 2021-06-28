@@ -11,6 +11,7 @@ Local Notation "'refinement'" := FileDiskRefinement.
 
 Section FileDiskSimulation.
 
+
   Definition authenticated_disk_reboot_list n :=
     repeat (fun s: imp.(state) => (fst s, (snd (snd s), snd (snd s)))) n.
 
@@ -803,7 +804,6 @@ Section FileDiskSimulation.
         left; eexists; intuition eauto.
         eexists; intuition eauto.
         econstructor; eauto.
-        do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
       }
       {
@@ -829,7 +829,6 @@ Section FileDiskSimulation.
 
           right; eexists; intuition eauto.
           econstructor; eauto.
-          do 4 eexists; intuition eauto.
         right; simpl; repeat eexists; intuition eauto.
         }
         {
@@ -839,13 +838,11 @@ Section FileDiskSimulation.
           econstructor; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
-          exists (o::l);intuition eauto; cleanup; try tauto;
+          eexists (_::l); intuition eauto; cleanup; try tauto;
           repeat unify_execs; cleanup.
 
           right; eexists; intuition eauto.
           eapply ExecBindCrash; eauto.
-          do 4 eexists; intuition eauto.
-          rewrite app_nil_r; eauto.
         }
       }
     }

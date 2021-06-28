@@ -97,12 +97,12 @@ Proof.
   {
     eapply IHal in H0; try lia.
     cleanup; simpl in *; cleanup.
-    exists (S x0); split; intuition eauto; simpl in *.
+    exists (S x); split; intuition eauto; simpl in *.
     lia.
     split_ors; cleanup; eauto.
   }
   {
-    eapply write_batch_finished in H0; eauto; cleanup.
+    eapply write_batch_finished in H1; eauto; cleanup.
     simpl in *; cleanup.
     exists (S (length al)).
     simpl.
@@ -153,12 +153,12 @@ Proof.
   split_ors; cleanup; repeat invert_exec.
   {
     apply IHevl in H; cleanup.
-    exists (S x0); simpl; intuition eauto.
+    exists (S x); simpl; intuition eauto.
     repeat cleanup_pairs; eauto.
     destruct p; eauto.
   }
   {
-    eapply decrypt_all_finished in H; cleanup; eauto.
+    eapply decrypt_all_finished in H0; cleanup; eauto.
     exists (S (length evl)); simpl.
     repeat rewrite firstn_oob; try lia.
     intuition eauto.
@@ -208,10 +208,10 @@ Proof.
   
   edestruct IHvl; eauto; cleanup.
   simpl in *; repeat cleanup_pairs; eauto.
-  exists (S x0); simpl; intuition eauto.
+  exists (S x); simpl; intuition eauto.
   lia.
     
-  eapply hash_all_finished in H; cleanup; eauto;
+  eapply hash_all_finished in H0; cleanup; eauto;
   simpl in *; intuition eauto.
   repeat cleanup_pairs; eauto.
   exists (length (hash_function h a :: rolling_hash_list (hash_function h a) vl)).
@@ -266,12 +266,12 @@ Proof.
   split_ors; cleanup; repeat invert_exec.
   {
     eapply IHvl in H; eauto; cleanup; eauto.
-    exists (S x0); simpl; intuition eauto.
+    exists (S x); simpl; intuition eauto.
     repeat cleanup_pairs; eauto.
     destruct p; simpl in *; eauto.
   }
   {
-    eapply encrypt_all_finished in H; cleanup.
+    eapply encrypt_all_finished in H0; cleanup.
     exists (S (length vl)); simpl.
     repeat rewrite firstn_oob; try lia.
     intuition eauto.
@@ -321,7 +321,7 @@ Proof.
  
   eapply IHcount; eauto; cleanup.
   destruct s; simpl in *; eauto.
-  apply read_consecutive_finished in H; cleanup; eauto.
+  apply read_consecutive_finished in H0; cleanup; eauto.
   destruct s; eauto.
 Qed.
 

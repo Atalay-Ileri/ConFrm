@@ -1707,13 +1707,13 @@ Proof.
           {
             unfold file_map_rep,
             addrs_match_exactly in *; intros; cleanup.
-            destruct (addr_dec x a); subst.
+            destruct (addr_dec x1 a); subst.
             repeat rewrite Mem.upd_eq; eauto.
             split; intros; congruence.
             repeat rewrite Mem.upd_ne; eauto.            
           }
           {
-            destruct (addr_dec inum x); subst;
+            destruct (addr_dec inum x1); subst;
             [rewrite Mem.upd_eq in H;
              rewrite Mem.upd_eq in H0; eauto |
              rewrite Mem.upd_ne in H;
@@ -1752,13 +1752,13 @@ Proof.
           {
             unfold file_map_rep,
             addrs_match_exactly in *; intros; cleanup.
-            destruct (addr_dec x a); subst.
+            destruct (addr_dec x1 a); subst.
             repeat rewrite Mem.upd_eq; eauto.
             split; intros; congruence.
             repeat rewrite Mem.upd_ne; eauto.            
           }
           {
-            destruct (addr_dec inum x); subst;
+            destruct (addr_dec inum x1); subst;
             [rewrite Mem.upd_eq in H;
              rewrite Mem.upd_eq in H0; eauto |
              rewrite Mem.upd_ne in H;

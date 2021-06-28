@@ -316,7 +316,7 @@ Proof.
     induction n; simpl; intros.
     { (* base case *)
       repeat invert_exec; cleanup.
-      eapply_fresh minimal_oracle_finished_same in H7.
+      (* eapply_fresh minimal_oracle_finished_same in H7. *)
       invert_exec'' H7.
       invert_exec'' H6.
       repeat invert_exec; cleanup.
@@ -330,7 +330,7 @@ Proof.
       repeat (rewrite cons_app;
       repeat econstructor; eauto).
       eexists; intuition eauto.
-      do 4 eexists; intuition eauto.
+      do 3 eexists; intuition eauto.
       simpl; eexists; intuition eauto.
       simpl; eexists; intuition eauto.
       left; do 2 eexists; intuition eauto.
@@ -339,11 +339,11 @@ Proof.
     }
     { (* Inductive case *)
       repeat invert_exec; cleanup.
-      eapply_fresh exec_crashed_minimal_oracle in H10; cleanup.
+      (* eapply_fresh exec_crashed_minimal_oracle in H10; cleanup. *)
       invert_exec'' H10; repeat invert_exec; cleanup.
       {
-        invert_exec'' H8; repeat invert_exec; cleanup.
-        invert_exec'' H13; repeat invert_exec; cleanup.
+        invert_exec'' H6; repeat invert_exec; cleanup.
+        invert_exec'' H9; repeat invert_exec; cleanup.
         edestruct IHn; only 2: eauto.
         simpl; unfold refines, HC_refines,
         refines_reboot in *; simpl in *;
@@ -351,37 +351,24 @@ Proof.
         Transaction.transaction_reboot_rep in *; 
         simpl in *; cleanup.
         eexists; eauto.
-        split_ors; cleanup; repeat invert_exec.
-      rewrite <- app_assoc in H0; simpl in *; cleanup.
-
-      Lemma crashed_extend_oracle:
-      forall O (L: Language O) T (p: L.(prog) T) u s o o' s',
-      exec L u o s p (Crashed s') ->
-      exec L u (o++o') s p (Crashed s').
-      Proof.
-        induction p; intros; repeat invert_exec.
-        econstructor.
 
       eexists (_::_); 
       simpl; intuition eauto.
-      eapply recovery_oracles_refine_to_length in H1.
-      rewrite H1; eauto.
+      eapply recovery_oracles_refine_to_length in H0.
+      rewrite H0; eauto.
       eauto.
       
       right; intuition eauto.
       eexists; intuition eauto.
       rewrite cons_app.
       repeat econstructor.
-      Search Crashed.
-      eapply ExecOpCrash.
-      simpl.
-
-            eapply ExecP2Crash with (s:= (fst si, ([], snd (snd si)))).
+      eapply ExecP2Crash with (s:= (fst si, ([], snd (snd si)))).
       repeat econstructor; eauto.
       eexists; intuition eauto.
       do 3 eexists; intuition eauto.
       simpl.
       do 2 eexists; intuition eauto.
+      (*
       rewrite app_nil_r; eauto.
       simpl; intuition eauto.
       do 2 eexists; intuition eauto.
@@ -400,7 +387,7 @@ Proof.
         try solve [eapply exec_empty_oracle; eauto].
         invert_exec'' H8; repeat invert_exec.
       }
-
+      *)
       right. do 2 eexists.
       unfold Transaction.recover.
       rewrite cons_app;
@@ -434,6 +421,7 @@ Proof.
       repeat econstructor; eauto.
       eexists; intuition eauto.
       do 3 eexists; intuition eauto.
+      (*
       do 2 eexists; intuition eauto.
       instantiate (1:= o2).
       rewrite cons_app; eauto.
@@ -444,6 +432,7 @@ Proof.
         destruct n0; simpl in *; try lia.
         eapply exec_empty_oracle; eauto.
       }
+      *)
       right; do 2 eexists; intuition eauto.
       unfold Transaction.recover.
       rewrite cons_app;
@@ -607,7 +596,7 @@ Proof.
         edestruct H1; eauto.
         unfold refines_reboot, Transaction.transaction_reboot_rep in *; 
         simpl in *; eauto.
-        exists (fst x, (snd x2, snd x2)); eauto.
+        exists (fst x, (snd x1, snd x1)); eauto.
       }
 
       eapply_fresh compile_lift2_comm in H13.
@@ -621,4 +610,72 @@ Proof.
     }
     Unshelve.
     all: exact ATCLang.
+Qed.
+
+
+Lemma ATC_AOE_2:
+forall u T (p: AuthenticatedDisk.(prog) T) n, 
+
+(forall o s s' r, 
+(exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
+exec ATCLang u o s 
+(ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
+exists oa, oracle_refines _ _
+  ATCLang AuthenticatedDisk
+  ATC_CoreRefinement T u s p (fun s => s) o oa) ->
+
+(forall o s s', 
+(exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
+exec ATCLang u o s (ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
+exists oa, oracle_refines _ _
+  ATCLang AuthenticatedDisk
+  ATC_CoreRefinement T u s p
+  (fun
+     s : HorizontalComposition.state'
+           AuthenticationOperation
+           TransactionCacheOperation
+   => (fst s, ([], snd (snd s)))) o oa) ->
+
+(forall o s s', 
+(exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
+exec ATCLang u o s 
+(ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
+exists s1', refines_reboot (snd s') s1') ->
+
+abstract_oracles_exist_wrt ATC_Refinement 
+  (ATC_Refinement.(Simulation.Definitions.refines)) u p 
+  File.recover (ATC_reboot_list n).
+Proof.
+    intros; destruct n; simpl; eauto.
+    {
+      unfold abstract_oracles_exist_wrt, ATC_reboot_list in *; 
+      simpl in *; intros.
+      repeat invert_exec.
+      edestruct H; eauto.
+
+      eexists [_]; simpl; eauto.
+      split; intuition eauto.
+      left; do 2 eexists; intuition eauto.
+    }
+    {
+      unfold abstract_oracles_exist_wrt, ATC_reboot_list in *; 
+      simpl in *; intros.
+      repeat invert_exec.
+      edestruct AOE_recover; eauto.
+      {
+        unfold HC_refines in *; 
+        simpl in *; cleanup.
+        edestruct H1; eauto.
+        unfold refines_reboot, Transaction.transaction_reboot_rep in *; 
+        simpl in *; eauto.
+        exists (fst x, (snd x0, snd x0)); eauto.
+      }
+      
+      edestruct H0; eauto.
+
+      eexists (_ :: _).
+      simpl.
+      intuition eauto.
+      eapply recovery_oracles_refine_to_length in H3; eauto.
+      }
 Qed.

@@ -494,7 +494,7 @@ Proof.
      2: setoid_rewrite H2; eauto.
      2: setoid_rewrite H1; eauto.
      cleanup.
-     destruct x3; simpl in *; try solve [intuition congruence].
+     destruct x2; simpl in *; try solve [intuition congruence].
      eapply_fresh Inode.alloc_crashed in H6; eauto.
      eapply_fresh Inode.alloc_crashed in H8; eauto.
      destruct s2, s2.

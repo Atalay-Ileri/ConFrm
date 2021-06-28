@@ -1,16 +1,17 @@
 Require Import Framework LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer.
 Require Import TransactionalDiskRefinement.
-Require Import FunctionalExtensionality Lia FileDiskNoninterference.
+Require Import FunctionalExtensionality Lia.
+Require FileDiskNoninterference.
 
 Lemma read_refines_same_core:
 forall u u' o_imp s1_imp s2_imp x x0  get_reboot_state 
 o_abs o_abs' a v v' ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
-    same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ TransactionalDisk TransactionalDiskOperationRefinement _ u s1_imp 
+    FileDiskNoninterference.same_for_user_except u' ex (tt, x) (tt, x0) ->
+    oracle_refines _ _ _ TransactionalDiskLang TransactionalDiskCoreRefinement _ u s1_imp 
     (|Read a v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ TransactionalDisk TransactionalDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ TransactionalDiskLang TransactionalDiskCoreRefinement _ u s2_imp 
     (|Read a v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.

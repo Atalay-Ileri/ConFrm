@@ -372,7 +372,7 @@ Proof.
     intros; simpl; apply decrypt_encrypt.  
   }
   {
-    eapply decrypt_all_finished in H; cleanup; eauto.
+    eapply decrypt_all_finished in H0; cleanup; eauto.
     repeat rewrite map_map; eauto.
     setoid_rewrite map_ext at 1; eauto.
     rewrite map_id; eauto.
@@ -461,13 +461,13 @@ Proof.
   split_ors; cleanup.
   {
     apply decrypt_txn_crashed in H0; eauto; cleanup.
-    exists x0; simpl; eauto.
+    exists x; simpl; eauto.
   }
   {
-    eapply decrypt_txn_finished in H0; eauto; cleanup; simpl in *.
-    eapply write_batch_crashed in H1; eauto; cleanup.
+    eapply decrypt_txn_finished in H1; eauto; cleanup; simpl in *.
+    eapply write_batch_crashed in H2; eauto; cleanup.
     repeat cleanup_pairs.
-    exists x; simpl; eauto.
+    exists x0; simpl; eauto.
   }
 Qed.
 
@@ -620,7 +620,7 @@ Proof.
     {
       intuition eauto.
       {
-        exists 0, 0, 0, x0; simpl.
+        exists 0, 0, 0, x; simpl.
         unfold plain_addr_blocks_valid, get_addr_blocks,
         plain_data_blocks_valid, get_data_blocks, get_addr_list in *;
         cleanup; eauto.
@@ -644,7 +644,7 @@ Proof.
         eapply upd_batch_consistent_subset; eauto.
       }
       {
-        exists 0, x0, 0, (length (l++x2)); simpl.
+        exists 0, x, 0, (length (l++x0)); simpl.
         unfold plain_addr_blocks_valid, get_addr_blocks,
         plain_data_blocks_valid, get_data_blocks, get_addr_list in *;
         cleanup; eauto.
@@ -713,13 +713,13 @@ Proof.
     }
   }
   {
-    eapply apply_txn_finished in H3; cleanup; eauto.
-    edestruct IHtxn_records in H4; eauto; cleanup.
+    eapply apply_txn_finished in H4; cleanup; eauto.
+    edestruct IHtxn_records in H5; eauto; cleanup.
     simpl in *; intuition eauto.
     
     unfold get_addr_list at 1; simpl.
     {
-        exists (S x), x4, (S x5), x6; simpl.
+        exists (S x2), x4, (S x5), x6; simpl.
         unfold plain_addr_blocks_valid, get_addr_blocks,
         plain_data_blocks_valid, get_data_blocks, get_addr_list in *;
         cleanup; eauto.
@@ -933,7 +933,7 @@ Proof.
   {
     eapply decrypt_txn_crashed in H3; eauto; cleanup.
     
-    exists 0, x0; simpl.
+    exists 0, x; simpl.
     unfold plain_addr_blocks_valid, get_addr_blocks,
     plain_data_blocks_valid, get_data_blocks, get_addr_list in *;
     cleanup; eauto.
@@ -956,7 +956,7 @@ Proof.
     eapply upd_batch_consistent_subset; eauto.
   }
   {
-    eapply decrypt_txn_finished in H3; cleanup; eauto.
+    eapply decrypt_txn_finished in H4; cleanup; eauto.
     repeat cleanup_pairs.
     {
       split_ors; cleanup.
@@ -965,7 +965,7 @@ Proof.
         repeat cleanup_pairs.
         simpl in *.
     
-        exists (S x), x0; simpl.
+        exists (S x), x1; simpl.
         unfold plain_addr_blocks_valid, get_addr_blocks,
         plain_data_blocks_valid, get_data_blocks, get_addr_list in *;
         cleanup; eauto.
@@ -1000,7 +1000,7 @@ Proof.
         }
       }
       {
-         eapply decrypt_txns_finished in H3; cleanup; eauto.
+         eapply decrypt_txns_finished in H4; cleanup; eauto.
          invert_exec. repeat cleanup_pairs.
          simpl in *.
 
@@ -1239,60 +1239,60 @@ Proof.
   repeat (try split_ors; cleanup_no_match; invert_exec; repeat cleanup);
   try solve[ destruct s; simpl; eauto ].
 
-  eapply read_consecutive_crashed in H2;
+  eapply read_consecutive_crashed in H1;
   cleanup_no_match; eauto;
   destruct s; simpl; eauto.
   
   all: try congruence;
   try solve
-      [eapply read_consecutive_finished in H2;
+      [eapply read_consecutive_finished in H3;
        cleanup; eauto;
        destruct s; simpl; eauto;
-       eapply hash_all_finished in H3;
+       eapply hash_all_finished in H4;
        cleanup; eauto;
        destruct s; simpl in *; eauto ].
 
-  - eapply read_consecutive_finished in H2;
+  - eapply read_consecutive_finished in H3;
     cleanup; eauto;
     destruct s; simpl; eauto.
-    eapply hash_all_crashed in H3;
+    eapply hash_all_crashed in H1;
     cleanup; eauto;
     destruct s; simpl in *; eauto.
     eapply upd_batch_consistent_subset in H4.
     cleanup; intuition eauto.
     
 
-  - eapply read_consecutive_finished in H2;
+  - eapply read_consecutive_finished in H3;
     cleanup; eauto;
     destruct s; simpl; eauto;
-    eapply hash_all_finished in H3;
+    eapply hash_all_finished in H4;
     cleanup; eauto;
     destruct s; simpl in *; eauto.
     eapply upd_batch_consistent_subset in H4.
     cleanup; intuition eauto.
 
-  - eapply read_consecutive_finished in H2;
+  - eapply read_consecutive_finished in H3;
     cleanup; eauto;
     destruct s; simpl; eauto;
-    eapply hash_all_finished in H3;
+    eapply hash_all_finished in H4;
     cleanup; eauto;
     destruct s; simpl in *; eauto.
     eapply upd_batch_consistent_subset in H4.
     cleanup; intuition eauto.
 
-  - eapply read_consecutive_finished in H2;
+  - eapply read_consecutive_finished in H3;
     cleanup; eauto;
     destruct s; simpl; eauto;
-    eapply hash_all_finished in H3;
+    eapply hash_all_finished in H1;
     cleanup; eauto;
     destruct s; simpl in *; eauto.
     eapply upd_batch_consistent_subset in H4.
     cleanup; intuition eauto.
 
-  - eapply read_consecutive_finished in H2;
+  - eapply read_consecutive_finished in H3;
     cleanup; eauto;
     destruct s; simpl; eauto;
-    eapply hash_all_finished in H3;
+    eapply hash_all_finished in H1;
     cleanup; eauto;
     destruct s; simpl in *; eauto.
     eapply read_consecutive_crashed in H4;
@@ -1300,15 +1300,15 @@ Proof.
     eapply upd_batch_consistent_subset in H5.
     cleanup; intuition eauto.
     
-  - eapply read_consecutive_finished in H2;
+  - eapply read_consecutive_finished in H3;
     cleanup; eauto;
     destruct s; simpl; eauto;
-    eapply hash_all_finished in H3;
+    eapply hash_all_finished in H1;
     cleanup; eauto;
     destruct s; simpl in *; eauto.
-    eapply read_consecutive_finished in H4;
+    eapply read_consecutive_finished in H5;
     cleanup_no_match; eauto.
-    eapply upd_batch_consistent_subset in H5.
+    eapply upd_batch_consistent_subset in H4.
     cleanup; intuition eauto.
 Qed.
 
@@ -1502,7 +1502,7 @@ Proof.
   }
   { (** Sync crashed **)
     eapply_fresh log_rep_explicit_implies_decrypt_txns_pre in H; logic_clean.
-    eapply apply_txns_finished in H0; eauto; cleanup.
+    eapply apply_txns_finished in H1; eauto; cleanup.
     clear H2 H3 H4 H5.
     invert_exec'' H1; repeat invert_exec.
     simpl in *.
@@ -1510,31 +1510,35 @@ Proof.
     {
       repeat cleanup_pairs; eauto.
     }
+    repeat cleanup_pairs; eauto.
     left.
     split; eauto.
-    eapply log_rep_update_disk_subset with (n:= length txns)(m:= 0); simpl; eauto.
-    unfold log_header_rep, log_rep_general; eauto.    
+    eapply log_rep_update_disk_subset with (n:= length txns)(m:= 0); simpl. 
+    unfold log_header_rep, log_rep_general, log_rep_explicit; eauto.
+    repeat cleanup_pairs; eauto.
+    repeat cleanup_pairs; eauto.
     repeat cleanup_pairs; eauto.
     repeat rewrite firstn_oob; eauto.
     rewrite map_length; eauto.
     rewrite bimap_length, map_length; eauto.
     rewrite min_r; eauto.
     unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
-    rewrite <- H10, map_length; eauto.
+    rewrite <- H6, map_length; eauto.
 
     exists (length txns), 0; simpl.
+    repeat cleanup_pairs; eauto.
     repeat rewrite firstn_oob; eauto.
     rewrite map_length; eauto.
     rewrite bimap_length, min_r, map_length; eauto.
     unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-    rewrite <- H10; repeat rewrite map_length; eauto.
+    rewrite <- H6; repeat rewrite map_length; eauto.
   }
   { (** update_header crashed **)
     eapply_fresh log_rep_explicit_implies_decrypt_txns_pre in H; logic_clean.
-    eapply apply_txns_finished in H0; eauto; cleanup.
+    eapply apply_txns_finished in H1; eauto; cleanup.
     clear H3 H4 H5 H6.
     invert_exec'' H1; repeat invert_exec.
-    eapply_fresh (log_rep_update_disk_subset txns hdr (length txns) 0) in H0; simpl; eauto.    
+    eapply_fresh (log_rep_update_disk_subset txns hdr (length txns) 0) in H4; simpl; eauto.    
     2: unfold log_header_rep, log_rep_general; eauto.
     2: repeat cleanup_pairs; eauto.
     2: {
@@ -1543,7 +1547,7 @@ Proof.
       rewrite bimap_length, map_length; eauto.
       rewrite min_r; eauto.
       unfold log_rep_explicit, log_rep_inner, txns_valid in *; cleanup.
-      rewrite <- H11, map_length; eauto.
+      rewrite <- H13, map_length; eauto.
     }
     
     unfold update_header in *; repeat invert_exec.
@@ -1569,19 +1573,19 @@ Proof.
   }
   { (** Sync crashed **)
     eapply_fresh log_rep_explicit_implies_decrypt_txns_pre in H; logic_clean.
-    eapply apply_txns_finished in H0; eauto; cleanup.
-    clear H4 H5 H6 H7.
-    invert_exec'' H1; repeat invert_exec.
-    eapply_fresh (log_rep_update_disk_subset txns hdr (length txns) 0) in H0; simpl; eauto.    
+    eapply apply_txns_finished in H1; eauto; cleanup.
+    clear H0 H5 H6 H7.
+    invert_exec'' H2; repeat invert_exec.
+    eapply_fresh (log_rep_update_disk_subset txns hdr (length txns) 0) in H1; simpl; eauto.    
     apply log_rep_sync_preserves in Hx.
     unfold log_rep, log_rep_general in Hx; logic_clean; eauto.    
-    eapply update_header_finished in H2; simpl in *; eauto.
+    eapply update_header_finished in H3; simpl in *; eauto.
     simpl in *; cleanup.
     intuition.
     right; right.
     split.
-    exists (encode_header (update_hdr (decode_header (fst x2)) header_part0)),
-    (fst x2),
+    exists (encode_header (update_hdr (decode_header (fst x1)) header_part0)),
+    (fst x1),
     (x3). 
     unfold update_hdr; rewrite encode_decode_header; simpl.
     {      
@@ -1596,6 +1600,7 @@ Proof.
       {
         unfold log_header_block_rep in *; simpl in *.
         rewrite upd_eq; simpl in *; intuition eauto.
+        
         rewrite list_upd_batch_set_not_in in D; simpl; eauto.
         rewrite list_upd_batch_not_in in H7; unfold sync in *.
         rewrite D in *; simpl in *; cleanup; eauto.
@@ -1631,6 +1636,7 @@ Proof.
           lia.        
           rewrite map_length; eauto.
         }        
+        
       }
       {
         unfold log_data_blocks_rep in *; cleanup; simpl in *.
@@ -1640,7 +1646,9 @@ Proof.
         pose proof hdr_before_log; lia.        
       }
       lia.
-      rewrite <- H0; lia.
+      {
+        unfold log_header_block_rep in *; simpl in *; cleanup; simpl; eauto.
+      }
       {
         unfold log_rep_inner in *; simpl in *; cleanup.
         split.
@@ -1648,7 +1656,7 @@ Proof.
         apply txns_valid_nil.
       }
       {
-        rewrite <- H0.
+        rewrite <- H0;
         unfold log_rep_inner in *; simpl in *; logic_clean.
         intuition eauto.
       }
@@ -1778,9 +1786,9 @@ Proof.
     intros; congruence.
   }
   {
-    eapply read_encrypted_log_finished in H0; eauto; simpl in *; cleanup.
+    eapply read_encrypted_log_finished in H1; eauto; simpl in *; cleanup.
     eapply log_rep_explicit_hash_map_subset in H; eauto.
-    eapply flush_txns_crashed in H1; eauto.
+    eapply flush_txns_crashed in H2; eauto.
     cleanup; repeat cleanup_pairs; intuition eauto.
     intros; congruence.
   }
@@ -2294,7 +2302,7 @@ Proof.
       eapply upd_batch_consistent_some; eauto.
     }
   }
-  apply encrypt_all_finished in H4.
+  apply encrypt_all_finished in H5.
   repeat cleanup_pairs; simpl in *;
   split_ors; cleanup; repeat invert_exec.
   {(** hash_all crashed **)
@@ -2328,7 +2336,7 @@ Proof.
       }
     }
   }
-  apply hash_all_finished in H4.
+  apply hash_all_finished in H6.
   repeat cleanup_pairs; simpl in *;
   split_ors; cleanup_no_match; repeat invert_exec_no_match.
   {(** write_consecutive crashed **)
@@ -2339,8 +2347,8 @@ Proof.
     {
       unfold log_header_rep, log_rep_general, log_rep_explicit in *; simpl; logic_clean.
       unfold log_crash_rep; simpl.
-      exists x1, (firstn (count (current_part hdr)) x3),
-      (bimap (fun v vs => (v, fst vs::snd vs)) (firstn x (map (encrypt x0) (l_addr++l_data))) (firstn x (skipn (count (current_part hdr)) x3)) ++ skipn (x + (count (current_part hdr))) x3).
+      exists x1, (firstn (count (current_part hdr)) x2),
+      (bimap (fun v vs => (v, fst vs::snd vs)) (firstn x (map (encrypt x0) (l_addr++l_data))) (firstn x (skipn (count (current_part hdr)) x2)) ++ skipn (x + (count (current_part hdr))) x2).
       simpl in *.
       intuition eauto.
       {
@@ -2382,7 +2390,7 @@ Proof.
         rewrite seq_length, map_length, app_length in H4.
         
         replace (count (current_part (decode_header v)) +
-                 (x + (length x3 - (x + count (current_part (decode_header v)))))) with (length x3) in H by lia.
+                 (x + (length x2 - (x + count (current_part (decode_header v)))))) with (length x2) in H by lia.
 
         destruct (lt_dec i (count (current_part (decode_header v)))).
         {(** first_part of log **) 
@@ -2597,7 +2605,7 @@ Proof.
       apply seq_length.
     }
   }
-  apply write_consecutive_finished in H4.
+  apply write_consecutive_finished in H7.
   2: apply seq_length.
   simpl in *; logic_clean; repeat cleanup_pairs; simpl in *.
   split_ors; cleanup_no_match; repeat invert_exec_no_match.
@@ -2858,7 +2866,7 @@ Proof.
     }
   }
   {
-    eapply update_header_finished in H7; eauto.
+    eapply update_header_finished in H8; eauto.
     right; right.
     cleanup_no_match; repeat cleanup_pairs.
     exists (Build_txn {|
@@ -3498,7 +3506,7 @@ Proof.
   }
   {
     unfold log_rep in *; cleanup.
-    eapply commit_txn_finished in H3; eauto.
+    eapply commit_txn_finished in H4; eauto.
     unfold log_rep_general, log_rep_explicit, log_header_block_rep in *;
     simpl in *; cleanup; simpl in *.
     rewrite app_length;
@@ -3709,7 +3717,7 @@ Proof.
     }
   }
   {
-    eapply read_encrypted_log_finished in H0; eauto.
+    eapply read_encrypted_log_finished in H2; eauto.
     cleanup_no_match; simpl in *; try congruence.
     {
       unfold write_header in *.
@@ -3783,6 +3791,7 @@ Proof.
             {
               right; intuition eauto.
               eapply header_part_is_valid_subset; eauto; cleanup; eauto.
+
             }
           }
         }
@@ -3797,8 +3806,8 @@ Proof.
         repeat cleanup_pairs; eauto.
         eapply_fresh log_rep_explicit_implies_decrypt_txns_pre in H.
         logic_clean.
-        eapply decrypt_txns_crashed in H2; eauto.
-        clear H0 H3 H4 H6.
+        eapply decrypt_txns_crashed in H3; eauto.
+        (* clear H0 H3 H4 H6. *)
         cleanup_no_match.
         
         right; right; split.
@@ -3832,16 +3841,16 @@ Proof.
           {
             unfold log_data_blocks_rep in *; simpl; intuition eauto.
             repeat cleanup_pairs.
-            rewrite map_length in H6.
+            rewrite map_length in H10.
             rewrite sync_upd_comm; simpl in *.
             rewrite upd_ne; eauto.
             unfold sync; erewrite seln_map;
             simpl; eauto.
             rewrite H; eauto.            
-            rewrite <- H8; eauto.
+            rewrite <- H12; eauto.
             pose proof hdr_before_log.
             lia.
-            apply in_map_iff in H6; cleanup; eauto.
+            apply in_map_iff in H10; cleanup; eauto.
             rewrite map_length; eauto.
           }
           {
@@ -3868,3 +3877,4 @@ Proof.
     }
   }
 Qed.
+ 

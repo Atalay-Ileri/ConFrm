@@ -196,7 +196,7 @@ Lemma lift1_invert_exec_crashed :
     forall O1 O2 (L1: Language O1) (Lc: Language (HorizontalComposition O1 O2))
       T (p1: L1.(prog) T) (o: Lc.(oracle)) u s s',
       exec Lc u o s (lift_L1 O2 p1) (Crashed s') ->
-      exists o1 o2,
+      exists o1,
         o = map (fun o =>
                    match o with
                    |OpToken _ o1 =>
@@ -206,7 +206,7 @@ Lemma lift1_invert_exec_crashed :
                     Language.Cont _
                    |Language.Crash _ =>
                     Language.Crash _
-                   end) o1 ++ o2 /\
+                   end) o1 /\
         snd s = snd s' /\
         exec L1 u o1 (fst s) p1 (Crashed (fst s')).
   Proof.
@@ -229,9 +229,9 @@ Lemma lift1_invert_exec_crashed :
       eapply lift1_invert_exec in H7; cleanup.
       edestruct H; eauto; cleanup.
       
-      do 2 eexists; split.
+      eexists; split.
       2: split; eauto; econstructor; eauto.
-      rewrite map_app, app_assoc; eauto.
+      rewrite map_app; eauto.
 
       edestruct IHp1; eauto; cleanup.
       do 2 eexists; intuition eauto.
@@ -246,7 +246,7 @@ Lemma lift2_invert_exec_crashed :
     forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
       T (p2: L2.(prog) T) (o: Lc.(oracle)) u s s',
       exec Lc u o s (lift_L2 O1 p2) (Crashed s') ->
-      exists o' o2,
+      exists o2,
         o = map (fun o =>
                    match o with
                    |OpToken _ o1 =>
@@ -256,7 +256,7 @@ Lemma lift2_invert_exec_crashed :
                     Language.Cont _
                    |Language.Crash _ =>
                     Language.Crash _
-                   end) o2 ++ o' /\
+                   end) o2 /\
         fst s = fst s' /\
         exec L2 u o2 (snd s) p2 (Crashed (snd s')).
   Proof.
@@ -279,9 +279,9 @@ Lemma lift2_invert_exec_crashed :
       eapply lift2_invert_exec in H7; cleanup.
       edestruct H; eauto; cleanup.
       
-      do 2 eexists; split.
+      eexists; split.
       2: split; eauto; econstructor; eauto.
-      rewrite map_app, app_assoc; eauto.
+      rewrite map_app; eauto.
 
       edestruct IHp2; eauto; cleanup.
       do 2 eexists; intuition eauto.
