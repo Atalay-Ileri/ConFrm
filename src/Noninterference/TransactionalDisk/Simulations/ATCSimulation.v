@@ -677,3 +677,395 @@ SimulationForProgram ATC_Refinement u
     eapply operation_simulation_finished.
     eapply operation_simulation_crashed.
   Qed.
+
+
+
+
+
+Lemma ATC_oracle_refines_finished:
+forall T (p: AuthenticatedDisk.(prog) T) u (o : oracle' ATCCore)
+s s' r,
+(exists s1,
+@HC_refines _ _ _ _ ATCLang 
+AuthenticatedDisk
+Definitions.TransactionalDiskCoreRefinement s s1) ->
+exec ATCLang u o s
+(ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
+
+exists oa,
+oracle_refines ATCCore
+AuthenticatedDiskLayer.AuthenticatedDiskOperation
+ATCLang AuthenticatedDisk ATC_CoreRefinement
+T u s p (fun s0 => s0) o oa.
+
+Proof.
+induction p; simpl in *; intros.
+{
+destruct o.
+{
+  cleanup; invert_exec'' H0;
+  repeat invert_exec.
+  
+  do 2 eexists; intuition eauto.
+  simpl.
+  eexists; intuition eauto.
+  
+  do 2 eexists; intuition eauto.
+  simpl.
+  eexists; intuition eauto.
+}
+{
+  eapply lift2_invert_exec in H0; cleanup.
+  edestruct TD_token_refines_finished; eauto; cleanup.
+  unfold HC_refines in *; cleanup; eauto.
+  do 2 eexists; intuition eauto.
+  simpl.
+  do 3 eexists; intuition eauto.
+  apply HC_oracle_transformation_same.
+}
+}
+{
+eexists; right; eauto.
+}
+{
+cleanup.
+repeat invert_exec.
+edestruct IHp; eauto.
+eapply_fresh exec_compiled_preserves_refinement_finished in H1; eauto.
+simpl in *; cleanup.
+edestruct H; eauto.
+eexists.
+right.
+do 7 eexists; intuition eauto.
+}
+Qed.
+
+Lemma ATC_oracle_refines_crashed:
+forall T (p: AuthenticatedDisk.(prog) T) u (o : oracle' ATCCore)
+s s',
+(exists s1,
+@HC_refines _ _ _ _ ATCLang 
+AuthenticatedDisk
+Definitions.TransactionalDiskCoreRefinement s s1) ->
+exec ATCLang u o s
+(ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
+
+not_init p ->
+
+exists oa,
+oracle_refines ATCCore
+AuthenticatedDiskLayer.AuthenticatedDiskOperation
+ATCLang AuthenticatedDisk ATC_CoreRefinement
+T u s p (fun s0 => (fst s0, ([], snd (snd s0))))  o oa.
+
+Proof.
+induction p; simpl in *; intros.
+{
+  destruct o.
+  {
+    cleanup; invert_exec'' H0;
+    repeat invert_exec.
+    
+    do 2 eexists; intuition eauto.
+    simpl.
+    eexists; intuition eauto.
+  }
+  {
+    eapply lift2_invert_exec_crashed in H0; cleanup.
+    edestruct TD_token_refines_crashed; eauto; cleanup.
+    unfold HC_refines in *; cleanup; eauto.
+    do 2 eexists; intuition eauto.
+    simpl.
+    do 3 eexists; intuition eauto.
+    apply HC_oracle_transformation_same.
+  }
+}
+{
+  eexists; left; eauto.
+}
+{
+  cleanup.
+  repeat invert_exec.
+  split_ors; cleanup.
+  {
+    edestruct IHp; eauto.
+  }
+  {
+    eapply_fresh ATC_oracle_refines_finished in H4; eauto; cleanup.
+    eapply_fresh exec_compiled_preserves_refinement_finished in H4; eauto.
+    simpl in *; cleanup.
+    edestruct H; eauto.
+    eexists.
+    right.
+    do 7 eexists; intuition eauto.
+  }
+
+}
+Qed.
+
+Lemma ATC_exec_lift_finished:
+  forall T (p: AuthenticatedDisk.(prog) T) u o_imp o_abs s_imp s_abs s_imp' r grs,
+  exec ATCLang u o_imp s_imp
+  (ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s_imp' r) ->
+  ATC_Refinement.(Simulation.Definitions.refines) s_imp s_abs ->
+  oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
+  ATCLang AuthenticatedDisk ATC_CoreRefinement T u s_imp p grs o_imp o_abs ->
+  
+  (forall T o s_imp s_imp' s_abs r o_imp t_abs grs, 
+  exec Definitions.imp u o_imp s_imp
+  (TransactionToTransactionalDisk.Definitions.compile
+      T o) (Finished s_imp' r) ->
+  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
+  TransactionToTransactionalDisk.Definitions.token_refines
+  T u s_imp o grs o_imp t_abs ->
+  exists s_abs',
+  Core.exec (TransactionalDiskLayer.TransactionalDiskOperation
+data_length) u t_abs s_abs o (Finished s_abs' r) /\
+  TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
+  
+  exists s_abs', 
+  exec AuthenticatedDisk u o_abs s_abs p (Finished s_abs' r) /\
+  ATC_Refinement.(Simulation.Definitions.refines) s_imp' s_abs'.
+  Proof.
+    induction p; simpl; intros; eauto.
+    {
+      cleanup.
+      destruct o; simpl in *; repeat invert_exec;
+      cleanup.
+      {
+      destruct s_abs.
+      eexists; intuition eauto.
+      repeat econstructor; eauto.
+      }
+      {
+      destruct s_abs.
+      eexists; intuition eauto.
+      repeat econstructor; eauto.
+      }
+      {
+        apply HC_oracle_transformation_id in H3; subst.
+        unfold HC_refines in *; simpl in *; cleanup.
+        edestruct H2; eauto; cleanup.
+        eexists. 
+        split.
+        repeat econstructor.
+        intuition eauto.
+        simpl; intuition eauto.
+      }
+    }
+    {
+      split_ors; cleanup; unify_execs; cleanup.
+      repeat invert_exec.
+      eexists. 
+      split.
+      repeat econstructor.
+      intuition eauto.
+    }
+    {
+      invert_exec;
+      split_ors; cleanup; try unify_execs; cleanup.
+      exfalso; eapply finished_not_crashed_oracle_prefix.
+      eauto.
+      2: eauto.
+      rewrite <- app_assoc; eauto.
+      eapply exec_finished_deterministic_prefix in H0; eauto; cleanup.
+      eapply exec_deterministic_wrt_oracle in H4; eauto; cleanup.
+      edestruct IHp; eauto; cleanup.
+      edestruct H; eauto; cleanup.
+      eexists; split; eauto.
+      econstructor; eauto.
+      simpl in *; eauto.
+    }
+    Unshelve.
+    eauto.
+  Qed.
+
+Definition ATC_reboot_f := fun s: ATCLang.(state) => (fst s, TC_reboot_f (snd s)).
+Definition AD_reboot_f := fun s: AuthenticatedDisk.(state) => (fst s, TD_reboot_f (snd s)).
+
+
+Lemma ATC_exec_lift_crashed:
+  forall T (p: AuthenticatedDisk.(prog) T) u o_imp o_abs s_imp s_abs s_imp',
+  exec ATCLang u o_imp s_imp
+  (ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s_imp') ->
+  ATC_Refinement.(Simulation.Definitions.refines) s_imp s_abs ->
+  oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
+  ATCLang AuthenticatedDisk ATC_CoreRefinement T u s_imp p ATC_reboot_f o_imp o_abs ->
+  
+  (forall T o s_imp s_imp' s_abs r o_imp t_abs grs, 
+  exec Definitions.imp u o_imp s_imp
+  (TransactionToTransactionalDisk.Definitions.compile
+      T o) (Finished s_imp' r) ->
+  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
+  TransactionToTransactionalDisk.Definitions.token_refines
+  T u s_imp o grs o_imp t_abs ->
+  exists s_abs',
+  Core.exec (TransactionalDiskLayer.TransactionalDiskOperation
+data_length) u t_abs s_abs o (Finished s_abs' r) /\
+  TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
+  
+  (forall T o s_imp s_imp' s_abs o_imp t_abs, 
+  exec Definitions.imp u o_imp s_imp
+  (TransactionToTransactionalDisk.Definitions.compile
+      T o) (Crashed s_imp') ->
+  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
+  TransactionToTransactionalDisk.Definitions.token_refines
+  T u s_imp o TC_reboot_f o_imp t_abs ->
+  (forall l, ~ eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
+  exists s_abs',
+  Core.exec (TransactionalDiskLayer.TransactionalDiskOperation
+data_length) u t_abs s_abs o (Crashed s_abs') /\
+  TransactionToTransactionalDisk.Definitions.refines_reboot (TC_reboot_f s_imp') (TD_reboot_f s_abs')) ->
+
+  not_init p ->
+  exists s_abs', 
+  exec AuthenticatedDisk u o_abs s_abs p (Crashed s_abs') /\
+  TransactionToTransactionalDisk.Definitions.refines_reboot (snd (ATC_reboot_f s_imp')) (snd (AD_reboot_f s_abs')) /\
+fst (ATC_reboot_f s_imp')  = fst (AD_reboot_f s_abs').
+  Proof.
+    induction p; simpl; intros; eauto.
+    {
+      cleanup_no_match.
+      destruct o; simpl in *; repeat invert_exec;
+      cleanup.
+      {
+      destruct s_abs.
+      eexists; intuition eauto.
+      repeat econstructor; eauto.
+      unfold TC_reboot_f, TD_reboot_f; simpl; eauto.
+      unfold HC_refines, TransactionToTransactionalDisk.Definitions.refines_reboot in *; simpl in *.
+      unfold TransactionToTransactionalDisk.Definitions.refines, Transaction.transaction_reboot_rep,
+      Transaction.transaction_rep in *; simpl in *; simpl; cleanup; eauto.
+      unfold HC_refines in *; simpl in *; cleanup; eauto.
+      }
+      {
+        apply HC_oracle_transformation_id in H5; subst.
+        unfold HC_refines in *; simpl in *; cleanup.
+        edestruct H3; eauto; cleanup.
+        eexists. 
+        split.
+        repeat econstructor.
+        intuition eauto.
+        simpl; intuition eauto.
+      }
+    }
+    {
+      split_ors; cleanup; unify_execs; cleanup.
+      repeat invert_exec.
+      eexists. 
+      split.
+      repeat econstructor.
+      intuition eauto.
+      unfold TC_reboot_f, TD_reboot_f; simpl; eauto.
+      unfold HC_refines, TransactionToTransactionalDisk.Definitions.refines_reboot in *; simpl in *.
+      unfold TransactionToTransactionalDisk.Definitions.refines, Transaction.transaction_reboot_rep,
+      Transaction.transaction_rep in *; simpl in *; simpl; cleanup; eauto.
+      unfold HC_refines in *; simpl in *; cleanup; eauto.
+    }
+    {
+      invert_exec;
+      repeat split_ors; cleanup; try unify_execs; cleanup.
+      edestruct IHp; eauto; cleanup.
+      eexists; split.
+      econstructor; eauto.
+      simpl in *; eauto.
+
+      exfalso; eapply finished_not_crashed_oracle_prefix.
+        eauto.
+        2: eauto.
+        rewrite <- app_assoc; eauto.
+
+        eapply finished_not_crashed_oracle_prefix in H8.
+        exfalso; apply H8; eauto.
+        rewrite <- app_assoc; eauto.
+
+        eapply exec_finished_deterministic_prefix in H12; eauto; cleanup.
+        eapply exec_deterministic_wrt_oracle in H13; eauto; cleanup.
+        eapply ATC_exec_lift_finished in H8; eauto; cleanup.
+        edestruct H; eauto; cleanup.
+      eexists; split; eauto.
+      econstructor; eauto.
+      simpl in *; eauto.
+    }
+    Unshelve.
+    all: eauto.
+  Qed.
+
+Lemma ATC_exec_lift_finished_recovery:
+forall u o_imp o_abs s_imp s_abs s_imp' r grs,
+exec ATCLang u o_imp s_imp
+(ATC_Refinement.(Simulation.Definitions.compile) (File.recover)) (Finished s_imp' r) ->
+TransactionToTransactionalDisk.Definitions.refines_reboot (snd s_imp) (snd s_abs) ->
+fst s_imp  = fst s_abs ->
+
+oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
+ATCLang AuthenticatedDisk ATC_CoreRefinement _ u s_imp (File.recover) grs o_imp o_abs ->
+
+exists s_abs', 
+exec AuthenticatedDisk u o_abs s_abs (File.recover) (Finished s_abs' r) /\
+ATC_Refinement.(Simulation.Definitions.refines) s_imp' s_abs'.
+Proof.
+  simpl; intros; eauto.
+  cleanup; simpl in *.
+  simpl in *.
+  repeat invert_exec; cleanup.
+  split_ors; cleanup; repeat invert_exec; cleanup.
+  {
+    eapply_fresh (Transaction.recover_finished) in H; eauto; cleanup.
+    simpl in *; cleanup.
+
+    destruct s_abs.
+    eexists; intuition eauto.
+    repeat econstructor; eauto.
+    simpl in *.
+    unfold HC_refines; simpl; intuition eauto.
+  }
+  {
+    unfold Transaction.recover in *; repeat invert_exec; cleanup.
+    split_ors; cleanup; repeat invert_exec; cleanup;
+    simpl in *; cleanup; try congruence.
+  }
+Qed.
+
+Lemma ATC_exec_lift_crashed_recovery:
+forall u o_imp o_abs s_imp s_abs s_imp' grs,
+exec ATCLang u o_imp s_imp
+(ATC_Refinement.(Simulation.Definitions.compile) (File.recover)) (Crashed s_imp') ->
+TransactionToTransactionalDisk.Definitions.refines_reboot (snd s_imp) (snd s_abs) ->
+fst s_imp  = fst s_abs ->
+
+oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
+ATCLang AuthenticatedDisk ATC_CoreRefinement _ u s_imp (File.recover) grs o_imp o_abs ->
+
+exists s_abs', 
+exec AuthenticatedDisk u o_abs s_abs (File.recover) (Crashed s_abs') /\
+TransactionToTransactionalDisk.Definitions.refines_reboot (snd s_imp') (snd s_abs') /\
+fst s_imp'  = fst s_abs'.
+Proof.
+  simpl; intros; eauto.
+  cleanup; simpl in *.
+  simpl in *.
+  repeat invert_exec; cleanup.
+  repeat split_ors; cleanup; repeat invert_exec; cleanup.
+  {
+    unfold Transaction.recover in *; repeat invert_exec; cleanup.
+    simpl in *; cleanup; try congruence.
+  }
+  {
+    unfold Transaction.recover in *; repeat invert_exec; cleanup.
+    simpl in *; cleanup; try congruence.
+  }
+
+  {
+    eapply_fresh (Transaction.recover_crashed) in H2; eauto; cleanup.
+    simpl in *; cleanup.
+    destruct s_abs.
+    eexists; intuition eauto.
+    repeat econstructor; eauto.
+  }
+  {
+    destruct s_abs.
+    eexists; intuition eauto.
+    repeat econstructor; eauto.
+  }
+Qed.
