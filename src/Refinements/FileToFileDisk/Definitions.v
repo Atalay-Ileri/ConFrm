@@ -3,10 +3,10 @@ Require Import AuthenticatedDiskLayer FileDiskLayer.
 Require Import File FileSpecs.
 Import ListNotations.
 
-Local Definition impl_core := (AuthenticatedDiskOperation).
-Local Definition abs_core := (FileDiskOperation inode_count).
-Local Definition impl := (AuthenticatedDiskLang).
-Local Definition abs := (FileDiskLang inode_count).
+Local Definition impl_core := (ADOperation).
+Local Definition abs_core := (FDOperation inode_count).
+Local Definition impl := (ADLang).
+Local Definition abs := (FDLang inode_count).
 
 
 Fixpoint compile T (p2: Core.operation abs_core T) : prog impl T.
@@ -362,7 +362,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
     }
   Qed.
 
-  Definition FileDiskOperationRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
-  Definition FileDiskRefinement := LiftRefinement abs FileDiskOperationRefinement.
+  Definition FDOperationRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
+  Definition FDRefinement := LiftRefinement abs FDOperationRefinement.
 
   Notation "| p |" := (Op abs_core p)(at level 60).

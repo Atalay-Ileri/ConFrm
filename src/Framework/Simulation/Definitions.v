@@ -144,7 +144,7 @@ Definition SelfSimulation (u: user) {T} (p1 p2: L_abs.(prog) T)
       valid_state (extract_state_r s1') /\
       valid_state (extract_state_r s2').
 
-Definition SelfSimulation_Exists u {T} (p1 p2: L_abs.(prog) T)
+Definition Termination_Sensitive u {T} (p1 p2: L_abs.(prog) T)
            (rec: L_abs.(prog) unit)
            (valid_state: L_abs.(state) -> Prop)
            (R: L_abs.(state) -> L_abs.(state) -> Prop)
@@ -178,12 +178,12 @@ Lemma Self_Simulation_Weak_to_Self_Simulation:
   forall u T (p1 p2: L_abs.(prog) T) R
     valid_state rec cond l_get_reboot_state,
 
-    SelfSimulation_Exists u p1 p2 rec valid_state R l_get_reboot_state ->
+    Termination_Sensitive u p1 p2 rec valid_state R l_get_reboot_state ->
     SelfSimulation_Weak u p1 p2 rec valid_state R cond l_get_reboot_state ->
     
     SelfSimulation u p1 p2 rec valid_state R cond l_get_reboot_state.
 Proof.
-  unfold SelfSimulation_Exists, SelfSimulation_Weak, SelfSimulation; intros.
+  unfold Termination_Sensitive, SelfSimulation_Weak, SelfSimulation; intros.
   edestruct H.
   3: eauto.
   all: eauto.
@@ -235,7 +235,7 @@ Definition SelfSimulation_All_Valid (u: user) {T} (p1 p2: L_abs.(prog) T)
       R (extract_state_r s1') (extract_state_r s2') /\
       (cond u -> extract_ret_r s1' = extract_ret_r s2').
 
-Definition SelfSimulation_Exists_All_Valid  u {T} (p1 p2: L_abs.(prog) T)
+Definition Termination_Sensitive_All_Valid  u {T} (p1 p2: L_abs.(prog) T)
            (rec: L_abs.(prog) unit)
            (R: L_abs.(state) -> L_abs.(state) -> Prop)
            l_get_reboot_state :=
@@ -261,12 +261,12 @@ Lemma Self_Simulation_Weak_to_Self_Simulation_All_Valid :
   forall u T (p1 p2: L_abs.(prog) T) R
     rec cond l_get_reboot_state,
 
-    SelfSimulation_Exists_All_Valid  u p1 p2 rec R l_get_reboot_state ->
+    Termination_Sensitive_All_Valid  u p1 p2 rec R l_get_reboot_state ->
     SelfSimulation_Weak_All_Valid  u p1 p2 rec R cond l_get_reboot_state ->
     
     SelfSimulation_All_Valid  u p1 p2 rec R cond l_get_reboot_state.
 Proof.
-  unfold SelfSimulation_Exists_All_Valid , SelfSimulation_Weak_All_Valid ,
+  unfold Termination_Sensitive_All_Valid , SelfSimulation_Weak_All_Valid ,
   SelfSimulation_All_Valid ; intros.
   edestruct H.
   3: eauto.
@@ -278,8 +278,8 @@ Qed.
 
 
 
-(******SSE EXPERIMENT BEGIN *****)
-Definition SSE_N u {T} (p1 p2: L_abs.(prog) T)
+(******TS EXPERIMENT BEGIN *****)
+Definition TS_N u {T} (p1 p2: L_abs.(prog) T)
            (valid_state: L_abs.(state) -> Prop)
            (R: L_abs.(state) -> L_abs.(state) -> Prop)
            :=
@@ -291,7 +291,7 @@ Definition SSE_N u {T} (p1 p2: L_abs.(prog) T)
     exists s2', 
       L_abs.(exec) u o s2 p2 s2'.
 
-Definition SSE_N_F u {T} {T'} (p1: L_abs.(prog) T) 
+Definition TS_N_F u {T} {T'} (p1: L_abs.(prog) T) 
 (p2: L_abs.(prog) T')
 (valid_state: L_abs.(state) -> Prop)
 (R: L_abs.(state) -> L_abs.(state) -> Prop)
@@ -304,7 +304,7 @@ R s1 s2 ->
 exists s2' r2, 
  L_abs.(exec) u o s2 p2 (Finished s2' r2).
 
- Definition SSE_N_C u 
+ Definition TS_N_C u 
  {T} {T'} (p1: L_abs.(prog) T) 
 (p2: L_abs.(prog) T')
            (valid_state: L_abs.(state) -> Prop)
@@ -319,7 +319,7 @@ exists s2' r2,
       L_abs.(exec) u o s2 p2 (Crashed s2').
 
 
-(******* SSE EXPERIMENT END ******)
+(******* TS EXPERIMENT END ******)
 End Relations.
 
 Arguments recovery_oracles_refine_to {_ _ _ _} _ {_}.
@@ -330,11 +330,11 @@ Arguments abstract_oracles_exist_wrt {_ _ _ _} _ _ _ {_}.
 Arguments oracle_refines_same_from_related {_ _ _ _} _ _ {_}.
 Arguments SelfSimulation {_ _} _ {_}.
 Arguments SelfSimulation_Weak {_ _} _ {_}.
-Arguments SelfSimulation_Exists {_ _} _ {_}.
+Arguments Termination_Sensitive {_ _} _ {_}.
 
 Arguments SelfSimulation_All_Valid {_ _} _ {_}.
 Arguments SelfSimulation_Weak_All_Valid {_ _} _ {_}.
-Arguments SelfSimulation_Exists_All_Valid {_ _} _ {_}.
+Arguments Termination_Sensitive_All_Valid {_ _} _ {_}.
 
 Arguments Simulation {_ _ _ _}.
 Arguments SimulationForProgram {_ _ _ _} _ _ {_}.
@@ -378,7 +378,7 @@ Lemma SS_transfer:
     u p2_abs rec_abs l_get_reboot_state_imp
     (refines_valid R valid_state_abs) ->
 
-    SelfSimulation_Exists u (compile R p1_abs)
+    Termination_Sensitive u (compile R p1_abs)
     (compile R p2_abs) (compile R rec_abs)
     (refines_valid R valid_state_abs)
     (refines_related R equivalent_states_abs)
@@ -564,7 +564,7 @@ Qed.
 
 (*** EXPERIMENTAL ***)
 
-(** If you don't care about termination, then you don't need SelfSimulation_Exists **)
+(** If you don't care about termination, then you don't need Termination_Sensitive **)
 Lemma SSW_transfer:
   forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
     u T (p1_abs p2_abs: L_abs.(prog) T)
@@ -685,7 +685,7 @@ Lemma SS_All_Valid_transfer:
     
     oracle_refines_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
-    SelfSimulation_Exists_All_Valid u (compile R p1_abs)
+    Termination_Sensitive_All_Valid u (compile R p1_abs)
     (compile R p2_abs) (compile R rec_abs)
     (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->

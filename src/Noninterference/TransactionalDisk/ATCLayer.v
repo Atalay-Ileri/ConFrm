@@ -20,5 +20,5 @@ Definition ATC_related_states u exc := fun s1 s2 : ATCLang.(state) => FileDiskNo
 
 Definition ATC_reboot_list n := map (fun f => fun s: ATCLang.(state) => (fst s, f (snd s))) (transaction_cache_reboot_list n).
 
-Definition ATC_CoreRefinement := HC_Core_Refinement ATCLang AuthenticatedDiskLang TransactionalDiskCoreRefinement.
-Definition ATC_Refinement := HC_Refinement ATCLang AuthenticatedDiskLang TransactionalDiskCoreRefinement.
+Definition ATC_CoreRefinement := HC_Core_Refinement ATCLang ADLang TDCoreRefinement.
+Definition ATC_Refinement := HC_Refinement ATCLang ADLang TDCoreRefinement.

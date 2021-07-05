@@ -3,9 +3,9 @@ Require Import TransactionCacheLayer TransactionalDiskLayer Transaction.
 Import ListNotations.
 
 Local Definition imp_op := TransactionCacheOperation.
-Local Definition abs_op := (TransactionalDiskOperation data_length).
+Local Definition abs_op := (TDOperation data_length).
 Local Definition imp := TransactionCacheLang.
-Local Definition abs := (TransactionalDiskLang data_length).
+Local Definition abs := (TDLang data_length).
 
 Definition compile  T (p2: abs_op.(operation) T) : prog imp T.
   destruct p2.
@@ -160,7 +160,7 @@ Definition refines_reboot := transaction_reboot_rep.
   Qed.
 
    
-  Definition TransactionalDiskCoreRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
-  Definition TransactionalDiskRefinement := LiftRefinement abs TransactionalDiskCoreRefinement.
+  Definition TDCoreRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
+  Definition TDRefinement := LiftRefinement abs TDCoreRefinement.
   
   Notation "| p |" := (Op abs_op p)(at level 60).

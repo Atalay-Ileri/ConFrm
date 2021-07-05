@@ -174,14 +174,14 @@ Ltac econstructor_recovery :=
     try invert_exec
   end.
 
-Theorem SelfSimulation_Exists_recover:
+Theorem Termination_Sensitive_recover:
   forall u u' n ex,
-      SelfSimulation_Exists u recover recover recover
+      Termination_Sensitive u recover recover recover
           AD_valid_state (AD_related_states u' ex)
           (authenticated_disk_reboot_list n).
 Proof.
   induction n; simpl;
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list in *;
@@ -1126,7 +1126,7 @@ Ltac solve_termination :=
   H0: refines ?s2 ?x0, 
   H1: same_for_user_except _ _ ?x ?x0,
   A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-    eapply SelfSimulation_Exists_recover in A;
+    eapply Termination_Sensitive_recover in A;
     try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
     unfold AD_valid_state, refines_valid, FD_valid_state; 
     intros; eauto
@@ -1220,7 +1220,7 @@ match goal with
     H0: refines ?s2 ?x0, 
     H1: same_for_user_except _ _ ?x ?x0,
     A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-      eapply SelfSimulation_Exists_recover in A;
+      eapply Termination_Sensitive_recover in A;
       try instantiate (1:= (fst s2, (fst (snd s2), fst (snd s2)))) in A;
       unfold AD_valid_state, refines_valid, FD_valid_state; 
       intros; eauto
@@ -1272,7 +1272,7 @@ match goal with
 H0: refines ?s2 ?x0, 
 H1: same_for_user_except _ _ ?x ?x0,
 A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-  eapply SelfSimulation_Exists_recover in A;
+  eapply Termination_Sensitive_recover in A;
   try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
   unfold AD_valid_state, refines_valid, FD_valid_state; 
   intros; eauto

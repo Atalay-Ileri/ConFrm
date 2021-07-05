@@ -1,5 +1,5 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SameRetType SSECommon InodeSSE.
+Require Import FunctionalExtensionality Lia Language SameRetType TSCommon InodeTS.
 
 Lemma inode_allocations_are_same_2:
 forall u im1 im2 fm1 fm2 bm1 bm2 s1 s2 inum ex,
@@ -92,11 +92,11 @@ Proof.
   }
 Qed.
 
-Lemma SSE_free_all_blocks:
+Lemma TS_free_all_blocks:
 forall bnl1 bnl2 o s1 s2 ret1 u dm1 dm2,
 DiskAllocator.block_allocator_rep dm1 (fst s1) ->
 DiskAllocator.block_allocator_rep dm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (free_all_blocks bnl1) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (free_all_blocks bnl1) ret1 ->
 length bnl1 = length bnl2 ->
 Forall (fun a => a < DiskAllocatorParams.num_of_blocks) bnl1 ->
 Forall (fun a => a < DiskAllocatorParams.num_of_blocks) bnl2 ->
@@ -105,7 +105,7 @@ Forall (fun a => nth_error (value_to_bits (fst s2 DiskAllocatorParams.bitmap_add
 NoDup bnl1 ->
 NoDup bnl2 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (free_all_blocks bnl2) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (free_all_blocks bnl2) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
   induction bnl1; simpl; intros; eauto.
@@ -124,7 +124,7 @@ Proof.
    invert_exec;
    destruct bnl2; simpl in *; try lia.
    {
-   eapply_fresh SSE_free in H1.
+   eapply_fresh TS_free in H1.
    cleanup.
    destruct x2; simpl in *; try solve [intuition congruence].
    eapply_fresh DiskAllocator.free_finished_oracle_eq in H1; eauto.
@@ -207,7 +207,7 @@ Proof.
    }
    {
      invert_step.
-    eapply_fresh SSE_free in H1.
+    eapply_fresh TS_free in H1.
     cleanup.
     destruct x0; simpl in *; try solve [intuition congruence].
     eapply_fresh DiskAllocator.free_finished_oracle_eq in H1; eauto.
@@ -227,7 +227,7 @@ Proof.
    {
      repeat invert_step_crash.
      {
-        eapply_fresh SSE_free in H1.
+        eapply_fresh TS_free in H1.
         cleanup.
         destruct x; simpl in *; try solve [intuition congruence].
 
@@ -242,7 +242,7 @@ Proof.
         setoid_rewrite H15; eauto.
       }
       {
-        eapply_fresh SSE_free in H9.
+        eapply_fresh TS_free in H9.
         logic_clean.
         destruct x3; simpl in *; try solve [intuition congruence].
         eapply_fresh DiskAllocator.free_finished_oracle_eq in H9; eauto.
@@ -338,21 +338,21 @@ Unshelve.
 all: eauto.
 Qed.
 
-Lemma SSE_delete_inner:
+Lemma TS_delete_inner:
 forall o ex fm1 fm2 s1 s2 inum ret1 u u',
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (delete_inner inum) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (delete_inner inum) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (delete_inner inum) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (delete_inner inum) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent delete_inner.  
 unfold delete_inner; intros.
 invert_step.
 {
-  eapply_fresh SSE_get_all_block_numbers in H2; eauto.
+  eapply_fresh TS_get_all_block_numbers in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence].
   eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H2; eauto.
@@ -362,7 +362,7 @@ invert_step.
   eapply_fresh Inode.get_all_block_numbers_finished in H5; eauto.
   cleanup; repeat split_ors; cleanup.
 
-  eapply_fresh SSE_free_all_blocks in H3.
+  eapply_fresh TS_free_all_blocks in H3.
   cleanup.
   destruct x10; simpl in *; try solve [intuition congruence].
   eapply_fresh free_all_blocks_finished_oracle_eq in H3.
@@ -372,7 +372,7 @@ invert_step.
   eapply_fresh FileInnerSpecs.free_all_blocks_finished in H7.
   cleanup; repeat split_ors; cleanup.
 
-  eapply_fresh SSE_free_inode in H4.
+  eapply_fresh TS_free_inode in H4.
   cleanup.
   destruct x12; simpl in *; try solve [intuition congruence].
   eapply_fresh Inode.free_finished_oracle_eq in H4; eauto.
@@ -593,7 +593,7 @@ invert_step.
     }
 }
 {
-  eapply_fresh SSE_get_all_block_numbers in H2; eauto.
+  eapply_fresh TS_get_all_block_numbers in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence].
   eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H2; eauto.
@@ -603,7 +603,7 @@ invert_step.
   eapply_fresh Inode.get_all_block_numbers_finished in H4; eauto.
   cleanup; repeat split_ors; cleanup.
 
-  eapply_fresh SSE_free_all_blocks in H3.
+  eapply_fresh TS_free_all_blocks in H3.
   cleanup.
   destruct x8; simpl in *; try solve [intuition congruence].
   eapply_fresh free_all_blocks_finished_oracle_eq in H3.
@@ -749,7 +749,7 @@ invert_step.
     }
 }
 {
-  eapply_fresh SSE_get_all_block_numbers in H2; eauto.
+  eapply_fresh TS_get_all_block_numbers in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence].
   eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H2; eauto.
@@ -763,7 +763,7 @@ invert_step.
 {
   repeat invert_step_crash.
   {
-    eapply_fresh SSE_get_all_block_numbers in H2; eauto.
+    eapply_fresh TS_get_all_block_numbers in H2; eauto.
     cleanup.
     destruct x; simpl in *; try solve [intuition congruence].
     
@@ -772,7 +772,7 @@ invert_step.
     simpl; intuition congruence.
   }
   {
-    eapply_fresh SSE_get_all_block_numbers in H3; eauto.
+    eapply_fresh TS_get_all_block_numbers in H3; eauto.
     logic_clean.
     destruct x3; simpl in *; try solve [intuition congruence].
     eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H3; eauto.
@@ -783,7 +783,7 @@ invert_step.
     {
       repeat invert_step_crash.
       {
-        eapply_fresh SSE_free_all_blocks in H4.
+        eapply_fresh TS_free_all_blocks in H4.
         cleanup.
         destruct x8; simpl in *; try solve [intuition congruence].
 
@@ -902,7 +902,7 @@ invert_step.
     }
       }
       {
-        eapply_fresh SSE_free_all_blocks in H6.
+        eapply_fresh TS_free_all_blocks in H6.
         logic_clean.
         destruct x2; simpl in *; try solve [intuition congruence].
         eapply_fresh free_all_blocks_finished_oracle_eq in H6.
@@ -911,7 +911,7 @@ invert_step.
         eapply_fresh FileInnerSpecs.free_all_blocks_finished in H4.
         cleanup; repeat split_ors; cleanup; try solve [intuition congruence].
         {
-          eapply_fresh SSE_free_inode in H12.
+          eapply_fresh TS_free_inode in H12.
           cleanup.
           destruct x9; simpl in *; try solve [intuition congruence].
           exists (Crashed s4); split.
@@ -1098,7 +1098,7 @@ invert_step.
     }
     {
       invert_exec.
-      eapply_fresh SSE_get_all_block_numbers in H3; eauto.
+      eapply_fresh TS_get_all_block_numbers in H3; eauto.
       logic_clean.
       destruct x; simpl in *; try solve [intuition congruence].
       eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H3; eauto.
@@ -1119,15 +1119,15 @@ Qed.
 Opaque delete_inner.
 
 
-Theorem SelfSimulation_Exists_delete:
+Theorem Termination_Sensitive_delete:
   forall u u' m inum ex,
-    SelfSimulation_Exists
+    Termination_Sensitive
       u (delete inum) (delete inum) recover
       AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque change_owner_inner.
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
@@ -1136,7 +1136,7 @@ Proof.
   destruct m; simpl in *.
   {(**write finished **)
    invert_exec.
-   eapply SSE_auth_then_exec in H11; eauto.
+   eapply TS_auth_then_exec in H11; eauto.
    {
      cleanup.
      destruct x1; simpl in *; try solve [intuition congruence].
@@ -1145,7 +1145,7 @@ Proof.
    }
    {
      intros.
-     eapply_fresh SSE_delete_inner in H7.
+     eapply_fresh TS_delete_inner in H7.
      3: eauto.
      3: eauto.
      cleanup.
@@ -1165,7 +1165,7 @@ Proof.
   }
   {
     invert_exec.
-    eapply_fresh SSE_auth_then_exec in H14; eauto.
+    eapply_fresh TS_auth_then_exec in H14; eauto.
    {
      cleanup.
      destruct x1; simpl in *; try solve [intuition congruence].
@@ -1178,7 +1178,7 @@ Proof.
         H0: refines ?s2 ?x0, 
         H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (fst s, (snd (snd s), snd (snd s)))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -1207,7 +1207,7 @@ Proof.
         H0: refines ?s2 ?x0, 
         H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (fst s, (snd (snd s), snd (snd s)))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -1244,7 +1244,7 @@ Proof.
   }
   {
      intros.
-     eapply_fresh SSE_delete_inner in H7; eauto.
+     eapply_fresh TS_delete_inner in H7; eauto.
      cleanup.
      destruct ret1, x1; simpl in * ; try solve [intuition congruence].
      {

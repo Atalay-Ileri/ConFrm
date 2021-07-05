@@ -7,7 +7,7 @@ Require Import Eqdep.
 
 Set Nested Proofs Allowed.
 
-Fixpoint not_init {T} (p: AuthenticatedDisk.(prog) T) :=
+Fixpoint not_init {T} (p: AD.(prog) T) :=
   match p with
   | Op _ o =>
     match o with
@@ -23,7 +23,7 @@ Fixpoint not_init {T} (p: AuthenticatedDisk.(prog) T) :=
 
 
 Lemma HC_exec_same_finished:
-  forall u T (p: AuthenticatedDisk.(prog) T) 
+  forall u T (p: AD.(prog) T) 
   o o0 s_imp s_abs x x0,
   not_init p ->
   Language.exec' u o s_imp
@@ -49,7 +49,7 @@ TransactionalDiskLayer.exec' data_length u x2
   s_abs o (Finished s_abs' x0) /\
 refines x s_abs') ->
  exists s_abs' : Recovery_Result,
-  recovery_exec AuthenticatedDisk u [o0] s_abs
+  recovery_exec AD u [o0] s_abs
     (authenticated_disk_reboot_list 0) p
     File.recover s_abs' /\
     ATC_Refinement.(Simulation.Definitions.refines) x
@@ -116,7 +116,7 @@ Qed.
 
 
 Lemma HC_exec_same_crashed:
-  forall u T (p: AuthenticatedDisk.(prog) T) 
+  forall u T (p: AD.(prog) T) 
   o o0 s_imp s_abs x,
   not_init p ->
   Language.exec' u o s_imp
@@ -391,7 +391,7 @@ u _
 
 
   Theorem HC_recovery_exec_same:
-      forall u T (p: AuthenticatedDisk.(prog) T) n 
+      forall u T (p: AD.(prog) T) n 
       l_o_imp l_o_abs s_imp s_abs s_imp',
     not_init p ->
       recovery_exec ATCLang u l_o_imp s_imp (ATC_reboot_list n)
@@ -428,7 +428,7 @@ u _
    refines_reboot x s_abs') ->
 
       exists s_abs' : Recovery_Result,
-      recovery_exec AuthenticatedDisk u l_o_abs s_abs
+      recovery_exec AD u l_o_abs s_abs
       (authenticated_disk_reboot_list n) p File.recover s_abs' /\
       Simulation.Definitions.refines ATC_Refinement (extract_state_r s_imp')
     (extract_state_r s_abs') /\ extract_ret_r s_imp' = extract_ret_r s_abs'.
@@ -663,7 +663,7 @@ exists s_abs' : TransactionalDiskLayer.state',
 
 
 Theorem ATC_simulation:
-forall u n T (p: AuthenticatedDisk.(prog) T),
+forall u n T (p: AD.(prog) T),
 not_init p ->
 SimulationForProgram ATC_Refinement u
   p File.recover
@@ -683,19 +683,19 @@ SimulationForProgram ATC_Refinement u
 
 
 Lemma ATC_oracle_refines_finished:
-forall T (p: AuthenticatedDisk.(prog) T) u (o : oracle' ATCCore)
+forall T (p: AD.(prog) T) u (o : oracle' ATCCore)
 s s' r,
 (exists s1,
 @HC_refines _ _ _ _ ATCLang 
-AuthenticatedDisk
-Definitions.TransactionalDiskCoreRefinement s s1) ->
+AD
+Definitions.TDCoreRefinement s s1) ->
 exec ATCLang u o s
 (ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
 
 exists oa,
 oracle_refines ATCCore
-AuthenticatedDiskLayer.AuthenticatedDiskOperation
-ATCLang AuthenticatedDisk ATC_CoreRefinement
+AuthenticatedDiskLayer.ADOperation
+ATCLang AD ATC_CoreRefinement
 T u s p (fun s0 => s0) o oa.
 
 Proof.
@@ -741,12 +741,12 @@ do 7 eexists; intuition eauto.
 Qed.
 
 Lemma ATC_oracle_refines_crashed:
-forall T (p: AuthenticatedDisk.(prog) T) u (o : oracle' ATCCore)
+forall T (p: AD.(prog) T) u (o : oracle' ATCCore)
 s s',
 (exists s1,
 @HC_refines _ _ _ _ ATCLang 
-AuthenticatedDisk
-Definitions.TransactionalDiskCoreRefinement s s1) ->
+AD
+Definitions.TDCoreRefinement s s1) ->
 exec ATCLang u o s
 (ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
 
@@ -754,8 +754,8 @@ not_init p ->
 
 exists oa,
 oracle_refines ATCCore
-AuthenticatedDiskLayer.AuthenticatedDiskOperation
-ATCLang AuthenticatedDisk ATC_CoreRefinement
+AuthenticatedDiskLayer.ADOperation
+ATCLang AD ATC_CoreRefinement
 T u s p (fun s0 => (fst s0, ([], snd (snd s0))))  o oa.
 
 Proof.
@@ -804,12 +804,12 @@ induction p; simpl in *; intros.
 Qed.
 
 Lemma ATC_exec_lift_finished:
-  forall T (p: AuthenticatedDisk.(prog) T) u o_imp o_abs s_imp s_abs s_imp' r grs,
+  forall T (p: AD.(prog) T) u o_imp o_abs s_imp s_abs s_imp' r grs,
   exec ATCLang u o_imp s_imp
   (ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s_imp' r) ->
   ATC_Refinement.(Simulation.Definitions.refines) s_imp s_abs ->
-  oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
-  ATCLang AuthenticatedDisk ATC_CoreRefinement T u s_imp p grs o_imp o_abs ->
+  oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation 
+  ATCLang AD ATC_CoreRefinement T u s_imp p grs o_imp o_abs ->
   
   (forall T o s_imp s_imp' s_abs r o_imp t_abs grs, 
   exec Definitions.imp u o_imp s_imp
@@ -819,12 +819,12 @@ Lemma ATC_exec_lift_finished:
   TransactionToTransactionalDisk.Definitions.token_refines
   T u s_imp o grs o_imp t_abs ->
   exists s_abs',
-  Core.exec (TransactionalDiskLayer.TransactionalDiskOperation
+  Core.exec (TransactionalDiskLayer.TDOperation
 data_length) u t_abs s_abs o (Finished s_abs' r) /\
   TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
   
   exists s_abs', 
-  exec AuthenticatedDisk u o_abs s_abs p (Finished s_abs' r) /\
+  exec AD u o_abs s_abs p (Finished s_abs' r) /\
   ATC_Refinement.(Simulation.Definitions.refines) s_imp' s_abs'.
   Proof.
     induction p; simpl; intros; eauto.
@@ -881,16 +881,16 @@ data_length) u t_abs s_abs o (Finished s_abs' r) /\
   Qed.
 
 Definition ATC_reboot_f := fun s: ATCLang.(state) => (fst s, TC_reboot_f (snd s)).
-Definition AD_reboot_f := fun s: AuthenticatedDisk.(state) => (fst s, TD_reboot_f (snd s)).
+Definition AD_reboot_f := fun s: AD.(state) => (fst s, TD_reboot_f (snd s)).
 
 
 Lemma ATC_exec_lift_crashed:
-  forall T (p: AuthenticatedDisk.(prog) T) u o_imp o_abs s_imp s_abs s_imp',
+  forall T (p: AD.(prog) T) u o_imp o_abs s_imp s_abs s_imp',
   exec ATCLang u o_imp s_imp
   (ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s_imp') ->
   ATC_Refinement.(Simulation.Definitions.refines) s_imp s_abs ->
-  oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
-  ATCLang AuthenticatedDisk ATC_CoreRefinement T u s_imp p ATC_reboot_f o_imp o_abs ->
+  oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation 
+  ATCLang AD ATC_CoreRefinement T u s_imp p ATC_reboot_f o_imp o_abs ->
   
   (forall T o s_imp s_imp' s_abs r o_imp t_abs grs, 
   exec Definitions.imp u o_imp s_imp
@@ -900,7 +900,7 @@ Lemma ATC_exec_lift_crashed:
   TransactionToTransactionalDisk.Definitions.token_refines
   T u s_imp o grs o_imp t_abs ->
   exists s_abs',
-  Core.exec (TransactionalDiskLayer.TransactionalDiskOperation
+  Core.exec (TransactionalDiskLayer.TDOperation
 data_length) u t_abs s_abs o (Finished s_abs' r) /\
   TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
   
@@ -913,13 +913,13 @@ data_length) u t_abs s_abs o (Finished s_abs' r) /\
   T u s_imp o TC_reboot_f o_imp t_abs ->
   (forall l, ~ eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
   exists s_abs',
-  Core.exec (TransactionalDiskLayer.TransactionalDiskOperation
+  Core.exec (TransactionalDiskLayer.TDOperation
 data_length) u t_abs s_abs o (Crashed s_abs') /\
   TransactionToTransactionalDisk.Definitions.refines_reboot (TC_reboot_f s_imp') (TD_reboot_f s_abs')) ->
 
   not_init p ->
   exists s_abs', 
-  exec AuthenticatedDisk u o_abs s_abs p (Crashed s_abs') /\
+  exec AD u o_abs s_abs p (Crashed s_abs') /\
   TransactionToTransactionalDisk.Definitions.refines_reboot (snd (ATC_reboot_f s_imp')) (snd (AD_reboot_f s_abs')) /\
 fst (ATC_reboot_f s_imp')  = fst (AD_reboot_f s_abs').
   Proof.
@@ -998,11 +998,11 @@ exec ATCLang u o_imp s_imp
 TransactionToTransactionalDisk.Definitions.refines_reboot (snd s_imp) (snd s_abs) ->
 fst s_imp  = fst s_abs ->
 
-oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
-ATCLang AuthenticatedDisk ATC_CoreRefinement _ u s_imp (File.recover) grs o_imp o_abs ->
+oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation 
+ATCLang AD ATC_CoreRefinement _ u s_imp (File.recover) grs o_imp o_abs ->
 
 exists s_abs', 
-exec AuthenticatedDisk u o_abs s_abs (File.recover) (Finished s_abs' r) /\
+exec AD u o_abs s_abs (File.recover) (Finished s_abs' r) /\
 ATC_Refinement.(Simulation.Definitions.refines) s_imp' s_abs'.
 Proof.
   simpl; intros; eauto.
@@ -1034,11 +1034,11 @@ exec ATCLang u o_imp s_imp
 TransactionToTransactionalDisk.Definitions.refines_reboot (snd s_imp) (snd s_abs) ->
 fst s_imp  = fst s_abs ->
 
-oracle_refines ATCCore AuthenticatedDiskLayer.AuthenticatedDiskOperation 
-ATCLang AuthenticatedDisk ATC_CoreRefinement _ u s_imp (File.recover) grs o_imp o_abs ->
+oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation 
+ATCLang AD ATC_CoreRefinement _ u s_imp (File.recover) grs o_imp o_abs ->
 
 exists s_abs', 
-exec AuthenticatedDisk u o_abs s_abs (File.recover) (Crashed s_abs') /\
+exec AD u o_abs s_abs (File.recover) (Crashed s_abs') /\
 TransactionToTransactionalDisk.Definitions.refines_reboot (snd s_imp') (snd s_abs') /\
 fst s_imp'  = fst s_abs'.
 Proof.

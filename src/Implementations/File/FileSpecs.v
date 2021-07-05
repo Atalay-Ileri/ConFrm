@@ -7,7 +7,7 @@ Import IfNotations.
 
 Lemma init_finished:
   forall u o s s' r,
-    exec AuthenticatedDiskLang u o s init (Finished s' r) ->
+    exec ADLang u o s init (Finished s' r) ->
     files_rep empty_mem s'.
 Proof.
   unfold init; intros; simpl.
@@ -62,7 +62,7 @@ Qed.
 Lemma read_finished:
   forall u o s s' r inum off fd,
     files_rep fd s ->
-    exec AuthenticatedDiskLang u o s (read inum off) (Finished s' r) ->
+    exec ADLang u o s (read inum off) (Finished s' r) ->
     files_rep fd s' /\
     ((r = None /\
       (inum >= inode_count \/
@@ -292,7 +292,7 @@ Qed.
 Lemma write_finished:
   forall u o s s' r inum off v fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (write inum off v) (Finished s' r) ->
+    exec ADLang u o s (write inum off v) (Finished s' r) ->
     (r = None /\
      ((inum >= inode_count \/
       fm inum = None \/
@@ -577,7 +577,7 @@ Qed.
 Lemma extend_finished:
   forall u o s s' r inum v fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (extend inum v) (Finished s' r) ->
+    exec ADLang u o s (extend inum v) (Finished s' r) ->
     (r = None /\
      ((inum >= inode_count \/
       fm inum = None \/
@@ -894,7 +894,7 @@ Qed.
 Lemma delete_finished:
   forall u o s s' r inum fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (delete inum) (Finished s' r) ->
+    exec ADLang u o s (delete inum) (Finished s' r) ->
     (r = None /\
      ((inum >= inode_count \/
       fm inum = None \/
@@ -1209,7 +1209,7 @@ Qed.
 Lemma change_owner_finished:
   forall u o s s' r inum own fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (change_owner inum own) (Finished s' r) ->
+    exec ADLang u o s (change_owner inum own) (Finished s' r) ->
     (r = None /\
      ((inum >= inode_count \/
       fm inum = None \/
@@ -1420,7 +1420,7 @@ Qed.
 Lemma create_finished:
   forall u o s s' r own fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (create own) (Finished s' r) ->
+    exec ADLang u o s (create own) (Finished s' r) ->
     (r = None /\
      files_rep fm s') \/
     (exists inum, r = Some inum /\
@@ -1519,7 +1519,7 @@ Qed.
 Lemma recover_finished:
   forall u o s s' r fm,
     files_reboot_rep fm s ->
-    exec AuthenticatedDiskLang u o s (recover) (Finished s' r) ->
+    exec ADLang u o s (recover) (Finished s' r) ->
     files_rep fm s'.
 Proof.
   unfold recover; intros; simpl.
@@ -1535,7 +1535,7 @@ Qed.
 Lemma read_crashed:
   forall u o s s' inum off fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (read inum off) (Crashed s') ->
+    exec ADLang u o s (read inum off) (Crashed s') ->
     files_crash_rep fm s'.
 Proof.
   unfold read; intros; cleanup.
@@ -1555,7 +1555,7 @@ Qed.
 Lemma write_crashed:
   forall u o s s' inum off v fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (write inum off v) (Crashed s') ->
+    exec ADLang u o s (write inum off v) (Crashed s') ->
     files_crash_rep fm s' \/
     (exists f, fm inum = Some f /\
           inum < inode_count /\
@@ -1582,7 +1582,7 @@ Qed.
 Lemma extend_crashed:
   forall u o s s' inum v fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (extend inum v) (Crashed s') ->
+    exec ADLang u o s (extend inum v) (Crashed s') ->
     files_crash_rep fm s' \/
     (exists f, 
     fm inum = Some f /\
@@ -1609,7 +1609,7 @@ Qed.
 Lemma delete_crashed:
   forall u o s s' inum fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (delete inum) (Crashed s') ->
+    exec ADLang u o s (delete inum) (Crashed s') ->
     files_crash_rep fm s' \/
     (exists f, fm inum = Some f /\
           inum < inode_count /\
@@ -1632,7 +1632,7 @@ Qed.
 Lemma change_owner_crashed:
   forall u o s s' inum own fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (change_owner inum own) (Crashed s') -> 
+    exec ADLang u o s (change_owner inum own) (Crashed s') -> 
     files_crash_rep fm s' \/
     (exists f,
        fm inum = Some f /\
@@ -1660,7 +1660,7 @@ Qed.
 Lemma create_crashed:
   forall u o s s' own fm,
     files_rep fm s ->
-    exec AuthenticatedDiskLang u o s (create own) (Crashed s') ->
+    exec ADLang u o s (create own) (Crashed s') ->
     files_crash_rep fm s' \/
     (exists inum, 
     fm inum = None /\
@@ -1786,7 +1786,7 @@ Qed.
 Lemma recover_crashed:
   forall u o s s' fm,
     files_reboot_rep fm s ->
-    exec AuthenticatedDiskLang u o s (recover) (Crashed s') ->
+    exec ADLang u o s (recover) (Crashed s') ->
     files_crash_rep fm s'.
 Proof.
   unfold recover, files_reboot_rep; intros; repeat invert_exec; 

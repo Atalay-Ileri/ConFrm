@@ -1,17 +1,17 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SSECommon.
+Require Import FunctionalExtensionality Lia Language TSCommon.
 
-  (******** SSE PROOFS ********)
+  (******** TS PROOFS ********)
 
-Theorem SelfSimulation_Exists_read:
+Theorem Termination_Sensitive_read:
   forall u u' m inum off,
-    SelfSimulation_Exists
+    Termination_Sensitive
       u (read inum off) (read inum off) recover
       AD_valid_state (AD_related_states u' None)
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque read_inner.
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
@@ -433,5 +433,5 @@ Proof.
   }
 }
 Unshelve.
-all: exact AuthenticatedDisk.
+all: exact AD.
 Qed.

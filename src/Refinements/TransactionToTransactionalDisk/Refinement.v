@@ -7,8 +7,8 @@ Require Import ClassicalFacts FunctionalExtensionality Lia.
 Set Nested Proofs Allowed.
 
 Local Notation "'imp'" := TransactionCacheLang.
-Local Notation "'abs'" := (TransactionalDiskLang data_length).
-Local Notation "'refinement'" := TransactionalDiskRefinement.
+Local Notation "'abs'" := (TDLang data_length).
+Local Notation "'refinement'" := TDRefinement.
 
 Definition TC_reboot_f := fun s: imp.(state) => (([]: list (addr * value)), snd s).
 
@@ -52,7 +52,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; induction n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
       intuition eauto.
       left; eexists; intuition eauto.
       destruct t.
@@ -68,7 +68,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     { 
       eapply IHn in H11; eauto; cleanup.
-      exists ([OpToken (TransactionalDiskOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -92,7 +92,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -107,7 +107,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TransactionalDiskOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -140,7 +140,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -150,7 +150,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TransactionalDiskOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
       eapply_fresh read_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -179,7 +179,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
       eapply_fresh write_finished in H7; eauto.
       split_ors; cleanup.
       {
-        exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+        exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -195,7 +195,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
       }
       split_ors.
       {
-        exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+        exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -206,7 +206,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
         eexists; split; eauto.
       }
       {
-        exists  [ [OpToken (TransactionalDiskOperation data_length) TxnFull] ]; simpl.
+        exists  [ [OpToken (TDOperation data_length) TxnFull] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -218,7 +218,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TransactionalDiskOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
       eapply_fresh write_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -243,7 +243,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -259,7 +259,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TransactionalDiskOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
       eapply_fresh abort_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -286,7 +286,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     
     {
       eapply_fresh commit_finished in H7; eauto.
-      exists  [ [OpToken (TransactionalDiskOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -303,7 +303,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
       eapply_fresh commit_crashed in H10; eauto; cleanup.
       split_ors.
       {
-        exists ([OpToken (TransactionalDiskOperation data_length) CrashBefore]::x0); simpl.
+        exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -318,7 +318,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
         cleanup; eauto.
       }
       {
-        exists ([OpToken (TransactionalDiskOperation data_length) CrashAfter]::x0); simpl.
+        exists ([OpToken (TDOperation data_length) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -689,13 +689,13 @@ Qed.
 
     
 Lemma TC_to_TD_core_simulation_finished:
-forall u (T : Type) (o0 : TransactionalDiskLayer.transactional_disk_prog T)
+forall u (T : Type) (o0 : transactional_disk_prog T)
 (s_imp
  s_imp' : HorizontalComposition.state' (ListOperation (addr * value))
             (LoggedDiskOperation log_length data_length))
 (s_abs : total_mem * total_mem) (r : T)
 (o_imp : oracle' TransactionCacheOperation)
-(t_abs : TransactionalDiskLayer.token')
+t_abs
 (grs : HorizontalComposition.state' (ListOperation (addr * value))
          (LoggedDiskOperation log_length data_length) ->
        HorizontalComposition.state' (ListOperation (addr * value))
@@ -703,13 +703,13 @@ forall u (T : Type) (o0 : TransactionalDiskLayer.transactional_disk_prog T)
 exec Definitions.imp u o_imp s_imp
 (TransactionToTransactionalDisk.Definitions.compile T o0)
 (Finished s_imp' r) ->
-TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
-TransactionToTransactionalDisk.Definitions.token_refines T u s_imp o0 grs
+refines s_imp s_abs ->
+token_refines T u s_imp o0 grs
 o_imp t_abs ->
-exists s_abs' : TransactionalDiskLayer.state',
-TransactionalDiskLayer.exec' data_length u t_abs s_abs o0
+exists s_abs',
+exec' data_length u t_abs s_abs o0
   (Finished s_abs' r) /\
-TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs'.
+refines s_imp' s_abs'.
 Proof.
   intros.
   destruct o0; simpl in *; split_ors; 
@@ -755,7 +755,7 @@ Proof.
     eapply Transaction.abort_finished in H1; cleanup; eauto.
     cleanup; eexists; split; eauto.
     destruct r; econstructor; eauto.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines,
     Transaction.transaction_rep in *; simpl in *; cleanup.
     intuition eauto.
     pose proof addr_list_to_blocks_length_le.
@@ -765,7 +765,7 @@ Proof.
     eapply Transaction.recover_finished in H1; cleanup; eauto.
     cleanup; eexists; split; eauto.
     destruct r; econstructor; eauto.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup; eauto.
   }
@@ -773,7 +773,7 @@ Proof.
     eapply Transaction.init_finished in H1; cleanup; eauto.
     cleanup; eexists; split; eauto.
     destruct r; econstructor; eauto.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines,
     Transaction.transaction_rep in *; simpl in *; cleanup.
     intuition eauto.
     pose proof addr_list_to_blocks_length_le.
@@ -785,21 +785,20 @@ Lemma TC_to_TD_core_simulation_crashed:
 forall u (T : Type) (o0 : operation Definitions.abs_op T)
 (s_imp s_imp' : Language.state' TransactionCacheOperation)
 (s_abs : total_mem * total_mem) (o_imp : oracle' TransactionCacheOperation)
-(t_abs : TransactionalDiskLayer.token'),
+t_abs,
 exec Definitions.imp u o_imp s_imp
-(TransactionToTransactionalDisk.Definitions.compile T o0) 
+(compile T o0) 
 (Crashed s_imp') ->
-TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
-TransactionToTransactionalDisk.Definitions.token_refines T u s_imp o0
+refines s_imp s_abs ->
+token_refines T u s_imp o0
 TC_reboot_f o_imp t_abs ->
 
-(forall l, ~ eq_dep Type (operation Definitions.abs_op) T o0 unit (TransactionalDiskLayer.Init l)) ->
+(forall l, ~ eq_dep Type (operation Definitions.abs_op) T o0 unit (Init l)) ->
 exists
-s_abs' : Core.state
-         (TransactionalDiskLayer.TransactionalDiskOperation data_length),
-Core.exec (TransactionalDiskLayer.TransactionalDiskOperation data_length) u
+s_abs',
+Core.exec (TransactionalDiskLayer.TDOperation data_length) u
 t_abs s_abs o0 (Crashed s_abs') /\
-TransactionToTransactionalDisk.Definitions.refines_reboot
+refines_reboot
 (TC_reboot_f s_imp') (TD_reboot_f s_abs').
 Proof.
   intros.
@@ -811,8 +810,7 @@ Proof.
     eexists; split; eauto.
     econstructor; eauto.
     unfold TC_reboot_f, TD_reboot_f; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup; eauto.
   }
@@ -821,8 +819,7 @@ Proof.
     eexists; split; eauto.
     econstructor; eauto.
     unfold TC_reboot_f, TD_reboot_f; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup; eauto.
   }
@@ -832,26 +829,22 @@ Proof.
     try solve [econstructor; eauto].
     
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup_no_match; eauto.
 
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup_no_match; eauto.
 
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; logic_clean; rewrite H5; eauto.
     
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup_no_match; eauto.
   }
@@ -860,8 +853,7 @@ Proof.
     eexists; split; eauto.
     econstructor; eauto.
     unfold TC_reboot_f, TD_reboot_f; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup; eauto.
   }
@@ -870,13 +862,11 @@ Proof.
     eexists; split; eauto.
     econstructor; eauto.
     unfold TC_reboot_f, TD_reboot_f; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup; eauto.
 
-    unfold TransactionToTransactionalDisk.Definitions.refines_reboot , 
-    TransactionToTransactionalDisk.Definitions.refines,
+    unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
     simpl in *; cleanup; eauto.
   }
@@ -890,14 +880,13 @@ Lemma TD_token_refines_finished :
       (x : oracle' TransactionCacheOperation) (r0 : T)
       (s0 s'0 : Language.state' TransactionCacheOperation),
     exec Definitions.imp u x s0
-      (compile_core Definitions.TransactionalDiskCoreRefinement op)
+      (compile_core Definitions.TDCoreRefinement op)
       (Finished s'0 r0) ->
     (exists s1 : Core.state Definitions.abs_op,
-       refines_core Definitions.TransactionalDiskCoreRefinement s0 s1) ->
+       refines_core Definitions.TDCoreRefinement s0 s1) ->
     exists
-      (grs1 : state Definitions.imp -> state Definitions.imp) 
-    (t : TransactionalDiskLayer.token'),
-      TransactionToTransactionalDisk.Definitions.token_refines T u s0 op grs1 x t.
+      (grs1 : state Definitions.imp -> state Definitions.imp) t,
+      token_refines T u s0 op grs1 x t.
       Proof.
       intros; cleanup; destruct op; simpl in *; repeat invert_exec.
       
@@ -919,7 +908,7 @@ Lemma TD_token_refines_finished :
         do 2 eexists; try exact (fst s0); try exact (snd s0);
         left; do 2 eexists; intuition eauto.
         destruct s'0; simpl in *; cleanup.
-        unfold TransactionToTransactionalDisk.Definitions.refines, 
+        unfold refines, 
         Transaction.transaction_rep in *; simpl in *.
         cleanup; eauto.
 
@@ -932,14 +921,14 @@ Lemma TD_token_refines_finished :
       - eapply_fresh Transaction.recover_finished in H; eauto;
         cleanup; intuition eauto.
         2: {
-          unfold TransactionToTransactionalDisk.Definitions.refines,
+          unfold refines,
           Transaction.transaction_rep, Transaction.transaction_reboot_rep in *; simpl in *;
           cleanup; eauto.
         }
         do 2 eexists; try exact (fst s0); try exact (snd s0);
         left; do 2 eexists; intuition eauto.
         destruct s'0; simpl in *; cleanup.
-        unfold TransactionToTransactionalDisk.Definitions.refines, 
+        unfold refines, 
         Transaction.transaction_rep in *; simpl in *.
         cleanup; eauto.
 
@@ -955,15 +944,14 @@ Lemma TD_token_refines_finished :
   (x : oracle' TransactionCacheOperation)
   (s0 s'0 : Language.state' TransactionCacheOperation),
 exec Definitions.imp u x s0
-  (compile_core Definitions.TransactionalDiskCoreRefinement op) 
+  (compile_core Definitions.TDCoreRefinement op) 
   (Crashed s'0) ->
 (exists s1 : Core.state Definitions.abs_op,
-   refines_core Definitions.TransactionalDiskCoreRefinement s0 s1) ->
-   (forall l, ~ Logic.EqdepFacts.eq_dep Type (operation Definitions.abs_op)  T op unit (TransactionalDiskLayer.Init l)) ->
+   refines_core Definitions.TDCoreRefinement s0 s1) ->
+   (forall l, ~ Logic.EqdepFacts.eq_dep Type (operation Definitions.abs_op)  T op unit (Init l)) ->
    exists
-  (grs1 : state Definitions.imp -> state Definitions.imp) 
-(t : TransactionalDiskLayer.token'),
-  TransactionToTransactionalDisk.Definitions.token_refines T u s0 op grs1 x t.
+  (grs1 : state Definitions.imp -> state Definitions.imp) t,
+  token_refines T u s0 op grs1 x t.
       Proof.
       intros; cleanup; destruct op; simpl in *; repeat invert_exec.
       
@@ -980,12 +968,12 @@ exec Definitions.imp u x s0
         do 2 eexists; try exact (fst s0); try exact (snd s0);
         right; eexists; intuition eauto.
         left; destruct s'0; simpl in *; cleanup.
-        unfold TransactionToTransactionalDisk.Definitions.refines, 
+        unfold refines, 
         Transaction.transaction_rep in *; simpl in *.
         cleanup; eauto.
 
         right; destruct s'0; simpl in *; cleanup.
-        unfold TransactionToTransactionalDisk.Definitions.refines, 
+        unfold refines, 
         Transaction.transaction_rep in *; simpl in *.
         cleanup; eauto.
 
@@ -997,7 +985,7 @@ exec Definitions.imp u x s0
       - eapply_fresh Transaction.recover_crashed in H; eauto;
         cleanup; intuition eauto.
         2: {
-          unfold TransactionToTransactionalDisk.Definitions.refines,
+          unfold refines,
           Transaction.transaction_rep, Transaction.transaction_reboot_rep in *; simpl in *;
           cleanup; eauto.
         }
@@ -1013,15 +1001,14 @@ Lemma TD_token_refines :
   (x : oracle' TransactionCacheOperation)
   (s0 : Language.state' TransactionCacheOperation) ret,
 exec Definitions.imp u x s0
-  (compile_core Definitions.TransactionalDiskCoreRefinement op) 
+  (compile_core Definitions.TDCoreRefinement op) 
   ret ->
 (exists s1 : Core.state Definitions.abs_op,
-   refines_core Definitions.TransactionalDiskCoreRefinement s0 s1) ->
-   (forall l, ~ Logic.EqdepFacts.eq_dep Type (operation Definitions.abs_op)  T op unit (TransactionalDiskLayer.Init l)) ->
+   refines_core Definitions.TDCoreRefinement s0 s1) ->
+   (forall l, ~ Logic.EqdepFacts.eq_dep Type (operation Definitions.abs_op)  T op unit (Init l)) ->
    exists
-  (grs1 : state Definitions.imp -> state Definitions.imp) 
-(t : TransactionalDiskLayer.token'),
-  TransactionToTransactionalDisk.Definitions.token_refines T u s0 op grs1 x t.
+  (grs1 : state Definitions.imp -> state Definitions.imp) t,
+  token_refines T u s0 op grs1 x t.
 Proof.
   intros.
   destruct ret.

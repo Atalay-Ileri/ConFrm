@@ -219,12 +219,12 @@ Section FileDisk.
     try solve [ repeat (cleanup; intuition eauto; try congruence; try lia) ].
   Qed.
   
-  Definition FileDiskOperation :=
+  Definition FDOperation :=
     Build_Core
       file_disk_prog
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition FileDiskLang := Build_Language FileDiskOperation.
+  Definition FDLang := Build_Language FDOperation.
 
 End FileDisk.

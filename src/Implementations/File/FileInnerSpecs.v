@@ -226,7 +226,7 @@ Qed.
 Lemma free_all_blocks_finished:
   forall u l_a o s s' r block_map,
     DiskAllocator.block_allocator_rep block_map (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (free_all_blocks l_a) (Finished s' r) ->
+    exec (TDLang data_length) u o s (free_all_blocks l_a) (Finished s' r) ->
     exists new_block_map,
     ((r = None /\
      DiskAllocator.block_allocator_rep new_block_map (fst s')) \/
@@ -280,7 +280,7 @@ Qed.
 Lemma change_owner_inner_finished:
   forall u s s' o t own inum fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (change_owner_inner own inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (change_owner_inner own inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
       fm inum = Some f /\
@@ -324,7 +324,7 @@ Qed.
 Lemma delete_inner_finished:
   forall u s s' o t inum fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (delete_inner inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (delete_inner inum) (Finished s' t) ->
     (t = None \/
       (files_inner_rep (Mem.delete fm inum) (fst s'))) /\
       snd s' = snd s.
@@ -418,7 +418,7 @@ Lemma extend_inner_finished:
   forall u s s' o t inum v fm,
     files_inner_rep fm (fst s) ->
     
-    exec (TransactionalDiskLang data_length) u o s (extend_inner v inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (extend_inner v inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
       fm inum = Some f /\
@@ -541,7 +541,7 @@ Lemma write_inner_finished:
   forall u s s' o t inum off v fm,
     files_inner_rep fm (fst s) ->
     
-    exec (TransactionalDiskLang data_length) u o s (write_inner off v inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (write_inner off v inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
       fm inum = Some f /\
@@ -647,7 +647,7 @@ Qed.
 Lemma read_inner_finished:
   forall u s s' o t inum off fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (read_inner off inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (read_inner off inum) (Finished s' t) ->
     files_inner_rep fm (fst s')
     /\ snd s' = snd s.
 Proof.
@@ -677,16 +677,16 @@ Qed.
 
 
 Lemma auth_then_exec_crashed:
-  forall u o s s' inum T (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) fm P,
+  forall u o s s' inum T (p: Inum -> prog (TDLang data_length) (option T)) fm P,
     files_rep fm s -> 
-    exec AuthenticatedDiskLang u o s (auth_then_exec inum p) (Crashed s') ->
+    exec ADLang u o s (auth_then_exec inum p) (Crashed s') ->
     (forall s s' o, 
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (p inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (p inum) (Crashed s') ->
     snd s' = snd s) ->
     forall fm',
     (forall s s' o t, files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (p inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (p inum) (Finished s' t) ->
     ( t <> None -> 
     files_inner_rep fm' (fst s') /\ P) /\ snd s' = snd s) ->    
     files_crash_rep fm s' \/ 
@@ -729,7 +729,7 @@ Qed.
 Lemma read_inner_crashed:
   forall u s s' o inum off fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (read_inner off inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (read_inner off inum) (Crashed s') ->
     snd s' = snd s.
 Proof.
   unfold read_inner; intros; repeat invert_exec_no_match.
@@ -766,7 +766,7 @@ Qed.
 Lemma write_inner_crashed:
   forall u s s' o inum off v fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (write_inner off v inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (write_inner off v inum) (Crashed s') ->
     snd s' = snd s.
 Proof.
   unfold write_inner; intros; repeat invert_exec_no_match.
@@ -794,7 +794,7 @@ Qed.
 Lemma extend_inner_crashed:
   forall u s s' o inum v fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (extend_inner v inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (extend_inner v inum) (Crashed s') ->
     snd s' = snd s.
 Proof.
   unfold extend_inner; intros; repeat invert_exec_no_match.
@@ -825,7 +825,7 @@ Qed.
 Lemma free_all_blocks_crashed:
   forall u l_a s s' o block_map,
     DiskAllocator.block_allocator_rep block_map (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (free_all_blocks l_a) (Crashed s') ->
+    exec (TDLang data_length) u o s (free_all_blocks l_a) (Crashed s') ->
     snd s' = snd s.
 Proof.
   induction l_a; simpl; intros; repeat invert_exec_no_match; eauto.
@@ -847,7 +847,7 @@ Qed.
 Lemma delete_inner_crashed:
   forall u s s' o inum fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (delete_inner inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (delete_inner inum) (Crashed s') ->
     snd s' = snd s.
 Proof.
   unfold delete_inner; intros; repeat invert_exec_no_match.
@@ -884,7 +884,7 @@ Qed.
 Lemma change_owner_inner_crashed:
   forall u s s' o inum own fm,
     files_inner_rep fm (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (change_owner_inner own inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (change_owner_inner own inum) (Crashed s') ->
     snd s' = snd s.
 Proof.
   unfold change_owner_inner; intros; repeat invert_exec_no_match.

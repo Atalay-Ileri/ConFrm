@@ -1,17 +1,17 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SSECommon.
+Require Import FunctionalExtensionality Lia Language TSCommon.
 
-  (******** SSE PROOFS ********)
+  (******** TS PROOFS ********)
 
-Theorem SelfSimulation_Exists_write:
+Theorem Termination_Sensitive_write:
   forall u u' m inum off v1 ex,
-    SelfSimulation_Exists
+    Termination_Sensitive
       u (write inum off v1) (write inum off v1) recover
       AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
 Proof. Admitted. (*
   Opaque write_inner.
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
@@ -402,7 +402,7 @@ Proof. Admitted. (*
       H0: refines ?s2 ?x0, 
       H1: same_for_user_except _ _ ?x ?x0,
       A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-        eapply SelfSimulation_Exists_recover in A;
+        eapply Termination_Sensitive_recover in A;
         try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
         unfold AD_valid_state, refines_valid, FD_valid_state; 
         intros; eauto
@@ -524,7 +524,7 @@ Proof. Admitted. (*
       H0: refines ?s2 ?x0, 
       H1: same_for_user_except _ _ ?x ?x0,
       A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-        eapply SelfSimulation_Exists_recover in A;
+        eapply Termination_Sensitive_recover in A;
         try instantiate (1:= (fst s2, (upd (fst (snd s2))
         (DiskAllocatorParams.bitmap_addr +
          S
@@ -877,7 +877,7 @@ Proof. Admitted. (*
       H0: refines ?s2 ?x0, 
       H1: same_for_user_except _ _ ?x ?x0,
       A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-        eapply SelfSimulation_Exists_recover in A;
+        eapply Termination_Sensitive_recover in A;
         try instantiate (1:= (fst s2, (upd (fst (snd s2))
         (DiskAllocatorParams.bitmap_addr +
          S
@@ -1324,19 +1324,19 @@ Proof. Admitted. (*
   }
 }
 Unshelve.
-all: eauto; exact AuthenticatedDisk.
+all: eauto; exact AD.
 Qed.
 *)
 
-Theorem SelfSimulation_Exists_write_input:
+Theorem Termination_Sensitive_write_input:
   forall u u' m inum off v1 v2,
-    SelfSimulation_Exists
+    Termination_Sensitive
       u (write inum off v1) (write inum off v2) recover
       AD_valid_state (AD_related_states u' (Some inum))
       (authenticated_disk_reboot_list m).
 Proof. Admitted. (*
   Opaque write_inner Inode.get_owner Inode.get_block_number.
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
@@ -1727,7 +1727,7 @@ Proof. Admitted. (*
       H0: refines ?s2 ?x0, 
       H1: same_for_user_except _ _ ?x ?x0,
       A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-        eapply SelfSimulation_Exists_recover in A;
+        eapply Termination_Sensitive_recover in A;
         try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
         unfold AD_valid_state, refines_valid, FD_valid_state; 
         intros; eauto
@@ -1849,7 +1849,7 @@ Proof. Admitted. (*
       H0: refines ?s2 ?x0, 
       H1: same_for_user_except _ _ ?x ?x0,
       A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-        eapply SelfSimulation_Exists_recover in A;
+        eapply Termination_Sensitive_recover in A;
         try instantiate (1:= (fst s2, (upd (fst (snd s2))
         (DiskAllocatorParams.bitmap_addr +
          S
@@ -2199,7 +2199,7 @@ Proof. Admitted. (*
       H0: refines ?s2 ?x0, 
       H1: same_for_user_except _ _ ?x ?x0,
       A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-        eapply SelfSimulation_Exists_recover in A;
+        eapply Termination_Sensitive_recover in A;
         try instantiate (1:= (fst s2, (upd (fst (snd s2))
         (DiskAllocatorParams.bitmap_addr +
          S
@@ -2631,7 +2631,7 @@ Proof. Admitted. (*
   }
 }
 Unshelve.
-all: eauto; exact AuthenticatedDisk.
+all: eauto; exact AD.
 Qed.
 
 *)

@@ -5,11 +5,11 @@ Require Import ClassicalFacts Compare_dec FunctionalExtensionality Lia.
 
 Set Nested Proofs Allowed.
 
-Local Notation "'imp'" := AuthenticatedDiskLang.
-Local Notation "'abs'" := (FileDiskLang inode_count).
-Local Notation "'refinement'" := FileDiskRefinement.
+Local Notation "'imp'" := ADLang.
+Local Notation "'abs'" := (FDLang inode_count).
+Local Notation "'refinement'" := FDRefinement.
 
-Section FileDiskSimulation.
+Section FDSimulation.
 
 
   Definition authenticated_disk_reboot_list n :=
@@ -65,7 +65,7 @@ Section FileDiskSimulation.
     unfold abstract_oracles_exist_wrt, refines_reboot; induction n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+      exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -78,7 +78,7 @@ Section FileDiskSimulation.
     }
     { 
       eapply IHn in H11; eauto; cleanup.
-      exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+      exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto.
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -102,7 +102,7 @@ Section FileDiskSimulation.
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+      exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -115,7 +115,7 @@ Section FileDiskSimulation.
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+      exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto.
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -146,7 +146,7 @@ Section FileDiskSimulation.
     refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+      exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -158,7 +158,7 @@ Section FileDiskSimulation.
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+      exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh read_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -187,7 +187,7 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       split_ors; cleanup.
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -203,7 +203,7 @@ Section FileDiskSimulation.
                    repeat (split; eauto) ].
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -219,7 +219,7 @@ Section FileDiskSimulation.
                    repeat (split; eauto) ].
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -240,7 +240,7 @@ Section FileDiskSimulation.
       eapply_fresh write_crashed in H10; eauto; cleanup.
       split_ors; cleanup.
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -258,7 +258,7 @@ Section FileDiskSimulation.
           rewrite updn_seln_eq in H5.
           rewrite Mem.upd_nop in H5; [| destruct x1; simpl in *; eauto].
           
-          exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+          exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         exact (owner x1).
@@ -271,7 +271,7 @@ Section FileDiskSimulation.
         right; eexists; intuition eauto.
         }
         {
-        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         apply (owner x1).
@@ -311,7 +311,7 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       split_ors; cleanup.
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -327,7 +327,7 @@ Section FileDiskSimulation.
         left; repeat (split; eauto).
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -341,7 +341,7 @@ Section FileDiskSimulation.
         right; repeat (split; eauto).
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -358,7 +358,7 @@ Section FileDiskSimulation.
       eapply_fresh extend_crashed in H10; eauto; cleanup.
       split_ors; cleanup.
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto.
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -371,7 +371,7 @@ Section FileDiskSimulation.
         right; eexists; intuition eauto.
       }
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         apply (owner x1).
@@ -413,7 +413,7 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       split_ors; cleanup.
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -428,7 +428,7 @@ Section FileDiskSimulation.
         repeat (split; eauto).        
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
         left.
         eexists; repeat split; eauto.
@@ -444,7 +444,7 @@ Section FileDiskSimulation.
         repeat (split; eauto).        
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -463,7 +463,7 @@ Section FileDiskSimulation.
       eapply_fresh delete_crashed in H10; eauto; cleanup.
       split_ors; cleanup.
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -477,7 +477,7 @@ Section FileDiskSimulation.
   
       }
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         apply (owner x1).
@@ -520,7 +520,7 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       split_ors; cleanup.
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         split; eauto.
         left.
         intros.
@@ -539,7 +539,7 @@ Section FileDiskSimulation.
         
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
         intros.
         left.
@@ -559,7 +559,7 @@ Section FileDiskSimulation.
         
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) Cont] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) Cont] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -577,7 +577,7 @@ Section FileDiskSimulation.
       eapply_fresh change_owner_crashed in H10; eauto; cleanup.
       split_ors; cleanup.
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -593,7 +593,7 @@ Section FileDiskSimulation.
         destruct (user_dec (owner x1) own); subst.
         {
           rewrite Mem.upd_nop in H4; [| unfold change_file_owner; destruct x1; simpl in *; eauto].
-          exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+          exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
           repeat split; eauto; try (unify_execs; cleanup).
           eapply recovery_oracles_refine_to_length in H0; eauto.
           exact (owner x1).
@@ -606,7 +606,7 @@ Section FileDiskSimulation.
           right; eexists; intuition eauto.
         }
         {
-        exists ([OpToken (FileDiskOperation inode_count) CrashAfter]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
     
@@ -645,7 +645,7 @@ Section FileDiskSimulation.
       split_ors; cleanup.
       destruct (mem_full_or_not inode_count x); cleanup.
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) InodesFull] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) InodesFull] ]; simpl.
         split; eauto.
         left.
       
@@ -665,7 +665,7 @@ Section FileDiskSimulation.
         
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) TxnFull] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) TxnFull] ]; simpl.
         split; eauto.
         left.
         intros.
@@ -684,7 +684,7 @@ Section FileDiskSimulation.
         
       }
       {
-        exists  [ [OpToken (FileDiskOperation inode_count) (NewInum x0)] ]; simpl.
+        exists  [ [OpToken (FDOperation inode_count) (NewInum x0)] ]; simpl.
         intuition eauto.
         left.
         eexists; repeat split; eauto; intros.
@@ -702,7 +702,7 @@ Section FileDiskSimulation.
       eapply_fresh create_crashed in H10; eauto; cleanup.
       split_ors; cleanup.
       {
-        exists ([OpToken (FileDiskOperation inode_count) CrashBefore]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -714,7 +714,7 @@ Section FileDiskSimulation.
         
       }
       {
-        exists ([OpToken (FileDiskOperation inode_count) (CrashAfterCreate x1)]::x0); simpl.
+        exists ([OpToken (FDOperation inode_count) (CrashAfterCreate x1)]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
     
@@ -758,7 +758,7 @@ Section FileDiskSimulation.
       repeat invert_exec; cleanup.
       {
         rewrite <- H1; simpl.
-        exists [[Language.Cont (FileDiskOperation inode_count) ]]; simpl; intuition.
+        exists [[Language.Cont (FDOperation inode_count) ]]; simpl; intuition.
         left.
         eexists; repeat split; eauto; intros.
         eexists; repeat split; eauto; intros.
@@ -771,7 +771,7 @@ Section FileDiskSimulation.
         simpl in *.
         eapply abstract_oracles_exist_wrt_recover in H10; eauto.
         cleanup.
-        exists ([Language.Crash (FileDiskOperation inode_count)]::x0);
+        exists ([Language.Crash (FDOperation inode_count)]::x0);
         simpl; intuition eauto.
         apply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -1333,7 +1333,7 @@ Qed.
 
 
 
-End FileDiskSimulation.
+End FDSimulation.
 
 
 (*

@@ -1,6 +1,6 @@
 Require Import AuthenticationLayer TransactionalDiskLayer AuthenticatedDiskLayer.
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia SSECommon SameRetType.
+Require Import FunctionalExtensionality Lia TSCommon SameRetType.
 
 (*
 Lemma write_refines_same_core_input:
@@ -9,9 +9,9 @@ o_abs o_abs' inum off v v',
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' (Some inum) x x0 ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s1_imp 
     (|Write inum off v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s2_imp 
     (|Write inum off v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -26,7 +26,7 @@ Proof.
     repeat unify_execs; cleanup;
     repeat split_ors; cleanup;
     eauto; try lia; try congruence.
-    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
     eauto; try congruence].
     {
         unfold write in *.
@@ -138,9 +138,9 @@ o_abs o_abs' inum off v v' ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s1_imp 
     (|Write inum off v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s2_imp 
     (|Write inum off v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -155,7 +155,7 @@ Proof.
     repeat unify_execs; cleanup;
     repeat split_ors; cleanup;
     eauto; try lia; try congruence.
-    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
     eauto; try congruence].
     {
         unfold write in *.
@@ -267,9 +267,9 @@ o_abs o_abs' inum v v' ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s1_imp 
     (|Extend inum v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s2_imp 
     (|Extend inum v'|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -284,7 +284,7 @@ Proof.
     repeat unify_execs; cleanup;
     repeat split_ors; cleanup;
     eauto; try lia; try congruence.
-    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
     eauto; try congruence].
     all: try solve [
         unfold extend in *;
@@ -388,9 +388,9 @@ o_abs o_abs' inum v,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' (Some inum) x x0 ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s1_imp 
     (|ChangeOwner inum v|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s2_imp 
     (|ChangeOwner inum v|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -405,7 +405,7 @@ Proof.
     repeat unify_execs; cleanup;
     repeat split_ors; cleanup;
     eauto; try lia; try congruence.
-    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
     eauto; try congruence].
     all: try solve [
         repeat split_ors; cleanup; try lia; try congruence; 
@@ -508,9 +508,9 @@ o_abs o_abs' inum ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s1_imp 
     (|Delete inum|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s2_imp 
     (|Delete inum|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -525,7 +525,7 @@ Proof.
     repeat unify_execs; cleanup;
     repeat split_ors; cleanup;
     eauto; try lia; try congruence.
-    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
     eauto; try congruence].
     all: try solve [
         repeat split_ors; cleanup; try lia; try congruence; 
@@ -627,9 +627,9 @@ o_abs o_abs' own ex,
     refines s1_imp x ->
     refines s2_imp x0 ->
     same_for_user_except u' ex x x0 ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s1_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s1_imp 
     (|Create own|) get_reboot_state  o_imp o_abs ->
-    oracle_refines _ _ _ FileDisk FileDiskOperationRefinement _ u s2_imp 
+    oracle_refines _ _ _ FD FDOperationRefinement _ u s2_imp 
     (|Create own|) get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs'.
 Proof.
@@ -644,7 +644,7 @@ Proof.
     repeat unify_execs; cleanup;
     repeat split_ors; cleanup;
     eauto; try lia; try congruence.
-    all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+    all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
     eauto; try congruence].
     all: try solve [
         eapply create_same_type_ret in H3; eauto; intuition congruence].
@@ -773,23 +773,23 @@ Qed.
 
 
 Lemma recovery_oracles_refine_to_same:
-    forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp x x0 u u' ex T (p1 p2: FileDisk.(prog) T),
+    forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp x x0 u u' ex T (p1 p2: FD.(prog) T),
     (forall o_imp o_abs o_abs' get_reboot_state,
     refines s1_imp x ->
     refines s2_imp x0 ->
 same_for_user_except u' ex x x0 ->
-oracle_refines _ _ _ _ FileDiskOperationRefinement _ u s1_imp 
+oracle_refines _ _ _ _ FDOperationRefinement _ u s1_imp 
 p1 get_reboot_state  o_imp o_abs ->
-oracle_refines _ _ _ _ FileDiskOperationRefinement _ u s2_imp 
+oracle_refines _ _ _ _ FDOperationRefinement _ u s2_imp 
 p2 get_reboot_state  o_imp o_abs' ->
     o_abs = o_abs') ->
     
     refines s1_imp x ->
     refines s2_imp x0 ->
 same_for_user_except u' ex x x0 ->
-recovery_oracles_refine_to FileDiskRefinement u s1_imp p1 
+recovery_oracles_refine_to FDRefinement u s1_imp p1 
     (| Recover |) [] l_o_imp l_o_abs ->
-recovery_oracles_refine_to FileDiskRefinement u s2_imp p2
+recovery_oracles_refine_to FDRefinement u s2_imp p2
     (| Recover |) [] l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
 Proof.
@@ -803,16 +803,16 @@ Qed.
 
 Lemma ORS_recover_stronger:
 forall (u: user)(n : nat)
-  (l_o_imp : list (oracle AuthenticatedDisk))
-  (l_o_abs l_o_abs' : list (oracle FileDisk))
-  (s1_imp s2_imp : state AuthenticatedDisk),
-  (exists sa1 sa2 : state FileDisk,
-   Simulation.Definitions.refines FileDiskRefinement s1_imp sa1 /\
-   Simulation.Definitions.refines FileDiskRefinement s2_imp sa2) ->
-recovery_oracles_refine_to FileDiskRefinement u s1_imp 
+  (l_o_imp : list (oracle AD))
+  (l_o_abs l_o_abs' : list (oracle FD))
+  (s1_imp s2_imp : state AD),
+  (exists sa1 sa2 : state FD,
+   Simulation.Definitions.refines FDRefinement s1_imp sa1 /\
+   Simulation.Definitions.refines FDRefinement s2_imp sa2) ->
+recovery_oracles_refine_to FDRefinement u s1_imp 
   (| Recover |) (| Recover |) (authenticated_disk_reboot_list n) l_o_imp
   l_o_abs ->
-recovery_oracles_refine_to FileDiskRefinement u s2_imp 
+recovery_oracles_refine_to FDRefinement u s2_imp 
   (| Recover |) (| Recover |) (authenticated_disk_reboot_list n) l_o_imp
   l_o_abs' -> l_o_abs = l_o_abs'.
 Proof.
@@ -859,7 +859,7 @@ Qed.
 
 Lemma ORS_recover:
 forall u u' ex n,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Recover|)  (|Recover|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' ex).
 Proof.
@@ -872,7 +872,7 @@ Qed.
 
 Lemma ORS_create:
 forall u u' n own ex,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Create own|) (|Create own|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' ex).
 Proof.
@@ -890,14 +890,14 @@ Proof.
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
-         erewrite create_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+         erewrite create_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
         apply H.
         apply H2.
         all: try solve [simpl; eexists; intuition eauto].
 
-        erewrite create_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        erewrite create_refines_same_core with (o_abs := [OpToken FDOp x4]).
         4: eauto.
         2: apply H.
         2: apply H2.
@@ -918,7 +918,7 @@ Proof.
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
         all: repeat unify_execs; cleanup; eauto.
         all: do 2 eexists; split; [| split; [| eauto]];
@@ -930,7 +930,7 @@ Qed.
 
 Lemma ORS_change_owner:
 forall u u' n inum own,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|ChangeOwner inum own|) (|ChangeOwner inum own|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' (Some inum)).
 Proof.
@@ -948,14 +948,14 @@ Proof.
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
-         erewrite change_owner_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+         erewrite change_owner_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
         apply H.
         apply H2.
         all: try solve [simpl; eexists; intuition eauto].
 
-        erewrite change_owner_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        erewrite change_owner_refines_same_core with (o_abs := [OpToken FDOp x4]).
         4: eauto.
         2: apply H.
         2: apply H2.
@@ -976,7 +976,7 @@ Proof.
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
         all: repeat unify_execs; cleanup; eauto.
         all: do 2 eexists; split; [| split; [| eauto]];
@@ -989,7 +989,7 @@ Qed.
 
 Lemma ORS_delete:
 forall u u' n inum ex,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Delete inum|) (|Delete inum|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' ex).
 Proof.
@@ -1007,14 +1007,14 @@ Proof.
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
-         erewrite delete_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+         erewrite delete_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
         apply H.
         apply H2.
         all: try solve [simpl; eexists; intuition eauto].
 
-        erewrite delete_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        erewrite delete_refines_same_core with (o_abs := [OpToken FDOp x4]).
         4: eauto.
         2: apply H.
         2: apply H2.
@@ -1035,7 +1035,7 @@ Proof.
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
         all: repeat unify_execs; cleanup; eauto.
         all: do 2 eexists; split; [| split; [| eauto]];
@@ -1049,7 +1049,7 @@ Qed.
 
 Lemma ORS_write:
 forall u u' inum n off v,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Write inum off v|) (|Write inum off v|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' None).
 Proof. Admitted. (*
@@ -1067,14 +1067,14 @@ Proof. Admitted. (*
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
-         erewrite write_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+         erewrite write_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
         apply H.
         apply H2.
         all: try solve [simpl; eexists; intuition eauto].
 
-        erewrite write_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        erewrite write_refines_same_core with (o_abs := [OpToken FDOp x4]).
         4: eauto.
         2: apply H.
         2: apply H2.
@@ -1095,7 +1095,7 @@ Proof. Admitted. (*
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
         all: repeat unify_execs; cleanup; eauto.
         all: do 2 eexists; split; [| split; [| eauto]];
@@ -1108,7 +1108,7 @@ Qed.
 
 Lemma ORS_write_input:
 forall u u' inum n off v v',
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Write inum off v|) (|Write inum off v'|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' (Some inum)).
 Proof. Admitted. (*
@@ -1126,14 +1126,14 @@ Proof. Admitted. (*
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
-         erewrite write_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+         erewrite write_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
         apply H.
         apply H2.
         all: try solve [simpl; eexists; intuition eauto].
 
-        erewrite write_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        erewrite write_refines_same_core with (o_abs := [OpToken FDOp x4]).
         4: eauto.
         2: apply H.
         2: apply H2.
@@ -1154,7 +1154,7 @@ Proof. Admitted. (*
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
         all: repeat unify_execs; cleanup; eauto.
         all: do 2 eexists; split; [| split; [| eauto]];
@@ -1167,7 +1167,7 @@ Qed.
 
 Lemma ORS_extend:
 forall u u' inum n v v' ex,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Extend inum v|) (|Extend inum v'|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' ex).
 Proof.
@@ -1185,14 +1185,14 @@ Proof.
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
-         erewrite extend_refines_same_core with (o_abs := [OpToken FileDiskOp x6]).
+         erewrite extend_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
         apply H.
         apply H2.
         all: try solve [simpl; eexists; intuition eauto].
 
-        erewrite extend_refines_same_core with (o_abs := [OpToken FileDiskOp x4]).
+        erewrite extend_refines_same_core with (o_abs := [OpToken FDOp x4]).
         4: eauto.
         2: apply H.
         2: apply H2.
@@ -1213,7 +1213,7 @@ Proof.
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
         all: repeat unify_execs; cleanup; eauto.
         all: do 2 eexists; split; [| split; [| eauto]];
@@ -1225,7 +1225,7 @@ Qed.
 
 Lemma ORS_read:
 forall u u' inum n off,
-oracle_refines_same_from_related FileDiskRefinement u 
+oracle_refines_same_from_related FDRefinement u 
 (|Read inum off|) (|Read inum off|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' None).
 Proof.
@@ -1245,7 +1245,7 @@ Proof.
         repeat unify_execs; cleanup;
         repeat split_ors; cleanup;
         eauto; try lia; try congruence.
-        all: try solve [exfalso; eapply exec_finished_not_crashed_AuthenticatedDisk; 
+        all: try solve [exfalso; eapply exec_finished_not_crashed_AD; 
         eauto; try congruence].
      }
      {

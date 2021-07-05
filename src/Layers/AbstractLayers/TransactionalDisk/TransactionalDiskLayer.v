@@ -101,12 +101,12 @@ Section TransactionalDisk.
     repeat split_ors; cleanup; eauto; lia.
   Qed.
   
-  Definition TransactionalDiskOperation :=
+  Definition TDOperation :=
     Build_Core
       transactional_disk_prog
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition TransactionalDiskLang := Build_Language TransactionalDiskOperation.
+  Definition TDLang := Build_Language TDOperation.
 
 End TransactionalDisk.

@@ -1,34 +1,34 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SameRetType SSECommon InodeSSE.
+Require Import FunctionalExtensionality Lia Language SameRetType TSCommon InodeTS.
 
 
-Lemma SSE_change_owner_inner:
+Lemma TS_change_owner_inner:
 forall o fm1 fm2 s1 s2 inum v v' ret1 u u',
 same_for_user_except u' (Some inum) fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (change_owner_inner v inum) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (change_owner_inner v inum) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (change_owner_inner v' inum) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (change_owner_inner v' inum) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent change_owner_inner.  
 unfold change_owner_inner; intros.
 invert_step.
-eapply_fresh SSE_change_owner in H2; eauto.
+eapply_fresh TS_change_owner in H2; eauto.
 Qed.
 Opaque change_owner_inner.
 
 
-Theorem SelfSimulation_Exists_change_owner:
+Theorem Termination_Sensitive_change_owner:
   forall u u' m inum v1,
-    SelfSimulation_Exists
+    Termination_Sensitive
       u (change_owner inum v1) (change_owner inum v1) recover
       AD_valid_state (AD_related_states u' (Some inum))
       (authenticated_disk_reboot_list m).
 Proof.
   Opaque change_owner_inner.
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
@@ -37,7 +37,7 @@ Proof.
   destruct m; simpl in *.
   {(**write finished **)
    invert_exec.
-   eapply SSE_auth_then_exec in H11; eauto.
+   eapply TS_auth_then_exec in H11; eauto.
    {
      cleanup.
      destruct x1; simpl in *; try solve [intuition congruence].
@@ -46,7 +46,7 @@ Proof.
    }
    {
      intros.
-     eapply_fresh SSE_change_owner_inner in H7.
+     eapply_fresh TS_change_owner_inner in H7.
      3: eauto.
      3: eauto.
      cleanup.
@@ -66,7 +66,7 @@ Proof.
   }
   {
     invert_exec.
-    eapply_fresh SSE_auth_then_exec in H14; eauto.
+    eapply_fresh TS_auth_then_exec in H14; eauto.
    {
      cleanup.
      destruct x1; simpl in *; try solve [intuition congruence].
@@ -79,7 +79,7 @@ Proof.
         H0: refines ?s2 ?x0, 
         H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (fst s, (snd (snd s), snd (snd s)))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -103,7 +103,7 @@ Proof.
         H0: refines ?s2 ?x0, 
         H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (fst s, (snd (snd s), snd (snd s)))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -133,7 +133,7 @@ Proof.
        H0: refines ?s2 ?x0, 
        H1: same_for_user_except _ _ ?x ?x0,
        A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-         eapply SelfSimulation_Exists_recover in A;
+         eapply Termination_Sensitive_recover in A;
          try instantiate (1:= (fst s, (snd (snd s), snd (snd s)))) in A;
          unfold AD_valid_state, refines_valid, FD_valid_state; 
          intros; eauto
@@ -162,7 +162,7 @@ Proof.
         H0: refines ?s2 ?x0, 
         H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (fst s, (snd (snd s), snd (snd s)))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -203,7 +203,7 @@ Proof.
   }
   {
      intros.
-     eapply_fresh SSE_change_owner_inner in H7; eauto.
+     eapply_fresh TS_change_owner_inner in H7; eauto.
      cleanup.
      destruct ret1, x1; simpl in * ; try solve [intuition congruence].
      {

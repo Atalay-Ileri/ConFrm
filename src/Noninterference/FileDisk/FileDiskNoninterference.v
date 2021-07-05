@@ -8,12 +8,12 @@ Require LoggedDiskLayer LoggedDiskRefinement.
 Require StorageLayer.
 Require CryptoDiskLayer CachedDiskLayer.
 
-Notation "'FileDiskOp'" := (FileDiskOperation inode_count). 
-Notation "'FileDisk'" := (FileDiskLang inode_count) (at level 0).
-Notation "'FileDisk.refinement'" := FileDiskRefinement.
+Notation "'FDOp'" := (FDOperation inode_count). 
+Notation "'FD'" := (FDLang inode_count) (at level 0).
+Notation "'FD.refinement'" := FDRefinement.
 
 
-Definition same_for_user_except (u: user) (exclude: option addr) (d1 d2: FileDisk.(state)) :=
+Definition same_for_user_except (u: user) (exclude: option addr) (d1 d2: FD.(state)) :=
   addrs_match_exactly d1 d2 /\
   (forall inum file1 file2,
      exclude <> Some inum ->
@@ -30,7 +30,7 @@ Definition same_for_user_except (u: user) (exclude: option addr) (d1 d2: FileDis
 
 (*
 Theorem Invariant_for_file_disk_read:
-  SelfSimulation FileDisk (fun _ => True) (fun T p => match p with
+  SelfSimulation FD (fun _ => True) (fun T p => match p with
                                              | Op _ o =>
                                                match o with
                                                | Read _ _ => True
@@ -491,12 +491,12 @@ Qed.
 
 (** Top Layer *)
 (* File Disk *)
-Definition FD_valid_state := fun (s: state FileDisk) => True.
+Definition FD_valid_state := fun (s: state FD) => True.
 Definition FD_related_states u ex := same_for_user_except u ex.
 
 Theorem ss_FD_Recover:
   forall n u u' ex,
-    SelfSimulation u (FileDiskOp.(Op) Recover) (FileDiskOp.(Op) Recover) (FileDiskOp.(Op) Recover)(fun _ => True) (FD_related_states u' ex) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) Recover) (FDOp.(Op) Recover) (FDOp.(Op) Recover)(fun _ => True) (FD_related_states u' ex) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; induction n; simpl; intros.
   {
@@ -519,7 +519,7 @@ Qed.
 
 Theorem ss_FD_read:
   forall n inum off u u',
-    SelfSimulation u (FileDiskOp.(Op) (Read inum off)) (FileDiskOp.(Op) (Read inum off)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (Read inum off)) (FDOp.(Op) (Read inum off)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -611,8 +611,8 @@ Qed.
 
 Theorem ss_FD_write:
   forall n inum off v u u',
-    SelfSimulation u (FileDiskOp.(Op) (Write inum off v)) 
-    (FileDiskOp.(Op) (Write inum off v)) (FileDiskOp.(Op) Recover) (fun _ => True) 
+    SelfSimulation u (FDOp.(Op) (Write inum off v)) 
+    (FDOp.(Op) (Write inum off v)) (FDOp.(Op) Recover) (fun _ => True) 
     (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
@@ -870,7 +870,7 @@ Qed.
 
 Theorem ss_FD_extend:
   forall n inum v u u',
-    SelfSimulation u (FileDiskOp.(Op) (Extend inum v)) (FileDiskOp.(Op) (Extend inum v)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (Extend inum v)) (FDOp.(Op) (Extend inum v)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -1124,7 +1124,7 @@ Qed.
 
 Theorem ss_FD_change_owner:
   forall n inum u u' u'',
-    SelfSimulation u (FileDiskOp.(Op) (ChangeOwner inum u'')) (FileDiskOp.(Op) (ChangeOwner inum u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (ChangeOwner inum u'')) (FDOp.(Op) (ChangeOwner inum u'')) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -1383,7 +1383,7 @@ Qed.
 
 Theorem ss_FD_create:
   forall n u u' u'',
-    SelfSimulation u (FileDiskOp.(Op) (Create u'')) (FileDiskOp.(Op) (Create u'')) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (Create u'')) (FDOp.(Op) (Create u'')) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -1604,7 +1604,7 @@ Qed.
 
 Theorem ss_FD_delete:
   forall n inum u u',
-    SelfSimulation u (FileDiskOp.(Op) (Delete inum)) (FileDiskOp.(Op) (Delete inum)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (Delete inum)) (FDOp.(Op) (Delete inum)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -1852,7 +1852,7 @@ Qed.
 
 Theorem ss_FD_write_input:
   forall n inum off v1 v2 u u',
-    SelfSimulation u (FileDiskOp.(Op) (Write inum off v1)) (FileDiskOp.(Op) (Write inum off v2)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (Write inum off v1)) (FDOp.(Op) (Write inum off v2)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -2111,7 +2111,7 @@ Qed.
 
 Theorem ss_FD_extend_input:
   forall n inum v1 v2 u u',
-    SelfSimulation u (FileDiskOp.(Op) (Extend inum v1)) (FileDiskOp.(Op) (Extend inum v2)) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) (Extend inum v1)) (FDOp.(Op) (Extend inum v2)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
   unfold SelfSimulation; intros.
   repeat invert_exec.
@@ -2361,16 +2361,16 @@ Proof.
   all: repeat econstructor; eauto.
 Qed.
 
-Definition not_change_owner {T} (o : FileDiskOp.(operation) T) :=
+Definition not_change_owner {T} (o : FDOp.(operation) T) :=
   match o with
   | ChangeOwner _ _ => False
   | _ => True
   end.
 
 Theorem ss_FD_not_change_owner:
-  forall T (o : FileDiskOp.(operation) T) n u u',
+  forall T (o : FDOp.(operation) T) n u u',
     not_change_owner o ->
-    SelfSimulation u (FileDiskOp.(Op) o) (FileDiskOp.(Op) o) (FileDiskOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    SelfSimulation u (FDOp.(Op) o) (FDOp.(Op) o) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   intros; destruct o; eauto.
   apply ss_FD_read.
@@ -2383,16 +2383,16 @@ Proof.
 Qed.
 
 Theorem two_user_exec:
-  forall T1 T2 (o1: FileDiskOp.(operation) T1) (o2: FileDiskOp.(operation) T2)
+  forall T1 T2 (o1: FDOp.(operation) T1) (o2: FDOp.(operation) T2)
     s1 ret1 s2 ret2 l_o1 n l_o2 m user adversary,
     not_change_owner o1 ->
     not_change_owner o2 ->
     FD_related_states adversary None s1 s2 ->
-    recovery_exec FileDisk user l_o1 s1 (repeat (fun s => s) n) (FileDiskOp.(Op) o1) (FileDiskOp.(Op) Recover) ret1 ->
-    recovery_exec FileDisk adversary l_o2 (extract_state_r ret1) (repeat (fun s => s) m) (FileDiskOp.(Op) o2) (FileDiskOp.(Op) Recover) ret2 ->
+    recovery_exec FD user l_o1 s1 (repeat (fun s => s) n) (FDOp.(Op) o1) (FDOp.(Op) Recover) ret1 ->
+    recovery_exec FD adversary l_o2 (extract_state_r ret1) (repeat (fun s => s) m) (FDOp.(Op) o2) (FDOp.(Op) Recover) ret2 ->
     exists ret1' ret2',
-      recovery_exec FileDisk user l_o1 s2 (repeat (fun s => s) n) (FileDiskOp.(Op) o1) (FileDiskOp.(Op) Recover) ret1' /\
-      recovery_exec FileDisk adversary l_o2 (extract_state_r ret1') (repeat (fun s => s) m) (FileDiskOp.(Op) o2) (FileDiskOp.(Op) Recover)ret2' /\
+      recovery_exec FD user l_o1 s2 (repeat (fun s => s) n) (FDOp.(Op) o1) (FDOp.(Op) Recover) ret1' /\
+      recovery_exec FD adversary l_o2 (extract_state_r ret1') (repeat (fun s => s) m) (FDOp.(Op) o2) (FDOp.(Op) Recover)ret2' /\
       FD_related_states adversary None (extract_state_r ret2) (extract_state_r ret2') /\
       extract_ret_r ret2 = extract_ret_r ret2'.
 Proof.
@@ -2407,11 +2407,11 @@ Qed.
 
 (** Intermediate Layers *)
 Import AuthenticatedDiskLayer.
-Notation "'AuthenticatedDisk'" := AuthenticatedDiskLang (at level 0).
+Notation "'AD'" := ADLang (at level 0).
 
 (* Authenticated Disk *)
-Definition AD_valid_state := refines_valid FileDiskRefinement FD_valid_state.
-Definition AD_related_states u exc := refines_related FileDiskRefinement (FD_related_states u exc).
+Definition AD_valid_state := refines_valid FDRefinement FD_valid_state.
+Definition AD_related_states u exc := refines_related FDRefinement (FD_related_states u exc).
 
 (* Transactional Disk *)
 Definition TD_valid_state s1 := fun s2 => AD_valid_state (s1, s2).
@@ -2420,12 +2420,12 @@ Definition TD_related_states u exc s1 := fun s2 s2' => AD_related_states u exc (
 Import TransactionCacheLayer TransactionalDiskLayer TransactionalDiskRefinement.
 Notation "'TransactionCache'" := TransactionCacheLang (at level 0).
 
-Notation "'TransactionalDisk'" := (TransactionalDiskLang data_length) (at level 0).
-Notation "'TransactionalDisk.refinement'" := TransactionalDiskRefinement.
+Notation "'TD'" := (TDLang data_length) (at level 0).
+Notation "'TD.refinement'" := TDRefinement.
 
 (* Transaction Cache *)
-Definition TC_valid_state s1 := refines_valid TransactionalDisk.refinement (TD_valid_state s1).
-Definition TC_related_states u exc s1 := refines_related TransactionalDisk.refinement (TD_related_states u exc s1).
+Definition TC_valid_state s1 := refines_valid TD.refinement (TD_valid_state s1).
+Definition TC_related_states u exc s1 := refines_related TD.refinement (TD_related_states u exc s1).
 
 (* Logged Disk *)
 Definition LD_valid_state s := fun s2 => TC_valid_state (fst s) (snd s, s2).

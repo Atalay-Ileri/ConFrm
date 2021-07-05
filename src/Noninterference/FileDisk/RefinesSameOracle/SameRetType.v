@@ -1,5 +1,5 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia SSECommon.
+Require Import FunctionalExtensionality Lia TSCommon.
 Require Import AuthenticationLayer TransactionalDiskLayer AuthenticatedDiskLayer.
 
 
@@ -32,13 +32,13 @@ Qed.
 
 
 Lemma exec_finished_no_crash_tokens:
-forall u T (p: AuthenticatedDisk.(prog) T) o s s' r,
-exec AuthenticatedDisk u o s p (Finished s' r) -> 
-(forall (t: AuthenticatedDisk.(token)), In t o -> 
+forall u T (p: AD.(prog) T) o s s' r,
+exec AD u o s p (Finished s' r) -> 
+(forall (t: AD.(token)), In t o -> 
 t <> Language.Crash _ /\ 
-t <> OpToken AuthenticatedDiskOperation (Token1 AuthenticationOperation _ Crash) /\
-t <> OpToken AuthenticatedDiskOperation (Token2 _ (TransactionalDiskOperation FSParameters.data_length) CrashBefore) /\
-t <> OpToken AuthenticatedDiskOperation (Token2 _ (TransactionalDiskOperation FSParameters.data_length) CrashAfter)).
+t <> OpToken ADOperation (Token1 AuthenticationOperation _ Crash) /\
+t <> OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashBefore) /\
+t <> OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashAfter)).
 Proof.
     induction p; simpl; intros;
     invert_exec.
@@ -60,15 +60,15 @@ Proof.
 Qed.   
 
 Lemma exec_crashed_exists_crash_token:
-forall u T (p: AuthenticatedDisk.(prog) T) o s s',
-exec AuthenticatedDisk u o s p (Crashed s') -> 
-(exists (t: AuthenticatedDisk.(token)), 
+forall u T (p: AD.(prog) T) o s s',
+exec AD u o s p (Crashed s') -> 
+(exists (t: AD.(token)), 
 In t o /\
 ( 
 t = Language.Crash _ \/
-t = OpToken AuthenticatedDiskOperation (Token1 AuthenticationOperation _ Crash) \/
-t = OpToken AuthenticatedDiskOperation (Token2 _ (TransactionalDiskOperation FSParameters.data_length) CrashBefore) \/
-t = OpToken AuthenticatedDiskOperation (Token2 _ (TransactionalDiskOperation FSParameters.data_length) CrashAfter))
+t = OpToken ADOperation (Token1 AuthenticationOperation _ Crash) \/
+t = OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashBefore) \/
+t = OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashAfter))
 ).
 Proof.
     induction p; simpl; intros;
@@ -92,10 +92,10 @@ Proof.
     }
 Qed.   
 
-Lemma exec_finished_not_crashed_AuthenticatedDisk:
-forall u T (p1 p2: AuthenticatedDisk.(prog) T) o s s' s1 s1' r,
-exec AuthenticatedDisk u o s p1 (Finished s' r) -> 
-~exec AuthenticatedDisk u o s1 p2 (Crashed s1').
+Lemma exec_finished_not_crashed_AD:
+forall u T (p1 p2: AD.(prog) T) o s s' s1 s1' r,
+exec AD u o s p1 (Finished s' r) -> 
+~exec AD u o s1 p2 (Crashed s1').
 Proof.
   unfold not; intros.
   eapply exec_crashed_exists_crash_token in H0; cleanup.
@@ -104,6 +104,131 @@ Proof.
 Qed.
 
 Import FileDiskLayer.
+
+Set Nested Proofs Allowed.
+Lemma upd_nop_rev:
+forall (A V : Type) (AEQ : EqDec A) 
+(m : A -> option V) (a : A) (v : V),
+Mem.upd m a v = m ->
+m a = Some v.
+Proof.
+    intros; rewrite <- H.
+    apply Mem.upd_eq; eauto.
+Qed.
+
+Lemma seln_eq_updn_eq_rev:
+forall (A : Type) (l : list A) (i : nat) (a def : A),
+updn l i a = l -> 
+i < length l ->
+seln l i def = a.
+Proof.
+    induction l; simpl; intros.
+    lia.
+    destruct i; simpl in *.
+    congruence.
+    eapply IHl.
+    congruence.
+    lia.
+Qed.
+
+Ltac invert_exec_local :=
+match goal with
+| [H: exec (TDLang _) _ _ _ (Ret _) _ |- _] =>
+    invert_exec'' H
+| [H: exec (TDLang _) _ _ _ (Op _ _) _ |- _] =>
+invert_exec'' H
+| [H: Core.exec (TDOperation _) _ _ _ _ _ |- _] =>
+invert_exec'' H
+| [H: TransactionalDiskLayer.exec' _ _ _ _ _ _ |- _] =>
+invert_exec'' H
+| [H: AuthenticationLayer.exec' _ _ _ _ _ |- _] =>
+invert_exec'' H
+end.
+
+
+Lemma files_inner_rep_extract_inode_rep:
+forall fm s,
+files_inner_rep fm s ->
+exists inode_map, Inode.inode_rep inode_map s.
+Proof.
+    unfold files_inner_rep; intros; cleanup; eauto.
+Qed.
+
+Lemma files_inner_rep_extract_disk_allocator_rep:
+forall fm s,
+files_inner_rep fm s ->
+exists blocks_map, DiskAllocator.block_allocator_rep blocks_map s.
+Proof.
+    unfold files_inner_rep; intros; cleanup; eauto.
+Qed.
+
+
+Ltac apply_specs :=
+match goal with
+| [H: exec (TDLang _) 
+_ _ _ (Inode.get_owner _) (Crashed _) |- _] =>
+    eapply Inode.get_owner_crashed in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.get_owner _) (Finished _ _) |- _] =>
+    eapply Inode.get_owner_finished in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.get_block_number _ _) (Crashed _) |- _] =>
+    eapply Inode.get_block_number_crashed in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.get_block_number _ _) (Finished _ _) |- _] =>
+    eapply Inode.get_block_number_finished in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.get_all_block_numbers _) (Crashed _) |- _] =>
+    eapply Inode.get_block_number_crashed in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.get_all_block_numbers _) (Finished _ _) |- _] =>
+    eapply Inode.get_block_number_finished in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (DiskAllocator.write _ _) (Crashed _) |- _] =>
+    eapply DiskAllocator.write_crashed in H; eauto
+| [H: exec (TDLang _) 
+_ _ _ (DiskAllocator.write _ _) (Finished _ _) |- _] =>
+    eapply DiskAllocator.write_finished in H; 
+    [|shelve]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.extend _ _) (Crashed _) |- _] =>
+    eapply Inode.extend_crashed in H; 
+    [|shelve]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.extend _ _) (Finished _ _) |- _] =>
+    eapply Inode.extend_finished in H; 
+    [|shelve| shelve |]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.alloc _) (Crashed _) |- _] =>
+    eapply Inode.alloc_crashed in H; 
+    [|repeat cleanup_pairs]; eauto
+| [H: exec (TDLang _) 
+_ _ _ (Inode.alloc _) (Finished _ _) |- _] =>
+    eapply Inode.alloc_finished in H; 
+    [|repeat cleanup_pairs]; eauto
+end.
+
+Ltac split_crash :=
+    match goal with
+    | [H: exec _ _ _ _ _ _ \/ _ |- _] =>
+    destruct H
+    end.
+
+Opaque Inode.get_owner Inode.get_block_number DiskAllocator.write.
+
+
+ Lemma list_extend_ne:
+ forall T (l : list T) t,
+ l <> l ++[t].
+ Proof.
+    unfold not; induction l; simpl; intros; try congruence.
+ Qed.
 
 Local Ltac solve_ret_iff_goal:=
 try solve [intuition; congruence];
@@ -159,256 +284,493 @@ try solve [
         exfalso; eapply exec_empty_oracle; eauto].
 
 
-Ltac depth_first_solve := (invert_exec; solve_ret_iff_goal); try (only 1: depth_first_solve).
+
+Lemma map_ext_eq_prefix:
+forall (A B : Type) (l1 l2 : list A) l3 l4 (f : A -> B),
+map f l1 ++ l3 = map f l2 ++ l4 -> 
+(forall a a' : A, f a = f a' -> a = a') -> 
+exists l3' l4', 
+l1 ++ l3' = l2 ++ l4'.
+Proof.
+    induction l1; simpl; intros; eauto.
+    destruct l2; simpl in *; cleanup; eauto.
+    apply H0 in H2; rewrite H2; eauto.
+    edestruct IHl1; eauto; cleanup; eauto.
+    do 2 eexists; rewrite H; eauto.
+    Unshelve.
+    all: eauto.
+Qed.
+
+Lemma HC_oracle_map_prefix :
+forall x7 x8 o2 o3,
+map
+    (fun
+        o : Language.token'
+            (TDOperation FSParameters.data_length) =>
+    match o with
+    | OpToken _ o1 =>
+        OpToken
+            (HorizontalComposition AuthenticationOperation
+                (TDOperation FSParameters.data_length))
+            (Token2 AuthenticationOperation
+                (TDOperation FSParameters.data_length) o1)
+    | Language.Crash _ =>
+        Language.Crash
+            (HorizontalComposition AuthenticationOperation
+                (TDOperation FSParameters.data_length))
+    | Language.Cont _ =>
+        Language.Cont
+            (HorizontalComposition AuthenticationOperation
+                (TDOperation FSParameters.data_length))
+    end) x7 ++ o3 =
+    map
+    (fun
+        o : Language.token'
+            (TDOperation FSParameters.data_length) =>
+    match o with
+    | OpToken _ o1 =>
+        OpToken
+            (HorizontalComposition AuthenticationOperation
+                (TDOperation FSParameters.data_length))
+            (Token2 AuthenticationOperation
+                (TDOperation FSParameters.data_length) o1)
+    | Language.Crash _ =>
+        Language.Crash
+            (HorizontalComposition AuthenticationOperation
+                (TDOperation FSParameters.data_length))
+    | Language.Cont _ =>
+        Language.Cont
+            (HorizontalComposition AuthenticationOperation
+                (TDOperation FSParameters.data_length))
+    end) x8 ++ o2 ->
+    exists l3' l4', 
+        x7 ++ l3' = x8 ++ l4'.
+        Proof.
+            intros; eapply map_ext_eq_prefix; eauto.
+            intros; destruct a, a'; cleanup; congruence.
+        Qed.
+        
+
+Ltac unify_oracle_and_ret_equality_inode:=
+match goal with
+| [ H: exec TD ?u ?o _ (Inode.get_owner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TD ?u ?o' _ (Inode.get_owner _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh Inode.get_owner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TD ?u ?o _ (Inode.get_owner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TD ?u ?o' _ (Inode.get_owner _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply Inode.get_owner_finished_not_crashed; 
+    eauto; cleanup_no_match
+end.
+
+Ltac invert_binds:=
+    match goal with
+| [H: exec _ _ _ _ (Bind _ _) _,
+H0: exec _ _ _ _ (Bind _ _) _ |- _] =>
+invert_exec'' H; invert_exec'' H0
+| [H: Language.exec' _ _ _ (Bind _ _) _,
+H0: Language.exec' _ _ _ (Bind _ _) _ |- _] =>
+invert_exec'' H; invert_exec'' H0
+end.
 
 
 Lemma auth_then_exec_same_type_ret:
-forall u o s1 s2 T (p1 p2: addr -> (TransactionalDiskLang FSParameters.data_length).(prog) (option T)) inum  sr1 sr2 r1 r2,
+forall u o s1 s2 T (p1 p2: addr -> (TDLang FSParameters.data_length).(prog) (option T)) inum  sr1 sr2 r1 r2,
 (forall o' s1' s2' sr1' sr2' ret1 ret2,
- exec (TransactionalDiskLang FSParameters.data_length) u o' s1' (p1 inum) (Finished sr1' ret1) ->
- exec (TransactionalDiskLang FSParameters.data_length) u o' s2' (p2 inum) (Finished sr2' ret2) ->
+ exec (TDLang FSParameters.data_length) u o' s1' (p1 inum) (Finished sr1' ret1) ->
+ exec (TDLang FSParameters.data_length) u o' s2' (p2 inum) (Finished sr2' ret2) ->
  ret1 = None <-> ret2 = None) ->
- exec AuthenticatedDisk u o s1 (auth_then_exec inum p1) (Finished sr1 r1) ->
- exec AuthenticatedDisk u o s2 (auth_then_exec inum p2) (Finished sr2 r2) ->
+ exec AD u o s1 (auth_then_exec inum p1) (Finished sr1 r1) ->
+ exec AD u o s2 (auth_then_exec inum p2) (Finished sr2 r2) ->
  r1 = None <-> r2 = None.
  Proof.
-     Transparent Inode.get_owner Inode.get_inode.
-     unfold auth_then_exec, Inode.get_owner, 
-     Inode.get_inode, Inode.InodeAllocator.read.
+     unfold auth_then_exec.
      intros. 
-     depth_first_solve.
+     simpl in *.
+     invert_binds.
+     cleanup_no_match; simpl in *.
+     eapply Automation.lift2_invert_exec in H7; cleanup_no_match.
+     eapply Automation.lift2_invert_exec in H8; cleanup_no_match.
+     repeat unify_oracle_and_ret_equality_inode.
+     destruct r, r0; try solve [intuition congruence].
+     {
+        invert_binds.
+        invert_exec'' H11; invert_exec'' H13; cleanup_no_match.
+        repeat invert_exec_no_match; cleanup_no_match.
+        {
+            invert_binds.
+            eapply Automation.lift2_invert_exec in H11; cleanup_no_match.
+            eapply Automation.lift2_invert_exec in H12; cleanup_no_match.
+            cleanup; invert_binds; repeat invert_exec;
+            try solve [invert_exec'' H17; invert_exec'' H18;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H22;
+            cleanup; intuition congruence].
+            
+            invert_exec'' H17; invert_exec'' H18;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H22; cleanup.
+            eapply map_ext_eq in H0; subst.
+            simpl in *; repeat cleanup_pairs; 
+            eapply H; eauto.
+            intros; cleanup; congruence.
+
+            invert_exec'' H17; invert_exec'' H18;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H22; cleanup.
+            eapply map_ext_eq in H0; subst.
+            simpl in *; repeat cleanup_pairs; 
+            eapply H; eauto.
+            intros; cleanup; congruence.
+        }
+        {
+            invert_binds.
+            eapply Automation.lift2_invert_exec in H11; cleanup.
+            invert_exec'' H15;
+            invert_exec'' H17; invert_exec'' H12;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H18.
+            solve_ret_iff_goal.
+
+            invert_exec'' H15;
+            invert_exec'' H17; invert_exec'' H12;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H18.
+            solve_ret_iff_goal.
+        }
+        {
+            invert_binds.
+            eapply Automation.lift2_invert_exec in H13; cleanup.
+            invert_exec'' H18.
+            invert_exec'' H17; invert_exec'' H11;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H15.
+            solve_ret_iff_goal.
+
+            invert_exec'' H18;
+            invert_exec'' H17; invert_exec'' H11;
+            repeat invert_exec;
+            invert_exec'' H21; invert_exec'' H15.
+            solve_ret_iff_goal.
+        }
+        {
+            invert_binds;
+            invert_exec'' H11; invert_exec'' H13;
+            repeat invert_exec;
+            invert_exec'' H18; invert_exec'' H19.
+            solve_ret_iff_goal.
+        }
+     }
+     {
+            invert_binds.
+            invert_exec'' H11; invert_exec'' H13;
+            repeat invert_exec;
+            invert_exec'' H16; invert_exec'' H17.
+            solve_ret_iff_goal.
+    }
+    Unshelve.
+    all: exact ADLang.
  Qed. 
+
+ Ltac depth_first_solve := (invert_exec; solve_ret_iff_goal); try (only 1: depth_first_solve).
+
  Lemma write_inner_same_type_ret:
- forall (o' : oracle' (TransactionalDiskOperation FSParameters.data_length))
+ forall (o' : oracle' (TDOperation FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-     (TransactionalDiskOperation FSParameters.data_length))
+     (TDOperation FSParameters.data_length))
 (ret1 ret2 : option unit) off v v' inum u,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s1' (write_inner off v inum) (Finished sr1' ret1) ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2' (write_inner off v' inum) (Finished sr2' ret2) ->
 ret1 = None <-> ret2 = None.
 Proof.  
-Transparent Inode.get_block_number Inode.get_inode.
-unfold write_inner, Inode.get_block_number, Inode.get_inode,
-Inode.InodeAllocator.read, DiskAllocator.write.
+Transparent Inode.get_block_number DiskAllocator.write.
+unfold write_inner.
 intros.
-depth_first_solve.
+invert_binds.
+unfold Inode.get_block_number in *.
+invert_binds.
+repeat rewrite <- app_assoc in *.
+eapply Inode.get_inode_finished_oracle_eq in H8; eauto.
+cleanup_no_match.
+destruct r1, r2; try solve [intuition congruence].
+{
+    invert_exec'' H13; invert_exec'' H14; cleanup_no_match.
+    cleanup.
+    eapply DiskAllocator.write_finished_oracle_eq in H10; eauto.
+    cleanup; intuition congruence.
+    invert_exec'' H10; cleanup_no_match.
+    unfold DiskAllocator.write in *.
+    cleanup.
+    invert_exec'' H11;
+    apply app_eq_unit in H; split_ors; logic_clean;
+    subst; exfalso; eapply exec_empty_oracle; eauto.
+    invert_exec'' H11; intuition congruence.
+
+    invert_exec'' H11; cleanup_no_match.
+    unfold DiskAllocator.write in *.
+    cleanup.
+    invert_exec'' H10;
+    apply app_eq_unit in H; split_ors; logic_clean;
+    subst; exfalso; eapply exec_empty_oracle; eauto.
+    invert_exec'' H10; intuition congruence.
+
+    invert_exec'' H10; invert_exec'' H11; intuition congruence.
+}
+{
+    invert_exec'' H13; invert_exec'' H14; cleanup.
+    invert_exec'' H10; invert_exec'' H11; intuition congruence.
+}
+Unshelve.
+all: eauto.
+all: exact (TDLang FSParameters.data_length).
 Qed.
 
 Lemma change_owner_inner_same_type_ret:
-forall (o' : oracle' (TransactionalDiskOperation FSParameters.data_length))
+forall (o' : oracle' (TDOperation FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-    (TransactionalDiskOperation FSParameters.data_length))
+    (TDOperation FSParameters.data_length))
 (ret1 ret2 : option unit) own inum u,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s1' (change_owner_inner own inum) (Finished sr1' ret1) ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2' (change_owner_inner own inum) (Finished sr2' ret2) ->
 ret1 = None <-> ret2 = None.
 Proof. 
-Transparent Inode.change_owner Inode.get_block_number Inode.get_inode.
-unfold change_owner_inner, Inode.change_owner, Inode.set_inode, Inode.get_inode,
-Inode.InodeAllocator.read, Inode.InodeAllocator.write.
+unfold change_owner_inner.
 intros.
-depth_first_solve.
+eapply Inode.change_owner_finished_oracle_eq in H; eauto.
+cleanup; intuition congruence.
+Unshelve.
+all: eauto.
 Qed. 
 
 Lemma delete_inner_same_type_ret:
-forall (o' : oracle' (TransactionalDiskOperation FSParameters.data_length))
+forall (o' : oracle' (TDOperation FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-    (TransactionalDiskOperation FSParameters.data_length))
+    (TDOperation FSParameters.data_length))
 (ret1 ret2 : option unit) inum u,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s1' (delete_inner inum) (Finished sr1' ret1) ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2' (delete_inner inum) (Finished sr2' ret2) ->
 ret1 = None <-> ret2 = None.
 Proof. 
-Transparent Inode.change_owner Inode.get_all_block_numbers Inode.get_inode
-Inode.free.
-unfold delete_inner, Inode.get_all_block_numbers, Inode.free, 
-Inode.set_inode, Inode.get_inode, 
-Inode.InodeAllocator.read, Inode.InodeAllocator.write, 
- Inode.InodeAllocator.free.
+Transparent Inode.get_all_block_numbers.
+unfold delete_inner.
 intros.
-depth_first_solve.
-all: cleanup;
-repeat rewrite app_assoc in *;
-repeat match goal with
-|[H: _ ++ [_] = _ ++ [_] |- _] =>
-apply app_inj_tail in H; cleanup
-end; try congruence.
-Qed. 
+invert_binds.
+eapply Inode.get_all_block_numbers_finished_oracle_eq in H7; eauto.
+cleanup; try solve [intuition congruence].
+invert_binds.
+{
+    destruct r, r0.
+    {
+        destruct u0, u1.
+        Transparent Inode.free.
+        unfold Inode.free, Inode.InodeAllocator.free in *.
+        cleanup; try lia.
+        {
+            invert_binds.
+            invert_exec'' H10; invert_exec'' H11.
+            repeat invert_exec_no_match; try lia.
+            {
+                cleanup; repeat invert_exec;
+                invert_exec'' H15; invert_exec'' H16;
+                repeat invert_exec; try lia; 
+                try solve [intuition congruence];
+                cleanup;
+                    repeat rewrite app_assoc in *;
+                    repeat match goal with
+                    |[H: _ ++ [_] = _ ++ [_] |- _] =>
+                    apply app_inj_tail in H; cleanup
+                    end; try congruence.
+            }
+            {
+                cleanup; repeat invert_exec;
+                invert_exec'' H15; invert_exec'' H16;
+                repeat invert_exec; try lia; 
+                try solve [intuition congruence];
+                cleanup;
+                    repeat rewrite app_assoc in *;
+                    repeat match goal with
+                    |[H: _ ++ [_] = _ ++ [_] |- _] =>
+                    apply app_inj_tail in H; cleanup
+                    end; try congruence.
+            }
+        }
+        {
+            invert_exec'' H12; invert_exec'' H13;
+                try solve [intuition congruence].
+        }
+    }
+    {
+        destruct u0.
+        Transparent Inode.free.
+        unfold Inode.free, Inode.InodeAllocator.free in *.
+        cleanup; try lia.
+        {
+            invert_exec'' H12;
+            invert_exec'' H10; invert_exec'' H11;
+            repeat invert_exec_no_match; try lia.
+            {
+                cleanup; repeat invert_exec;
+                invert_exec'' H15; invert_exec'' H13;
+                repeat invert_exec; try lia; 
+                try solve [intuition congruence];
+                cleanup;
+                    repeat rewrite app_assoc in *;
+                    repeat match goal with
+                    |[H: _ ++ [_] = _ ++ [_] |- _] =>
+                    apply app_inj_tail in H; cleanup
+                    end; try congruence.
+            }
+            {
+                cleanup; repeat invert_exec;
+                invert_exec'' H15; invert_exec'' H13;
+                repeat invert_exec; try lia; 
+                try solve [intuition congruence];
+                cleanup;
+                    repeat rewrite app_assoc in *;
+                    repeat match goal with
+                    |[H: _ ++ [_] = _ ++ [_] |- _] =>
+                    apply app_inj_tail in H; cleanup
+                    end; try congruence.
+            }
+        }
+        {
+            invert_exec'' H12; invert_exec'' H13;
+                try solve [intuition congruence].
+        }
+    }
+    {
+        destruct u0.
+        Transparent Inode.free.
+        unfold Inode.free, Inode.InodeAllocator.free in *.
+        cleanup; try lia.
+        {
+            invert_exec'' H13;
+            invert_exec'' H10; invert_exec'' H11;
+            repeat invert_exec_no_match; try lia.
+            {
+                cleanup; repeat invert_exec;
+                invert_exec'' H15; invert_exec'' H12;
+                repeat invert_exec; try lia; 
+                try solve [intuition congruence];
+                cleanup;
+                    repeat rewrite app_assoc in *;
+                    repeat match goal with
+                    |[H: _ ++ [_] = _ ++ [_] |- _] =>
+                    apply app_inj_tail in H; cleanup
+                    end; try congruence.
+            }
+            {
+                cleanup; repeat invert_exec;
+                invert_exec'' H15; invert_exec'' H12;
+                repeat invert_exec; try lia; 
+                try solve [intuition congruence];
+                cleanup;
+                    repeat rewrite app_assoc in *;
+                    repeat match goal with
+                    |[H: _ ++ [_] = _ ++ [_] |- _] =>
+                    apply app_inj_tail in H; cleanup
+                    end; try congruence.
+            }
+        }
+        {
+            invert_exec'' H12; invert_exec'' H13;
+                try solve [intuition congruence].
+        }
+    }
+    {
+        invert_exec'' H12; invert_exec'' H13;
+        try solve [intuition congruence].
+    }
+}
+{
+    invert_exec'' H10; invert_exec'' H11;
+    try solve [intuition congruence].
+}
+Qed.
+
 
 Lemma extend_inner_same_type_ret:
-forall (o' : oracle' (TransactionalDiskOperation FSParameters.data_length))
+forall (o' : oracle' (TDOperation FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-    (TransactionalDiskOperation FSParameters.data_length))
+    (TDOperation FSParameters.data_length))
 (ret1 ret2 : option unit) v v' inum u,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s1' (extend_inner v inum) (Finished sr1' ret1) ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2' (extend_inner v' inum) (Finished sr2' ret2) ->
 ret1 = None <-> ret2 = None.
 Proof. 
-Transparent Inode.extend Inode.get_inode.
-unfold extend_inner, Inode.extend, 
-DiskAllocator.alloc, 
-Inode.set_inode, Inode.get_inode,
-Inode.InodeAllocator.read, 
-Inode.InodeAllocator.write.
+unfold extend_inner.
 intros.
-depth_first_solve.
-Qed. 
+invert_binds.
+eapply DiskAllocator.alloc_finished_oracle_eq in H7; eauto.
+cleanup; try solve [intuition congruence].
+eapply Inode.extend_finished_oracle_eq in H10; eauto;
+cleanup; intuition congruence.
+invert_exec'' H10; invert_exec'' H11;
+try solve [intuition congruence].
+Unshelve.
+eauto.
+Qed.
+
 
 Lemma create_same_type_ret:
-forall (o' : oracle AuthenticatedDiskLang)
+forall (o' : oracle ADLang)
 (s1' s2' sr1'
 sr2' : Language.state
-    AuthenticatedDiskLang)
+    ADLang)
 (ret1 ret2 : option nat) own u,
-exec (AuthenticatedDiskLang) 
+exec (ADLang) 
 u o' s1' (create own) (Finished sr1' ret1) ->
-exec (AuthenticatedDiskLang) 
+exec (ADLang) 
 u o' s2' (create own) (Finished sr2' ret2) ->
 ret1 = None <-> ret2 = None.
 Proof. 
-Transparent Inode.alloc.
-unfold create, Inode.alloc, 
-Inode.InodeAllocator.alloc. 
+unfold create.
 intros.
-depth_first_solve.
-Qed. 
-
-Set Nested Proofs Allowed.
-Lemma upd_nop_rev:
-forall (A V : Type) (AEQ : EqDec A) 
-(m : A -> option V) (a : A) (v : V),
-Mem.upd m a v = m ->
-m a = Some v.
-Proof.
-    intros; rewrite <- H.
-    apply Mem.upd_eq; eauto.
+invert_binds.
+eapply Automation.lift2_invert_exec in H7; cleanup_no_match.
+eapply Automation.lift2_invert_exec in H6; cleanup_no_match.
+edestruct HC_oracle_map_prefix; eauto.
+logic_clean.
+eapply Inode.alloc_finished_oracle_eq in H2; eauto.
+cleanup; try solve [intuition congruence].
+{
+    invert_binds.
+    invert_exec'' H9; invert_exec'' H10;
+    repeat invert_exec;
+    cleanup; try solve [intuition congruence].
+    invert_exec'' H14; invert_exec'' H15;
+    try solve [intuition congruence].
+}
+{
+    invert_binds.
+    invert_exec'' H9; invert_exec'' H10;
+    repeat invert_exec;
+    cleanup; try solve [intuition congruence].
+    invert_exec'' H14; invert_exec'' H15;
+    try solve [intuition congruence].
+}
+Unshelve.
+all: exact AD.
 Qed.
-
-Lemma seln_eq_updn_eq_rev:
-forall (A : Type) (l : list A) (i : nat) (a def : A),
-updn l i a = l -> 
-i < length l ->
-seln l i def = a.
-Proof.
-    induction l; simpl; intros.
-    lia.
-    destruct i; simpl in *.
-    congruence.
-    eapply IHl.
-    congruence.
-    lia.
-Qed.
-
-Ltac invert_exec_local :=
-match goal with
-| [H: exec (TransactionalDiskLang _) _ _ _ (Ret _) _ |- _] =>
-    invert_exec'' H
-| [H: exec (TransactionalDiskLang _) _ _ _ (Op _ _) _ |- _] =>
-invert_exec'' H
-| [H: Core.exec (TransactionalDiskOperation _) _ _ _ _ _ |- _] =>
-invert_exec'' H
-| [H: TransactionalDiskLayer.exec' _ _ _ _ _ _ |- _] =>
-invert_exec'' H
-| [H: AuthenticationLayer.exec' _ _ _ _ _ |- _] =>
-invert_exec'' H
-end.
-
-
-Lemma files_inner_rep_extract_inode_rep:
-forall fm s,
-files_inner_rep fm s ->
-exists inode_map, Inode.inode_rep inode_map s.
-Proof.
-    unfold files_inner_rep; intros; cleanup; eauto.
-Qed.
-
-Lemma files_inner_rep_extract_disk_allocator_rep:
-forall fm s,
-files_inner_rep fm s ->
-exists blocks_map, DiskAllocator.block_allocator_rep blocks_map s.
-Proof.
-    unfold files_inner_rep; intros; cleanup; eauto.
-Qed.
-
-
-Ltac apply_specs :=
-match goal with
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.get_owner _) (Crashed _) |- _] =>
-    eapply Inode.get_owner_crashed in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.get_owner _) (Finished _ _) |- _] =>
-    eapply Inode.get_owner_finished in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.get_block_number _ _) (Crashed _) |- _] =>
-    eapply Inode.get_block_number_crashed in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.get_block_number _ _) (Finished _ _) |- _] =>
-    eapply Inode.get_block_number_finished in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.get_all_block_numbers _) (Crashed _) |- _] =>
-    eapply Inode.get_block_number_crashed in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.get_all_block_numbers _) (Finished _ _) |- _] =>
-    eapply Inode.get_block_number_finished in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (DiskAllocator.write _ _) (Crashed _) |- _] =>
-    eapply DiskAllocator.write_crashed in H; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (DiskAllocator.write _ _) (Finished _ _) |- _] =>
-    eapply DiskAllocator.write_finished in H; 
-    [|shelve]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.extend _ _) (Crashed _) |- _] =>
-    eapply Inode.extend_crashed in H; 
-    [|shelve]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.extend _ _) (Finished _ _) |- _] =>
-    eapply Inode.extend_finished in H; 
-    [|shelve| shelve |]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.alloc _) (Crashed _) |- _] =>
-    eapply Inode.alloc_crashed in H; 
-    [|repeat cleanup_pairs]; eauto
-| [H: exec (TransactionalDiskLang _) 
-_ _ _ (Inode.alloc _) (Finished _ _) |- _] =>
-    eapply Inode.alloc_finished in H; 
-    [|repeat cleanup_pairs]; eauto
-end.
-
-Ltac split_crash :=
-    match goal with
-    | [H: exec _ _ _ _ _ _ \/ _ |- _] =>
-    destruct H
-    end.
-
-Opaque Inode.get_owner Inode.get_block_number DiskAllocator.write.
-
-
- Lemma list_extend_ne:
- forall T (l : list T) t,
- l <> l ++[t].
- Proof.
-    unfold not; induction l; simpl; intros; try congruence.
- Qed.
 
  Lemma all_block_numbers_in_bound:
     forall x x1 s2 x12 x14 inum ,
@@ -442,14 +804,14 @@ Opaque Inode.get_owner Inode.get_block_number DiskAllocator.write.
 
   Lemma write_inner_finished_oracle_eq:
   forall u u' ex fm1 fm2 o o' o1 o2 s1 s2 s1' s2' r1 r2 off v v' inum,
-  exec (TransactionalDiskLang FSParameters.data_length) 
+  exec (TDLang FSParameters.data_length) 
  u o s1 (write_inner off v inum)
  (Finished s1' r1) ->
  o ++ o1 = o' ++ o2 ->
  files_inner_rep fm1 (fst s1) ->
  files_inner_rep fm2 (fst s2) ->
  same_for_user_except u' ex fm1 fm2 ->
- exec (TransactionalDiskLang FSParameters.data_length) 
+ exec (TDLang FSParameters.data_length) 
  u o' s2 (write_inner off v' inum)
  (Finished s2' r2) ->
  o = o' /\ (r1 = None <-> r2 = None).
@@ -544,11 +906,11 @@ Opaque Inode.get_owner Inode.get_block_number DiskAllocator.write.
 
  Lemma extend_inner_finished_oracle_eq:
  forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v' inum inum',
- exec (TransactionalDiskLang FSParameters.data_length) 
+ exec (TDLang FSParameters.data_length) 
 u o s1 (extend_inner v inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (extend_inner v' inum')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -573,11 +935,11 @@ Qed.
 
 Lemma change_owner_inner_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (change_owner_inner v inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (change_owner_inner v' inum')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -592,13 +954,13 @@ Qed.
 
 Lemma free_all_blocks_finished_oracle_eq:
 forall blocks blocks' u o o' o1 o2 s1 s2 s1' s2' r1 r2,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (free_all_blocks blocks)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
 Forall (fun n => n < DiskAllocatorParams.num_of_blocks) blocks ->
 Forall (fun n => n < DiskAllocatorParams.num_of_blocks) blocks' ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (free_all_blocks blocks')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -674,11 +1036,11 @@ Qed.
         
 Lemma delete_inner_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (delete_inner inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (delete_inner inum')
 (Finished s2' r2) ->
 (exists fm, files_inner_rep fm (fst s1)) ->
@@ -821,14 +1183,14 @@ Qed.
 (* Finished, not crasherd lemmas*)
 Lemma write_inner_finished_not_crashed:
 forall u u' ex fm1 fm2 o o' o1 o2 s1 s2 s1' s2' r v v' inum off,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (write_inner off v inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
 same_for_user_except u' ex fm1 fm2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (write_inner off v' inum)
 (Crashed s2').
 Proof.
@@ -921,11 +1283,11 @@ Qed.
 
 Lemma extend_inner_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (extend_inner inum v)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (extend_inner inum' v')
 (Crashed s2').
 Proof.
@@ -958,11 +1320,11 @@ Qed.
 
 Lemma change_owner_inner_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (change_owner_inner inum v)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (change_owner_inner inum' v')
 (Crashed s2').
 Proof.
@@ -975,13 +1337,13 @@ Qed.
 
 Lemma free_all_blocks_finished_not_crashed:
 forall blocks blocks' u o o' o1 o2 s1 s2 s1' s2' r,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (free_all_blocks blocks)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
 Forall (fun n => n < DiskAllocatorParams.num_of_blocks) blocks ->
 Forall (fun n => n < DiskAllocatorParams.num_of_blocks) blocks' ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (free_all_blocks blocks')
 (Crashed s2').
 Proof.
@@ -1045,13 +1407,13 @@ Qed.
 
 Lemma delete_inner_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (delete_inner inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
 (exists fm, files_inner_rep fm (fst s1)) ->
 (exists fm, files_inner_rep fm (fst s2)) ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (delete_inner inum')
 (Crashed s2').
 Proof.
@@ -1309,7 +1671,7 @@ simpl in *; cleanup;
 unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
 repeat cleanup_pairs; repeat unify_invariants;
 repeat match goal with
-| [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
+| [H: exec (TDLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
 eapply FileInnerSpecs.write_inner_crashed in H;
 [|
    unfold files_inner_rep in *; cleanup;
@@ -1317,7 +1679,7 @@ simpl; eexists; repeat (split; eauto);
 simpl; eexists; split; eauto;
 eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
 intros; solve_bounds]
-| [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
+| [H: exec (TDLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
 eapply FileInnerSpecs.write_inner_finished in H;
 [|
    unfold files_inner_rep in *; cleanup;
@@ -1355,7 +1717,7 @@ exfalso; eapply updn_ne_itself; [ | | eauto]; eauto.
    unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
    repeat cleanup_pairs; repeat unify_invariants;
    repeat match goal with
-   | [H: exec (TransactionalDiskLang _) _ _ _ (extend_inner _ _) (Crashed _) |-_] =>
+   | [H: exec (TDLang _) _ _ _ (extend_inner _ _) (Crashed _) |-_] =>
    eapply FileInnerSpecs.extend_inner_crashed in H;
    [|
        unfold files_inner_rep in *; cleanup;
@@ -1363,7 +1725,7 @@ exfalso; eapply updn_ne_itself; [ | | eauto]; eauto.
     simpl; eexists; split; eauto;
     eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
  intros; solve_bounds]
- | [H: exec (TransactionalDiskLang _) _ _ _ (extend_inner _ _) (Finished _ _) |-_] =>
+ | [H: exec (TDLang _) _ _ _ (extend_inner _ _) (Finished _ _) |-_] =>
    eapply FileInnerSpecs.extend_inner_finished in H;
    [|
        unfold files_inner_rep in *; cleanup;
@@ -1398,7 +1760,7 @@ Ltac solve_change_owner :=
 unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
 repeat cleanup_pairs; repeat unify_invariants;
 repeat match goal with
-| [H: exec (TransactionalDiskLang _) _ _ _ (change_owner_inner _ _) (Crashed _) |-_] =>
+| [H: exec (TDLang _) _ _ _ (change_owner_inner _ _) (Crashed _) |-_] =>
 eapply FileInnerSpecs.change_owner_inner_crashed in H;
 [|
    unfold files_inner_rep in *; cleanup;
@@ -1406,7 +1768,7 @@ simpl; eexists; repeat (split; eauto);
 simpl; eexists; split; eauto;
 eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
 intros; solve_bounds]
-| [H: exec (TransactionalDiskLang _) _ _ _ (change_owner_inner _ _) (Finished _ _) |-_] =>
+| [H: exec (TDLang _) _ _ _ (change_owner_inner _ _) (Finished _ _) |-_] =>
 eapply FileInnerSpecs.change_owner_inner_finished in H;
 [|
    unfold files_inner_rep in *; cleanup;
@@ -1439,7 +1801,7 @@ repeat apply_specs; simpl in *; cleanup;
 unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
 repeat cleanup_pairs; repeat unify_invariants;
 repeat match goal with
-| [H: exec (TransactionalDiskLang _) _ _ _ (delete_inner _) (Crashed _) |-_] =>
+| [H: exec (TDLang _) _ _ _ (delete_inner _) (Crashed _) |-_] =>
 eapply FileInnerSpecs.delete_inner_crashed in H;
 [|
    unfold files_inner_rep in *; cleanup;
@@ -1447,7 +1809,7 @@ simpl; eexists; repeat (split; eauto);
 simpl; eexists; split; eauto;
 eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
 intros; solve_bounds]
-| [H: exec (TransactionalDiskLang _) _ _ _ (delete_inner _) (Finished _ _) |-_] =>
+| [H: exec (TDLang _) _ _ _ (delete_inner _) (Finished _ _) |-_] =>
 eapply FileInnerSpecs.delete_inner_finished in H;
 [|
    unfold files_inner_rep in *; cleanup;
@@ -1535,191 +1897,6 @@ repeat invert_exec_local; repeat unify_invariants; solve_ret_iff_goal.
 
 
 
-Lemma map_ext_eq_prefix:
-forall (A B : Type) (l1 l2 : list A) l3 l4 (f : A -> B),
-map f l1 ++ l3 = map f l2 ++ l4 -> 
-(forall a a' : A, f a = f a' -> a = a') -> 
-exists l3' l4', 
-l1 ++ l3' = l2 ++ l4'.
-Proof.
-    induction l1; simpl; intros; eauto.
-    destruct l2; simpl in *; cleanup; eauto.
-    apply H0 in H2; rewrite H2; eauto.
-    edestruct IHl1; eauto; cleanup; eauto.
-    do 2 eexists; rewrite H; eauto.
-    Unshelve.
-    all: eauto.
-Qed.
-
-Lemma HC_oracle_map_prefix :
-forall x7 x8 o2 o3,
-map
-    (fun
-        o : Language.token'
-            (TransactionalDiskOperation FSParameters.data_length) =>
-    match o with
-    | OpToken _ o1 =>
-        OpToken
-            (HorizontalComposition AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length))
-            (Token2 AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length) o1)
-    | Language.Crash _ =>
-        Language.Crash
-            (HorizontalComposition AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length))
-    | Language.Cont _ =>
-        Language.Cont
-            (HorizontalComposition AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length))
-    end) x7 ++ o3 =
-    map
-    (fun
-        o : Language.token'
-            (TransactionalDiskOperation FSParameters.data_length) =>
-    match o with
-    | OpToken _ o1 =>
-        OpToken
-            (HorizontalComposition AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length))
-            (Token2 AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length) o1)
-    | Language.Crash _ =>
-        Language.Crash
-            (HorizontalComposition AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length))
-    | Language.Cont _ =>
-        Language.Cont
-            (HorizontalComposition AuthenticationOperation
-                (TransactionalDiskOperation FSParameters.data_length))
-    end) x8 ++ o2 ->
-    exists l3' l4', 
-        x7 ++ l3' = x8 ++ l4'.
-        Proof.
-            intros; eapply map_ext_eq_prefix; eauto.
-            intros; destruct a, a'; cleanup; congruence.
-        Qed.
-        
-
-Ltac unify_oracle_and_ret_equality:=
-match goal with
-| [ H: exec TransactionalDisk ?u ?o _ (Inode.get_owner _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
-    H1: exec TransactionalDisk ?u ?o' _ (Inode.get_owner _) (Finished _ _) |- _] =>
-    edestruct HC_oracle_map_prefix; eauto; 
-    cleanup_no_match;
-    eapply_fresh Inode.get_owner_finished_oracle_eq in H; 
-    eauto; cleanup_no_match
-| [ H: exec TransactionalDisk ?u ?o _ (Inode.get_owner _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o',
-    H1: exec TransactionalDisk ?u ?o' _ (Inode.get_owner _) (Crashed _) |- _] =>
-    edestruct HC_oracle_map_prefix; 
-    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
-    cleanup_no_match; exfalso;
-    eapply Inode.get_owner_finished_not_crashed; 
-    eauto; cleanup_no_match
-
-| [ H: exec TransactionalDisk ?u ?o _ (extend_inner _ _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
-    H1: exec TransactionalDisk ?u ?o' _ (extend_inner _ _) (Finished _ _) |- _] =>
-    edestruct HC_oracle_map_prefix; eauto; 
-    cleanup_no_match;
-    eapply_fresh extend_inner_finished_oracle_eq in H; 
-    eauto; cleanup_no_match
-| [ H: exec TransactionalDisk ?u ?o _ (extend_inner _ _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o',
-    H1: exec TransactionalDisk ?u ?o' _ (extend_inner _ _) (Crashed _) |- _] =>
-    edestruct HC_oracle_map_prefix;
-    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
-    cleanup_no_match; exfalso;
-    eapply extend_inner_finished_not_crashed; 
-    eauto; cleanup_no_match
-
-| [ H: exec TransactionalDisk ?u ?o _ (change_owner_inner _ _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
-    H1: exec TransactionalDisk ?u ?o' _ (change_owner_inner _ _) (Finished _ _) |- _] =>
-    edestruct HC_oracle_map_prefix; eauto; 
-    cleanup_no_match;
-    eapply_fresh change_owner_inner_finished_oracle_eq in H; 
-    eauto; cleanup_no_match
-| [ H: exec TransactionalDisk ?u ?o _ (change_owner_inner _ _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o',
-    H1: exec TransactionalDisk ?u ?o' _ (change_owner_inner _ _) (Crashed _) |- _] =>
-    edestruct HC_oracle_map_prefix;
-    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
-    cleanup_no_match; exfalso;
-    eapply change_owner_inner_finished_not_crashed; 
-    eauto; cleanup_no_match
-
-| [ H: exec TransactionalDisk ?u ?o _ (write_inner _ _ _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
-    H1: exec TransactionalDisk ?u ?o' _ (write_inner _ _ _) (Finished _ _) |- _] =>
-    edestruct HC_oracle_map_prefix; eauto; 
-    cleanup_no_match;
-    eapply_fresh write_inner_finished_oracle_eq in H; 
-    eauto; cleanup_no_match;
-    try solve [
-           unfold files_inner_rep in *; cleanup;
-           simpl; eexists; repeat (split; eauto);
-           simpl; eexists; split; eauto;
-           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-           intros; solve_bounds]
-| [ H: exec TransactionalDisk ?u ?o _ (write_inner _ _ _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o',
-    H1: exec TransactionalDisk ?u ?o' _ (write_inner _ _ _) (Crashed _) |- _] =>
-    edestruct HC_oracle_map_prefix; 
-    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
-    cleanup_no_match; exfalso;
-    eapply write_inner_finished_not_crashed; 
-    eauto; cleanup_no_match;
-    try solve [
-           unfold files_inner_rep in *; cleanup;
-           simpl; eexists; repeat (split; eauto);
-           simpl; eexists; split; eauto;
-           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-           intros; solve_bounds]
-
-| [ H: exec TransactionalDisk ?u ?o _ (delete_inner _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
-    H1: exec TransactionalDisk ?u ?o' _ (delete_inner _) (Finished _ _) |- _] =>
-    edestruct HC_oracle_map_prefix; eauto; 
-    cleanup_no_match;
-    eapply_fresh delete_inner_finished_oracle_eq in H; 
-    eauto; cleanup_no_match;
-    try solve [
-        eexists;
-           unfold files_inner_rep in *; cleanup;
-           simpl; eexists; repeat (split; eauto);
-           simpl; eexists; split; eauto;
-           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-           intros; solve_bounds]
-| [ H: exec TransactionalDisk ?u ?o _ (delete_inner _) (Finished _ _),
-    H0: map ?f ?o ++ _ = map ?f ?o',
-    H1: exec TransactionalDisk ?u ?o' _ (delete_inner _) (Crashed _) |- _] =>
-    edestruct HC_oracle_map_prefix; 
-    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
-    cleanup_no_match; exfalso;
-    eapply delete_inner_finished_not_crashed; 
-    eauto; cleanup_no_match;
-    try solve [
-        eexists;
-           unfold files_inner_rep in *; cleanup;
-           simpl; eexists; repeat (split; eauto);
-           simpl; eexists; split; eauto;
-           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-           intros; solve_bounds]
-end.
-
-Ltac invert_binds:=
-    match goal with
-| [H: exec _ _ _ _ (Bind _ _) _,
-H0: exec _ _ _ _ (Bind _ _) _ |- _] =>
-invert_exec'' H; invert_exec'' H0
-| [H: Language.exec' _ _ _ (Bind _ _) _,
-H0: Language.exec' _ _ _ (Bind _ _) _ |- _] =>
-invert_exec'' H; invert_exec'' H0
-end.
-
 Theorem inode_owners_are_same_3:
 forall s s' u ex x x0 x1 x4 x5 x6 x8 x9 inum,
     same_for_user_except u ex x x0 ->
@@ -1744,16 +1921,130 @@ eapply_fresh H8 in H4; eauto.
 unfold file_rep in *; cleanup; eauto.
 Qed.
 
+
+
+Ltac unify_oracle_and_ret_equality:=
+match goal with
+| [ H: exec TD ?u ?o _ (Inode.get_owner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TD ?u ?o' _ (Inode.get_owner _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh Inode.get_owner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TD ?u ?o _ (Inode.get_owner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TD ?u ?o' _ (Inode.get_owner _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply Inode.get_owner_finished_not_crashed; 
+    eauto; cleanup_no_match
+
+| [ H: exec TD ?u ?o _ (extend_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TD ?u ?o' _ (extend_inner _ _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh extend_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TD ?u ?o _ (extend_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TD ?u ?o' _ (extend_inner _ _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix;
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply extend_inner_finished_not_crashed; 
+    eauto; cleanup_no_match
+
+| [ H: exec TD ?u ?o _ (change_owner_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TD ?u ?o' _ (change_owner_inner _ _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh change_owner_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match
+| [ H: exec TD ?u ?o _ (change_owner_inner _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TD ?u ?o' _ (change_owner_inner _ _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix;
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply change_owner_inner_finished_not_crashed; 
+    eauto; cleanup_no_match
+
+| [ H: exec TD ?u ?o _ (write_inner _ _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TD ?u ?o' _ (write_inner _ _ _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh write_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match;
+    try solve [
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+| [ H: exec TD ?u ?o _ (write_inner _ _ _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TD ?u ?o' _ (write_inner _ _ _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply write_inner_finished_not_crashed; 
+    eauto; cleanup_no_match;
+    try solve [
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+
+| [ H: exec TD ?u ?o _ (delete_inner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o' ++ _,
+    H1: exec TD ?u ?o' _ (delete_inner _) (Finished _ _) |- _] =>
+    edestruct HC_oracle_map_prefix; eauto; 
+    cleanup_no_match;
+    eapply_fresh delete_inner_finished_oracle_eq in H; 
+    eauto; cleanup_no_match;
+    try solve [
+        eexists;
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+| [ H: exec TD ?u ?o _ (delete_inner _) (Finished _ _),
+    H0: map ?f ?o ++ _ = map ?f ?o',
+    H1: exec TD ?u ?o' _ (delete_inner _) (Crashed _) |- _] =>
+    edestruct HC_oracle_map_prefix; 
+    [setoid_rewrite app_nil_r at 2; apply H0 |]; 
+    cleanup_no_match; exfalso;
+    eapply delete_inner_finished_not_crashed; 
+    eauto; cleanup_no_match;
+    try solve [
+        eexists;
+           unfold files_inner_rep in *; cleanup;
+           simpl; eexists; repeat (split; eauto);
+           simpl; eexists; split; eauto;
+           eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+           intros; solve_bounds]
+end.  
+
+
+
+
 Lemma extend_crashed_exfalso:
     forall u' ex x x0 s1 s2 x3 inum v v' x2 sr2 o,
      same_for_user_except u' ex x x0 ->
    refines s1 x ->
     refines s2 x0 ->
-   exec AuthenticatedDisk (owner x3) o s1 (extend inum v) (Crashed x2) ->
+   exec AD (owner x3) o s1 (extend inum v) (Crashed x2) ->
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    files_crash_rep (Mem.upd x inum (extend_file x3 v)) x2 ->
-   exec AuthenticatedDisk (owner x3) o s2 (extend inum v') (Crashed sr2) ->
+   exec AD (owner x3) o s2 (extend inum v') (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
@@ -1782,7 +2073,7 @@ Lemma extend_crashed_exfalso:
     invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_extend.
 
     Unshelve.
-    all: exact AuthenticatedDiskLang.
+    all: exact ADLang.
 Qed.
 
    
@@ -1791,12 +2082,12 @@ Lemma change_owner_crashed_exfalso:
      same_for_user_except u' (Some inum) x x0 ->
    refines s1 x ->
     refines s2 x0 ->
-   exec AuthenticatedDisk (owner x3) o s1 (change_owner inum v) (Crashed x2) ->
+   exec AD (owner x3) o s1 (change_owner inum v) (Crashed x2) ->
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    v<> owner x3 ->
    files_crash_rep (Mem.upd x inum (change_file_owner x3 v)) x2 ->
-   exec AuthenticatedDisk (owner x3) o s2 (change_owner inum v) (Crashed sr2) ->
+   exec AD (owner x3) o s2 (change_owner inum v) (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
@@ -1831,7 +2122,7 @@ Lemma change_owner_crashed_exfalso:
            simpl in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants.
            repeat match goal with
-            | [H: exec (TransactionalDiskLang _) _ _ _ (change_owner_inner _ _) (Crashed _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (change_owner_inner _ _) (Crashed _) |-_] =>
             eapply FileInnerSpecs.change_owner_inner_crashed in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -1839,7 +2130,7 @@ Lemma change_owner_crashed_exfalso:
             simpl; eexists; split; eauto;
             eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
             intros; solve_bounds]
-            | [H: exec (TransactionalDiskLang _) _ _ _ (change_owner_inner _ _) (Finished _ _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (change_owner_inner _ _) (Finished _ _) |-_] =>
             eapply FileInnerSpecs.change_owner_inner_finished in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -1876,7 +2167,7 @@ Lemma change_owner_crashed_exfalso:
            simpl in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants.
            repeat match goal with
-            | [H: exec (TransactionalDiskLang _) _ _ _ (change_owner_inner _ _) (Crashed _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (change_owner_inner _ _) (Crashed _) |-_] =>
             eapply FileInnerSpecs.change_owner_inner_crashed in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -1884,7 +2175,7 @@ Lemma change_owner_crashed_exfalso:
             simpl; eexists; split; eauto;
             eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
             intros; solve_bounds]
-            | [H: exec (TransactionalDiskLang _) _ _ _ (change_owner_inner _ _) (Finished _ _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (change_owner_inner _ _) (Finished _ _) |-_] =>
             eapply FileInnerSpecs.change_owner_inner_finished in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -1915,7 +2206,7 @@ Lemma change_owner_crashed_exfalso:
     invert_binds; cleanup; simpl in *; repeat invert_exec'; solve_change_owner.
 
     Unshelve.
-    all: exact AuthenticatedDiskLang.
+    all: exact ADLang.
 Qed.
 
 
@@ -1925,7 +2216,7 @@ Lemma write_crashed_exfalso:
     same_for_user_except u' ex x x0 ->
   refines s1 x ->
    refines s2 x0 ->
-  exec AuthenticatedDisk (owner x3) o s1 (write inum off v) (Crashed x2) ->
+  exec AD (owner x3) o s1 (write inum off v) (Crashed x2) ->
   inum < FSParameters.inode_count ->
   x inum = Some x3 ->
   off < length (blocks x3) ->
@@ -1933,7 +2224,7 @@ Lemma write_crashed_exfalso:
   x0 inum = Some f2 ->
   seln (blocks f2) off value0 <> v' ->
   files_crash_rep (Mem.upd x inum (update_file x3 off v)) x2 ->
-  exec AuthenticatedDisk (owner x3) o s2 (write inum off v') (Crashed sr2) ->
+  exec AD (owner x3) o s2 (write inum off v') (Crashed sr2) ->
   files_crash_rep x0 sr2 ->
   False.
   Proof. 
@@ -1982,7 +2273,7 @@ Lemma write_crashed_exfalso:
           simpl in *; cleanup.
           repeat cleanup_pairs; repeat unify_invariants.
           repeat match goal with
-           | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
+           | [H: exec (TDLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
            eapply FileInnerSpecs.write_inner_crashed in H;
            [|
            unfold files_inner_rep in *; cleanup;
@@ -1990,7 +2281,7 @@ Lemma write_crashed_exfalso:
            simpl; eexists; split; eauto;
            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
            intros; solve_bounds]
-           | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
+           | [H: exec (TDLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
            eapply FileInnerSpecs.write_inner_finished in H;
            [|
            unfold files_inner_rep in *; cleanup;
@@ -2031,7 +2322,7 @@ Lemma write_crashed_exfalso:
           simpl in *; cleanup.
           repeat cleanup_pairs; repeat unify_invariants.
           repeat match goal with
-           | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
+           | [H: exec (TDLang _) _ _ _ (write_inner _ _ _) (Crashed _) |-_] =>
            eapply FileInnerSpecs.write_inner_crashed in H;
            [|
            unfold files_inner_rep in *; cleanup;
@@ -2039,7 +2330,7 @@ Lemma write_crashed_exfalso:
            simpl; eexists; split; eauto;
            eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
            intros; solve_bounds]
-           | [H: exec (TransactionalDiskLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
+           | [H: exec (TDLang _) _ _ _ (write_inner _ _ _) (Finished _ _) |-_] =>
            eapply FileInnerSpecs.write_inner_finished in H;
            [|
            unfold files_inner_rep in *; cleanup;
@@ -2087,7 +2378,7 @@ Lemma write_crashed_exfalso:
 
     solve_write.
     Unshelve.
-all: exact AuthenticatedDisk.
+all: exact AD.
 Qed.
 
 (**Jun 22: Changed from different inum to same inum*)
@@ -2097,11 +2388,11 @@ Qed.
      same_for_user_except u' ex x x0 ->
    refines s1 x ->
     refines s2 x0 ->
-   exec AuthenticatedDisk (owner x3) o s1 (delete inum) (Crashed x2) ->
+   exec AD (owner x3) o s1 (delete inum) (Crashed x2) ->
    inum < FSParameters.inode_count ->
    x inum = Some x3 ->
    files_crash_rep (Mem.delete x inum) x2 ->
-   exec AuthenticatedDisk (owner x3) o s2 (delete inum) (Crashed sr2) ->
+   exec AD (owner x3) o s2 (delete inum) (Crashed sr2) ->
    files_crash_rep x0 sr2 ->
    False.
    Proof. 
@@ -2137,7 +2428,7 @@ Qed.
            simpl in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants;
            repeat match goal with
-            | [H: exec (TransactionalDiskLang _) _ _ _ (delete_inner _) (Crashed _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (delete_inner _) (Crashed _) |-_] =>
             eapply FileInnerSpecs.delete_inner_crashed in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -2145,7 +2436,7 @@ Qed.
             simpl; eexists; split; eauto;
             eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
             intros; solve_bounds]
-            | [H: exec (TransactionalDiskLang _) _ _ _ (delete_inner _) (Finished _ _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (delete_inner _) (Finished _ _) |-_] =>
             eapply FileInnerSpecs.delete_inner_finished in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -2178,7 +2469,7 @@ Qed.
            simpl in *; cleanup.
            repeat cleanup_pairs; repeat unify_invariants;
            repeat match goal with
-            | [H: exec (TransactionalDiskLang _) _ _ _ (delete_inner _) (Crashed _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (delete_inner _) (Crashed _) |-_] =>
             eapply FileInnerSpecs.delete_inner_crashed in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -2186,7 +2477,7 @@ Qed.
             simpl; eexists; split; eauto;
             eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
             intros; solve_bounds]
-            | [H: exec (TransactionalDiskLang _) _ _ _ (delete_inner _) (Finished _ _) |-_] =>
+            | [H: exec (TDLang _) _ _ _ (delete_inner _) (Finished _ _) |-_] =>
             eapply FileInnerSpecs.delete_inner_finished in H;
             [|
             unfold files_inner_rep in *; cleanup;
@@ -2214,7 +2505,7 @@ Qed.
     simpl in *; cleanup; try solve_delete.
 
     Unshelve.
-    all: exact AuthenticatedDiskLang.
+    all: exact ADLang.
    Qed.
 
    Opaque Inode.alloc.
@@ -2223,11 +2514,11 @@ Qed.
     same_for_user_except u' ex x x0 ->
   refines s1 x ->
    refines s2 x0 ->
-  exec AuthenticatedDisk u o s1 (create own) (Crashed x2) ->
+  exec AD u o s1 (create own) (Crashed x2) ->
   inum < FSParameters.inode_count ->
   x inum = None ->
   files_crash_rep (Mem.upd x inum (new_file own)) x2 ->
-  exec AuthenticatedDisk u o s2 (create own') (Crashed sr2) ->
+  exec AD u o s2 (create own') (Crashed sr2) ->
   files_crash_rep x0 sr2 ->
   False.
   Proof. 
@@ -2362,7 +2653,7 @@ Qed.
         congruence.
     }
   Unshelve.
-  all: exact AuthenticatedDisk.
+  all: exact AD.
   Qed.
 
  Lemma extend_crashed_same_token:
@@ -2370,8 +2661,8 @@ Qed.
  same_for_user_except u' ex x x0 ->
   refines s1 x ->
      refines s2 x0 ->
-  exec AuthenticatedDisk u o s1 (extend inum v) (Crashed sr1) ->
-  exec AuthenticatedDisk u o s2 (extend inum v') (Crashed sr2) ->
+  exec AD u o s1 (extend inum v) (Crashed sr1) ->
+  exec AD u o s2 (extend inum v') (Crashed sr2) ->
   token_refines _ u s1 (Extend inum v) get_reboot_state o tk1 -> 
   token_refines _ u s2 (Extend inum v') get_reboot_state o tk2 -> 
   tk1 = tk2.
@@ -2401,8 +2692,8 @@ all: eauto.
   same_for_user_except u' (Some inum) x x0 ->
    refines s1 x ->
       refines s2 x0 ->
-   exec AuthenticatedDisk u o s1 (change_owner inum v) (Crashed sr1) ->
-   exec AuthenticatedDisk u o s2 (change_owner inum v) (Crashed sr2) ->
+   exec AD u o s1 (change_owner inum v) (Crashed sr1) ->
+   exec AD u o s2 (change_owner inum v) (Crashed sr2) ->
    token_refines _ u s1 (ChangeOwner inum v) get_reboot_state o tk1 -> 
    token_refines _ u s2 (ChangeOwner inum v) get_reboot_state o tk2 -> 
    tk1 = tk2.
@@ -2433,8 +2724,8 @@ all: eauto.
    same_for_user_except u' ex x x0 ->
     refines s1 x ->
        refines s2 x0 ->
-    exec AuthenticatedDisk u o s1 (delete inum) (Crashed sr1) ->
-    exec AuthenticatedDisk u o s2 (delete inum) (Crashed sr2) ->
+    exec AD u o s1 (delete inum) (Crashed sr1) ->
+    exec AD u o s2 (delete inum) (Crashed sr2) ->
     token_refines _ u s1 (Delete inum) get_reboot_state o tk1 -> 
     token_refines _ u s2 (Delete inum) get_reboot_state o tk2 -> 
     tk1 = tk2.
@@ -2465,8 +2756,8 @@ Qed.
    same_for_user_except u' ex x x0 ->
     refines s1 x ->
        refines s2 x0 ->
-    exec AuthenticatedDisk u o s1 (create own) (Crashed sr1) ->
-    exec AuthenticatedDisk u o s2 (create own') (Crashed sr2) ->
+    exec AD u o s1 (create own) (Crashed sr1) ->
+    exec AD u o s2 (create own') (Crashed sr2) ->
     token_refines _ u s1 (Create own) get_reboot_state o tk1 -> 
     token_refines _ u s2 (Create own') get_reboot_state o tk2 -> 
     tk1 = tk2.
@@ -2515,8 +2806,8 @@ forall u u' o s1 s2 x x0 inum off v v' get_reboot_state sr1 sr2 tk1 tk2,
  same_for_user_except u' (Some inum) x x0 ->
  refines s1 x ->
  refines s2 x0 ->
- exec AuthenticatedDisk u o s1 (write inum off v) (Crashed sr1) ->
- exec AuthenticatedDisk u o s2 (write inum off v') (Crashed sr2) ->
+ exec AD u o s1 (write inum off v) (Crashed sr1) ->
+ exec AD u o s2 (write inum off v') (Crashed sr2) ->
  token_refines _ u s1 (Write inum off v) get_reboot_state o tk1 -> 
  token_refines _ u s2 (Write inum off v') get_reboot_state o tk2 -> 
  tk1 = tk2.

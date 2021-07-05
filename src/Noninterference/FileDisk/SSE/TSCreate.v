@@ -1,15 +1,15 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SameRetType SSECommon InodeSSE.
+Require Import FunctionalExtensionality Lia Language SameRetType TSCommon InodeTS.
 
 
-Theorem SelfSimulation_Exists_create:
+Theorem Termination_Sensitive_create:
   forall u u' m own ex,
-    SelfSimulation_Exists
+    Termination_Sensitive
       u (create own) (create own) recover
       AD_valid_state (AD_related_states u' ex)
       (authenticated_disk_reboot_list m).
 Proof.
-  unfold SelfSimulation_Exists, AD_valid_state,
+  unfold Termination_Sensitive, AD_valid_state,
   AD_related_states, FD_valid_state, FD_related_states,
   refines_valid, refines_related,
   authenticated_disk_reboot_list, 
@@ -23,7 +23,7 @@ Proof.
    eapply lift2_invert_exec in H10; cleanup.
    {
     unfold refines, files_rep in *; cleanup.
-     eapply_fresh SSE_alloc_inode in H6; eauto.
+     eapply_fresh TS_alloc_inode in H6; eauto.
      2: setoid_rewrite H2; eauto.
      2: setoid_rewrite H1; eauto.
      cleanup.
@@ -39,7 +39,7 @@ Proof.
    }
    {
     unfold refines, files_rep in *; cleanup.
-    eapply_fresh SSE_alloc_inode in H6; eauto.
+    eapply_fresh TS_alloc_inode in H6; eauto.
     2: setoid_rewrite H2; eauto.
     2: setoid_rewrite H1; eauto.
     cleanup.
@@ -60,7 +60,7 @@ Proof.
     {
       unfold refines, files_rep in *; logic_clean.
     eapply lift2_invert_exec in H10; logic_clean.
-    eapply_fresh SSE_alloc_inode with (v':= own) in H8; eauto.
+    eapply_fresh TS_alloc_inode with (v':= own) in H8; eauto.
     logic_clean.
     destruct x2; simpl in *; try solve [intuition congruence].
    eapply_fresh Inode.alloc_finished_oracle_eq in H8; eauto.
@@ -75,7 +75,7 @@ Proof.
     match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (s0, (fst s, fst s))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -231,7 +231,7 @@ Proof.
     match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (s0, (snd s, snd s))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -265,7 +265,7 @@ Proof.
     match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (s0, (fst s, fst s))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -427,7 +427,7 @@ Proof.
     match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (s0, (snd s, snd s))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -457,7 +457,7 @@ Proof.
     match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (s0, (snd s, snd s))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -490,7 +490,7 @@ Proof.
     {
       eapply lift2_invert_exec_crashed in H9; cleanup.
       unfold refines, files_rep in *; cleanup.
-     eapply_fresh SSE_alloc_inode in H6; eauto.
+     eapply_fresh TS_alloc_inode in H6; eauto.
      2: setoid_rewrite H2; eauto.
      2: setoid_rewrite H1; eauto.
      cleanup.
@@ -501,7 +501,7 @@ Proof.
      match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
-          eapply SelfSimulation_Exists_recover in A;
+          eapply Termination_Sensitive_recover in A;
           try instantiate (1:= (s0, (snd s, snd s))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
@@ -527,5 +527,5 @@ Proof.
   }
 Unshelve.
 all: eauto.
-all: exact AuthenticatedDisk.
+all: exact AD.
 Qed.

@@ -303,9 +303,9 @@ Require Import TransactionalDiskRefinement.
 Lemma AOE_recover:
 forall n u,
 abstract_oracles_exist_wrt
-(LiftRefinement AuthenticatedDisk
-  (HC_Core_Refinement ATCLang AuthenticatedDisk
-  Definitions.TransactionalDiskCoreRefinement))
+(LiftRefinement AD
+  (HC_Core_Refinement ATCLang AD
+  Definitions.TDCoreRefinement))
 (fun s1 s2 => refines_reboot (snd s1) (snd s2))
 u
 recover
@@ -450,21 +450,21 @@ Proof.
 
 
   Lemma compile_lift2_comm:
-  forall u T (p: TransactionalDisk.(prog) T) o s ret,
+  forall u T (p: TD.(prog) T) o s ret,
   Language.exec' u o s
   (RefinementLift.compile
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
       (HorizontalComposition AuthenticationOperation
-        (TransactionalDiskLayer.TransactionalDiskOperation
-            FSParameters.data_length)) ATCLang AuthenticatedDisk
-      (HC_Core_Refinement ATCLang AuthenticatedDisk
-        TransactionalDiskCoreRefinement) T
+        (TransactionalDiskLayer.TDOperation
+            FSParameters.data_length)) ATCLang AD
+      (HC_Core_Refinement ATCLang AD
+        TDCoreRefinement) T
       (lift_L2 AuthenticationOperation p)) ret ->
 
       Language.exec' u o s
       (lift_L2 AuthenticationOperation 
-        (TransactionalDiskRefinement.(Simulation.Definitions.compile) p)) ret.
+        (TDRefinement.(Simulation.Definitions.compile) p)) ret.
   Proof.
     induction p; simpl; intros; eauto.
     invert_exec'' H0.
@@ -477,20 +477,20 @@ Proof.
 
 
   Lemma compile_lift2_comm_rev:
-  forall u T (p: TransactionalDisk.(prog) T) o s ret,
+  forall u T (p: TD.(prog) T) o s ret,
   Language.exec' u o s
       (lift_L2 AuthenticationOperation 
-        (TransactionalDiskRefinement.(Simulation.Definitions.compile) p)) ret ->
+        (TDRefinement.(Simulation.Definitions.compile) p)) ret ->
   
   Language.exec' u o s
   (RefinementLift.compile
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
       (HorizontalComposition AuthenticationOperation
-        (TransactionalDiskLayer.TransactionalDiskOperation
-            FSParameters.data_length)) ATCLang AuthenticatedDisk
-      (HC_Core_Refinement ATCLang AuthenticatedDisk
-        TransactionalDiskCoreRefinement) T
+        (TransactionalDiskLayer.TDOperation
+            FSParameters.data_length)) ATCLang AD
+      (HC_Core_Refinement ATCLang AD
+        TDCoreRefinement) T
       (lift_L2 AuthenticationOperation p)) ret.
   Proof.
     induction p; simpl; intros; eauto.
@@ -505,14 +505,14 @@ Proof.
 
 
 Lemma ATC_AOE:
-forall u T (p: TransactionalDisk.(prog) T) n, 
+forall u T (p: TD.(prog) T) n, 
 
 (forall o s s' r, 
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec TransactionCacheLang u o (snd s) 
-(TransactionalDiskRefinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
+(TDRefinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
 exists oa, oracle_refines _ _
-  ATCLang AuthenticatedDisk
+  ATCLang AD
   ATC_CoreRefinement T u s
   (lift_L2 AuthenticationOperation p)
   (fun
@@ -545,13 +545,13 @@ Language.exec' u o s
            (HorizontalComposition AuthenticationOperation
               TransactionCacheOperation)
            (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TransactionalDiskOperation
-                 FSParameters.data_length)) ATCLang AuthenticatedDisk
-           (HC_Core_Refinement ATCLang AuthenticatedDisk
-              TransactionalDiskCoreRefinement) T
+              (TransactionalDiskLayer.TDOperation
+                 FSParameters.data_length)) ATCLang AD
+           (HC_Core_Refinement ATCLang AD
+              TDCoreRefinement) T
            (lift_L2 AuthenticationOperation p)) (Crashed s') ->
 exists oa, oracle_refines _ _
-  ATCLang AuthenticatedDisk
+  ATCLang AD
   ATC_CoreRefinement T u s
   (lift_L2 AuthenticationOperation p)
   (fun
@@ -563,11 +563,11 @@ exists oa, oracle_refines _ _
 (forall o s s', 
 (exists s1, refines s s1) ->
 exec TransactionCacheLang u o s 
-(TransactionalDiskRefinement.(Simulation.Definitions.compile) p) (Crashed s') ->
+(TDRefinement.(Simulation.Definitions.compile) p) (Crashed s') ->
 exists s1', refines_reboot s' s1') ->
 abstract_oracles_exist_wrt ATC_Refinement
   (ATC_Refinement.(Simulation.Definitions.refines)) u
-  (@lift_L2 AuthenticationOperation _ TransactionalDisk _ p) 
+  (@lift_L2 AuthenticationOperation _ TD _ p) 
   File.recover (ATC_reboot_list n).
 Proof.
     intros; destruct n; simpl; eauto.
@@ -614,21 +614,21 @@ Qed.
 
 
 Lemma ATC_AOE_2:
-forall u T (p: AuthenticatedDisk.(prog) T) n, 
+forall u T (p: AD.(prog) T) n, 
 
 (forall o s s' r, 
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec ATCLang u o s 
 (ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
 exists oa, oracle_refines _ _
-  ATCLang AuthenticatedDisk
+  ATCLang AD
   ATC_CoreRefinement T u s p (fun s => s) o oa) ->
 
 (forall o s s', 
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec ATCLang u o s (ATC_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
 exists oa, oracle_refines _ _
-  ATCLang AuthenticatedDisk
+  ATCLang AD
   ATC_CoreRefinement T u s p
   (fun
      s : HorizontalComposition.state'

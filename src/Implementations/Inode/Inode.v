@@ -137,7 +137,7 @@ Qed.
 Theorem alloc_finished:
   forall dh u o s user t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (alloc user) (Finished s' t) ->
+    exec (TDLang data_length) u o s (alloc user) (Finished s' t) ->
     ((exists a, t = Some a /\
            dh a = None /\
            a < InodeAllocatorParams.num_of_blocks /\
@@ -214,7 +214,7 @@ Qed.
 Theorem free_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (free inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (free inum) (Finished s' t) ->
     ((t = Some tt /\ inode_rep (Mem.delete dh inum) (fst s')) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
@@ -264,7 +264,7 @@ Qed.
 Theorem get_inode_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_inode inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (get_inode inum) (Finished s' t) ->
     ((exists inode, t = Some inode /\ dh inum = Some inode) \/
      (t = None /\ dh inum = None)) /\
     inode_rep dh (fst s') /\
@@ -298,7 +298,7 @@ Theorem set_inode_finished:
      i <> inum ->
      dh i = Some inode_i ->
      NoDup (inode.(block_numbers) ++ inode_i.(block_numbers))) ->
-    exec (TransactionalDiskLang data_length) u o s (set_inode inum inode) (Finished s' t) ->
+    exec (TDLang data_length) u o s (set_inode inum inode) (Finished s' t) ->
     ((t = Some tt /\ inode_rep (Mem.upd dh inum inode) (fst s')) \/
      (t = None /\ inode_rep dh (fst s'))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
@@ -357,7 +357,7 @@ Theorem extend_finished:
      dh i = Some inode_i ->
      ~In block_num inode_i.(block_numbers)) ->
     block_num < file_blocks_count ->
-    exec (TransactionalDiskLang data_length) u o s (extend inum block_num) (Finished s' t) ->
+    exec (TDLang data_length) u o s (extend inum block_num) (Finished s' t) ->
     ((exists inode,
         t = Some tt /\
         dh inum = Some inode /\
@@ -415,7 +415,7 @@ Qed.
 Theorem change_owner_finished:
   forall dh u o s inum new_owner t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (change_owner inum  new_owner) (Finished s' t) ->
+    exec (TDLang data_length) u o s (change_owner inum  new_owner) (Finished s' t) ->
     ((exists inode,
         t = Some tt /\
         dh inum = Some inode /\
@@ -453,7 +453,7 @@ Qed.
 Theorem get_block_number_finished:
   forall dh u o s inum off t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
+    exec (TDLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
     ((exists inode, off < length (inode.(block_numbers)) /\
                t = Some (seln (inode.(block_numbers)) off 0) /\
                dh inum = Some inode) \/
@@ -492,7 +492,7 @@ Qed.
 Theorem get_all_block_numbers_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_all_block_numbers inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (get_all_block_numbers inum) (Finished s' t) ->
     ((exists inode, t = Some (inode.(block_numbers)) /\
                dh inum = Some inode) \/
      t = None) /\
@@ -513,7 +513,7 @@ Qed.
 Theorem get_owner_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_owner inum) (Finished s' t) ->
+    exec (TDLang data_length) u o s (get_owner inum) (Finished s' t) ->
     ((exists inode, t = Some inode.(owner) /\ dh inum = Some inode) \/
      (t = None /\ dh inum = None)) /\
     inode_rep dh (fst s') /\
@@ -535,7 +535,7 @@ Qed.
 (*** Crashed ***)
 Theorem alloc_crashed:
   forall u o s s' own,
-    exec (TransactionalDiskLang data_length) u o s (alloc own) (Crashed s') ->
+    exec (TDLang data_length) u o s (alloc own) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold alloc; intros;
@@ -544,7 +544,7 @@ Qed.
 
 Theorem free_crashed:
   forall u o s s' inum,
-    exec (TransactionalDiskLang data_length) u o s (free inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (free inum) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold free; intros;
@@ -555,7 +555,7 @@ Qed.
 Theorem get_inode_crashed:
   forall u o s s' inum dh,
     block_allocator_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_inode inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (get_inode inum) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold get_inode; intros;
@@ -568,7 +568,7 @@ Qed.
 
 Theorem set_inode_crashed:
   forall u o s s' inum inode,
-    exec (TransactionalDiskLang data_length) u o s (set_inode inum inode) (Crashed s') ->
+    exec (TDLang data_length) u o s (set_inode inum inode) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold set_inode; intros;
@@ -581,7 +581,7 @@ Qed.
 Theorem extend_crashed:
   forall u o s s' dh inum v,
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (extend inum v) (Crashed s') ->
+    exec (TDLang data_length) u o s (extend inum v) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold extend; intros;
@@ -602,7 +602,7 @@ Qed.
 Theorem change_owner_crashed:
   forall u o s s' dh inum own,
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (change_owner inum own) (Crashed s') ->
+    exec (TDLang data_length) u o s (change_owner inum own) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold change_owner; intros;
@@ -623,7 +623,7 @@ Qed.
 Theorem get_block_number_crashed:
   forall u o s s' dh inum off,
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_block_number inum off) (Crashed s') ->
+    exec (TDLang data_length) u o s (get_block_number inum off) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold get_block_number; intros;
@@ -642,7 +642,7 @@ Qed.
 Theorem get_all_block_numbers_crashed:
   forall u o s s' dh inum,
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_all_block_numbers inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (get_all_block_numbers inum) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold get_all_block_numbers; intros;
@@ -661,7 +661,7 @@ Qed.
 Theorem get_owner_crashed:
   forall u o s s' dh inum,
     inode_rep dh (fst s) ->
-    exec (TransactionalDiskLang data_length) u o s (get_owner inum) (Crashed s') ->
+    exec (TDLang data_length) u o s (get_owner inum) (Crashed s') ->
      snd s' = snd s.
 Proof.
   unfold get_owner; intros;
@@ -685,11 +685,11 @@ Qed.
 
 Lemma get_inode_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_inode inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (get_inode inum')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -710,11 +710,11 @@ Qed.
 
 Lemma set_inode_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum' inode inode',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (set_inode inum inode)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (set_inode inum' inode')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -736,11 +736,11 @@ Qed.
 
 Lemma get_owner_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_owner inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (get_owner inum')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -761,11 +761,11 @@ Qed.
 
 Lemma extend_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (extend inum v)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (extend inum' v')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -797,11 +797,11 @@ Qed.
 
 Lemma alloc_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 own own',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (alloc own)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (alloc own')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -813,11 +813,11 @@ Qed.
 
 Lemma free_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (free inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (free inum')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -829,11 +829,11 @@ Qed.
 
 Lemma change_owner_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (change_owner inum v)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (change_owner inum' v')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -864,7 +864,7 @@ Qed.
 
 Lemma get_block_number_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 v inum im1 im2,
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_block_number inum v)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
@@ -874,7 +874,7 @@ inode_rep im2 (fst s2) ->
 im1 inum = Some inode1 ->
 im2 inum = Some inode2 ->
 length (block_numbers inode1) = length (block_numbers inode2)) ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (get_block_number inum v)
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -910,11 +910,11 @@ Qed.
 
 Lemma get_all_block_numbers_finished_oracle_eq:
 forall u o o' o1 o2 s1 s2 s1' s2' r1 r2 inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_all_block_numbers inum)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o' s2 (get_all_block_numbers inum')
 (Finished s2' r2) ->
 o = o' /\ (r1 = None <-> r2 = None).
@@ -940,11 +940,11 @@ Qed.
 (* Finished ~ Crashed lemmas*)
 Lemma get_inode_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_inode inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (get_inode inum')
 (Crashed s2').
 Proof.
@@ -965,11 +965,11 @@ Qed.
 
 Lemma set_inode_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r inum inum' ind ind',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (set_inode inum ind)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (set_inode inum' ind')
 (Crashed s2').
 Proof.
@@ -990,11 +990,11 @@ Qed.
 
 Lemma get_owner_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_owner inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (get_owner inum')
 (Crashed s2').
 Proof.
@@ -1016,11 +1016,11 @@ Qed.
 
 Lemma extend_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (extend inum v)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (extend inum' v')
 (Crashed s2').
 Proof.
@@ -1056,11 +1056,11 @@ Qed.
 
 Lemma alloc_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r v v',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (alloc v)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (alloc v')
 (Crashed s2').
 Proof.
@@ -1071,11 +1071,11 @@ Qed.
 
 Lemma free_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (free inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (free inum')
 (Crashed s2').
 Proof.
@@ -1086,11 +1086,11 @@ Qed.
 
 Lemma change_owner_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (change_owner inum v)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (change_owner inum' v')
 (Crashed s2').
 Proof.
@@ -1127,11 +1127,11 @@ Qed.
 
 Lemma get_block_number_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r v v' inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_block_number inum v)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (get_block_number inum' v')
 (Crashed s2').
 Proof.
@@ -1157,11 +1157,11 @@ Qed.
 
 Lemma get_all_block_numbers_finished_not_crashed:
 forall u o o' o1 o2 s1 s2 s1' s2' r inum inum',
-exec (TransactionalDiskLang FSParameters.data_length) 
+exec (TDLang FSParameters.data_length) 
 u o s1 (get_all_block_numbers inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-~exec (TransactionalDiskLang FSParameters.data_length) 
+~exec (TDLang FSParameters.data_length) 
 u o' s2 (get_all_block_numbers inum')
 (Crashed s2').
 Proof.

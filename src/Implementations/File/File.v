@@ -40,18 +40,18 @@ Definition files_inner_rep (file_disk: disk File) (d: @total_mem addr addr_dec v
     DiskAllocator.block_allocator_rep file_block_map d /\
     file_map_rep file_disk inode_map file_block_map.
 
-Definition files_rep (file_disk: disk File) (d: AuthenticatedDiskLang.(state)) :=
+Definition files_rep (file_disk: disk File) (d: ADLang.(state)) :=
   fst (snd d) = snd (snd d) /\
   files_inner_rep file_disk (fst (snd d)).
 
-Definition files_crash_rep (file_disk: disk File) (d: AuthenticatedDiskLang.(state)) :=
+Definition files_crash_rep (file_disk: disk File) (d: ADLang.(state)) :=
   files_inner_rep file_disk (snd (snd d)).
 
 Definition files_reboot_rep := files_crash_rep.
 
 
 (*** Functions ***)
-Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TransactionalDiskLang data_length) (option T)) :=
+Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TDLang data_length) (option T)) :=
   mo <- |ADDP| get_owner inum;
   if mo is Some owner then
     ok <- |ADAO| Auth owner;

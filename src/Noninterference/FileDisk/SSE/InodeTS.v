@@ -1,5 +1,5 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SameRetType SSECommon.
+Require Import FunctionalExtensionality Lia Language SameRetType TSCommon.
 
 
 Lemma inode_allocations_are_same:
@@ -91,14 +91,14 @@ Proof.
 Qed.
 
 
-Lemma SSE_get_inode:
+Lemma TS_get_inode:
 forall o fm1 fm2 u' ex s1 s2 inum ret1 u,
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.get_inode inum) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.get_inode inum) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.get_inode inum) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.get_inode inum) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.get_inode.  
@@ -223,21 +223,21 @@ cleanup.
   }
 }
 Unshelve.
-all: exact (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length).
+all: exact (TransactionalDiskLayer.TDLang FSParameters.data_length).
 Qed.
 Opaque Inode.get_inode.
 
 
 
 
-Lemma SSE_set_inode:
+Lemma TS_set_inode:
 forall o fm1 fm2 u' ex s1 s2 inum inode1 inode2 ret1 u,
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.set_inode inum inode1) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.set_inode inum inode1) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.set_inode inum inode2) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.set_inode inum inode2) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.set_inode.  
@@ -336,21 +336,21 @@ Qed.
 Opaque Inode.set_inode.
 
 
-Lemma SSE_get_owner:
+Lemma TS_get_owner:
 forall o fm1 fm2 s1 s2 inum ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
 refines s1 fm1 ->
 refines s2 fm2 ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o (snd s1) (Inode.get_owner inum) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o (snd s1) (Inode.get_owner inum) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o (snd s2) (Inode.get_owner inum) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o (snd s2) (Inode.get_owner inum) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.get_owner.  
 unfold Inode.get_owner; intros.
 invert_step.
 {
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence]. 
   {
@@ -364,7 +364,7 @@ invert_step.
   unfold refines, files_rep in *; cleanup; setoid_rewrite H1; eauto.
 }
 {
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence]. 
   {
@@ -379,7 +379,7 @@ invert_step.
 }
 {
   repeat invert_step_crash.
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x; simpl in *; try solve [intuition congruence]. 
   {
@@ -391,7 +391,7 @@ invert_step.
   unfold refines, files_rep in *; cleanup; setoid_rewrite H0; eauto.
   unfold refines, files_rep in *; cleanup; setoid_rewrite H1; eauto.
   {
-    eapply_fresh SSE_get_inode in H3; eauto.
+    eapply_fresh TS_get_inode in H3; eauto.
     cleanup;
     destruct x3; simpl in *; try solve [intuition congruence]. 
     {
@@ -420,21 +420,21 @@ Qed.
 Opaque Inode.get_owner.
 
 
-Lemma SSE_get_all_block_numbers:
+Lemma TS_get_all_block_numbers:
 forall o fm1 fm2 s1 s2 inum ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.get_all_block_numbers inum) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.get_all_block_numbers inum) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.get_all_block_numbers inum) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.get_all_block_numbers inum) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.get_all_block_numbers.  
 unfold Inode.get_all_block_numbers; intros.
 invert_step.
 {
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence]. 
   {
@@ -446,7 +446,7 @@ invert_step.
   }
 }
 {
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence]. 
   {
@@ -459,7 +459,7 @@ invert_step.
 }
 {
   repeat invert_step_crash.
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x; simpl in *; try solve [intuition congruence]. 
   {
@@ -469,7 +469,7 @@ invert_step.
     simpl; intuition eauto.
   }
   {
-    eapply_fresh SSE_get_inode in H3; eauto.
+    eapply_fresh TS_get_inode in H3; eauto.
     cleanup;
     destruct x3; simpl in *; try solve [intuition congruence]. 
     {
@@ -1030,14 +1030,14 @@ get_first_zero_index
 Proof. Admitted.
 
 
-Lemma SSE_alloc:
+Lemma TS_alloc:
 forall o fm1 fm2 s1 s2 v v' ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (DiskAllocator.alloc v) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (DiskAllocator.alloc v) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (DiskAllocator.alloc v') ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (DiskAllocator.alloc v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent DiskAllocator.alloc.  
@@ -1336,14 +1336,14 @@ Qed.
 Opaque DiskAllocator.alloc.
 
 
-Lemma SSE_alloc_inode:
+Lemma TS_alloc_inode:
 forall o fm1 fm2 s1 s2 v v' ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.alloc v) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.alloc v) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.alloc v') ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.alloc v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.alloc Inode.InodeAllocator.alloc.  
@@ -1666,14 +1666,14 @@ match goal with
     try lia; eauto
 end. 
 
-Lemma SSE_extend:
+Lemma TS_extend:
 forall o fm1 fm2 s1 s2 v v' ret1 u u' ex inum,
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.extend inum v) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.extend inum v) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.extend inum v') ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.extend inum v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.extend.  
@@ -1682,7 +1682,7 @@ invert_step.
 cleanup.
 {
   repeat invert_step.
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x2; simpl in *; try solve [intuition congruence]. 
   
@@ -1694,7 +1694,7 @@ cleanup.
   eapply_fresh Inode.get_inode_finished in H4; eauto.
   cleanup; split_ors; cleanup.
 
-  eapply_fresh SSE_set_inode in H3; eauto.
+  eapply_fresh TS_set_inode in H3; eauto.
   cleanup.
   destruct x8; simpl in *; try solve [intuition congruence]. 
   eapply Inode.set_inode_finished_oracle_eq in H3; eauto; cleanup.
@@ -1721,7 +1721,7 @@ cleanup.
 }
 {
   repeat invert_step.
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence]. 
   
@@ -1736,7 +1736,7 @@ cleanup.
 {
 
   repeat invert_step_crash; try solve [solve_illegal_state].
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x; simpl in *; try solve [intuition congruence]. 
 
@@ -1752,7 +1752,7 @@ cleanup.
 
     cleanup; try solve [solve_illegal_state];
     repeat invert_step_crash; try solve [solve_illegal_state].
-    eapply_fresh SSE_get_inode in H3; eauto.
+    eapply_fresh TS_get_inode in H3; eauto.
     cleanup.
     destruct x0; simpl in *; try solve [intuition congruence]. 
     
@@ -1764,7 +1764,7 @@ cleanup.
     eapply_fresh Inode.get_inode_finished in H2; eauto.
     cleanup; split_ors; cleanup.
   
-    eapply_fresh SSE_set_inode in H4; eauto.
+    eapply_fresh TS_set_inode in H4; eauto.
     cleanup.
     destruct x8; simpl in *; try solve [intuition congruence].   
 
@@ -1788,7 +1788,7 @@ cleanup.
     intros; solve_bounds.
   }
 
-  eapply_fresh SSE_get_inode in H3; eauto.
+  eapply_fresh TS_get_inode in H3; eauto.
     cleanup.
     destruct x; simpl in *; try solve [intuition congruence]. 
     
@@ -1805,9 +1805,9 @@ all: eauto.
 Qed.
 Opaque Inode.extend.
 
-Lemma SSE_free:
+Lemma TS_free:
 forall o s1 s2 v v' ret1 u,
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (DiskAllocator.free v) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (DiskAllocator.free v) ret1 ->
 (v < DiskAllocatorParams.num_of_blocks <-> v' < DiskAllocatorParams.num_of_blocks) ->
 nth_error
       (value_to_bits
@@ -1816,7 +1816,7 @@ nth_error
       (value_to_bits
          (fst s2 DiskAllocatorParams.bitmap_addr)) v' ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (DiskAllocator.free v') ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (DiskAllocator.free v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent DiskAllocator.free.  
@@ -1902,9 +1902,9 @@ Qed.
 Opaque DiskAllocator.free.
   
 
-Lemma SSE_free_inode:
+Lemma TS_free_inode:
 forall o s1 s2 v v' ret1 u,
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.free v) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.free v) ret1 ->
 (v < Inode.InodeAllocatorParams.num_of_blocks <-> v' < Inode.InodeAllocatorParams.num_of_blocks) ->
 nth_error
       (value_to_bits
@@ -1913,7 +1913,7 @@ nth_error
       (value_to_bits
          (fst s2 Inode.InodeAllocatorParams.bitmap_addr)) v' ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.free v') ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.free v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.free Inode.InodeAllocator.free.  
@@ -1999,14 +1999,14 @@ Qed.
 Opaque Inode.free Inode.InodeAllocator.free.
 
 
-Lemma SSE_change_owner:
+Lemma TS_change_owner:
 forall o fm1 fm2 u' s1 s2 inum ret1 u own1 own2,
 same_for_user_except u' (Some inum) fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (Inode.change_owner inum own1) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.change_owner inum own1) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (Inode.change_owner inum own2) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.change_owner inum own2) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
 Transparent Inode.change_owner.  
@@ -2015,7 +2015,7 @@ invert_step.
 cleanup.
 {
   repeat invert_step.
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x2; simpl in *; try solve [intuition congruence]. 
   
@@ -2027,7 +2027,7 @@ cleanup.
   eapply_fresh Inode.get_inode_finished in H4; eauto.
   cleanup; split_ors; cleanup.
 
-  eapply_fresh SSE_set_inode in H3; eauto.
+  eapply_fresh TS_set_inode in H3; eauto.
   cleanup.
   destruct x8; simpl in *; try solve [intuition congruence]. 
   eapply Inode.set_inode_finished_oracle_eq in H3; eauto; cleanup.
@@ -2054,7 +2054,7 @@ cleanup.
 }
 {
   repeat invert_step.
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x0; simpl in *; try solve [intuition congruence]. 
   
@@ -2069,7 +2069,7 @@ cleanup.
 {
 
   repeat invert_step_crash; try solve [solve_illegal_state].
-  eapply_fresh SSE_get_inode in H2; eauto.
+  eapply_fresh TS_get_inode in H2; eauto.
   cleanup.
   destruct x; simpl in *; try solve [intuition congruence]. 
 
@@ -2083,7 +2083,7 @@ cleanup.
 
     cleanup; try solve [solve_illegal_state];
     repeat invert_step_crash; try solve [solve_illegal_state].
-    eapply_fresh SSE_get_inode in H3; eauto.
+    eapply_fresh TS_get_inode in H3; eauto.
     cleanup.
     destruct x0; simpl in *; try solve [intuition congruence]. 
     
@@ -2095,7 +2095,7 @@ cleanup.
     eapply_fresh Inode.get_inode_finished in H2; eauto.
     cleanup; split_ors; cleanup.
   
-    eapply_fresh SSE_set_inode in H4; eauto.
+    eapply_fresh TS_set_inode in H4; eauto.
     cleanup.
     destruct x8; simpl in *; try solve [intuition congruence].   
 
@@ -2119,7 +2119,7 @@ cleanup.
     intros; solve_bounds.
   }
 
-  eapply_fresh SSE_get_inode in H3; eauto.
+  eapply_fresh TS_get_inode in H3; eauto.
     cleanup.
     destruct x; simpl in *; try solve [intuition congruence]. 
     
@@ -2138,15 +2138,15 @@ Opaque Inode.change_owner.
 
 
 
-Lemma SSE_auth_then_exec:
+Lemma TS_auth_then_exec:
 forall T (p1 p2: addr -> prog _ (option T)) inum ex,
 (forall o fm1 fm2 s1 s2 ret1 u u',
 same_for_user_except u' ex fm1 fm2 ->
 files_inner_rep fm1 (fst s1) ->
 files_inner_rep fm2 (fst s2) ->
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s1 (p1 inum) ret1 ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (p1 inum) ret1 ->
 exists ret2, 
-exec (TransactionalDiskLayer.TransactionalDiskLang FSParameters.data_length) u o s2 (p2 inum) ret2 /\
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (p2 inum) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None) /\
 (forall s1 r1 s2 r2, ret1 = Finished s1 r1 -> ret2 = Finished s2 r2 -> (r1 = None <-> r2 = None))) -> 
 
@@ -2154,9 +2154,9 @@ forall o fm1 fm2 s1 s2 ret1 u u',
 same_for_user_except u' ex fm1 fm2 ->
 refines s1 fm1 ->
 refines s2 fm2 ->
-exec (AuthenticatedDiskLayer.AuthenticatedDiskLang) u o s1 (auth_then_exec inum p1) ret1 ->
+exec (AuthenticatedDiskLayer.ADLang) u o s1 (auth_then_exec inum p1) ret1 ->
 exists ret2, 
-exec (AuthenticatedDiskLayer.AuthenticatedDiskLang) u o s2 (auth_then_exec inum p2) ret2 /\
+exec (AuthenticatedDiskLayer.ADLang) u o s2 (auth_then_exec inum p2) ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
 Proof.
   Opaque Inode.get_owner.
@@ -2165,7 +2165,7 @@ Proof.
   {
   repeat invert_exec.
   4: {
-     eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+     eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2178,7 +2178,7 @@ Proof.
      simpl; intuition congruence.
      }
      3:{
-     eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+     eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2217,7 +2217,7 @@ Proof.
      simpl; intuition congruence.
    }
    2:{
-     eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+     eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2293,7 +2293,7 @@ Proof.
     }
    }
    {
-     eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+     eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2373,7 +2373,7 @@ Proof.
   repeat invert_exec.
   split_ors; repeat invert_exec; cleanup.
   {
-     eapply_fresh SSE_get_owner in H5; eauto; cleanup.
+     eapply_fresh TS_get_owner in H5; eauto; cleanup.
      destruct x0; simpl in *; try solve [ intuition congruence]. 
      destruct s2.
      exists (Crashed (s2, s0)); split.
@@ -2384,7 +2384,7 @@ Proof.
   }
   {
     repeat invert_exec.
-    eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+    eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x4; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2718,7 +2718,7 @@ Proof.
   }
 }
 {
-     eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+     eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x0; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2760,7 +2760,7 @@ Proof.
      simpl; intuition congruence.
    }
    {
-     eapply_fresh SSE_get_owner in H6; eauto; cleanup.
+     eapply_fresh TS_get_owner in H6; eauto; cleanup.
      destruct x0; simpl in *; try solve [ intuition congruence]. 
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
@@ -2826,5 +2826,5 @@ Proof.
   }
 Unshelve.
 all: eauto.
-all: exact AuthenticatedDisk.
+all: exact AD.
 Qed.
