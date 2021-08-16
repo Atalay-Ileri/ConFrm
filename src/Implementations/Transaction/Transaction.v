@@ -241,7 +241,15 @@ Theorem commit_crashed :
   forall u s o s' td,
     transaction_rep s td ->
     exec TransactionCacheLang u o s commit (Crashed s') ->
-    snd s' = snd td \/ snd s' = fst td.
+    (snd s' = snd td /\
+    (length o < 2 \/ 
+    (length o = 2 /\ 
+    exists o1, o = o1 ++ [OpToken (TransactionCacheOperation) 
+                        (Token2 _ (LoggedDiskOperation log_length data_length) LoggedDiskLayer.CrashBefore)]))) \/ 
+    (snd s' = fst td /\
+       (length o > 2 \/
+            (length o = 2 /\ exists o1, o = o1 ++ [OpToken (TransactionCacheOperation) 
+            (Token2 _ (LoggedDiskOperation log_length data_length) LoggedDiskLayer.CrashAfter)]))).
 Proof.
   unfold commit, transaction_rep; simpl; intros.
   repeat invert_exec; simpl in *; cleanup;
@@ -255,6 +263,46 @@ Proof.
   try solve [
     right; setoid_rewrite upd_batch_dedup_last_dedup_by_list at 2; eauto;
     repeat rewrite rev_length, map_length; eauto ]).
+  {
+    left; intuition eauto.
+    right; intuition eauto.
+    eexists [_]; intuition eauto.
+  }
+  {
+    right; intuition eauto.
+    setoid_rewrite upd_batch_dedup_last_dedup_by_list at 2; eauto;
+    repeat rewrite rev_length, map_length; eauto.
+    right; intuition eauto.
+    eexists [_]; intuition eauto.
+  }
+  {
+    intuition.
+    - exfalso; apply H0; eapply dedup_last_NoDup.
+    - exfalso; apply H2; eapply dedup_last_dedup_by_list_length_le;
+      repeat rewrite rev_length, map_length; eauto.
+    - exfalso; apply H0.
+    apply Forall_forall; intros.
+    apply dedup_last_in in H2.
+    apply in_rev in H2.
+    eapply Forall_forall in H; eauto.
+    - exfalso; eapply PeanoNat.Nat.le_ngt; eauto.
+    edestruct dedup_by_list_length.
+    pose proof addr_list_to_blocks_length_le_preserve.
+    pose proof dedup_last_length.
+    eapply H4 in H5.
+    instantiate (1:= (rev (map fst s1))) in H5.
+    instantiate (1:= (rev (map snd s1))) in H3.
+    rewrite rev_length in H3.
+
+    eapply PeanoNat.Nat.le_trans in H4.
+    2: apply H5.
+    instantiate (1:= (map fst s1)) in H4.
+    instantiate (1:= addr_dec) in H4.
+    instantiate (1:= (rev (map fst s1))) in H3.
+    instantiate (1:= addr_dec) in H3.
+    lia.
+    rewrite rev_length; eauto.
+  }
 Qed.
 
 Definition read_finished :
@@ -417,4 +465,186 @@ Proof.
   repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
   intuition eauto.
   pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+Qed.
+
+
+
+Lemma read_finished_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2 a1 a2,
+exec TransactionCacheLang u o1 s1
+(read a1)  (Finished s1' r1) ->
+exec TransactionCacheLang u o2 s2
+(read a2) (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  unfold read; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto.
+Qed.
+
+Lemma abort_finished_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2,
+exec TransactionCacheLang u o1 s1
+abort  (Finished s1' r1) ->
+exec TransactionCacheLang u o2 s2
+abort (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2 /\ r1 = r2.
+Proof.
+  unfold abort; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto.
+Qed.
+
+Lemma write_finished_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2 a v a' v',
+exec TransactionCacheLang u o1 s1
+(write a v)  (Finished s1' r1) ->
+exec TransactionCacheLang u o2 s2
+(write a' v') (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2 /\ r1 = r2.
+Proof.
+  unfold write; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto.
+Qed.
+
+Lemma commit_finished_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2,
+exec TransactionCacheLang u o1 s1
+commit  (Finished s1' r1) ->
+exec TransactionCacheLang u o2 s2
+commit (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2 /\ r1 = r2.
+Proof.
+  unfold commit; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto.
+Qed.
+
+Lemma recover_finished_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2,
+exec TransactionCacheLang u o1 s1
+recover  (Finished s1' r1) ->
+exec TransactionCacheLang u o2 s2
+recover (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2 /\ r1 = r2.
+Proof.
+  unfold recover; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto.
+Qed.
+
+Lemma init_finished_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2 l l',
+exec TransactionCacheLang u o1 s1
+(init l) (Finished s1' r1) ->
+exec TransactionCacheLang u o2 s2
+(init l') (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2 /\ r1 = r2.
+Proof.
+  unfold init; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto.
+Qed.
+
+Lemma read_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2,
+exec TransactionCacheLang u o1 s1
+(read a1)  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec TransactionCacheLang u o2 s2
+(read a2) (Crashed s2').
+Proof.
+  unfold read, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+Qed.
+
+Lemma abort_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+exec TransactionCacheLang u o1 s1
+abort  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec TransactionCacheLang u o2 s2
+abort (Crashed s2').
+Proof.
+  unfold abort, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+Qed.
+
+Lemma write_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a v a' v',
+exec TransactionCacheLang u o1 s1
+(write a v) (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec TransactionCacheLang u o2 s2
+(write a' v') (Crashed s2').
+Proof.
+  unfold write, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+Qed.
+
+Lemma commit_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+exec TransactionCacheLang u o1 s1
+commit  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec TransactionCacheLang u o2 s2
+commit (Crashed s2').
+Proof.
+  unfold commit, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+Qed.
+
+Lemma recover_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+exec TransactionCacheLang u o1 s1
+recover  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec TransactionCacheLang u o2 s2
+recover (Crashed s2').
+Proof.
+  unfold recover, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+Qed.
+
+Lemma init_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 l l',
+exec TransactionCacheLang u o1 s1
+(init l) (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec TransactionCacheLang u o2 s2
+(init l') (Crashed s2').
+Proof.
+  unfold init, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
 Qed.

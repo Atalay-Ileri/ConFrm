@@ -11,15 +11,17 @@ Require Import ExtrHaskellString.
 
 Extraction Language Haskell.
 
+
+
 Require Import Framework FSParameters.
 Require LogCache Transaction File.
 
-
+(** Write to a file to test the system **)
 Extract Constant addr => "Prelude.Int".
 Extract Inlined Constant addr_eq_dec => "(Prelude.==)".
 
 Extract Constant user => "System.Posix.Types.UserID".
-Extract Constant value => "SizedByteArray ". (** We need to change this but to what? **)
+Extract Constant value => "Data.ByteArray.Sized 4096".
 Extract Constant block_size => "8 Prelude.* 4096". (** 4KB blocks **) 
 Extract Constant file_blocks_count => "4096". (** 4K data blocks *)
 Extract Constant log_length => "500". (** 500 log blocks *)
@@ -55,6 +57,14 @@ Extraction Inline Core.operation.
 Extraction Inline Language.prog. 
 
 Extract Inductive Language.prog' => "Prelude.IO" [ "" "Prelude.return" "(Prelude.>>=)" ].
+
+(** Using file as a disk *)
+
+Extract Inductive DiskLayer.disk_prog => "Prelude.IO" [ "Interpreter.diskRead" "Interpreter.diskWrite" "Interpreter.diskSync" ].
+Extract Inductive CryptoLayer.crypto_prog => "Prelude.IO" [ "GET_KEY" "HASH" "ENCRYPT" "DECRYPT" ].
+Extract Inductive CacheLayer.cache_prog => "Prelude.IO" [ "Interpreter.cacheRead" "Interpreter.cacheWrite" "Interpreter.cacheFlush"]. 
+Extract Inductive ListLayer.list_prog => "Prelude.IO" [ "Interpreter.listGet" "Interpreter.listPut" "Interpreter.listDelete" ].
+
 
 (** Use these to implement actual functionality 
 Extract Inductive DiskLayer.disk_prog => "Prelude.IO" [ "DISK_READ" "DISK_WRITE" "DISK_SYNC" ].

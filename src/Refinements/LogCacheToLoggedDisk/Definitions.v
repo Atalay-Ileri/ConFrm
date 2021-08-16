@@ -134,7 +134,7 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
     }
   Qed.
 
-  Definition LoggedDiskCoreRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
+  Definition LoggedDiskCoreRefinement := Build_CoreRefinement compile refines refines_reboot token_refines exec_compiled_preserves_refinement_finished_core.
   Definition LoggedDiskRefinement := LiftRefinement (LoggedDiskLang log_length data_length) LoggedDiskCoreRefinement.
 
   Notation "| p |" := (Op (LoggedDiskOperation log_length data_length) p)(at level 60).

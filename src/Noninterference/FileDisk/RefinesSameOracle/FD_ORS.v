@@ -798,7 +798,9 @@ Proof.
     repeat split_ors; cleanup;
     repeat unify_execs; cleanup; try tauto.
     eapply H in H10; eauto; subst; eauto.
-Qed.
+Unshelve.
+eauto.
+    Qed.
 
 
 Lemma ORS_recover_stronger:
@@ -822,8 +824,11 @@ Proof.
         destruct l_o_imp; simpl in *; cleanup; eauto; try tauto.
         repeat split_ors; cleanup; 
         try unify_execs; cleanup; try tauto.
+        specialize (H5 (fun s => s)).
+        specialize (H8 (fun s => s)).
+        cleanup; try tauto.
         
-        edestruct H12; edestruct H8.
+        edestruct H7; edestruct H6.
         all: try solve [unfold refines,
         files_rep, files_reboot_rep in*;
         cleanup; simpl; eauto];
@@ -834,8 +839,11 @@ Proof.
     repeat split_ors; cleanup; 
     try unify_execs; cleanup; try tauto;
     simpl in *; try lia.
+    specialize (H5 (fun s => s)).
+    specialize (H8 (fun s => s)).
+    cleanup; try tauto.
     
-    edestruct H12; edestruct H8.
+    edestruct H7; edestruct H6.
     all: try solve [unfold refines,
     files_rep, files_reboot_rep in*;
     cleanup; simpl; eauto];
@@ -889,6 +897,9 @@ Proof.
          repeat split_ors; cleanup; 
          repeat unify_execs; cleanup;
          simpl in *; try lia.
+         specialize (H6 (fun s => s)).
+         specialize (H9 (fun s => s)).
+         cleanup; try tauto.
 
          erewrite create_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
@@ -948,6 +959,10 @@ Proof.
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
+        specialize (H6 (fun s => s)).
+        specialize (H9 (fun s => s)).
+        cleanup; try tauto.
+
          erewrite change_owner_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
@@ -1006,6 +1021,10 @@ Proof.
          repeat split_ors; cleanup; 
          repeat unify_execs; cleanup;
          simpl in *; try lia.
+
+        specialize (H6 (fun s => s)).
+        specialize (H9 (fun s => s)).
+        cleanup; try tauto.
 
          erewrite delete_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
@@ -1185,6 +1204,11 @@ Proof.
          repeat unify_execs; cleanup;
          simpl in *; try lia.
 
+
+        specialize (H6 (fun s => s)).
+        specialize (H9 (fun s => s)).
+        cleanup; try tauto.
+
          erewrite extend_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
@@ -1255,10 +1279,13 @@ Proof.
          repeat split_ors; cleanup; 
          repeat unify_execs; cleanup;
          simpl in *; try lia.
+         specialize (H6 (fun s => s)).
+         specialize (H9 (fun s => s)).
+         cleanup; try tauto.
 
-         eapply_fresh H13 in H;
-         eapply_fresh H9 in H2;
-         clear H9 H13;
+         eapply_fresh H8 in H;
+         eapply_fresh H7 in H2;
+         clear H8 H7;
          cleanup; repeat split_ors; cleanup;
          repeat unify_execs; cleanup; eauto.
 

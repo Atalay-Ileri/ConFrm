@@ -31,10 +31,9 @@ Lemma HC_exec_same_finished:
  (Finished x x0) ->
 
  oracle_refines _ _ _ _ ATC_CoreRefinement T u s_imp
- p
- (fun s : HorizontalComposition.state'
-          AuthenticationOperation
-          TransactionCacheOperation => s) o o0 ->
+ p (fun
+ s : HorizontalComposition.state' AuthenticationOperation
+       TransactionCacheOperation => (fst s, ([], snd (snd s)))) o o0 ->
 
  ATC_Refinement.(Simulation.Definitions.refines) s_imp s_abs ->
 
@@ -289,9 +288,11 @@ u _
           simpl in *; cleanup; try tauto.
           destruct l; simpl in *; try lia.
           split_ors; cleanup; repeat unify_execs; cleanup.
+          specialize (H2 (fun s => s)); cleanup.
           invert_exec'' H8; repeat invert_exec.
           invert_exec'' H10; repeat invert_exec.
           invert_exec'' H13; repeat invert_exec.
+          
           simpl in *; cleanup.
           inversion H; inversion H2; subst.
           unfold HC_refines in *; simpl in *;
@@ -626,7 +627,18 @@ exists s_abs' : TransactionalDiskLayer.state',
         Transaction.transaction_rep,
         Transaction.transaction_reboot_rep in *; cleanup; eauto.
 
+        repeat econstructor.
+        unfold refines, refines_reboot,
+        Transaction.transaction_rep,
+        Transaction.transaction_reboot_rep in *; cleanup; eauto.
+
+
         eexists; intuition eauto.
+        repeat econstructor.
+        unfold refines, refines_reboot,
+        Transaction.transaction_rep,
+        Transaction.transaction_reboot_rep in *; cleanup; eauto.
+
         repeat econstructor.
         unfold refines, refines_reboot,
         Transaction.transaction_rep,
@@ -693,10 +705,11 @@ exec ATCLang u o s
 (ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
 
 exists oa,
+forall grs,
 oracle_refines ATCCore
 AuthenticatedDiskLayer.ADOperation
 ATCLang AD ATC_CoreRefinement
-T u s p (fun s0 => s0) o oa.
+T u s p grs o oa.
 
 Proof.
 induction p; simpl in *; intros.

@@ -19,17 +19,6 @@ Defined.
 
 Definition token_refines  T u (d1: state imp) (p: Core.operation abs_op T) (get_reboot_state: imp.(state) -> imp.(state)) o1 o2 : Prop :=
      match p with
-     (* | Start =>
-       (exists d1' r,
-          exec imp u o1 d1 start (Finished d1' r) /\
-          o2 = Cont /\
-          d1' = ([], snd d1)) \/
-       
-       (exists d1',
-          exec imp u o1 d1 start (Crashed d1') /\
-          o2 = CrashBefore /\
-          d1' = d1)
-        *) 
      | Read a =>
        (exists d1' r,
           exec imp u o1 d1 (read a) (Finished d1' r) /\
@@ -74,9 +63,16 @@ Definition token_refines  T u (d1: state imp) (p: Core.operation abs_op T) (get_
        (exists d1',
           exec imp u o1 d1 commit (Crashed d1') /\
           ((o2 = CrashBefore /\
-            snd d1' = snd d1) \/
+            snd d1' = snd d1 /\
+            (length o1 < 2 \/ 
+            (length o1 = 2 /\ 
+            exists o, o1 = o ++ [OpToken (TransactionCacheOperation) 
+                        (Token2 _ (LoggedDiskOperation log_length data_length) LoggedDiskLayer.CrashBefore)]))) \/
            (o2 = CrashAfter /\
-            snd d1' = upd_batch (snd d1) (rev (map fst (fst d1))) (rev (map snd (fst d1))))))
+            snd d1' = upd_batch (snd d1) (rev (map fst (fst d1))) (rev (map snd (fst d1))) /\
+            (length o1 > 2 \/
+            (length o1 = 2 /\ exists o, o1 = o ++ [OpToken (TransactionCacheOperation) 
+            (Token2 _ (LoggedDiskOperation log_length data_length) LoggedDiskLayer.CrashAfter)])))))
 
      | Abort =>
        (exists d1' r,
@@ -116,11 +112,11 @@ Definition refines := transaction_rep.
 Definition refines_reboot := transaction_reboot_rep.     
 
 
-   Lemma exec_compiled_preserves_refinement_finished_core:
-    forall T (p2: abs_op.(Core.operation) T) o1 s1 s1' r u,
-        (exists s2, refines s1 s2) ->
-        imp.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
-        (exists s2', refines s1' s2').
+Lemma exec_compiled_preserves_refinement_finished_core:
+forall T (p2: abs_op.(Core.operation) T) o1 s1 s1' r u,
+    (exists s2, refines s1 s2) ->
+    imp.(exec) u o1 s1 (compile T p2) (Finished s1' r)->
+    (exists s2', refines s1' s2').
   Proof.
     intros; destruct p2; simpl in *; cleanup.
     {
@@ -160,7 +156,7 @@ Definition refines_reboot := transaction_reboot_rep.
   Qed.
 
    
-  Definition TDCoreRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
+  Definition TDCoreRefinement := Build_CoreRefinement compile refines refines_reboot token_refines exec_compiled_preserves_refinement_finished_core.
   Definition TDRefinement := LiftRefinement abs TDCoreRefinement.
   
   Notation "| p |" := (Op abs_op p)(at level 60).

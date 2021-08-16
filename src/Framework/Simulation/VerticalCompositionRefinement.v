@@ -32,8 +32,7 @@ forall T (p3: L3.(prog) T) o1 s1 s1' r u,
   (Finished s1' r) ->
   refines R1 s1 x1 ->
   exists o2,  
-  Definitions.oracle_refines R1 u s1 (Definitions.compile R2 p3)
-  (fun s : state L1 => s) o1 o2) ->
+  forall grs, Definitions.oracle_refines R1 u s1 (Definitions.compile R2 p3) grs o1 o2) ->
   (exists s3', VC_refines s1' s3').
   Proof.
     unfold SimulationForProgram, 

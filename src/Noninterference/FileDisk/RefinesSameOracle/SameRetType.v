@@ -802,7 +802,211 @@ Qed.
     eauto.
   Qed.
 
-  Lemma write_inner_finished_oracle_eq:
+
+
+  Lemma read_inner_finished_oracle_eq:
+  forall u u' ex fm1 fm2 o o' o1 o2 s1 s2 s1' s2' r1 r2 off inum,
+  exec (TDLang FSParameters.data_length) 
+ u o s1 (read_inner off  inum)
+ (Finished s1' r1) ->
+ o ++ o1 = o' ++ o2 ->
+ files_inner_rep fm1 (fst s1) ->
+ files_inner_rep fm2 (fst s2) ->
+ same_for_user_except u' ex fm1 fm2 ->
+ exec (TDLang FSParameters.data_length) 
+ u o' s2 (read_inner off inum)
+ (Finished s2' r2) ->
+ o = o' /\ (r1 = None <-> r2 = None).
+ Proof.
+  unfold not, read_inner.
+  intros.
+  cleanup; repeat invert_exec;
+  repeat (try split_ors; cleanup; repeat invert_exec;
+  try solve [simpl in *; cleanup; split; eauto;
+  intuition congruence]).
+
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     try eapply DiskAllocator.read_finished_oracle_eq in H6; eauto; subst;
+     cleanup; eauto.
+     split; eauto;
+     intuition congruence.
+     (*
+     Solution to :
+     forall inode1 inode2 : Inode.Inode,
+        x3 inum = Some inode1 ->
+        x6 inum = Some inode2 ->
+        length (Inode.block_numbers inode1) =
+        length (Inode.block_numbers inode2)
+     *)
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H12; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H16 in H13; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H19 in H11; eauto.
+     eapply H20 in H12; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     try eapply DiskAllocator.read_finished_oracle_eq in H6; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H16 in H13; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H19 in H11; eauto.
+     eapply H20 in H12; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H15 in H12; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H18 in H10; eauto.
+     eapply H19 in H11; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     try eapply DiskAllocator.read_finished_oracle_eq in H6; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H16 in H13; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H19 in H11; eauto.
+     eapply H20 in H12; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     try eapply DiskAllocator.read_finished_oracle_eq in H6; eauto; subst;
+     cleanup; eauto.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H16 in H13; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H19 in H11; eauto.
+     eapply H20 in H12; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H15 in H12; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H18 in H10; eauto.
+     eapply H19 in H11; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H15 in H12; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H18 in H10; eauto.
+     eapply H19 in H11; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H11; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H15 in H12; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H18 in H10; eauto.
+     eapply H19 in H11; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+    {
+        unfold files_inner_rep in *; cleanup.
+        repeat rewrite <- app_assoc in H0; eauto;
+     try eapply Inode.get_block_number_finished_oracle_eq in H; eauto; subst;
+     cleanup; eauto.
+     intuition congruence.
+     intros.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H9; 
+     eauto; cleanup.
+     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H10; 
+     eauto; cleanup.
+     unfold same_for_user_except in *; cleanup.
+     eapply_fresh H14 in H11; eauto; cleanup.
+     unfold file_map_rep in *; cleanup.
+     eapply H17 in H9; eauto.
+     eapply H18 in H10; eauto.
+     unfold file_rep in *; cleanup; eauto.
+    }
+ Qed.
+
+
+ Lemma write_inner_finished_oracle_eq:
   forall u u' ex fm1 fm2 o o' o1 o2 s1 s2 s1' s2' r1 r2 off v v' inum,
   exec (TDLang FSParameters.data_length) 
  u o s1 (write_inner off v inum)
@@ -901,7 +1105,6 @@ Qed.
     }
   Opaque write_inner.
  Qed.
-
 
 
  Lemma extend_inner_finished_oracle_eq:

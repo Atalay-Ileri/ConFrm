@@ -24,6 +24,9 @@ Definition compile T (o: (HorizontalComposition O O2).(operation) T) : HCL1.(pro
 Definition HC_refines := fun (si: HCL1.(state)) (sa: HCL2.(state)) => 
 fst si = fst sa /\ RC.(refines_core) (snd si) (snd sa).
 
+Definition HC_refines_reboot := fun (si: HCL1.(state)) (sa: HCL2.(state)) => 
+fst si = fst sa /\ RC.(refines_reboot_core) (snd si) (snd sa).
+
 Lemma HC_exec_compiled_preserves_refinement_finished_core :
 forall T (p2: (HorizontalComposition O O2).(operation) T) o1 s1 s1' r u,
   (exists s2, HC_refines s1 s2) ->
@@ -82,7 +85,7 @@ end.
     
 
 Definition HC_Core_Refinement : CoreRefinement HCL1 (HorizontalComposition O O2) :=
-Build_CoreRefinement compile HC_refines
+Build_CoreRefinement compile HC_refines HC_refines_reboot
 HC_token_refines
 HC_exec_compiled_preserves_refinement_finished_core.
 
@@ -286,6 +289,96 @@ x0 = map
     erewrite H with (x0 := x5); eauto.
     rewrite map_app; eauto.
     }
+  Qed.
+
+
+  Lemma HC_oracle_transformation_unique:
+  forall x0 x1 x2,
+  HC_oracle_transformation x0 x1 ->
+  HC_oracle_transformation x0 x2 ->
+  x1 = x2.
+    Proof.
+      induction x0; simpl; intros; subst; eauto.
+      cleanup.
+      inversion H0.
+      eapply IHx0 in H4; eauto; subst; eauto.
+      eapply IHx0 in H2; eauto; subst; eauto.
+      eapply IHx0 in H2; eauto; subst; eauto.
+    Qed.
+
+    Lemma HC_oracle_transformation_app_composed:
+forall o1 o2 o,
+HC_oracle_transformation (o1 ++ o2) o ->
+exists x1 x2,
+o = x1 ++ x2 /\
+HC_oracle_transformation o1 x1 /\
+HC_oracle_transformation o2 x2.
+Proof.
+  induction o1; simpl; intros.
+  {
+    do 2 eexists; simpl; intuition eauto.
+    simpl; eauto.
+  }
+  {
+    cleanup.
+    - eapply IHo1 in H1; cleanup.
+      do 2 eexists; intuition eauto.
+      simpl; eauto.
+    - eapply IHo1 in H0; cleanup.
+      do 2 eexists; intuition eauto.
+      simpl; eauto.
+    - eapply IHo1 in H0; cleanup.
+    do 2 eexists; intuition eauto.
+    simpl; eauto.
+  }
+Qed.
+
+Lemma HC_oracle_transformation_merge:
+forall o1 o2 x1 x2,
+HC_oracle_transformation o1 x1 ->
+HC_oracle_transformation o2 x2 ->
+HC_oracle_transformation (o1 ++ o2) (x1 ++ x2).
+Proof.
+  induction o1; simpl; intros.
+  {
+    subst; eauto.
+  }
+  {
+    cleanup;
+    eapply IHo1 in H0; eauto; cleanup;
+    do 2 eexists; intuition eauto.
+  }
+Qed.
+
+Lemma HC_oracle_transformation_prefix_l:
+forall o1 o2 o3 o4 x1 x4,
+  HC_oracle_transformation o1 x4 ->
+  HC_oracle_transformation o2 x1 ->
+  o1 ++ o3 = o2 ++ o4 ->
+  exists x x',
+  x4 ++ x = x1 ++ x'.
+  Proof.
+    induction o1; simpl; intros;
+    destruct o2; simpl in *; cleanup; 
+    simpl; eauto;
+    edestruct IHo1; eauto;
+    cleanup; do 2 eexists; eauto;
+    rewrite cons_app;
+    rewrite H; simpl; eauto.
+    Unshelve.
+    all: constructor.
+  Qed.
+
+  Lemma HC_oracle_transformation_eq_l:
+forall o1 o2 x,
+  HC_oracle_transformation o1 x ->
+  HC_oracle_transformation o2 x ->
+  o1 = o2.
+  Proof.
+    induction o1; simpl; intros;
+    destruct o2; simpl in *; cleanup; 
+    simpl; eauto; try congruence;
+    erewrite IHo1; eauto.
   Qed.
 
 

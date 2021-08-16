@@ -511,15 +511,11 @@ forall u T (p: TD.(prog) T) n,
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec TransactionCacheLang u o (snd s) 
 (TDRefinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
-exists oa, oracle_refines _ _
+exists oa, forall grs, oracle_refines _ _
   ATCLang AD
   ATC_CoreRefinement T u s
   (lift_L2 AuthenticationOperation p)
-  (fun
-     s : HorizontalComposition.state'
-           AuthenticationOperation
-           TransactionCacheOperation
-   => s) (map
+  grs (map
        (fun o : Language.token' TransactionCacheOperation =>
         match o with
         | OpToken _ o1 =>
@@ -620,9 +616,9 @@ forall u T (p: AD.(prog) T) n,
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec ATCLang u o s 
 (ATC_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
-exists oa, oracle_refines _ _
+exists oa, forall grs, oracle_refines _ _
   ATCLang AD
-  ATC_CoreRefinement T u s p (fun s => s) o oa) ->
+  ATC_CoreRefinement T u s p grs o oa) ->
 
 (forall o s s', 
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->

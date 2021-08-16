@@ -4,6 +4,7 @@ Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
   {
     compile_core : forall T, O_abs.(Core.operation) T -> L_imp.(prog) T;
     refines_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
+    refines_reboot_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
     token_refines: forall T, user -> L_imp.(state) -> O_abs.(Core.operation) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
     exec_compiled_preserves_refinement_finished_core :
       forall T (p2: O_abs.(Core.operation) T) o1 s1 s1' r u,
@@ -16,6 +17,7 @@ Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) 
   {
     compile : forall T, L_abs.(prog) T -> L_imp.(prog) T;
     refines: L_imp.(state) -> L_abs.(state) -> Prop;
+    refines_reboot: L_imp.(state) -> O_abs.(Core.state) -> Prop;
     oracle_refines: forall T, user -> L_imp.(state) -> L_abs.(prog) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> L_abs.(oracle) -> Prop;
     exec_compiled_preserves_refinement_finished :
       forall T (p2: L_abs.(prog) T) o1 s1 s1' r u,
@@ -27,12 +29,14 @@ Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) 
 Arguments Build_CoreRefinement {_ _ _}.
 Arguments compile_core {_ _ _} _ {_}.
 Arguments refines_core {_ _ _}.
+Arguments refines_reboot_core {_ _ _}.
 Arguments token_refines {_ _ _} _ {_}.
 Arguments exec_compiled_preserves_refinement_finished_core {_ _ _}.
 
 Arguments Build_Refinement {_ _ _ _}.
 Arguments compile {_ _ _ _} _ {_}.
 Arguments refines {_ _ _ _}.
+Arguments refines_reboot {_ _ _ _}.
 Arguments oracle_refines {_ _ _ _} _ {_}.
 Arguments exec_compiled_preserves_refinement_finished {_ _ _ _}.
 
@@ -51,7 +55,7 @@ Section Relations.
       length lo_imp = length lo_abs /\
       ((exists s' t,
          L_imp.(exec) u o_imp s (R.(compile) p_abs) (Finished s' t) /\
-         R.(oracle_refines) u s p_abs (fun s => s) o_imp o_abs /\
+         (forall grs_imp, R.(oracle_refines) u s p_abs grs_imp o_imp o_abs) /\
          loi = [] /\ loa = []) \/
       (exists s',
          L_imp.(exec) u o_imp s (R.(compile) p_abs) (Crashed s') /\
@@ -90,6 +94,15 @@ and asserts that
       R.(refines) si2 sa2 /\
       related_abs sa1 sa2.
 
+Definition refines_related_reboot
+(related_abs:  L_abs.(state) -> L_abs.(state) -> Prop)
+(si1 si2: L_imp.(state))
+: Prop :=
+exists (sa1 sa2: L_abs.(state)),
+R.(refines_reboot) si1 sa1 /\
+R.(refines_reboot) si2 sa2 /\
+related_abs sa1 sa2.
+
 
 Definition refines_valid 
            (valid_state_abs: L_abs.(state) -> Prop)
@@ -118,6 +131,17 @@ Definition oracle_refines_same_from_related
     recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
 
+
+Definition oracle_refines_same_from_related_reboot
+            (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
+            rec_abs
+            l_get_reboot_state_imp
+           (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
+  forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
+    refines_related_reboot related_states_abs s1_imp s2_imp ->
+    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+l_o_abs = l_o_abs'.
 (** Self Simulation **)
 (**
   valid_state: This predicate restrict the statement to "well-formed" states.

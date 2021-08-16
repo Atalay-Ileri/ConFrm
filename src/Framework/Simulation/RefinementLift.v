@@ -35,7 +35,7 @@ Section RefinementLift.
       o2 = o2' ++ o2'' /\
          exec L_imp u o1' d1 (compile T1 p1) (Finished d1' r) /\
          exec L_imp u o1'' d1' (compile T2 (p2 r)) ret /\
-         oracle_refines T1 u d1 p1 (fun s => s) o1' o2' /\
+         oracle_refines T1 u d1 p1 get_reboot_state_imp o1' o2' /\
          oracle_refines T2 u d1' (p2 r) get_reboot_state_imp o1'' o2''
          )
     end.
@@ -55,6 +55,7 @@ Section RefinementLift.
     Build_Refinement
       compile
       CoreRefinement.(refines_core)
+      CoreRefinement.(refines_reboot_core)
       oracle_refines
       exec_compiled_preserves_refinement_finished.
 
@@ -233,94 +234,6 @@ Proof.
         }
     }
 Qed.
-
-(*
-Lemma oracle_refines_same_from_related_compositional:
-forall u R l_grs T (p1 p2: prog L_abs T) T' (p3 p4: T -> prog L_abs T') rec, 
-oracle_refines_same_from_related LiftRefinement u p1 p2 rec [] R ->
-oracle_refines_same_from_related LiftRefinement u p1 p2 rec l_grs R ->
-(forall t t', oracle_refines_same_from_related LiftRefinement u (p3 t) (p4 t') rec l_grs R) ->
-oracle_refines_same_from_related LiftRefinement u (Bind p1 p3) (Bind p2 p4) rec l_grs R.
-Proof.
-    unfold oracle_refines_same_from_related; 
-    simpl; intros.
-    destruct l_o_imp; simpl in *; intuition.
-
-    cleanup; try intuition simpl in *; try congruence; try lia.
-    {  
-      repeat split_ors; cleanup.
-      invert_exec'' H0.
-      invert_exec'' H5.
-      repeat split_ors; cleanup; repeat unify_execs; cleanup;
-      eapply_fresh exec_deterministic_wrt_oracle_prefix in H5; eauto; cleanup;
-      eapply_fresh exec_deterministic_wrt_oracle_prefix in H7; eauto; cleanup.
-      rewrite H4; eauto.  
-      eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup;
-      eapply_fresh exec_finished_deterministic_prefix in H7; eauto; cleanup.
-      rewrite <- H4 in H6; clear H4; cleanup; repeat unify_execs; cleanup.
-
-
-      }
-      invert_exec'' H12.
-        edestruct H; eauto.
-        econstructor; eauto.
-
-        eapply_fresh exec_compiled_preserves_refinement_finished in H9; eauto.
-
-        edestruct H1; eauto.
-        econstructor; eauto.
-
-        simpl in *; cleanup; try intuition; simpl in *; try congruence;
-        cleanup; repeat unify_execs; cleanup.
-        exists [o0++o].
-        simpl; split; eauto.
-        repeat left.
-        do 2 eexists; econstructor; eauto.
-        econstructor; eauto.
-        intuition eauto.
-        do 4 eexists; intuition eauto. 
-        right; do 3 eexists; intuition eauto.
-    }
-    {
-        invert_exec'' H11.
-        {
-            edestruct H; eauto.
-            econstructor; eauto.
-
-            eapply_fresh exec_compiled_preserves_refinement_finished in H9; eauto.
-
-            edestruct H1; eauto.
-            econstructor; eauto.
-
-            simpl in *; cleanup; try intuition; simpl in *; try congruence;
-            cleanup; repeat unify_execs; cleanup.
-            exists ((o0++o)::l).
-            simpl; split; eauto.
-            right.
-            eexists; econstructor; eauto.
-            econstructor; eauto.
-            intuition eauto.
-            do 4 eexists; intuition eauto. 
-            right; do 3 eexists; intuition eauto.
-        }
-        {
-            edestruct H0; eauto.
-            econstructor; eauto.
-
-            simpl in *; cleanup; try intuition; simpl in *; try congruence;
-            cleanup; repeat unify_execs; cleanup.
-            exists (o::l).
-            simpl; split; eauto.
-            right.
-            eexists; econstructor; eauto.
-            eapply ExecBindCrash; eauto.
-            intuition eauto.
-            do 4 eexists; intuition eauto. 
-            rewrite app_nil_r; eauto.
-        }
-    }
-Qed.
-*)
 
 End RefinementLift.
 

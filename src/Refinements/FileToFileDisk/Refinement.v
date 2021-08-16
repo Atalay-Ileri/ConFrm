@@ -936,7 +936,7 @@ Proof.
     {
       simpl.
       unfold refines, refines_reboot in *.
-      eapply H5 in H0; split_ors; cleanup; unify_execs;
+      eapply H4 in H0; split_ors; cleanup; unify_execs;
       cleanup; eauto.
       econstructor; eauto.
     }
@@ -996,7 +996,7 @@ Proof.
         exists (RFinished s_abs None);
         simpl; repeat (split; eauto).
         eapply ExecFinished.
-        eapply H6 in H0; destruct H0; cleanup; unify_execs;
+        eapply H3 in H0; destruct H0; cleanup; unify_execs;
         cleanup; eauto.
         econstructor; eauto.
         repeat split_ors; cleanup;
@@ -1006,7 +1006,7 @@ Proof.
         exists (RFinished s_abs (nth_error x2.(blocks) a));
         simpl; intuition eauto.
         eapply ExecFinished.
-        eapply H6 in H0; destruct H0; cleanup; unify_execs;
+        eapply H3 in H0; destruct H0; cleanup; unify_execs;
         cleanup; eauto.        
         destruct_fresh (nth_error (blocks x2) a);
         do 2 econstructor; eauto.
@@ -1045,9 +1045,12 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;
                         unify_execs; cleanup].
     {
+
       cleanup; unify_execs; 
       cleanup.
-      eapply_fresh H6 in H0; clear H4;cleanup;
+      specialize (H3 (fun s => s)); cleanup.
+
+      eapply_fresh H3 in H0; clear H4; cleanup;
       do 2 (split_ors; cleanup); try unify_execs;
       cleanup; eauto;
       cleanup; repeat (split_ors; cleanup);
@@ -1104,7 +1107,8 @@ Proof.
                       unify_execs; cleanup].
   {
     unify_execs; cleanup.
-    eapply_fresh H6 in H0; clear H4;cleanup;
+    specialize (H3 (fun s => s)); cleanup.
+    eapply_fresh H3 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
@@ -1127,6 +1131,7 @@ Proof.
             repeat split_ors; cleanup;
             do 2 econstructor; eauto ].
 
+            (*
     all: try solve [
       eapply_fresh files_rep_eq in H8; eauto;
       rewrite Hx in H5;
@@ -1137,6 +1142,7 @@ Proof.
       inversion H7;
       exfalso; eapply app_ne_diag; eauto;
       congruence ].
+      *)
     }
   {
     eapply_fresh H4 in H0;
@@ -1172,7 +1178,8 @@ Proof.
                       unify_execs; cleanup].
   {
     cleanup.
-    eapply_fresh H6 in H0; clear H4;cleanup;
+    specialize (H3 (fun s => s)); cleanup.
+    eapply_fresh H5 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
@@ -1230,7 +1237,8 @@ Proof.
                       unify_execs; cleanup].
   {
     cleanup.
-    eapply_fresh H6 in H0; clear H4;cleanup;
+    specialize (H3 (fun s => s)); cleanup.
+    eapply_fresh H5 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);
@@ -1290,7 +1298,8 @@ Proof.
                       unify_execs; cleanup].  
   {
     cleanup.
-    eapply_fresh H6 in H0; clear H4;cleanup;
+    specialize (H3 (fun s => s)); cleanup.
+    eapply_fresh H5 in H0; clear H4;cleanup;
     do 2 (split_ors; cleanup); try unify_execs;
     cleanup; eauto;
     cleanup; repeat (split_ors; cleanup);

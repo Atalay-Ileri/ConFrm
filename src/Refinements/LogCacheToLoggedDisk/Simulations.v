@@ -34,9 +34,10 @@ Proof.
     cleanup; intuition eauto; cleanup; 
     repeat unify_execs; cleanup.
 
+
+    specialize (H2 (fun s => s)); cleanup.
     cleanup; intuition eauto; cleanup; 
     repeat unify_execs; cleanup.
-    
     
     eexists; split; eauto.
     unfold logged_disk_reboot_list in *; simpl.
@@ -157,7 +158,7 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;
                         unify_execs; cleanup].
     {
-      
+      specialize (H3 (fun s => s)); cleanup.
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       eapply_fresh read_finished in H10; cleanup; eauto.
       destruct l_selector; simpl in *; try congruence; cleanup.
@@ -225,7 +226,7 @@ Proof.
     cleanup; try solve [intuition eauto; try congruence;    
     unify_execs; cleanup].
     {
-      
+      specialize (H3 (fun s=> s)).
       cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
       {
         eapply write_finished in H10; eauto.
@@ -332,7 +333,7 @@ Proof.
               
               all: try apply sumbool_agree_addr_dec.
 
-              (** Investigate this further **)
+              (** TODO: Investigate this further **)
               admit.
             }
             {

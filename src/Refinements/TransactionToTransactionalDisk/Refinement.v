@@ -3,7 +3,6 @@ Require Import TransactionCacheLayer TransactionalDiskLayer.
 Require Import Transaction TransactionToTransactionalDisk.Definitions.
 Require Import ClassicalFacts FunctionalExtensionality Lia.
 
-
 Set Nested Proofs Allowed.
 
 Local Notation "'imp'" := TransactionCacheLang.
@@ -433,7 +432,7 @@ Proof.
     simpl in *; cleanup; eauto.
     intuition eauto.
     pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
-    simpl; destruct x0; eauto.
+    simpl; destruct x3; eauto.
     cleanup; intuition.
   }
   {
@@ -533,32 +532,38 @@ Proof.
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
+        subst; econstructor; eauto.
+        repeat cleanup_pairs.
+        exfalso; eapply cons_l_neq; eauto.
+        repeat cleanup_pairs.
+      exfalso; eapply cons_l_neq; eauto.
       }
-      repeat cleanup_pairs.
-      exfalso; eapply cons_l_neq; eauto.
-      apply H6.
-      eapply write_finished in H10; eauto. 
-      split_ors; logic_clean; try lia.
-      destruct s_imp; simpl in *; inversion H3.
-      exfalso; eapply cons_l_neq; eauto.
-      symmetry in H7; apply H7.
-      split_ors; cleanup; try lia.
+      cleanup.
+      split_ors; try logic_clean; try lia.
       {
         cleanup.
         exists (RFinished s_abs None);
-        simpl; intuition eauto.
+        simpl; split; eauto.
+        intuition try lia; cleanup.
         eapply ExecFinished.
         repeat econstructor; eauto.
       }
-      eapply write_finished in H10; eauto.
-      split_ors; logic_clean; try lia.
-      destruct s_imp; simpl in *; inversion H3.
-      exfalso; eapply cons_l_neq; eauto.
-      symmetry in H8; apply H8.
-      split_ors; cleanup; try lia. 
+      split_ors; try logic_clean; try lia.
       {
+        
         exists (RFinished s_abs None);
         simpl; intuition eauto.
+        destruct s_imp; 
+        simpl in *; inversion H6.
+        symmetry in H8; 
+      exfalso; eapply cons_l_neq; eauto.
+      apply H8.
+      }
+      {
+        cleanup.
+        exists (RFinished s_abs None);
+        simpl; split; eauto.
+        intuition try lia; cleanup.
         eapply ExecFinished.
         repeat econstructor; eauto.
       }
@@ -606,7 +611,7 @@ Proof.
         unfold refines, transaction_rep in *; simpl in *; cleanup.
         intuition eauto.
         pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
-        destruct x0; eauto.
+        destruct x3; eauto.
       }
     }
     {
@@ -652,7 +657,7 @@ Proof.
         unfold refines, transaction_rep in *; simpl in *; cleanup.
         intuition eauto.
         pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
-        destruct x0; eauto.
+        destruct x3; eauto.
       }
     }
     {
@@ -670,6 +675,29 @@ Proof.
         unfold transactional_disk_reboot_list; simpl.
         eapply ExecRecovered; eauto.
         repeat econstructor.
+      }
+      {
+        edestruct recovery_simulation; eauto.
+        unfold refines, transaction_rep in *; cleanup.
+        instantiate (1:=(snd s_abs, snd s_abs)).
+        eauto.
+
+        exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
+        unfold transactional_disk_reboot_list; simpl.
+        eapply ExecRecovered; eauto.
+        repeat econstructor.
+      }
+      {
+        edestruct recovery_simulation; eauto.
+        unfold refines, transaction_rep in *; cleanup.
+        instantiate (1:=(fst s_abs, fst s_abs)).
+        eauto.
+        
+        exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
+        unfold transactional_disk_reboot_list; simpl.
+        eapply ExecRecovered; eauto.
+        repeat econstructor.
+            simpl; eauto.
       }
       {
         edestruct recovery_simulation; eauto.
@@ -841,7 +869,7 @@ Proof.
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
     unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
-    simpl in *; logic_clean; rewrite H5; eauto.
+    simpl in *; logic_clean; rewrite H7; eauto.
     
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
     unfold refines_reboot , refines,
@@ -972,10 +1000,20 @@ exec Definitions.imp u x s0
         Transaction.transaction_rep in *; simpl in *.
         cleanup; eauto.
 
+        left; destruct s'0; simpl in *; cleanup.
+        unfold refines, 
+        Transaction.transaction_rep in *; simpl in *.
+        cleanup; intuition eauto.
+
         right; destruct s'0; simpl in *; cleanup.
         unfold refines, 
         Transaction.transaction_rep in *; simpl in *.
         cleanup; eauto.
+
+        right; destruct s'0; simpl in *; cleanup.
+        unfold refines, 
+        Transaction.transaction_rep in *; simpl in *.
+        cleanup; intuition eauto.
 
       - eapply_fresh Transaction.abort_crashed in H; eauto;
       cleanup; intuition eauto;

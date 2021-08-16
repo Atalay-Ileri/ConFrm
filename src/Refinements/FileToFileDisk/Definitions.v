@@ -362,7 +362,7 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
     }
   Qed.
 
-  Definition FDOperationRefinement := Build_CoreRefinement compile refines token_refines exec_compiled_preserves_refinement_finished_core.
+  Definition FDOperationRefinement := Build_CoreRefinement compile refines refines_reboot token_refines exec_compiled_preserves_refinement_finished_core.
   Definition FDRefinement := LiftRefinement abs FDOperationRefinement.
 
   Notation "| p |" := (Op abs_core p)(at level 60).
