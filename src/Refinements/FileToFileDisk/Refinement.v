@@ -13,7 +13,7 @@ Section FDSimulation.
 
 
   Definition authenticated_disk_reboot_list n :=
-    repeat (fun s: imp.(state) => (fst s, (snd (snd s), snd (snd s)))) n.
+    repeat (fun s: imp.(state) => (fst s, (Empty, (snd (snd (snd s)), snd (snd (snd s)))))) n.
 
   Definition file_disk_reboot_list n :=
     repeat (fun s : abs.(state) => s) n.

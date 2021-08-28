@@ -8,12 +8,12 @@ Lemma ATC_ORS_TD_read:
 forall n u a a' R,
 oracle_refines_same_from_related ATC_Refinement u
 (Op (HorizontalComposition AuthenticationOperation
-(TransactionalDiskLayer.TDOperation data_length))
-(@P2 _ (TransactionalDiskLayer.TDOperation data_length) _
+(TransactionalDiskLayer.TDCore data_length))
+(@P2 _ (TransactionalDiskLayer.TDCore data_length) _
 (TransactionalDiskLayer.Read a)))
 (Op (HorizontalComposition AuthenticationOperation
-(TransactionalDiskLayer.TDOperation data_length))
-(@P2 _ (TransactionalDiskLayer.TDOperation data_length) _ 
+(TransactionalDiskLayer.TDCore data_length))
+(@P2 _ (TransactionalDiskLayer.TDCore data_length) _ 
 (TransactionalDiskLayer.Read a'))) 
 File.recover (ATC_reboot_list n) R. (* (AD_related_states u' None). *)
 Proof.
@@ -152,15 +152,15 @@ Lemma ATC_ORS_commit:
 forall n u u',
 oracle_refines_same_from_related ATC_Refinement u
   (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Commit))
   (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Commit))
   (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) (fun s1 s2  => exists s1a s2a, 
-  File.files_inner_rep s1a (fst (snd s1)) /\ 
-  File.files_inner_rep s2a (fst (snd s2)) /\ 
+  File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+  File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
   FD_related_states u' None s1a s2a).
 Proof.
   Opaque Transaction.commit.
@@ -230,7 +230,7 @@ Proof.
     repeat cleanup_pairs; simpl in *; cleanup.
     repeat split_ors; subst; cleanup; eauto.
     all: repeat split_ors; cleanup; try lia;
-    apply app_inj_tail in H3; cleanup; congruence.
+    apply app_inj_tail in H7; cleanup; congruence.
   }
   {
     unfold refines_related, refines_related_reboot,
@@ -247,6 +247,7 @@ Proof.
     unfold Transaction.transaction_rep, 
     Transaction.transaction_reboot_rep in *;
     simpl in *; cleanup.
+    clear H6 H12.
     repeat split_ors; cleanup; eauto.
     - clear H18.
     repeat unify_execs; cleanup; eauto.
@@ -260,7 +261,8 @@ Proof.
     apply app_inj_tail in H16; cleanup; congruence.
     - clear H18.
     repeat unify_execs; cleanup; eauto.
-    eexists (_, (fst (snd x1), fst (snd x1))), (_, (fst (snd x3), fst (snd x3))); 
+    eexists (_, (_, (fst (snd (snd x1)), fst (snd (snd x1))))), 
+    (_, (_, (fst (snd (snd x3)), fst (snd (snd x3))))); 
     simpl; intuition eauto.
     shelve.
   }
@@ -269,23 +271,24 @@ Proof.
   }
   Unshelve.
   instantiate (1:= fun _ _ => True); simpl; eauto.
-  simpl; eauto. 
+  all: simpl; eauto.
+  all: exact Empty. 
   Qed.
 
 Lemma ATC_ORS_commit_then_ret:
 forall n u u' T (t1 t2: option T),
 oracle_refines_same_from_related ATC_Refinement u
   (_ <- (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Commit));
    Ret t1)
   (_ <- (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Commit));
    Ret t2) (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) (fun s1 s2  => exists s1a s2a, 
-  File.files_inner_rep s1a (fst (snd s1)) /\ 
-  File.files_inner_rep s2a (fst (snd s2)) /\ 
+  File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+  File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
   FD_related_states u' None s1a s2a).
 Proof.
   intros.
@@ -377,10 +380,10 @@ Lemma ATC_ORS_abort:
 forall n u R,
 oracle_refines_same_from_related ATC_Refinement u
   (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Abort))
   (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Abort))
   (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) R.
@@ -463,11 +466,11 @@ Lemma ATC_ORS_abort_then_ret:
 forall n u T P,
 oracle_refines_same_from_related ATC_Refinement u
   (_ <- (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Abort));
    @Ret _ (option T) None)
   (_ <- (@lift_L2 AuthenticationOperation _ TD _
-  (Op (TransactionalDiskLayer.TDOperation data_length)
+  (Op (TransactionalDiskLayer.TDCore data_length)
      TransactionalDiskLayer.Abort));
    Ret None) (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) P.
@@ -559,11 +562,11 @@ forall n u u1 u2 R,
 oracle_refines_same_from_related ATC_Refinement u 
 (Op
   (HorizontalComposition AuthenticationOperation
-    (TransactionalDiskLayer.TDOperation data_length)) 
+    (TransactionalDiskLayer.TDCore data_length)) 
   (@P1 AuthenticationOperation _  _ (Auth u1)))
 (Op
   (HorizontalComposition AuthenticationOperation
-    (TransactionalDiskLayer.TDOperation data_length)) 
+    (TransactionalDiskLayer.TDCore data_length)) 
   (@P1 AuthenticationOperation _  _ (Auth u2))) File.recover 
 (ATC_reboot_list n) R.
 Proof.

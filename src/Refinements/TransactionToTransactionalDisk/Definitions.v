@@ -3,7 +3,7 @@ Require Import TransactionCacheLayer TransactionalDiskLayer Transaction.
 Import ListNotations.
 
 Local Definition imp_op := TransactionCacheOperation.
-Local Definition abs_op := (TDOperation data_length).
+Local Definition abs_op := (TDCore data_length).
 Local Definition imp := TransactionCacheLang.
 Local Definition abs := (TDLang data_length).
 
@@ -35,6 +35,8 @@ Definition token_refines  T u (d1: state imp) (p: Core.operation abs_op T) (get_
           exec imp u o1 d1 (write a v) (Finished d1' r) /\          
           ((o2 = Cont /\
             a < data_length /\
+            length (addr_list_to_blocks (map fst (fst d1) ++ [a])) +
+            length (map snd (fst d1) ++ [v]) <= log_length /\
             d1' = ((a, v)::fst d1, snd d1)) \/
 
            (o2 = Cont /\
@@ -135,9 +137,12 @@ forall T (p2: abs_op.(Core.operation) T) o1 s1 s1' r u,
       unfold refines in *; cleanup.
       eapply abort_finished in H0; eauto.
       unfold transaction_rep in *; cleanup; eauto.
-      exists (snd x, snd x); repeat cleanup_pairs; eauto.
+      exists (Empty, (snd (snd x), snd (snd x))); repeat cleanup_pairs; eauto.
+      clear H3.
       intuition eauto.
       pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+      pose proof (addr_list_to_blocks_length_le []); simpl in *.
+      left; intuition lia.
     }
     {
       unfold refines in *; cleanup.
@@ -149,9 +154,12 @@ forall T (p2: abs_op.(Core.operation) T) o1 s1 s1' r u,
       eapply init_finished in H0; eauto.
       cleanup; eauto.
       unfold transaction_rep in *; cleanup; eauto.
-      exists (upd_batch (snd x) (map fst l) (map snd l), upd_batch (snd x) (map fst l) (map snd l)); repeat cleanup_pairs; eauto.
+      exists (Empty, (upd_batch (snd (snd x)) (map fst l) (map snd l), upd_batch (snd (snd x)) (map fst l) (map snd l))); repeat cleanup_pairs; eauto.
+      clear H3.
       intuition eauto.
       pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+      pose proof (addr_list_to_blocks_length_le []); simpl in *.
+      left; intuition lia.
     }
   Qed.
 

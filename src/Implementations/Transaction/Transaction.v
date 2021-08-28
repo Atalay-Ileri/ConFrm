@@ -62,17 +62,20 @@ Definition init l_av :=
 
 
 
-Definition transaction_rep (tcd: TransactionCacheLang.(state)) (td: (@total_mem addr addr_dec value) * (@total_mem addr addr_dec value)):=
+Definition transaction_rep (tcd: TransactionCacheLang.(state)) (td: txn_state * ((@total_mem addr addr_dec value) * (@total_mem addr addr_dec value))):=
   let al := map fst (fst tcd) in
   let vl := map snd (fst tcd) in
+  let txn_length := length (addr_list_to_blocks al) + length (vl) in
   Forall (fun a => a < data_length) al /\
-  length (addr_list_to_blocks al) + length vl <= log_length /\
-  fst td = upd_batch (snd tcd) (rev al) (rev vl) /\
-  snd td = snd tcd.
+  txn_length <= log_length /\
+  ((txn_length = 0 /\ fst td = Empty) \/
+  (txn_length > 0 /\ fst td = NotEmpty)) /\
+  fst (snd td) = upd_batch (snd tcd) (rev al) (rev vl) /\
+  snd (snd td) = snd tcd.
   
 
-Definition transaction_reboot_rep (tcd: TransactionCacheLang.(state)) (td: (@total_mem addr addr_dec value) * (@total_mem addr addr_dec value)):=
-  snd td = snd tcd.
+Definition transaction_reboot_rep (tcd: TransactionCacheLang.(state)) (td: txn_state * ((@total_mem addr addr_dec value) * (@total_mem addr addr_dec value))):=
+  snd (snd td) = snd tcd.
 
 (*** Lemmas ***)
 Lemma upd_batch_dedup_last_dedup_by_list:
@@ -188,7 +191,7 @@ Theorem commit_finished :
   forall u s o s' r td,
     transaction_rep s td ->
     exec TransactionCacheLang u o s commit (Finished s' r) ->
-    transaction_rep s' (fst td, fst td) /\
+    transaction_rep s' (Empty, (fst (snd td), fst (snd td))) /\
     fst s' = [].
 Proof.
   unfold commit, transaction_rep; simpl; intros.
@@ -197,6 +200,8 @@ Proof.
   {
     repeat (split; eauto).
     pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+    pose proof (addr_list_to_blocks_length_le []); simpl in *.
+    left; intuition eauto; try lia.
 
     apply upd_batch_dedup_last_dedup_by_list; eauto;
     repeat rewrite rev_length, map_length; eauto.
@@ -231,7 +236,7 @@ Proof.
       repeat rewrite rev_length, map_length in *.
       pose proof (dedup_last_length addr_dec (rev (map fst s0))).
       rewrite rev_length in *.
-      apply addr_list_to_blocks_length_le_preserve in H4.
+      apply addr_list_to_blocks_length_le_preserve in H5.
       lia.
     }
   }
@@ -241,12 +246,12 @@ Theorem commit_crashed :
   forall u s o s' td,
     transaction_rep s td ->
     exec TransactionCacheLang u o s commit (Crashed s') ->
-    (snd s' = snd td /\
+    (snd s' = snd (snd td) /\
     (length o < 2 \/ 
     (length o = 2 /\ 
     exists o1, o = o1 ++ [OpToken (TransactionCacheOperation) 
                         (Token2 _ (LoggedDiskOperation log_length data_length) LoggedDiskLayer.CrashBefore)]))) \/ 
-    (snd s' = fst td /\
+    (snd s' = fst (snd td) /\
        (length o > 2 \/
             (length o = 2 /\ exists o1, o = o1 ++ [OpToken (TransactionCacheOperation) 
             (Token2 _ (LoggedDiskOperation log_length data_length) LoggedDiskLayer.CrashAfter)]))).
@@ -264,11 +269,12 @@ Proof.
     right; setoid_rewrite upd_batch_dedup_last_dedup_by_list at 2; eauto;
     repeat rewrite rev_length, map_length; eauto ]).
   {
-    left; intuition eauto.
-    right; intuition eauto.
+    left; intuition eauto;
+    right; intuition eauto;
     eexists [_]; intuition eauto.
   }
   {
+    clear H2.
     right; intuition eauto.
     setoid_rewrite upd_batch_dedup_last_dedup_by_list at 2; eauto;
     repeat rewrite rev_length, map_length; eauto.
@@ -276,6 +282,7 @@ Proof.
     eexists [_]; intuition eauto.
   }
   {
+    clear H2.
     intuition.
     - exfalso; apply H0; eapply dedup_last_NoDup.
     - exfalso; apply H2; eapply dedup_last_dedup_by_list_length_le;
@@ -310,7 +317,7 @@ Definition read_finished :
     transaction_rep s td ->
     exec TransactionCacheLang u o s (read a) (Finished s' r) ->
     s' = s /\
-    ((a < data_length /\ r = (fst td) a) \/
+    ((a < data_length /\ r = (fst (snd td)) a) \/
      (a >= data_length /\ r = value0)).
 Proof.
   unfold read, transaction_rep; intros; cleanup;
@@ -367,26 +374,32 @@ Definition write_finished :
   forall u s o s' r td a v,
     transaction_rep s td ->
     exec TransactionCacheLang u o s (write a v) (Finished s' r) ->
+    let new_txn_length := length (addr_list_to_blocks (map fst (fst s) ++ [a])) +
+    length ((map snd (fst s)) ++ [v]) in
     (r = Some tt /\
-     transaction_rep s' (upd (fst td) a v, snd td) /\
-     s' = ((a, v):: fst s, snd s)) \/
+    new_txn_length <= log_length /\
+    transaction_rep s' (NotEmpty, (upd (fst (snd td)) a v, snd (snd td))) /\ 
+    s' = ((a, v):: fst s, snd s)) \/
     (r = None /\
      (a >= data_length \/
-      (a < data_length /\
-       length (addr_list_to_blocks (map fst (fst s) ++ [a])) +
-             length ((map snd (fst s)) ++ [v]) > log_length)) /\
+      (a < data_length /\ new_txn_length > log_length)) /\
      s' = s).
 Proof.
   unfold write, transaction_rep; intros; cleanup;
   repeat invert_exec; cleanup; simpl in *;
   repeat cleanup_pairs; eauto.
   {
+    clear H2.
     left; intuition eauto.
-    clear D0.
-    setoid_rewrite app_length in l0; simpl in *.
-    erewrite addr_list_to_blocks_length_eq with (l_b:= (map fst s0 ++ [a])).
-    lia.
-    simpl; repeat rewrite app_length, map_length; simpl; lia.
+    {
+      intuition eauto.
+      clear D0.
+      setoid_rewrite app_length in l0; simpl in *.
+      erewrite addr_list_to_blocks_length_eq with (l_b:= (map fst s0 ++ [a])).
+      simpl; repeat rewrite app_length, map_length; simpl; lia.
+           simpl; repeat rewrite app_length, map_length; simpl; lia.
+    }
+    right; intuition lia.
     rewrite upd_batch_app; simpl; eauto.
     repeat rewrite rev_length, map_length; eauto.
   }
@@ -435,13 +448,15 @@ Definition recover_finished :
   forall u s o s' r td,
     transaction_reboot_rep s td ->
     exec TransactionCacheLang u o s recover (Finished s' r) ->
-    transaction_rep s' (snd td, snd td) /\
+    transaction_rep s' (Empty, (snd (snd td), snd (snd td))) /\
     fst s' = [].
 Proof.
   unfold recover, transaction_reboot_rep, transaction_rep; intros.
   repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
   intuition eauto.
-  pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.  
+  pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+  pose proof (addr_list_to_blocks_length_le []); simpl in *.
+  left; intuition lia.  
 Qed.
 
 Definition recover_crashed :
@@ -459,12 +474,15 @@ Definition recover_finished_2 :
   forall u s o s' r td,
     transaction_rep s td ->
     exec TransactionCacheLang u o s recover (Finished s' r) ->
-    transaction_rep s' (snd td, snd td) /\ fst s' = [].
+    transaction_rep s' (Empty, (snd (snd td), snd (snd td))) /\ fst s' = [].
 Proof.
   unfold recover, transaction_reboot_rep, transaction_rep; intros.
   repeat invert_exec; cleanup; repeat cleanup_pairs; simpl; eauto.
+  clear H4.
   intuition eauto.
   pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+  pose proof (addr_list_to_blocks_length_le []); simpl in *.
+  left; intuition lia.
 Qed.
 
 

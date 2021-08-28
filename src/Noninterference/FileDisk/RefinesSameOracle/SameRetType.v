@@ -37,8 +37,8 @@ exec AD u o s p (Finished s' r) ->
 (forall (t: AD.(token)), In t o -> 
 t <> Language.Crash _ /\ 
 t <> OpToken ADOperation (Token1 AuthenticationOperation _ Crash) /\
-t <> OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashBefore) /\
-t <> OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashAfter)).
+t <> OpToken ADOperation (Token2 _ (TDCore FSParameters.data_length) CrashBefore) /\
+t <> OpToken ADOperation (Token2 _ (TDCore FSParameters.data_length) CrashAfter)).
 Proof.
     induction p; simpl; intros;
     invert_exec.
@@ -67,8 +67,8 @@ In t o /\
 ( 
 t = Language.Crash _ \/
 t = OpToken ADOperation (Token1 AuthenticationOperation _ Crash) \/
-t = OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashBefore) \/
-t = OpToken ADOperation (Token2 _ (TDOperation FSParameters.data_length) CrashAfter))
+t = OpToken ADOperation (Token2 _ (TDCore FSParameters.data_length) CrashBefore) \/
+t = OpToken ADOperation (Token2 _ (TDCore FSParameters.data_length) CrashAfter))
 ).
 Proof.
     induction p; simpl; intros;
@@ -137,7 +137,7 @@ match goal with
     invert_exec'' H
 | [H: exec (TDLang _) _ _ _ (Op _ _) _ |- _] =>
 invert_exec'' H
-| [H: Core.exec (TDOperation _) _ _ _ _ _ |- _] =>
+| [H: Core.exec (TDCore _) _ _ _ _ _ |- _] =>
 invert_exec'' H
 | [H: TransactionalDiskLayer.exec' _ _ _ _ _ _ |- _] =>
 invert_exec'' H
@@ -306,42 +306,42 @@ forall x7 x8 o2 o3,
 map
     (fun
         o : Language.token'
-            (TDOperation FSParameters.data_length) =>
+            (TDCore FSParameters.data_length) =>
     match o with
     | OpToken _ o1 =>
         OpToken
             (HorizontalComposition AuthenticationOperation
-                (TDOperation FSParameters.data_length))
+                (TDCore FSParameters.data_length))
             (Token2 AuthenticationOperation
-                (TDOperation FSParameters.data_length) o1)
+                (TDCore FSParameters.data_length) o1)
     | Language.Crash _ =>
         Language.Crash
             (HorizontalComposition AuthenticationOperation
-                (TDOperation FSParameters.data_length))
+                (TDCore FSParameters.data_length))
     | Language.Cont _ =>
         Language.Cont
             (HorizontalComposition AuthenticationOperation
-                (TDOperation FSParameters.data_length))
+                (TDCore FSParameters.data_length))
     end) x7 ++ o3 =
     map
     (fun
         o : Language.token'
-            (TDOperation FSParameters.data_length) =>
+            (TDCore FSParameters.data_length) =>
     match o with
     | OpToken _ o1 =>
         OpToken
             (HorizontalComposition AuthenticationOperation
-                (TDOperation FSParameters.data_length))
+                (TDCore FSParameters.data_length))
             (Token2 AuthenticationOperation
-                (TDOperation FSParameters.data_length) o1)
+                (TDCore FSParameters.data_length) o1)
     | Language.Crash _ =>
         Language.Crash
             (HorizontalComposition AuthenticationOperation
-                (TDOperation FSParameters.data_length))
+                (TDCore FSParameters.data_length))
     | Language.Cont _ =>
         Language.Cont
             (HorizontalComposition AuthenticationOperation
-                (TDOperation FSParameters.data_length))
+                (TDCore FSParameters.data_length))
     end) x8 ++ o2 ->
     exists l3' l4', 
         x7 ++ l3' = x8 ++ l4'.
@@ -482,10 +482,10 @@ forall u o s1 s2 T (p1 p2: addr -> (TDLang FSParameters.data_length).(prog) (opt
  Ltac depth_first_solve := (invert_exec; solve_ret_iff_goal); try (only 1: depth_first_solve).
 
  Lemma write_inner_same_type_ret:
- forall (o' : oracle' (TDOperation FSParameters.data_length))
+ forall (o' : oracle' (TDCore FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-     (TDOperation FSParameters.data_length))
+     (TDCore FSParameters.data_length))
 (ret1 ret2 : option unit) off v v' inum u,
 exec (TDLang FSParameters.data_length) 
 u o' s1' (write_inner off v inum) (Finished sr1' ret1) ->
@@ -536,10 +536,10 @@ all: exact (TDLang FSParameters.data_length).
 Qed.
 
 Lemma change_owner_inner_same_type_ret:
-forall (o' : oracle' (TDOperation FSParameters.data_length))
+forall (o' : oracle' (TDCore FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-    (TDOperation FSParameters.data_length))
+    (TDCore FSParameters.data_length))
 (ret1 ret2 : option unit) own inum u,
 exec (TDLang FSParameters.data_length) 
 u o' s1' (change_owner_inner own inum) (Finished sr1' ret1) ->
@@ -556,10 +556,10 @@ all: eauto.
 Qed. 
 
 Lemma delete_inner_same_type_ret:
-forall (o' : oracle' (TDOperation FSParameters.data_length))
+forall (o' : oracle' (TDCore FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-    (TDOperation FSParameters.data_length))
+    (TDCore FSParameters.data_length))
 (ret1 ret2 : option unit) inum u,
 exec (TDLang FSParameters.data_length) 
 u o' s1' (delete_inner inum) (Finished sr1' ret1) ->
@@ -706,10 +706,10 @@ Qed.
 
 
 Lemma extend_inner_same_type_ret:
-forall (o' : oracle' (TDOperation FSParameters.data_length))
+forall (o' : oracle' (TDCore FSParameters.data_length))
 (s1' s2' sr1'
 sr2' : Language.state'
-    (TDOperation FSParameters.data_length))
+    (TDCore FSParameters.data_length))
 (ret1 ret2 : option unit) v v' inum u,
 exec (TDLang FSParameters.data_length) 
 u o' s1' (extend_inner v inum) (Finished sr1' ret1) ->
@@ -810,8 +810,8 @@ Qed.
  u o s1 (read_inner off  inum)
  (Finished s1' r1) ->
  o ++ o1 = o' ++ o2 ->
- files_inner_rep fm1 (fst s1) ->
- files_inner_rep fm2 (fst s2) ->
+ files_inner_rep fm1 (fst (snd s1)) ->
+ files_inner_rep fm2 (fst (snd s2)) ->
  same_for_user_except u' ex fm1 fm2 ->
  exec (TDLang FSParameters.data_length) 
  u o' s2 (read_inner off inum)
@@ -1012,8 +1012,8 @@ Qed.
  u o s1 (write_inner off v inum)
  (Finished s1' r1) ->
  o ++ o1 = o' ++ o2 ->
- files_inner_rep fm1 (fst s1) ->
- files_inner_rep fm2 (fst s2) ->
+ files_inner_rep fm1 (fst (snd s1)) ->
+ files_inner_rep fm2 (fst (snd s2)) ->
  same_for_user_except u' ex fm1 fm2 ->
  exec (TDLang FSParameters.data_length) 
  u o' s2 (write_inner off v' inum)
@@ -1246,8 +1246,8 @@ o ++ o1 = o' ++ o2 ->
 exec (TDLang FSParameters.data_length) 
 u o' s2 (delete_inner inum')
 (Finished s2' r2) ->
-(exists fm, files_inner_rep fm (fst s1)) ->
-(exists fm, files_inner_rep fm (fst s2)) ->
+(exists fm, files_inner_rep fm (fst (snd s1))) ->
+(exists fm, files_inner_rep fm (fst (snd s2))) ->
 o = o' /\ (r1 = None <-> r2 = None).
 Proof.
 Transparent delete_inner.
@@ -1291,7 +1291,6 @@ cleanup; intuition congruence].
     eauto.
     }
 }
-
 {
     repeat rewrite <- app_assoc in H0; eauto;
     eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H; eauto;
@@ -1390,8 +1389,8 @@ exec (TDLang FSParameters.data_length)
 u o s1 (write_inner off v inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 same_for_user_except u' ex fm1 fm2 ->
 ~exec (TDLang FSParameters.data_length) 
 u o' s2 (write_inner off v' inum)
@@ -1614,8 +1613,8 @@ exec (TDLang FSParameters.data_length)
 u o s1 (delete_inner inum)
 (Finished s1' r) ->
 o ++ o1 = o' ++ o2 ->
-(exists fm, files_inner_rep fm (fst s1)) ->
-(exists fm, files_inner_rep fm (fst s2)) ->
+(exists fm, files_inner_rep fm (fst (snd s1))) ->
+(exists fm, files_inner_rep fm (fst (snd s2))) ->
 ~exec (TDLang FSParameters.data_length) 
 u o' s2 (delete_inner inum')
 (Crashed s2').
@@ -2356,7 +2355,7 @@ Lemma change_owner_crashed_exfalso:
            destruct x3; simpl in *
            end.
            inversion H6; subst; try congruence.
-           unfold file_map_rep in H11; cleanup.
+           unfold file_map_rep in H12; cleanup.
            eapply H8 in H0; eauto.
            unfold file_rep in H0; cleanup;
            simpl in *; congruence.
@@ -2401,7 +2400,7 @@ Lemma change_owner_crashed_exfalso:
            destruct x3; simpl in *
            end.
            inversion H6; subst; try congruence.
-           unfold file_map_rep in H11; cleanup.
+           unfold file_map_rep in H12; cleanup.
            eapply H8 in H0; eauto.
            unfold file_rep in H0; cleanup;
            simpl in *; congruence.
@@ -2653,7 +2652,7 @@ Qed.
            simpl in *; cleanup.
            unfold files_inner_rep in *; cleanup;
            repeat cleanup_pairs; repeat unify_invariants.
-           eapply FileInnerSpecs.inode_exists_then_file_exists in H25; eauto.
+           eapply FileInnerSpecs.inode_exists_then_file_exists in H29; eauto.
            cleanup.
            match goal with
             | [H: Mem.delete ?m _ = ?m,
@@ -2694,7 +2693,7 @@ Qed.
            simpl in *; cleanup.
            unfold files_inner_rep in *; cleanup;
            repeat cleanup_pairs; repeat unify_invariants.
-           eapply FileInnerSpecs.inode_exists_then_file_exists in H25; eauto.
+           eapply FileInnerSpecs.inode_exists_then_file_exists in H29; eauto.
            cleanup.
            match goal with
             | [H: Mem.delete ?m _ = ?m,
@@ -2735,7 +2734,7 @@ Qed.
       repeat rewrite <- app_assoc in H2.
       eapply_fresh map_app_ext in H2.
       logic_clean.
-      eapply_fresh Inode.alloc_finished_oracle_eq in H15; eauto;
+      eapply_fresh Inode.alloc_finished_oracle_eq in H17; eauto;
       cleanup; subst.
       depth_first_crash_solve; try solve [ solve_create ].
       {
@@ -2747,8 +2746,8 @@ Qed.
         
         unfold file_map_rep in *; cleanup.
         edestruct H0; edestruct H6.
-        eapply H17; eauto.
         eapply H16; eauto.
+        eapply H15; eauto.
         rewrite Mem.upd_eq; eauto.
         congruence.
       }
@@ -2773,7 +2772,7 @@ Qed.
        repeat rewrite <- app_assoc in H2.
        eapply_fresh map_app_ext in H2; subst.
        cleanup.
-      eapply_fresh Inode.alloc_finished_oracle_eq in H15; eauto;
+      eapply_fresh Inode.alloc_finished_oracle_eq in H17; eauto;
       cleanup; subst.
       intuition congruence.
       intros; cleanup; congruence.
@@ -2783,7 +2782,7 @@ Qed.
        repeat rewrite <- app_assoc in H2.
        eapply_fresh map_app_ext in H2; subst.
        cleanup.
-      eapply_fresh Inode.alloc_finished_oracle_eq in H15; eauto;
+      eapply_fresh Inode.alloc_finished_oracle_eq in H17; eauto;
       cleanup; subst.
       intuition congruence.
       intros; cleanup; congruence.
@@ -2793,7 +2792,7 @@ Qed.
        repeat rewrite <- app_assoc in H2.
        eapply_fresh map_app_ext in H2; subst.
        cleanup.
-      eapply_fresh Inode.alloc_finished_oracle_eq in H15; eauto;
+      eapply_fresh Inode.alloc_finished_oracle_eq in H17; eauto;
       cleanup; subst.
       depth_first_crash_solve; try solve [ solve_create ].
       intros; cleanup; congruence.
@@ -2801,8 +2800,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       rewrite <- app_nil_r in H15.
-       eapply_fresh map_app_ext in H15; subst.
+       rewrite <- app_nil_r in H17.
+       eapply_fresh map_app_ext in H17; subst.
        cleanup.
        symmetry in H6;
       eapply Inode.alloc_finished_not_crashed; eauto.
@@ -2811,8 +2810,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       rewrite <- app_nil_r in H15.
-       eapply_fresh map_app_ext in H15; subst.
+       rewrite <- app_nil_r in H17.
+       eapply_fresh map_app_ext in H17; subst.
        cleanup.
        symmetry in H6;
       eapply Inode.alloc_finished_not_crashed; eauto.
@@ -2821,8 +2820,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       rewrite <- app_nil_r in H15.
-       eapply_fresh map_app_ext in H15; subst.
+       rewrite <- app_nil_r in H17.
+       eapply_fresh map_app_ext in H17; subst.
        cleanup.
       eapply Inode.alloc_finished_not_crashed; eauto.
       intros; cleanup; congruence.
@@ -2830,8 +2829,8 @@ Qed.
     {
        cleanup.
        repeat rewrite <- app_assoc in H2.
-       rewrite <- app_nil_r in H15.
-       eapply_fresh map_app_ext in H15; subst.
+       rewrite <- app_nil_r in H17.
+       eapply_fresh map_app_ext in H17; subst.
        cleanup.
       eapply Inode.alloc_finished_not_crashed; eauto.
       intros; cleanup; congruence.
@@ -2844,15 +2843,15 @@ Qed.
         repeat split_ors; cleanup;
         repeat cleanup_pairs; repeat unify_invariants.
 
-        eapply Inode.alloc_crashed in H14; eauto.
-        eapply Inode.alloc_crashed in H17; eauto.
+        eapply Inode.alloc_crashed in H16; eauto.
+        eapply Inode.alloc_crashed in H19; eauto.
 
         unfold refines, files_rep, files_crash_rep, files_inner_rep in *; 
         repeat split_ors; cleanup;
         repeat cleanup_pairs; repeat unify_invariants.
         
         unfold file_map_rep in *; cleanup.
-        rewrite <- H13 in H4; rewrite Mem.upd_eq in H4; eauto.
+        rewrite <- H15 in H4; rewrite Mem.upd_eq in H4; eauto.
         congruence.
     }
   Unshelve.

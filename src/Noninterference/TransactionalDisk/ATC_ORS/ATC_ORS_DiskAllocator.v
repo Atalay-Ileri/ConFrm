@@ -12,8 +12,8 @@ Import FileDiskLayer.
     (Simulation.Definitions.compile FD.refinement (| Recover |))
     (ATC_reboot_list n) 
     (fun s1 s2  => exists s1a s2a, 
-    File.files_inner_rep s1a (fst (snd s1)) /\ 
-    File.files_inner_rep s2a (fst (snd s2)) /\ 
+    File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+    File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
     FD_related_states u' None s1a s2a).
   Proof.
     Transparent Inode.InodeAllocator.read.
@@ -358,8 +358,8 @@ oracle_refines_same_from_related ATC_Refinement u
   (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) 
   (fun s1 s2  => exists s1a s2a, 
-  File.files_inner_rep s1a (fst (snd s1)) /\ 
-  File.files_inner_rep s2a (fst (snd s2)) /\ 
+  File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+  File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
   FD_related_states u' None s1a s2a).
 Proof.
   Transparent File.DiskAllocator.read.

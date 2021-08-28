@@ -3,9 +3,6 @@ Require Import BlockAllocator Inode.
 Require Import Compare_dec FunctionalExtensionality Lia.
 Import IfNotations.
 
-
-
-
 Module DiskAllocatorParams <: BlockAllocatorParameters.
   Definition bitmap_addr := file_blocks_start.
   Definition num_of_blocks := file_blocks_count.
@@ -41,11 +38,12 @@ Definition files_inner_rep (file_disk: disk File) (d: @total_mem addr addr_dec v
     file_map_rep file_disk inode_map file_block_map.
 
 Definition files_rep (file_disk: disk File) (d: ADLang.(state)) :=
-  fst (snd d) = snd (snd d) /\
-  files_inner_rep file_disk (fst (snd d)).
+  fst (snd d) = Empty /\
+  fst (snd (snd d)) = snd (snd (snd d)) /\
+  files_inner_rep file_disk (fst (snd (snd d))).
 
 Definition files_crash_rep (file_disk: disk File) (d: ADLang.(state)) :=
-  files_inner_rep file_disk (snd (snd d)).
+  files_inner_rep file_disk (snd (snd (snd d))).
 
 Definition files_reboot_rep := files_crash_rep.
 

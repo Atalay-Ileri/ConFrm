@@ -18,6 +18,11 @@ Axiom block_size: nat. (** in bits **)
 
 Axiom disk_size: addr. (** In blocks **)
 
+Inductive txn_state :=
+| Empty
+| NotEmpty.
+
+
 Axiom addr_list_to_blocks : list addr -> list value.
 Axiom blocks_to_addr_list : list value -> list addr.
 Axiom addr_list_to_blocks_to_addr_list:

@@ -14,8 +14,8 @@ oracle_refines_same_from_related ATC_Refinement u
   (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) 
   (fun s1 s2  => exists s1a s2a, 
-  File.files_inner_rep s1a (fst (snd s1)) /\ 
-  File.files_inner_rep s2a (fst (snd s2)) /\ 
+  File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+  File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
   FD_related_states u' None s1a s2a).
 Proof.
   Transparent Inode.get_inode.
@@ -167,8 +167,8 @@ Proof.
     unfold refines, File.files_rep; 
     intros; cleanup; intuition eauto.
     do 2 eexists; intuition eauto.
-    setoid_rewrite H; eauto.
-    setoid_rewrite H0; eauto.
+    setoid_rewrite H4; eauto.
+    setoid_rewrite H2; eauto.
   }
   all: try solve [apply oracle_refines_independent_from_reboot_function].
   {
@@ -220,8 +220,8 @@ Proof.
         unfold refines, File.files_rep in *; 
         intros; cleanup; intuition eauto.
         do 2 eexists; intuition eauto.
+        setoid_rewrite e2; eauto.
         setoid_rewrite e0; eauto.
-        setoid_rewrite e; eauto.
       }
     }
     apply TD_oracle_refines_operation_eq.
@@ -231,9 +231,9 @@ Proof.
         unfold refines, File.files_rep in *; 
         intros; cleanup; intuition eauto.
         do 2 eexists; split.
-        setoid_rewrite e; eauto.
-        split.
         setoid_rewrite e0; eauto.
+        split.
+        setoid_rewrite e2; eauto.
       apply TSCommon.same_for_user_except_symmetry; eauto.
     }
     apply not_init_get_inode.
@@ -269,8 +269,8 @@ Proof.
         unfold refines, File.files_rep in *; 
         intros; cleanup; intuition eauto.
         do 2 eexists; intuition eauto.
+        setoid_rewrite e2; eauto.
         setoid_rewrite e0; eauto.
-        setoid_rewrite e; eauto.
     }
     apply not_init_get_inode.
     apply not_init_get_inode.
@@ -290,9 +290,9 @@ Proof.
         unfold refines, File.files_rep in *; 
         intros; cleanup; intuition eauto.
         do 2 eexists; split.
-        setoid_rewrite e; eauto.
-        split.
         setoid_rewrite e0; eauto.
+        split.
+        setoid_rewrite e2; eauto.
       apply TSCommon.same_for_user_except_symmetry; eauto.
     }
     apply not_init_get_inode.
@@ -329,8 +329,8 @@ oracle_refines_same_from_related ATC_Refinement u
   (Simulation.Definitions.compile FD.refinement (| Recover |))
   (ATC_reboot_list n) 
   (fun s1 s2  => exists s1a s2a, 
-  File.files_inner_rep s1a (fst (snd s1)) /\ 
-  File.files_inner_rep s2a (fst (snd s2)) /\ 
+  File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+  File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
   FD_related_states u' None s1a s2a).
 Proof.
   Transparent Inode.get_block_number.

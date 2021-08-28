@@ -5,8 +5,8 @@ Require Import FunctionalExtensionality Lia Language SameRetType TSCommon InodeT
 Lemma TS_change_owner_inner:
 forall o fm1 fm2 s1 s2 inum v v' ret1 u u',
 same_for_user_except u' (Some inum) fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (change_owner_inner v inum) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (change_owner_inner v' inum) ret2 /\
@@ -185,14 +185,14 @@ Proof.
          split; intros.
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H5, H4; eauto; cleanup
-         |rewrite Mem.upd_ne in H5, H4; eauto; cleanup].
+          [rewrite Mem.upd_eq in H5, H16; eauto; cleanup
+         |rewrite Mem.upd_ne in H5, H16; eauto; cleanup].
          intuition.
          }
          {
           destruct (addr_dec inum0 inum);
-          [rewrite Mem.upd_eq in H3, H4; eauto; cleanup
-         |rewrite Mem.upd_ne in H3, H4; eauto; cleanup].
+          [rewrite Mem.upd_eq in H5, H4; eauto; cleanup
+         |rewrite Mem.upd_ne in H5, H4; eauto; cleanup].
          unfold extend_file in *; simpl in *.
          eapply a0 in H7; eauto.
          cleanup; intuition eauto.

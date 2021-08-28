@@ -275,7 +275,7 @@ u _
   File.recover File.recover
   (ATC_reboot_list n)
   (authenticated_disk_reboot_list n)
-  (fun s1 s2 => snd (snd s1) = snd (snd s2))
+  (fun s1 s2 => snd (snd s1) = snd (snd (snd s2)))
   ATC_Refinement.(Simulation.Definitions.refines).
   Proof.
       unfold File.recover, 
@@ -359,7 +359,7 @@ u _
             }
             {
               edestruct IHn; eauto.
-              instantiate (1:= (_, (_, _))); simpl; intuition eauto.
+              instantiate (1:= (_, (_, (_, _)))); simpl; intuition eauto.
 
               exists (Recovered (extract_state_r x0)).
               simpl; intuition eauto.
@@ -379,7 +379,7 @@ u _
             }
             {
               edestruct IHn; eauto.
-              instantiate (1:= (_, (_, _))); simpl; intuition eauto.
+              instantiate (1:= (_, (_, (_, _)))); simpl; intuition eauto.
 
               eexists (Recovered (extract_state_r _)).
               simpl; intuition eauto.
@@ -452,7 +452,7 @@ u _
         eauto.
         {
           simpl in *;
-          instantiate (1:= (fst x0, (snd (snd x0), snd (snd x0)))); 
+          instantiate (1:= (fst x0, (Empty, (snd (snd (snd x0)), snd (snd (snd x0)))))); 
           simpl; intuition eauto.
         }
         all: eauto.
@@ -471,7 +471,7 @@ Qed.
 
 Lemma operation_simulation_finished:
       forall (u0 : user) (s_imp0 : Language.state' TransactionCacheOperation)
-      (s_abs0 : total_mem * total_mem) (T0 : Type)
+      s_abs0 (T0 : Type)
       (o : operation Definitions.abs_op T0)
       (x : Language.state' TransactionCacheOperation) 
       (x0 : T0) (x2 : TransactionalDiskLayer.token')
@@ -576,7 +576,7 @@ Lemma operation_simulation_finished:
 
 Lemma operation_simulation_crashed:
     forall (u0 : user) (s_imp0 : Language.state' TransactionCacheOperation)
-  (s_abs0 : total_mem * total_mem) (T0 : Type)
+  s_abs0 (T0 : Type)
   (o : operation Definitions.abs_op T0)
   (x : Language.state' TransactionCacheOperation)
   (x2 : TransactionalDiskLayer.token')
@@ -832,7 +832,7 @@ Lemma ATC_exec_lift_finished:
   TransactionToTransactionalDisk.Definitions.token_refines
   T u s_imp o grs o_imp t_abs ->
   exists s_abs',
-  Core.exec (TransactionalDiskLayer.TDOperation
+  Core.exec (TransactionalDiskLayer.TDCore
 data_length) u t_abs s_abs o (Finished s_abs' r) /\
   TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
   
@@ -913,7 +913,7 @@ Lemma ATC_exec_lift_crashed:
   TransactionToTransactionalDisk.Definitions.token_refines
   T u s_imp o grs o_imp t_abs ->
   exists s_abs',
-  Core.exec (TransactionalDiskLayer.TDOperation
+  Core.exec (TransactionalDiskLayer.TDCore
 data_length) u t_abs s_abs o (Finished s_abs' r) /\
   TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
   
@@ -926,7 +926,7 @@ data_length) u t_abs s_abs o (Finished s_abs' r) /\
   T u s_imp o TC_reboot_f o_imp t_abs ->
   (forall l, ~ eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
   exists s_abs',
-  Core.exec (TransactionalDiskLayer.TDOperation
+  Core.exec (TransactionalDiskLayer.TDCore
 data_length) u t_abs s_abs o (Crashed s_abs') /\
   TransactionToTransactionalDisk.Definitions.refines_reboot (TC_reboot_f s_imp') (TD_reboot_f s_abs')) ->
 

@@ -71,8 +71,8 @@ Fixpoint have_same_structure {T T'} (p1: AD.(prog) T) (p2: AD.(prog) T') u s1 s2
   Lemma have_same_structure_InodeAllocator_read:
   forall inum u u' s1 s2,
   (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd s1)) /\ 
-File.files_inner_rep s2a (fst (snd s2)) /\ 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
 FD_related_states u' None s1a s2a) s1 s2 ->
   have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.InodeAllocator.read inum))
@@ -86,7 +86,7 @@ repeat invert_exec; try lia.
 unfold AD_related_states, refines_related in *; cleanup; simpl in *.
 unfold refines, File.files_rep in *; cleanup.
 erewrite InodeTS.inode_allocations_are_same; eauto.
-destruct_fresh (nth_error (value_to_bits (fst (snd s2) Inode.InodeAllocatorParams.bitmap_addr)) inum);
+destruct_fresh (nth_error (value_to_bits (fst (snd (snd s2)) Inode.InodeAllocatorParams.bitmap_addr)) inum);
 setoid_rewrite D.
 destruct b; simpl; intuition eauto.
 simpl; intuition eauto.
@@ -98,8 +98,8 @@ Qed.
 Lemma have_same_structure_DiskAllocator_read:
 forall bn1 bn2 u u' s1 s2,
 (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd s1)) /\ 
-File.files_inner_rep s2a (fst (snd s2)) /\ 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
 FD_related_states u' None s1a s2a) s1 s2 ->
 (bn1 < File.DiskAllocatorParams.num_of_blocks <->
 bn2 < File.DiskAllocatorParams.num_of_blocks) ->
@@ -116,7 +116,7 @@ repeat invert_exec; try lia.
 unfold AD_related_states, refines_related in *; cleanup; simpl in *.
 unfold refines, File.files_rep in *; cleanup.
 erewrite block_allocations_are_same; eauto.
-destruct_fresh (nth_error (value_to_bits (fst (snd s2) File.DiskAllocatorParams.bitmap_addr)) bn2);
+destruct_fresh (nth_error (value_to_bits (fst (snd (snd s2)) File.DiskAllocatorParams.bitmap_addr)) bn2);
 setoid_rewrite D.
 destruct b; simpl; intuition eauto.
 simpl; intuition eauto.
@@ -129,8 +129,8 @@ Qed.
 Lemma have_same_structure_get_inode:
 forall inum u u' s1 s2,
 (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd s1)) /\ 
-File.files_inner_rep s2a (fst (snd s2)) /\ 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
 FD_related_states u' None s1a s2a) s1 s2 ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_inode inum))
@@ -172,8 +172,8 @@ simpl in *.
 unfold refines, File.files_rep in *; cleanup.
 eapply have_same_structure_get_inode; eauto.
 do 2 eexists; intuition eauto.
-setoid_rewrite H; eauto.
-setoid_rewrite H0; eauto.
+setoid_rewrite H4; eauto.
+setoid_rewrite H2; eauto.
 destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 Unshelve.
@@ -184,8 +184,8 @@ Qed.
 Lemma have_same_structure_get_block_number:
 forall inum off u u' s1 s2,
 (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd s1)) /\ 
-File.files_inner_rep s2a (fst (snd s2)) /\ 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
 FD_related_states u' None s1a s2a) s1 s2 ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_block_number inum off))
@@ -209,8 +209,8 @@ Qed.
 Lemma have_same_structure_read_inner:
 forall inum off u u' s1 s2,
 (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd s1)) /\ 
-File.files_inner_rep s2a (fst (snd s2)) /\ 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
 FD_related_states u' None s1a s2a) s1 s2 ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))

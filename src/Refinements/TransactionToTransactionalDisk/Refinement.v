@@ -11,11 +11,11 @@ Local Notation "'refinement'" := TDRefinement.
 
 Definition TC_reboot_f := fun s: imp.(state) => (([]: list (addr * value)), snd s).
 
-Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
+Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s))).
 
   Definition transaction_cache_reboot_list n := repeat (fun s: imp.(state) => (([]: list (addr * value)), snd s)) n.
 
-  Definition transactional_disk_reboot_list n := repeat (fun s : abs.(state) => (snd s, snd s)) n.
+  Definition transactional_disk_reboot_list n := repeat (fun s : abs.(state) => (Empty, (snd (snd s), snd (snd s)))) n.
 
   Ltac unify_execs :=
     match goal with
@@ -51,7 +51,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; induction n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
       intuition eauto.
       left; eexists; intuition eauto.
       destruct t.
@@ -67,7 +67,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     { 
       eapply IHn in H11; eauto; cleanup.
-      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -91,7 +91,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -106,7 +106,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -139,7 +139,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -149,7 +149,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh read_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -178,7 +178,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
       eapply_fresh write_finished in H7; eauto.
       split_ors; cleanup.
       {
-        exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+        exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
@@ -192,32 +192,33 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
         repeat cleanup_pairs; eauto.
         inversion H0; eauto.
       }
-      split_ors.
+      split_ors; cleanup.
       {
-        exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+        exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
+        split; eauto. 
+        left.
+        do 2 eexists; repeat (split; eauto).
+        intros; eexists; repeat (split; eauto).
+        left.
+        do 2 eexists; repeat (split; eauto).
+      }
+      {
+        exists  [ [OpToken (TDCore data_length) TxnFull] ]; simpl.
         intuition eauto.
         left.
         eexists; intuition eauto.
-        eexists; intuition eauto.
-        eexists; intuition eauto.
-        left.
+        
         eexists; intuition eauto.
         eexists; split; eauto.
-      }
-      {
-        exists  [ [OpToken (TDOperation data_length) TxnFull] ]; simpl.
-        intuition eauto.
         left.
-        eexists; intuition eauto.
-        eexists; intuition eauto.
-        eexists; intuition eauto.
-        left.
-        do 2 eexists; intuition eauto.
+        do 2 eexists; split; eauto.
+        right; right; intuition eauto.
       }
+      
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh write_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -242,7 +243,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     unfold abstract_oracles_exist_wrt, refines_reboot; destruct n;
     simpl; intros; cleanup; invert_exec.
     {
-      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -258,7 +259,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
+      exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh abort_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
       eapply recovery_oracles_refine_to_length in H0; eauto.
@@ -285,7 +286,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
     
     {
       eapply_fresh commit_finished in H7; eauto.
-      exists  [ [OpToken (TDOperation data_length) Cont] ]; simpl.
+      exists  [ [OpToken (TDCore data_length) Cont] ]; simpl.
       intuition eauto.
       left.
       eexists; intuition eauto.
@@ -302,7 +303,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
       eapply_fresh commit_crashed in H10; eauto; cleanup.
       split_ors.
       {
-        exists ([OpToken (TDOperation data_length) CrashBefore]::x0); simpl.
+        exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -317,7 +318,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
         cleanup; eauto.
       }
       {
-        exists ([OpToken (TDOperation data_length) CrashAfter]::x0); simpl.
+        exists ([OpToken (TDCore data_length) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
         eapply recovery_oracles_refine_to_length in H0; eauto.
         right.
@@ -337,7 +338,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (snd s, snd s).
         unfold refines, refines_reboot,
         transaction_rep, transaction_reboot_rep in *;
         simpl in *; cleanup; eauto.
-        exists (fst x, fst x); simpl; eauto.
+        exists (Empty, (fst (snd x), fst (snd x))); simpl; eauto.
       }
     }
   Qed.
@@ -425,13 +426,15 @@ Proof.
     eexists; intuition eauto.
     unfold transactional_disk_reboot_list in *; simpl.
     simpl in *; try lia.
-    instantiate (1:= RFinished (snd s_abs, snd s_abs) tt). 
+    instantiate (1:= RFinished (Empty, (snd (snd s_abs), snd (snd s_abs))) tt). 
     repeat econstructor.
     unfold refines, refines_reboot,
     transaction_rep, transaction_reboot_rep in *;
     simpl in *; cleanup; eauto.
     intuition eauto.
     pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+    pose proof (addr_list_to_blocks_length_le []); simpl in *;
+    left; intuition lia.
     simpl; destruct x3; eauto.
     cleanup; intuition.
   }
@@ -441,7 +444,7 @@ Proof.
     cleanup; intuition eauto; cleanup; try unify_execs; cleanup.
     edestruct IHn.
     eauto.
-    instantiate (1:= (snd s_abs, snd s_abs)).
+    instantiate (1:= (Empty, (snd (snd s_abs), snd (snd s_abs)))).
     eauto.
     eauto.
       
@@ -476,7 +479,7 @@ Proof.
       destruct n; simpl in *; try congruence; cleanup.
       split_ors; cleanup.
       {
-        exists (RFinished s_abs ((fst s_abs) a));
+        exists (RFinished s_abs ((fst (snd s_abs)) a));
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
@@ -495,7 +498,7 @@ Proof.
       
       edestruct recovery_simulation; eauto.
       unfold refines, transaction_rep in *; cleanup.
-      instantiate (1:=(snd s_abs, snd s_abs)).
+      instantiate (1:=(Empty, (snd (snd s_abs), snd (snd s_abs)))).
       eauto.
       
       exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -528,18 +531,16 @@ Proof.
       eapply write_finished in H10; eauto; 
       split_ors; cleanup.
       {
-        exists (RFinished (upd (fst s_abs) a v, snd s_abs) (Some tt));
-        simpl; intuition eauto.
+        intuition eauto; cleanup; try lia;
+        try solve [repeat cleanup_pairs;
+        exfalso; eapply cons_l_neq; eauto].
+        exists (RFinished (NotEmpty, (upd (fst (snd s_abs)) a v, snd (snd s_abs))) (Some tt));
+        simpl; split; eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
-        subst; econstructor; eauto.
-        repeat cleanup_pairs.
-        exfalso; eapply cons_l_neq; eauto.
-        repeat cleanup_pairs.
-      exfalso; eapply cons_l_neq; eauto.
       }
       cleanup.
-      split_ors; try logic_clean; try lia.
+      repeat split_ors; try logic_clean; try lia.
       {
         cleanup.
         exists (RFinished s_abs None);
@@ -548,16 +549,8 @@ Proof.
         eapply ExecFinished.
         repeat econstructor; eauto.
       }
-      split_ors; try logic_clean; try lia.
       {
-        
-        exists (RFinished s_abs None);
-        simpl; intuition eauto.
-        destruct s_imp; 
-        simpl in *; inversion H6.
-        symmetry in H8; 
-      exfalso; eapply cons_l_neq; eauto.
-      apply H8.
+        exfalso; eapply PeanoNat.Nat.lt_nge; eauto.
       }
       {
         cleanup.
@@ -565,7 +558,8 @@ Proof.
         simpl; split; eauto.
         intuition try lia; cleanup.
         eapply ExecFinished.
-        repeat econstructor; eauto.
+        do 2 econstructor.
+        solve [repeat econstructor; eauto].
       }
     }
     {
@@ -575,7 +569,7 @@ Proof.
       
       edestruct recovery_simulation; eauto.
       unfold refines, transaction_rep in *; cleanup.
-      instantiate (1:=(snd s_abs, snd s_abs)).
+      instantiate (1:= (Empty, (snd (snd s_abs), snd (snd s_abs)))).
       eauto.
       
       exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -604,13 +598,15 @@ Proof.
       
       destruct n; simpl in *; try congruence; cleanup.
       {
-        exists (RFinished (snd s_abs, snd s_abs) tt);
+        exists (RFinished (Empty, (snd (snd s_abs), snd (snd s_abs))) tt);
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
         unfold refines, transaction_rep in *; simpl in *; cleanup.
-        intuition eauto.
+        clear H1. intuition eauto.
         pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+        pose proof (addr_list_to_blocks_length_le []); simpl in *; 
+        left; intuition lia.
         destruct x3; eauto.
       }
     }
@@ -621,7 +617,7 @@ Proof.
       
       edestruct recovery_simulation; eauto.
       unfold refines, transaction_rep in *; cleanup.
-      instantiate (1:=(snd s_abs, snd s_abs)).
+      instantiate (1:= (Empty, (snd (snd s_abs), snd (snd s_abs)))).
       eauto.
       
       exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -650,13 +646,15 @@ Proof.
       
       destruct n; simpl in *; try congruence; cleanup.
       {
-        exists (RFinished (fst s_abs, fst s_abs) tt);
+        exists (RFinished (Empty, (fst (snd s_abs), fst (snd s_abs))) tt);
         simpl; intuition eauto.
         eapply ExecFinished.
         repeat econstructor; eauto.
         unfold refines, transaction_rep in *; simpl in *; cleanup.
-        intuition eauto.
+        clear H1; intuition eauto.
         pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+        pose proof (addr_list_to_blocks_length_le []); simpl in *; 
+        left; intuition lia.
         destruct x3; eauto.
       }
     }
@@ -668,7 +666,7 @@ Proof.
       {
         edestruct recovery_simulation; eauto.
         unfold refines, transaction_rep in *; cleanup.
-        instantiate (1:=(snd s_abs, snd s_abs)).
+        instantiate (1:=(Empty, (snd (snd s_abs), snd (snd s_abs)))).
         eauto.
 
         exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -679,7 +677,7 @@ Proof.
       {
         edestruct recovery_simulation; eauto.
         unfold refines, transaction_rep in *; cleanup.
-        instantiate (1:=(snd s_abs, snd s_abs)).
+        instantiate (1:=(Empty, (snd (snd s_abs), snd (snd s_abs)))).
         eauto.
 
         exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -690,7 +688,7 @@ Proof.
       {
         edestruct recovery_simulation; eauto.
         unfold refines, transaction_rep in *; cleanup.
-        instantiate (1:=(fst s_abs, fst s_abs)).
+        instantiate (1:=(Empty, (fst (snd s_abs), fst (snd s_abs)))).
         eauto.
         
         exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -702,7 +700,7 @@ Proof.
       {
         edestruct recovery_simulation; eauto.
         unfold refines, transaction_rep in *; cleanup.
-        instantiate (1:=(fst s_abs, fst s_abs)).
+        instantiate (1:=(Empty, (fst (snd s_abs), fst (snd s_abs)))).
         eauto.
         
         exists (Recovered (extract_state_r x0)); simpl; intuition eauto.
@@ -721,7 +719,7 @@ forall u (T : Type) (o0 : transactional_disk_prog T)
 (s_imp
  s_imp' : HorizontalComposition.state' (ListOperation (addr * value))
             (LoggedDiskOperation log_length data_length))
-(s_abs : total_mem * total_mem) (r : T)
+s_abs (r : T)
 (o_imp : oracle' TransactionCacheOperation)
 t_abs
 (grs : HorizontalComposition.state' (ListOperation (addr * value))
@@ -760,11 +758,11 @@ Proof.
     
     destruct s_imp; cleanup.
     exfalso; eapply cons_l_neq; eauto.
-    apply H4.
+    apply H5.
 
     destruct s_imp; cleanup.
     exfalso; eapply cons_l_neq; eauto.
-    apply H5.
+    apply H6.
 
     destruct s_imp; cleanup.
     exfalso; eapply cons_l_neq; eauto.
@@ -785,9 +783,11 @@ Proof.
     destruct r; econstructor; eauto.
     unfold refines,
     Transaction.transaction_rep in *; simpl in *; cleanup.
-    intuition eauto.
+    clear H3; intuition eauto.
     pose proof addr_list_to_blocks_length_le.
     specialize (H []); simpl in *; lia.
+    pose proof (addr_list_to_blocks_length_le []); simpl in *; 
+    left; intuition lia.
   }
   {
     eapply Transaction.recover_finished in H1; cleanup; eauto.
@@ -803,16 +803,18 @@ Proof.
     destruct r; econstructor; eauto.
     unfold refines,
     Transaction.transaction_rep in *; simpl in *; cleanup.
-    intuition eauto.
+    clear H3; intuition eauto.
     pose proof addr_list_to_blocks_length_le.
     specialize (H []); simpl in *; lia.
+    pose proof (addr_list_to_blocks_length_le []); simpl in *; 
+        left; intuition lia.
   }
 Qed.
 
 Lemma TC_to_TD_core_simulation_crashed:
 forall u (T : Type) (o0 : operation Definitions.abs_op T)
 (s_imp s_imp' : Language.state' TransactionCacheOperation)
-(s_abs : total_mem * total_mem) (o_imp : oracle' TransactionCacheOperation)
+s_abs (o_imp : oracle' TransactionCacheOperation)
 t_abs,
 exec Definitions.imp u o_imp s_imp
 (compile T o0) 
@@ -824,7 +826,7 @@ TC_reboot_f o_imp t_abs ->
 (forall l, ~ eq_dep Type (operation Definitions.abs_op) T o0 unit (Init l)) ->
 exists
 s_abs',
-Core.exec (TransactionalDiskLayer.TDOperation data_length) u
+Core.exec (TransactionalDiskLayer.TDCore data_length) u
 t_abs s_abs o0 (Crashed s_abs') /\
 refines_reboot
 (TC_reboot_f s_imp') (TD_reboot_f s_abs').
@@ -869,7 +871,7 @@ Proof.
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
     unfold refines_reboot , refines,
     Transaction.transaction_rep,  Transaction.transaction_reboot_rep in *; 
-    simpl in *; logic_clean; rewrite H7; eauto.
+    simpl in *; logic_clean; rewrite H8; eauto.
     
     unfold TC_reboot_f, TD_reboot_f; simpl in *;
     unfold refines_reboot , refines,

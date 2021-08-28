@@ -136,18 +136,18 @@ Qed.
 (*** Specs ***)
 Theorem alloc_finished:
   forall dh u o s user t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (alloc user) (Finished s' t) ->
     ((exists a, t = Some a /\
            dh a = None /\
            a < InodeAllocatorParams.num_of_blocks /\
            (forall i, i < a -> dh i <> None) /\
-          inode_rep (Mem.upd dh a (Build_Inode user [])) (fst s')) \/
-     (t = None /\ inode_rep dh (fst s'))) /\
+          inode_rep (Mem.upd dh a (Build_Inode user [])) (fst (snd s'))) \/
+     (t = None /\ inode_rep dh (fst (snd s')))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-     snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+     snd (snd s') = snd (snd s).
 Proof.
   unfold alloc, inode_rep; intros; cleanup.
   eapply alloc_finished in H0; eauto.
@@ -213,14 +213,14 @@ Qed.
 
 Theorem free_finished:
   forall dh u o s inum t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (free inum) (Finished s' t) ->
-    ((t = Some tt /\ inode_rep (Mem.delete dh inum) (fst s')) \/
-     (t = None /\ inode_rep dh (fst s'))) /\
+    ((t = Some tt /\ inode_rep (Mem.delete dh inum) (fst (snd s'))) \/
+     (t = None /\ inode_rep dh (fst (snd s')))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-     snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+     snd (snd s') = snd (snd s).
 Proof.
   unfold free, inode_rep; intros; cleanup.
   eapply free_finished in H0; eauto.
@@ -263,15 +263,16 @@ Qed.
 
 Theorem get_inode_finished:
   forall dh u o s inum t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_inode inum) (Finished s' t) ->
     ((exists inode, t = Some inode /\ dh inum = Some inode) \/
      (t = None /\ dh inum = None)) /\
-    inode_rep dh (fst s') /\
+    inode_rep dh (fst (snd s')) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s) /\
+    fst s' = fst s.
 Proof.
   unfold get_inode, inode_rep; intros; cleanup.
   repeat invert_exec;
@@ -284,27 +285,32 @@ Proof.
   }
   {
     unfold inode_map_rep in *; cleanup.
+    intuition eauto.
+  }
+  {
+    unfold inode_map_rep in *; cleanup.
     right; split; eauto.
-    rewrite H0, H5; simpl; eauto.
-  }    
+    rewrite H0, H6; simpl; eauto.
+  }
+  intuition eauto.    
 Qed.
 
 
 Theorem set_inode_finished:
   forall dh u o s inum inode t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     inode_valid inode ->
     (forall i inode_i,
      i <> inum ->
      dh i = Some inode_i ->
      NoDup (inode.(block_numbers) ++ inode_i.(block_numbers))) ->
     exec (TDLang data_length) u o s (set_inode inum inode) (Finished s' t) ->
-    ((t = Some tt /\ inode_rep (Mem.upd dh inum inode) (fst s')) \/
-     (t = None /\ inode_rep dh (fst s'))) /\
+    ((t = Some tt /\ inode_rep (Mem.upd dh inum inode) (fst (snd s'))) \/
+     (t = None /\ inode_rep dh (fst (snd s')))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s).
 Proof.
   unfold set_inode, inode_rep; intros; cleanup.
   repeat invert_exec;
@@ -352,7 +358,7 @@ Qed.
 
 Theorem extend_finished:
   forall dh u o s inum block_num t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     (forall i inode_i,
      dh i = Some inode_i ->
      ~In block_num inode_i.(block_numbers)) ->
@@ -361,12 +367,12 @@ Theorem extend_finished:
     ((exists inode,
         t = Some tt /\
         dh inum = Some inode /\
-        (inode_rep (Mem.upd dh inum (Build_Inode inode.(owner) (inode.(block_numbers) ++ [block_num]))) (fst s'))) \/
-     (t = None /\ inode_rep dh (fst s'))) /\
+        (inode_rep (Mem.upd dh inum (Build_Inode inode.(owner) (inode.(block_numbers) ++ [block_num]))) (fst (snd s')))) \/
+     (t = None /\ inode_rep dh (fst (snd s')))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s).
 Proof.
   unfold extend; intros; cleanup.
   repeat invert_exec;
@@ -388,7 +394,7 @@ Proof.
     unfold inode_valid; simpl.
     unfold inode_rep, inode_map_rep,
     inode_map_valid in *; cleanup.
-    eapply_fresh H11 in H7;
+    eapply_fresh H12 in H8;
     unfold inode_valid in Hx; cleanup; eauto.    
     split; eauto.
     - apply NoDup_app_comm; simpl.
@@ -414,17 +420,17 @@ Qed.
 
 Theorem change_owner_finished:
   forall dh u o s inum new_owner t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (change_owner inum  new_owner) (Finished s' t) ->
     ((exists inode,
         t = Some tt /\
         dh inum = Some inode /\
-        (inode_rep (Mem.upd dh inum (Build_Inode new_owner inode.(block_numbers))) (fst s'))) \/
-     (t = None /\ inode_rep dh (fst s'))) /\
+        (inode_rep (Mem.upd dh inum (Build_Inode new_owner inode.(block_numbers))) (fst (snd s')))) \/
+     (t = None /\ inode_rep dh (fst (snd s')))) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s).
 Proof.
   unfold change_owner; intros; cleanup.
   repeat invert_exec;
@@ -440,7 +446,7 @@ Proof.
     unfold inode_valid; simpl.
     unfold inode_rep, inode_map_rep,
     inode_map_valid in *; cleanup.
-    eapply_fresh H9 in H5;
+    eapply_fresh H10 in H6;
     unfold inode_valid in Hx; cleanup; eauto.
   }
   {
@@ -452,7 +458,7 @@ Qed.
 
 Theorem get_block_number_finished:
   forall dh u o s inum off t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
     ((exists inode, off < length (inode.(block_numbers)) /\
                t = Some (seln (inode.(block_numbers)) off 0) /\
@@ -460,11 +466,12 @@ Theorem get_block_number_finished:
      (t = None /\ (dh inum = None \/
                   (exists inode, dh inum = Some inode /\
                             off >= length (inode.(block_numbers)))))) /\
-    inode_rep dh (fst s') /\
+    inode_rep dh (fst (snd s')) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s) /\
+    fst s' = fst s.
 Proof.
   unfold get_block_number; intros; cleanup.
   repeat invert_exec;
@@ -491,16 +498,17 @@ Qed.
 
 Theorem get_all_block_numbers_finished:
   forall dh u o s inum t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_all_block_numbers inum) (Finished s' t) ->
     ((exists inode, t = Some (inode.(block_numbers)) /\
                dh inum = Some inode) \/
      t = None) /\
-    inode_rep dh (fst s') /\
+    inode_rep dh (fst (snd s')) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s) /\
+    fst s' = fst s.
 Proof.
   unfold get_all_block_numbers; intros; cleanup.
   repeat invert_exec;
@@ -512,15 +520,16 @@ Qed.
 
 Theorem get_owner_finished:
   forall dh u o s inum t s',
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_owner inum) (Finished s' t) ->
     ((exists inode, t = Some inode.(owner) /\ dh inum = Some inode) \/
      (t = None /\ dh inum = None)) /\
-    inode_rep dh (fst s') /\
+    inode_rep dh (fst (snd s')) /\
     (forall a, a < InodeAllocatorParams.bitmap_addr \/
           a > InodeAllocatorParams.bitmap_addr + InodeAllocatorParams.num_of_blocks ->
-          fst s' a = fst s a) /\
-    snd s' = snd s.
+          fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s) /\
+    fst s' = fst s.
 Proof.
   unfold get_owner; intros; cleanup.
   repeat invert_exec;
@@ -536,7 +545,7 @@ Qed.
 Theorem alloc_crashed:
   forall u o s s' own,
     exec (TDLang data_length) u o s (alloc own) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold alloc; intros;
   eapply InodeAllocator.alloc_crashed; eauto.
@@ -545,7 +554,7 @@ Qed.
 Theorem free_crashed:
   forall u o s s' inum,
     exec (TDLang data_length) u o s (free inum) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold free; intros;
   eapply InodeAllocator.free_crashed; eauto.
@@ -554,9 +563,9 @@ Qed.
 
 Theorem get_inode_crashed:
   forall u o s s' inum dh,
-    block_allocator_rep dh (fst s) ->
+    block_allocator_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_inode inum) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold get_inode; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -569,7 +578,7 @@ Qed.
 Theorem set_inode_crashed:
   forall u o s s' inum inode,
     exec (TDLang data_length) u o s (set_inode inum inode) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold set_inode; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -580,9 +589,9 @@ Qed.
 
 Theorem extend_crashed:
   forall u o s s' dh inum v,
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (extend inum v) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold extend; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -601,9 +610,9 @@ Qed.
 
 Theorem change_owner_crashed:
   forall u o s s' dh inum own,
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (change_owner inum own) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold change_owner; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -622,9 +631,9 @@ Qed.
 
 Theorem get_block_number_crashed:
   forall u o s s' dh inum off,
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_block_number inum off) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold get_block_number; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -641,9 +650,9 @@ Qed.
 
 Theorem get_all_block_numbers_crashed:
   forall u o s s' dh inum,
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_all_block_numbers inum) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold get_all_block_numbers; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -660,9 +669,9 @@ Qed.
 
 Theorem get_owner_crashed:
   forall u o s s' dh inum,
-    inode_rep dh (fst s) ->
+    inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_owner inum) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold get_owner; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -868,8 +877,8 @@ exec (TDLang FSParameters.data_length)
 u o s1 (get_block_number inum v)
 (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
-inode_rep im1 (fst s1) ->
-inode_rep im2 (fst s2) ->
+inode_rep im1 (fst (snd s1)) ->
+inode_rep im2 (fst (snd s2)) ->
 (forall inode1 inode2,
 im1 inum = Some inode1 ->
 im2 inum = Some inode2 ->

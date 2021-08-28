@@ -4,8 +4,8 @@ Import IfNotations.
 
 Set Nested Proofs Allowed.
 
-Notation "| p |" := (Op (TDOperation data_length) p)(at level 60).
-Notation "x <-| p1 ; p2" := (Bind (Op (TDOperation data_length) p1) (fun x => p2))(right associativity, at level 60).
+Notation "| p |" := (Op (TDCore data_length) p)(at level 60).
+Notation "x <-| p1 ; p2" := (Bind (Op (TDCore data_length) p1) (fun x => p2))(right associativity, at level 60).
 
 Lemma upd_valid_length:
   forall T (l: list T) n v m,
@@ -629,16 +629,16 @@ Lemma block_allocator_rep_delete :
 (*** Specs ***)
 Theorem alloc_finished:
   forall dh u o s v t s',
-    block_allocator_rep dh (fst s) ->
+    block_allocator_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (alloc v) (Finished s' t) ->
     ((exists a, t = Some a /\
            dh a = None /\
            a < num_of_blocks /\
            (forall i, i < a -> dh i <> None ) /\ 
-          block_allocator_rep (Mem.upd dh a v) (fst s')) \/
-     (t = None /\ block_allocator_rep dh (fst s'))) /\
-    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
-     snd s' = snd s.
+          block_allocator_rep (Mem.upd dh a v) (fst (snd s'))) \/
+     (t = None /\ block_allocator_rep dh (fst (snd s')))) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst (snd s') a = fst (snd s) a) /\
+     snd (snd s') = snd (snd s).
 Proof. 
   unfold alloc; simpl; intros.
   pose proof num_of_blocks_in_bounds.
@@ -659,7 +659,7 @@ Proof.
        split; eauto.
        unfold block_allocator_rep in *; cleanup.
        eapply_fresh valid_bits_extract in H0; eauto; try lia.
-       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (value_to_bits (fst x1 bitmap_addr))))) in Hx.
+       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (value_to_bits (fst (snd x1) bitmap_addr))))) in Hx.
        logic_clean.      
        {
          setoid_rewrite get_first_zero_index_firstn in H5; eauto.
@@ -679,7 +679,7 @@ Proof.
            
          eexists; 
          exists (updn x0 (get_first_zero_index
-         (firstn num_of_blocks (value_to_bits (fst x1 bitmap_addr)))) v).
+         (firstn num_of_blocks (value_to_bits (fst (snd x1) bitmap_addr)))) v).
          intuition eauto.
         
          {
@@ -709,7 +709,7 @@ Proof.
        split; eauto.
        unfold block_allocator_rep in *; cleanup.
        eapply_fresh valid_bits_extract in H0; eauto; try lia.
-       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (value_to_bits (fst x1 bitmap_addr))))) in Hx.
+       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (value_to_bits (fst (snd x1) bitmap_addr))))) in Hx.
        logic_clean.      
        {
          setoid_rewrite get_first_zero_index_firstn in H5; eauto.
@@ -720,15 +720,15 @@ Proof.
          
          rewrite get_first_zero_index_firstn; eauto.
          eexists; 
-         exists (updn x0 (get_first_zero_index (value_to_bits (fst x1 bitmap_addr))) v).
+         exists (updn x0 (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr))) v).
          do 2 eexists; intuition eauto.
          {
           rewrite upd_ne; eauto; try lia.
           unfold valid_bits in *.
           replace (bitmap_addr +
-          S (get_first_zero_index (value_to_bits (fst x1 bitmap_addr))))
+          S (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr))))
           with (bitmap_addr + 1 +
-          (get_first_zero_index (value_to_bits (fst x1 bitmap_addr)))) by lia.
+          (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr)))) by lia.
           eapply valid_bits'_upd_values_empty; eauto.
           rewrite nth_seln_eq.
           apply get_first_zero_index_false.
@@ -753,13 +753,13 @@ Qed.
        
 Theorem free_finished:
   forall dh u o s a t s',
-    block_allocator_rep dh (fst s) ->
+    block_allocator_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (free a) (Finished s' t) ->
     ((t = Some tt /\
-       block_allocator_rep (Mem.delete dh a) (fst s')) \/
-    (t = None /\ block_allocator_rep dh (fst s'))) /\
-    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
-     snd s' = snd s.
+       block_allocator_rep (Mem.delete dh a) (fst (snd s'))) \/
+    (t = None /\ block_allocator_rep dh (fst (snd s')))) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst (snd s') a = fst (snd s) a) /\
+     snd (snd s') = snd (snd s).
 Proof.
   unfold free; intros; simpl in *.
   cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
@@ -781,13 +781,14 @@ Qed.
 
 Theorem read_finished:
   forall dh u o s a t s',
-    block_allocator_rep dh (fst s) ->
+    block_allocator_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (read a) (Finished s' t) ->
     ((exists v, t = Some v /\ dh a = Some v) \/
      (t = None /\ dh a = None)) /\
-    block_allocator_rep dh (fst s') /\
-    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
-    snd s' = snd s.
+    block_allocator_rep dh (fst (snd s')) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst (snd s') a = fst (snd s) a) /\
+    snd (snd s') = snd (snd s) /\
+    fst s' = fst s.
 Proof.
   unfold read; intros; simpl in *.
   cleanup; repeat invert_exec; cleanup; intuition eauto; try lia;
@@ -829,13 +830,13 @@ Qed.
 
 Theorem write_finished:
   forall dh u o s a v t s',
-    block_allocator_rep dh (fst s) ->
+    block_allocator_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (write a v) (Finished s' t) ->
     ((t = Some tt /\
-      block_allocator_rep (Mem.upd dh a v) (fst s')) \/
-    (t = None /\ block_allocator_rep dh (fst s'))) /\
-    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst s' a = fst s a) /\
-     snd s' = snd s.
+      block_allocator_rep (Mem.upd dh a v) (fst (snd s'))) \/
+    (t = None /\ block_allocator_rep dh (fst (snd s')))) /\
+    (forall a, a < bitmap_addr \/ a > bitmap_addr + num_of_blocks -> fst (snd s') a = fst (snd s) a) /\
+     snd (snd s') = snd (snd s).
 Proof.
   unfold write; intros; simpl in *.
   cleanup; repeat invert_exec; cleanup; intuition eauto; try lia.
@@ -864,7 +865,7 @@ Qed.
 Theorem alloc_crashed:
   forall u o s s' own,
     exec (TDLang data_length) u o s (alloc own) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold alloc; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -874,7 +875,7 @@ Qed.
 Theorem free_crashed:
   forall u o s s' a,
     exec (TDLang data_length) u o s (free a) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold free; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -884,7 +885,7 @@ Qed.
 Theorem read_crashed:
   forall u o s s' a,
     exec (TDLang data_length) u o s (read a) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold read; intros;
   repeat (cleanup; repeat invert_exec; eauto;
@@ -894,7 +895,7 @@ Qed.
 Theorem write_crashed:
   forall u o s s' a v,
     exec (TDLang data_length) u o s (write a v) (Crashed s') ->
-     snd s' = snd s.
+     snd (snd s') = snd (snd s).
 Proof.
   unfold write; intros;
   repeat (cleanup; repeat invert_exec; eauto;

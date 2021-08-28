@@ -13,7 +13,7 @@ Section TransactionalDisk.
   | Cont : token'
   | TxnFull : token'.
 
-  Definition state' := ((@total_mem addr addr_dec value) * (@total_mem addr addr_dec value))%type.
+  Definition state' := (txn_state * ((@total_mem addr addr_dec value) * (@total_mem addr addr_dec value)))%type.
   
   Inductive transactional_disk_prog : Type -> Type :=
   (* | Start : transactional_disk_prog unit *)
@@ -28,8 +28,9 @@ Section TransactionalDisk.
     forall T, user -> token' ->  state' -> transactional_disk_prog T -> @Result state' T -> Prop :=              
   | ExecReadInbound : 
       forall s a u,
-        let c := fst s in
-        let d := snd s in
+        let st := fst s in
+        let c := fst (snd s) in
+        let d := snd (snd s) in
         a < disk_size ->
         exec' u Cont s (Read a) (Finished s (c a))
 
@@ -38,17 +39,17 @@ Section TransactionalDisk.
         a >= disk_size ->
         exec' u Cont s (Read a) (Finished s value0)
              
+  (*Make sure  never happens?*)
   | ExecWriteInbound :
-      forall s a v u,
-        let c := fst s in
-        let d := snd s in
+      forall s a v u ,
+        let st := fst s in
+        let c := fst (snd s) in
+        let d := snd (snd s) in
         a < disk_size ->
-        exec' u Cont s (Write a v) (Finished ((upd c a v), d) (Some tt))
+        exec' u Cont s (Write a v) (Finished (NotEmpty, ((upd c a v), d)) (Some tt))
 
   | ExecWriteInboundFull :
       forall s a v u,
-        let c := fst s in
-        let d := snd s in
         a < disk_size ->
         exec' u TxnFull s (Write a v) (Finished s None)
               
@@ -59,21 +60,21 @@ Section TransactionalDisk.
 
   | ExecCommit : 
       forall s u,
-        exec' u Cont s Commit (Finished (fst s, fst s) tt)
+        exec' u Cont s Commit (Finished (Empty, (fst (snd s), fst (snd s))) tt)
 
   | ExecAbort : 
       forall s u,
-        exec' u Cont s Abort (Finished (snd s, snd s) tt)
+        exec' u Cont s Abort (Finished (Empty, (snd (snd s), snd (snd s))) tt)
 
   | ExecRecover : 
       forall s u,
-        exec' u Cont s Recover (Finished (snd s, snd s) tt)
+        exec' u Cont s Recover (Finished (Empty, (snd (snd s), snd (snd s))) tt)
 
   | ExecInit : 
       forall s u l_av,
         let l_a := map fst l_av in
         let l_v := map snd l_av in
-        exec' u Cont s (Init l_av) (Finished (upd_batch (snd s) l_a l_v, upd_batch (snd s) l_a l_v) tt)
+        exec' u Cont s (Init l_av) (Finished (Empty, (upd_batch (snd (snd s)) l_a l_v, upd_batch (snd (snd s)) l_a l_v)) tt)
 
   | ExecCrashBefore :
       forall d T (p: transactional_disk_prog T) u,
@@ -81,8 +82,8 @@ Section TransactionalDisk.
 
   | ExecCommitCrashAfter :
       forall s u,
-        let c := fst s in
-        exec' u CrashAfter s Commit (Crashed (c, c)).
+        let c := fst (snd s) in
+        exec' u CrashAfter s Commit (Crashed (Empty, (c, c))).
 
   Hint Constructors exec' : core.
 
@@ -98,15 +99,15 @@ Section TransactionalDisk.
       | [H: exec' _ _ _ _ _ |- _] =>
         inversion H; clear H; cleanup
       end; eauto;
-    repeat split_ors; cleanup; eauto; lia.
+    repeat split_ors; cleanup; eauto; try lia; try congruence.
   Qed.
   
-  Definition TDOperation :=
+  Definition TDCore :=
     Build_Core
       transactional_disk_prog
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition TDLang := Build_Language TDOperation.
+  Definition TDLang := Build_Language TDCore.
 
 End TransactionalDisk.

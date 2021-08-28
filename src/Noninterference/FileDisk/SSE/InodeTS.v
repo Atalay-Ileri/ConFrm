@@ -1,5 +1,5 @@
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
-Require Import FunctionalExtensionality Lia Language SameRetType TSCommon.
+Require Import FunctionalExtensionality Lia Language TSCommon.
 
 
 Lemma inode_allocations_are_same:
@@ -94,8 +94,8 @@ Qed.
 Lemma TS_get_inode:
 forall o fm1 fm2 u' ex s1 s2 inum ret1 u,
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.get_inode inum) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.get_inode inum) ret2 /\
@@ -233,8 +233,8 @@ Opaque Inode.get_inode.
 Lemma TS_set_inode:
 forall o fm1 fm2 u' ex s1 s2 inum inode1 inode2 ret1 u,
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.set_inode inum inode1) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.set_inode inum inode2) ret2 /\
@@ -246,8 +246,8 @@ cleanup.
 {
   repeat invert_step.
   {
-    destruct s2; simpl in *.
-    exists (Finished (upd t (Inode.InodeAllocatorParams.bitmap_addr + S inum) (Inode.encode_inode inode2), t0) (Some tt)); split.
+    destruct s2, p; simpl in *.
+    eexists (Finished (_, (upd t0 (Inode.InodeAllocatorParams.bitmap_addr + S inum) (Inode.encode_inode inode2), t1)) (Some tt)); split.
     repeat exec_step.
     erewrite <- inode_allocations_are_same.
     4: eauto.
@@ -258,8 +258,8 @@ cleanup.
     simpl; intuition congruence.
   }
   {
-    destruct s2; simpl in *.
-    exists (Finished (t, t0) None); split.
+    destruct s2, p; simpl in *.
+    eexists (Finished (_, (t0, t1)) None); split.
     repeat exec_step.
     erewrite <- inode_allocations_are_same.
     4: eauto.
@@ -271,8 +271,8 @@ cleanup.
     simpl; intuition congruence.
   }
   {
-    destruct s2; simpl in *.
-    exists (Finished (t, t0) None); split.
+    destruct s2, p; simpl in *.
+    eexists (Finished (_, (t0, t1)) None); split.
     repeat exec_step.
     erewrite <- inode_allocations_are_same.
     4: eauto.
@@ -360,8 +360,8 @@ invert_step.
     repeat exec_step.
     simpl; intuition congruence.
   }
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H0; eauto.
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H1; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H5; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H3; eauto.
 }
 {
   eapply_fresh TS_get_inode in H2; eauto.
@@ -374,8 +374,8 @@ invert_step.
     repeat exec_step.
     simpl; intuition congruence.
   }
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H0; eauto.
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H1; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H5; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H3; eauto.
 }
 {
   repeat invert_step_crash.
@@ -388,8 +388,8 @@ invert_step.
     eapply ExecBindCrash; eauto.
     simpl; intuition eauto.
   }
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H0; eauto.
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H1; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H5; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H3; eauto.
   {
     eapply_fresh TS_get_inode in H3; eauto.
     cleanup;
@@ -410,8 +410,8 @@ invert_step.
         repeat exec_step.
         simpl; intuition congruence.
     }
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H0; eauto.
-  unfold refines, files_rep in *; cleanup; setoid_rewrite H1; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H6; eauto.
+  unfold refines, files_rep in *; cleanup; setoid_rewrite H2; eauto.
   } 
 }
 Unshelve.
@@ -423,8 +423,8 @@ Opaque Inode.get_owner.
 Lemma TS_get_all_block_numbers:
 forall o fm1 fm2 s1 s2 inum ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.get_all_block_numbers inum) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.get_all_block_numbers inum) ret2 /\
@@ -1033,8 +1033,8 @@ Proof. Admitted.
 Lemma TS_alloc:
 forall o fm1 fm2 s1 s2 v v' ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (DiskAllocator.alloc v) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (DiskAllocator.alloc v') ret2 /\
@@ -1054,7 +1054,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1078,7 +1078,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1102,7 +1102,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1125,7 +1125,7 @@ cleanup.
     assert (~ get_first_zero_index
     (firstn DiskAllocatorParams.num_of_blocks
        (value_to_bits
-          ((fst s2)
+          ((fst (snd s2))
              DiskAllocatorParams.bitmap_addr))) <
  DiskAllocatorParams.num_of_blocks). {
     intros Hnot.
@@ -1135,7 +1135,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat econstructor.
@@ -1163,7 +1163,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1176,20 +1176,20 @@ cleanup.
 
     clear D.
     eapply free_block_exists in l; eauto.
-    exists (Crashed (upd ((fst s2))
+    eexists (Crashed (_, (upd ((fst (snd s2)))
     (DiskAllocatorParams.bitmap_addr +
      S
        (get_first_zero_index
           (firstn DiskAllocatorParams.num_of_blocks
              (value_to_bits
-                ((fst s2) DiskAllocatorParams.bitmap_addr)))))
-    v', (snd s2))); split.
+                ((fst (snd s2)) DiskAllocatorParams.bitmap_addr)))))
+    v', snd (snd s2)))); split.
     repeat exec_step.
     destruct_fresh (Compare_dec.lt_dec
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1211,33 +1211,33 @@ cleanup.
 
     clear D.
     eapply free_block_exists in l; eauto.
-    exists (Crashed (upd
-    (upd (fst s2)
+    eexists (Crashed (_, (upd
+    (upd (fst (snd s2))
        (DiskAllocatorParams.bitmap_addr +
         S
           (get_first_zero_index
              (firstn DiskAllocatorParams.num_of_blocks
                 (value_to_bits
-                   ((fst s2)
+                   ((fst (snd s2))
                       DiskAllocatorParams.bitmap_addr)))))
        v') DiskAllocatorParams.bitmap_addr
     (bits_to_value
        (updn
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))
           (get_first_zero_index
              (firstn DiskAllocatorParams.num_of_blocks
                 (value_to_bits
-                   ((fst s2)
+                   ((fst (snd s2))
                       DiskAllocatorParams.bitmap_addr))))
-          true)), (snd s2))); split.
+          true)), snd (snd s2)))); split.
     repeat exec_step.
     destruct_fresh (Compare_dec.lt_dec
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1255,21 +1255,21 @@ cleanup.
 
     clear D.
     eapply free_block_exists in l; eauto.
-    exists (Crashed (upd (fst s2)
+    eexists (Crashed (_, (upd (fst (snd s2))
     (DiskAllocatorParams.bitmap_addr +
      S
        (get_first_zero_index
           (firstn DiskAllocatorParams.num_of_blocks
              (value_to_bits
-                ((fst s2)
+                ((fst (snd s2))
                    DiskAllocatorParams.bitmap_addr)))))
-    v', (snd s2))); split.
+    v', snd (snd s2)))); split.
     repeat exec_step.
     destruct_fresh (Compare_dec.lt_dec
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1292,7 +1292,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1312,7 +1312,7 @@ cleanup.
     assert (~ get_first_zero_index
     (firstn DiskAllocatorParams.num_of_blocks
        (value_to_bits
-          ((fst s2)
+          ((fst (snd s2))
              DiskAllocatorParams.bitmap_addr))) <
  DiskAllocatorParams.num_of_blocks). {
     intros Hnot.
@@ -1324,7 +1324,7 @@ cleanup.
     (get_first_zero_index
        (firstn DiskAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
                 DiskAllocatorParams.bitmap_addr))))
     DiskAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1339,8 +1339,8 @@ Opaque DiskAllocator.alloc.
 Lemma TS_alloc_inode:
 forall o fm1 fm2 s1 s2 v v' ret1 u u' ex,
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.alloc v) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.alloc v') ret2 /\
@@ -1360,7 +1360,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1384,7 +1384,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1408,7 +1408,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1431,7 +1431,7 @@ cleanup.
     assert (~ get_first_zero_index
     (firstn Inode.InodeAllocatorParams.num_of_blocks
        (value_to_bits
-          ((fst s2)
+          ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))) <
              Inode.InodeAllocatorParams.num_of_blocks). {
     intros Hnot.
@@ -1441,7 +1441,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat econstructor.
@@ -1469,7 +1469,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1482,24 +1482,24 @@ cleanup.
 
     clear D.
     eapply free_block_exists_inode in l; eauto.
-    exists (Crashed (upd ((fst s2))
+    eexists (Crashed (_, (upd ((fst (snd s2)))
     (Inode.InodeAllocatorParams.bitmap_addr +
      S
        (get_first_zero_index
           (firstn Inode.InodeAllocatorParams.num_of_blocks
              (value_to_bits
-                ((fst s2) Inode.InodeAllocatorParams.bitmap_addr)))))
+                ((fst (snd s2)) Inode.InodeAllocatorParams.bitmap_addr)))))
                 (Inode.encode_inode
                 {|
                   Inode.owner := v';
                   Inode.block_numbers := []
-                |}), (snd s2))); split.
+                |}), snd (snd s2)))); split.
     repeat exec_step.
     destruct_fresh (Compare_dec.lt_dec
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1521,14 +1521,14 @@ cleanup.
 
     clear D.
     eapply free_block_exists_inode in l; eauto.
-    exists (Crashed (upd
-    (upd (fst s2)
+    eexists (Crashed (_, (upd
+    (upd (fst (snd s2))
        (Inode.InodeAllocatorParams.bitmap_addr +
         S
           (get_first_zero_index
              (firstn Inode.InodeAllocatorParams.num_of_blocks
                 (value_to_bits
-                   ((fst s2)
+                   ((fst (snd s2))
                    Inode.InodeAllocatorParams.bitmap_addr)))))
                    (Inode.encode_inode
                    {|
@@ -1538,20 +1538,20 @@ cleanup.
     (bits_to_value
        (updn
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))
           (get_first_zero_index
              (firstn Inode.InodeAllocatorParams.num_of_blocks
                 (value_to_bits
-                   ((fst s2)
+                   ((fst (snd s2))
                    Inode.InodeAllocatorParams.bitmap_addr))))
-          true)), (snd s2))); split.
+          true)), snd (snd s2)))); split.
     repeat exec_step.
     destruct_fresh (Compare_dec.lt_dec
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1569,25 +1569,25 @@ cleanup.
 
     clear D.
     eapply free_block_exists_inode in l; eauto.
-    exists (Crashed (upd (fst s2)
+    eexists (Crashed (_, (upd (fst (snd s2))
     (Inode.InodeAllocatorParams.bitmap_addr +
      S
        (get_first_zero_index
           (firstn Inode.InodeAllocatorParams.num_of_blocks
              (value_to_bits
-                ((fst s2)
+                ((fst (snd s2))
                 Inode.InodeAllocatorParams.bitmap_addr)))))
                    (Inode.encode_inode
                    {|
                      Inode.owner := v';
                      Inode.block_numbers := []
-                   |}), (snd s2))); split.
+                   |}), snd (snd s2)))); split.
     repeat exec_step.
     destruct_fresh (Compare_dec.lt_dec
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1610,7 +1610,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1630,7 +1630,7 @@ cleanup.
     assert (~ get_first_zero_index
     (firstn Inode.InodeAllocatorParams.num_of_blocks
        (value_to_bits
-          ((fst s2)
+          ((fst (snd s2))
           Inode.InodeAllocatorParams.bitmap_addr))) <
           Inode.InodeAllocatorParams.num_of_blocks). {
     intros Hnot.
@@ -1642,7 +1642,7 @@ cleanup.
     (get_first_zero_index
        (firstn Inode.InodeAllocatorParams.num_of_blocks
           (value_to_bits
-             ((fst s2)
+             ((fst (snd s2))
              Inode.InodeAllocatorParams.bitmap_addr))))
              Inode.InodeAllocatorParams.num_of_blocks); try lia.
     repeat exec_step.
@@ -1669,8 +1669,8 @@ end.
 Lemma TS_extend:
 forall o fm1 fm2 s1 s2 v v' ret1 u u' ex inum,
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.extend inum v) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.extend inum v') ret2 /\
@@ -1811,10 +1811,10 @@ exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (DiskAlloca
 (v < DiskAllocatorParams.num_of_blocks <-> v' < DiskAllocatorParams.num_of_blocks) ->
 nth_error
       (value_to_bits
-         (fst s1 DiskAllocatorParams.bitmap_addr)) v =
+         (fst (snd s1) DiskAllocatorParams.bitmap_addr)) v =
 nth_error
       (value_to_bits
-         (fst s2 DiskAllocatorParams.bitmap_addr)) v' ->
+         (fst (snd s2) DiskAllocatorParams.bitmap_addr)) v' ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (DiskAllocator.free v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
@@ -1827,8 +1827,8 @@ DiskAllocatorParams.num_of_blocks); try lia.
 cleanup.
 {
   repeat invert_step.
-  exists (Finished (upd (fst s2) DiskAllocatorParams.bitmap_addr (bits_to_value
-  (updn (value_to_bits ((fst s2) DiskAllocatorParams.bitmap_addr)) v' false)), snd s2) (Some tt)); split.
+  eexists (Finished (_, (upd (fst (snd s2)) DiskAllocatorParams.bitmap_addr (bits_to_value
+  (updn (value_to_bits ((fst (snd s2)) DiskAllocatorParams.bitmap_addr)) v' false)), snd (snd s2))) (Some tt)); split.
   repeat exec_step.
   cleanup.
   setoid_rewrite <- H1.
@@ -1908,10 +1908,10 @@ exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.free
 (v < Inode.InodeAllocatorParams.num_of_blocks <-> v' < Inode.InodeAllocatorParams.num_of_blocks) ->
 nth_error
       (value_to_bits
-         (fst s1 Inode.InodeAllocatorParams.bitmap_addr)) v =
+         (fst (snd s1) Inode.InodeAllocatorParams.bitmap_addr)) v =
 nth_error
       (value_to_bits
-         (fst s2 Inode.InodeAllocatorParams.bitmap_addr)) v' ->
+         (fst (snd s2) Inode.InodeAllocatorParams.bitmap_addr)) v' ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.free v') ret2 /\
 (extract_ret ret1 = None <-> extract_ret ret2 = None).
@@ -1924,8 +1924,8 @@ Inode.InodeAllocatorParams.num_of_blocks); try lia.
 cleanup.
 {
   repeat invert_step.
-  exists (Finished (upd (fst s2) Inode.InodeAllocatorParams.bitmap_addr (bits_to_value
-  (updn (value_to_bits ((fst s2) Inode.InodeAllocatorParams.bitmap_addr)) v' false)), snd s2) (Some tt)); split.
+  eexists (Finished (_, (upd (fst (snd s2)) Inode.InodeAllocatorParams.bitmap_addr (bits_to_value
+  (updn (value_to_bits ((fst (snd s2)) Inode.InodeAllocatorParams.bitmap_addr)) v' false)), snd (snd s2))) (Some tt)); split.
   repeat exec_step.
   cleanup.
   setoid_rewrite <- H1.
@@ -2002,8 +2002,8 @@ Opaque Inode.free Inode.InodeAllocator.free.
 Lemma TS_change_owner:
 forall o fm1 fm2 u' s1 s2 inum ret1 u own1 own2,
 same_for_user_except u' (Some inum) fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.change_owner inum own1) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.change_owner inum own2) ret2 /\
@@ -2142,8 +2142,8 @@ Lemma TS_auth_then_exec:
 forall T (p1 p2: addr -> prog _ (option T)) inum ex,
 (forall o fm1 fm2 s1 s2 ret1 u u',
 same_for_user_except u' ex fm1 fm2 ->
-files_inner_rep fm1 (fst s1) ->
-files_inner_rep fm2 (fst s2) ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (p1 inum) ret1 ->
 exists ret2, 
 exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (p2 inum) ret2 /\
@@ -2198,18 +2198,18 @@ Proof.
        unfold refines, files_rep, files_inner_rep in *; 
        simpl in *; cleanup.
        eapply Inode.get_owner_finished in H6; eauto.
-       2: rewrite H1; eauto.
+       2: rewrite H18; eauto.
        cleanup; split_ors; cleanup.
        eapply Inode.get_owner_finished in H9; eauto.
-       2: rewrite H2; eauto.
+       2: rewrite H14; eauto.
        cleanup; split_ors; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H22; eauto; cleanup.
        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H25; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H29; eauto; cleanup.
        unfold same_for_user_except in *; cleanup.
-       eapply_fresh H28 in H6; eauto; cleanup.
+       eapply_fresh H32 in H6; eauto; cleanup.
        unfold file_map_rep in *; cleanup.
-       eapply H31 in H25; eauto; cleanup.
-       eapply H32 in H22; eauto; cleanup.
+       eapply H35 in H29; eauto; cleanup.
+       eapply H36 in H25; eauto; cleanup.
        unfold file_rep in *; cleanup.
        congruence.
      }
@@ -2242,18 +2242,18 @@ Proof.
        unfold refines, files_rep, files_inner_rep in *; 
        simpl in *; cleanup.
        eapply Inode.get_owner_finished in H6; eauto.
-       2: rewrite e0; eauto.
+       2: rewrite e2; eauto.
        cleanup; split_ors; cleanup.
        eapply Inode.get_owner_finished in H11; eauto.
-       2: rewrite e; eauto.
+       2: rewrite e0; eauto.
        cleanup; split_ors; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H17; eauto; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H18; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H22; eauto; cleanup.
        unfold same_for_user_except in *; cleanup.
        eapply_fresh a0 in H1; eauto; cleanup.
        unfold file_map_rep in *; cleanup.
-       eapply H24 in H20; eauto; cleanup.
-       eapply H26 in H17; eauto; cleanup.
+       eapply H26 in H22; eauto; cleanup.
+       eapply H28 in H18; eauto; cleanup.
        unfold file_rep in *; cleanup.
        congruence.
      }
@@ -2267,7 +2267,7 @@ Proof.
         unfold refines, files_rep, files_inner_rep in *; 
         simpl in *; cleanup.
         eapply Inode.get_owner_finished in H6; eauto.
-        2: rewrite H1; eauto.
+        2: rewrite H18; eauto.
       repeat cleanup_pairs; simpl in *.
       unfold refines, files_rep, files_inner_rep; eauto. 
       eexists; split; eauto.
@@ -2281,7 +2281,7 @@ Proof.
         unfold refines, files_rep, files_inner_rep in *; 
         simpl in *; cleanup.
         eapply Inode.get_owner_finished in H11; eauto.
-        2: rewrite H2; eauto.
+        2: rewrite H13; eauto.
       repeat cleanup_pairs; simpl in *.
       unfold refines, files_rep, files_inner_rep; eauto. 
       eexists; split; eauto.
@@ -2318,18 +2318,18 @@ Proof.
        unfold refines, files_rep, files_inner_rep in *; 
        simpl in *; cleanup.
        eapply Inode.get_owner_finished in H6; eauto.
-       2: rewrite e0; eauto.
+       2: rewrite e2; eauto.
        cleanup; split_ors; cleanup.
        eapply Inode.get_owner_finished in H11; eauto.
-       2: rewrite e; eauto.
+       2: rewrite e0; eauto.
        cleanup; split_ors; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H18; eauto; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H19; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H23; eauto; cleanup.
        unfold same_for_user_except in *; cleanup.
        eapply_fresh a0 in H1; eauto; cleanup.
        unfold file_map_rep in *; cleanup.
-       eapply H25 in H21; eauto; cleanup.
-       eapply H27 in H18; eauto; cleanup.
+       eapply H27 in H23; eauto; cleanup.
+       eapply H29 in H19; eauto; cleanup.
        unfold file_rep in *; cleanup.
        congruence.
      }
@@ -2343,7 +2343,7 @@ Proof.
         unfold refines, files_rep, files_inner_rep in *; 
         simpl in *; cleanup.
         eapply Inode.get_owner_finished in H6; eauto.
-        2: rewrite H1; eauto.
+        2: rewrite H18; eauto.
       repeat cleanup_pairs; simpl in *.
       unfold refines, files_rep, files_inner_rep; eauto. 
       eexists; split; eauto.
@@ -2357,7 +2357,7 @@ Proof.
         unfold refines, files_rep, files_inner_rep in *; 
         simpl in *; cleanup.
         eapply Inode.get_owner_finished in H11; eauto.
-        2: rewrite H2; eauto.
+        2: rewrite H13; eauto.
       repeat cleanup_pairs; simpl in *.
       unfold refines, files_rep, files_inner_rep; eauto. 
       eexists; split; eauto.
@@ -2420,18 +2420,18 @@ Proof.
         unfold refines, files_rep, files_inner_rep in *; 
         simpl in *; cleanup.
         eapply Inode.get_owner_finished in H6; eauto.
-        2: rewrite e0; eauto.
+        2: rewrite e2; eauto.
         cleanup; split_ors; cleanup.
         eapply Inode.get_owner_finished in H7; eauto.
-        2: rewrite e; eauto.
+        2: rewrite e0; eauto.
         cleanup; split_ors; cleanup.
-        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H13; eauto; cleanup.
-        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H16; eauto; cleanup.
+        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H14; eauto; cleanup.
+        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H18; eauto; cleanup.
         unfold same_for_user_except in *; cleanup.
         eapply_fresh a0 in H1; eauto; cleanup.
         unfold file_map_rep in *; cleanup.
-        eapply H20 in H16; eauto; cleanup.
-        eapply H22 in H13; eauto; cleanup.
+        eapply H22 in H18; eauto; cleanup.
+        eapply H24 in H14; eauto; cleanup.
         unfold file_rep in *; cleanup.
         congruence.
       }
@@ -2446,7 +2446,7 @@ Proof.
           unfold refines, files_rep, files_inner_rep in *; 
           simpl in *; cleanup.
           eapply Inode.get_owner_finished in H6; eauto.
-          2: rewrite H1; eauto.
+          2: rewrite H14; eauto.
         repeat cleanup_pairs; simpl in *.
         unfold refines, files_rep, files_inner_rep; eauto. 
         eexists; split; eauto.
@@ -2460,7 +2460,7 @@ Proof.
           unfold refines, files_rep, files_inner_rep in *; 
           simpl in *; cleanup.
           eapply Inode.get_owner_finished in H7; eauto.
-          2: rewrite H2; eauto.
+          2: rewrite H3; eauto.
         repeat cleanup_pairs; simpl in *.
         unfold refines, files_rep, files_inner_rep; eauto. 
         eexists; split; eauto.
@@ -2495,18 +2495,18 @@ Proof.
             unfold refines, files_rep, files_inner_rep in *; 
             simpl in *; cleanup.
             eapply Inode.get_owner_finished in H6; eauto.
-            2: rewrite e0; eauto.
+            2: rewrite e2; eauto.
             cleanup; split_ors; cleanup.
             eapply Inode.get_owner_finished in H7; eauto.
-            2: rewrite e; eauto.
+            2: rewrite e0; eauto.
             cleanup; split_ors; cleanup.
-            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H15; eauto; cleanup.
-            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H18; eauto; cleanup.
+            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H16; eauto; cleanup.
+            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto; cleanup.
             unfold same_for_user_except in *; cleanup.
             eapply_fresh a0 in H1; eauto; cleanup.
             unfold file_map_rep in *; cleanup.
-            eapply H22 in H18; eauto; cleanup.
-            eapply H24 in H15; eauto; cleanup.
+            eapply H24 in H20; eauto; cleanup.
+            eapply H26 in H16; eauto; cleanup.
             unfold file_rep in *; cleanup.
             congruence.
           }
@@ -2524,7 +2524,7 @@ Proof.
         destruct o; try solve [ intuition congruence]. 
         destruct s2.
         {
-          exists (Crashed (s, (fst s3, fst s3))); split.
+          eexists (Crashed (s, (_, (fst (snd s3), fst (snd s3))))); split.
           repeat exec_step.
           repeat econstructor.
           eapply lift2_exec_step; eauto.
@@ -2538,18 +2538,18 @@ Proof.
             unfold refines, files_rep, files_inner_rep in *; 
             simpl in *; cleanup.
             eapply Inode.get_owner_finished in H6; eauto.
-            2: rewrite H1; eauto.
+            2: rewrite H18; eauto.
             cleanup; split_ors; cleanup.
             eapply Inode.get_owner_finished in H7; eauto.
-            2: rewrite H2; eauto.
+            2: rewrite H14; eauto.
             cleanup; split_ors; cleanup.
-            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H23; eauto; cleanup.
             eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H26; eauto; cleanup.
+            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H30; eauto; cleanup.
             unfold same_for_user_except in *; cleanup.
-            eapply_fresh H29 in H6; eauto; cleanup.
+            eapply_fresh H33 in H6; eauto; cleanup.
             unfold file_map_rep in *; cleanup.
-            eapply H32 in H26; eauto; cleanup.
-            eapply H33 in H23; eauto; cleanup.
+            eapply H36 in H30; eauto; cleanup.
+            eapply H37 in H26; eauto; cleanup.
             unfold file_rep in *; cleanup.
             congruence.
           }
@@ -2567,7 +2567,7 @@ Proof.
         destruct o; try solve [ intuition congruence]. 
         destruct s2.
         {
-          exists (Crashed (s, (fst s3, fst s3))); split.
+          eexists (Crashed (s, (_, (fst (snd s3), fst (snd s3))))); split.
           repeat exec_step.
           repeat econstructor.
           eapply lift2_exec_step; eauto.
@@ -2581,18 +2581,18 @@ Proof.
             unfold refines, files_rep, files_inner_rep in *; 
             simpl in *; cleanup.
             eapply Inode.get_owner_finished in H6; eauto.
-            2: rewrite H1; eauto.
+            2: rewrite H18; eauto.
             cleanup; split_ors; cleanup.
             eapply Inode.get_owner_finished in H7; eauto.
-            2: rewrite H2; eauto.
+            2: rewrite H14; eauto.
             cleanup; split_ors; cleanup.
-            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H23; eauto; cleanup.
             eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H26; eauto; cleanup.
+            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H30; eauto; cleanup.
             unfold same_for_user_except in *; cleanup.
-            eapply_fresh H29 in H6; eauto; cleanup.
+            eapply_fresh H33 in H6; eauto; cleanup.
             unfold file_map_rep in *; cleanup.
-            eapply H32 in H26; eauto; cleanup.
-            eapply H33 in H23; eauto; cleanup.
+            eapply H36 in H30; eauto; cleanup.
+            eapply H37 in H26; eauto; cleanup.
             unfold file_rep in *; cleanup.
             congruence.
           }
@@ -2622,18 +2622,18 @@ Proof.
             unfold refines, files_rep, files_inner_rep in *; 
             simpl in *; cleanup.
             eapply Inode.get_owner_finished in H6; eauto.
-            2: rewrite H1; eauto.
+            2: rewrite H18; eauto.
             cleanup; split_ors; cleanup.
             eapply Inode.get_owner_finished in H7; eauto.
-            2: rewrite H2; eauto.
+            2: rewrite H14; eauto.
             cleanup; split_ors; cleanup.
-            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H22; eauto; cleanup.
             eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H25; eauto; cleanup.
+            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H29; eauto; cleanup.
             unfold same_for_user_except in *; cleanup.
-            eapply_fresh H28 in H6; eauto; cleanup.
+            eapply_fresh H32 in H6; eauto; cleanup.
             unfold file_map_rep in *; cleanup.
-            eapply H31 in H25; eauto; cleanup.
-            eapply H32 in H22; eauto; cleanup.
+            eapply H35 in H29; eauto; cleanup.
+            eapply H36 in H25; eauto; cleanup.
             unfold file_rep in *; cleanup.
             congruence.
           }
@@ -2652,7 +2652,7 @@ Proof.
         destruct o; try solve [ intuition congruence]. 
         destruct s2.
         {
-          exists (Crashed (s, (snd s3, snd s3))); split.
+          eexists (Crashed (s, (_, (snd (snd s3), snd (snd s3))))); split.
           repeat exec_step.
           repeat econstructor.
           eapply lift2_exec_step; eauto.
@@ -2666,18 +2666,18 @@ Proof.
             unfold refines, files_rep, files_inner_rep in *; 
             simpl in *; cleanup.
             eapply Inode.get_owner_finished in H6; eauto.
-            2: rewrite H1; eauto.
+            2: rewrite H18; eauto.
             cleanup; split_ors; cleanup.
             eapply Inode.get_owner_finished in H7; eauto.
-            2: rewrite H2; eauto.
+            2: rewrite H14; eauto.
             cleanup; split_ors; cleanup.
-            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H22; eauto; cleanup.
             eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H25; eauto; cleanup.
+            eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H29; eauto; cleanup.
             unfold same_for_user_except in *; cleanup.
-            eapply_fresh H28 in H6; eauto; cleanup.
+            eapply_fresh H32 in H6; eauto; cleanup.
             unfold file_map_rep in *; cleanup.
-            eapply H31 in H25; eauto; cleanup.
-            eapply H32 in H22; eauto; cleanup.
+            eapply H35 in H29; eauto; cleanup.
+            eapply H36 in H25; eauto; cleanup.
             unfold file_rep in *; cleanup.
             congruence.
           }
@@ -2738,18 +2738,18 @@ Proof.
        unfold refines, files_rep, files_inner_rep in *; 
        simpl in *; cleanup.
        eapply Inode.get_owner_finished in H6; eauto.
-       2: rewrite H1; eauto.
+       2: rewrite H17; eauto.
        cleanup; split_ors; cleanup.
        eapply Inode.get_owner_finished in H3; eauto.
-       2: rewrite H2; eauto.
+       2: rewrite H12; eauto.
        cleanup; split_ors; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto; cleanup.
        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H24; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H28; eauto; cleanup.
        unfold same_for_user_except in *; cleanup.
-       eapply_fresh H27 in H3; eauto; cleanup.
+       eapply_fresh H31 in H3; eauto; cleanup.
        unfold file_map_rep in *; cleanup.
-       eapply H30 in H24; eauto; cleanup.
-       eapply H31 in H21; eauto; cleanup.
+       eapply H34 in H28; eauto; cleanup.
+       eapply H35 in H24; eauto; cleanup.
        unfold file_rep in *; cleanup.
        congruence.
      }
@@ -2765,7 +2765,7 @@ Proof.
      eapply_fresh Inode.get_owner_finished_oracle_eq in H6; eauto.
      destruct o; simpl in *; try solve [intuition congruence].
      destruct s2.
-     exists (Crashed (s2, (snd s, snd s))); split.
+     eexists (Crashed (s2, (_, (snd (snd s), snd (snd s))))); split.
      repeat exec_step.
      repeat econstructor.
      eapply lift2_exec_step; eauto.
@@ -2780,18 +2780,18 @@ Proof.
        unfold refines, files_rep, files_inner_rep in *; 
        simpl in *; cleanup.
        eapply Inode.get_owner_finished in H6; eauto.
-       2: rewrite H1; eauto.
+       2: rewrite H17; eauto.
        cleanup; split_ors; cleanup.
        eapply Inode.get_owner_finished in H3; eauto.
-       2: rewrite H2; eauto.
+       2: rewrite H12; eauto.
        cleanup; split_ors; cleanup.
-       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto; cleanup.
        eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H24; eauto; cleanup.
+       eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H28; eauto; cleanup.
        unfold same_for_user_except in *; cleanup.
-       eapply_fresh H27 in H3; eauto; cleanup.
+       eapply_fresh H31 in H3; eauto; cleanup.
        unfold file_map_rep in *; cleanup.
-       eapply H30 in H24; eauto; cleanup.
-       eapply H31 in H21; eauto; cleanup.
+       eapply H34 in H28; eauto; cleanup.
+       eapply H35 in H24; eauto; cleanup.
        unfold file_rep in *; cleanup.
        congruence.
      }
@@ -2815,7 +2815,7 @@ Proof.
     simpl; intuition congruence.
 
     destruct s2.
-    exists (Crashed (s, (snd s0, snd s0))); split.
+    eexists (Crashed (s, (_, (snd (snd s0), snd (snd s0))))); split.
     repeat exec_step.
     repeat econstructor.
     eapply lift2_exec_step; eauto.

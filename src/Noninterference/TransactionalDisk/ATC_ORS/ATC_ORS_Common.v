@@ -75,14 +75,14 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) T u
         s1 p1 ATC_reboot_f o oa ->
       oracle_refines
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) T u
         s2 p2 ATC_reboot_f o oa ->
   oracle_refines_same_from_related ATC_Refinement u (p3 r1) (p4 r2) rec (ATC_reboot_list n) P) ->
@@ -96,14 +96,14 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) T u
         s1 p1 ATC_reboot_f o1 oa1 ->
       oracle_refines
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) T u
         s2 p2 ATC_reboot_f o2 oa2 ->
   o1 ++ o3 = o2 ++ o4 ->
@@ -123,7 +123,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) _ u s1 p1
@@ -137,7 +137,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) _ u s2 p2
@@ -156,7 +156,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) T u s1 p1
@@ -170,7 +170,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) T u s2 p2
@@ -189,7 +189,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) T u s1 p1
@@ -203,7 +203,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) T u s2 p2
@@ -223,7 +223,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) _ u s1 (Bind p1 p3)
@@ -237,7 +237,7 @@ Ltac unify_execs_prefix :=
         (HorizontalComposition AuthenticationOperation
            TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation
+           (TransactionalDiskLayer.TDCore
               data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD
            Definitions.TDCoreRefinement) _ u s2 (Bind p2 p4)
@@ -887,20 +887,20 @@ Ltac unify_execs_prefix :=
     (o_abs : list
     (Language.token'
       (HorizontalComposition AuthenticationOperation
-         (TransactionalDiskLayer.TDOperation data_length))))
+         (TransactionalDiskLayer.TDCore data_length))))
     (grs : state ATCLang -> state ATCLang),
     Language.exec' u o s (Simulation.Definitions.compile ATC_Refinement p)
     (Finished s' r) ->
     oracle_refines
     (HorizontalComposition AuthenticationOperation TransactionCacheOperation)
     (HorizontalComposition AuthenticationOperation
-    (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+    (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
     ATC_CoreRefinement T u s p grs o o_abs ->
     forall grs' : state ATCLang -> state ATCLang,
     oracle_refines
     (HorizontalComposition AuthenticationOperation TransactionCacheOperation)
     (HorizontalComposition AuthenticationOperation
-    (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+    (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
     ATC_CoreRefinement T u s p grs' o o_abs.
     Proof.
       induction p; simpl; eauto.
@@ -938,7 +938,7 @@ Ltac unify_execs_prefix :=
     (HorizontalComposition AuthenticationOperation
     TransactionCacheOperation)
     (HorizontalComposition AuthenticationOperation
-    (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+    (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
     (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement)
     T u s
     (lift_L2 AuthenticationOperation p)
@@ -949,34 +949,34 @@ Ltac unify_execs_prefix :=
     (map
     (fun
         o : Language.token'
-              (TransactionalDiskLayer.TDOperation data_length) =>
+              (TransactionalDiskLayer.TDCore data_length) =>
       match o with
       | OpToken _ o1 =>
           OpToken
             (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDOperation data_length))
+              (TransactionalDiskLayer.TDCore data_length))
             (Token2 AuthenticationOperation
-              (TransactionalDiskLayer.TDOperation data_length) o1)
+              (TransactionalDiskLayer.TDCore data_length) o1)
       | Language.Crash _ =>
           Language.Crash
             (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDOperation data_length))
+              (TransactionalDiskLayer.TDCore data_length))
       | Language.Cont _ =>
           Language.Cont
             (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDOperation data_length))
+              (TransactionalDiskLayer.TDCore data_length))
       end) x) ->
     
       ((RefinementLift.compile
     (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
     (HorizontalComposition AuthenticationOperation
-        (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+        (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
     (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) T
     (lift_L2 AuthenticationOperation p)) = 
     (lift_L2 AuthenticationOperation 
     (RefinementLift.compile TransactionCacheOperation
-    (TransactionalDiskLayer.TDOperation data_length) Definitions.imp TD
+    (TransactionalDiskLayer.TDCore data_length) Definitions.imp TD
     Definitions.TDCoreRefinement T p))) ->
     
       exists o',
@@ -1143,14 +1143,14 @@ Ltac unify_execs_prefix :=
        (HorizontalComposition AuthenticationOperation
           TransactionCacheOperation)
        (HorizontalComposition AuthenticationOperation
-          (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+          (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
        (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement)
        T u s1 p1 ATC_reboot_f o1 oa1 ->
       oracle_refines
        (HorizontalComposition AuthenticationOperation
           TransactionCacheOperation)
        (HorizontalComposition AuthenticationOperation
-          (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+          (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
        (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement)
        T' u s2 p2 ATC_reboot_f o2 oa2 ->
     
@@ -1253,14 +1253,14 @@ Ltac unify_execs_prefix :=
         oracle_refines
         (HorizontalComposition AuthenticationOperation TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) 
         _ u s1 p1 ATC_reboot_f o1 oa1 ->
     
         oracle_refines
         (HorizontalComposition AuthenticationOperation TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) 
         _ u s2 p2 ATC_reboot_f o2 oa2 ->
     
@@ -1385,14 +1385,14 @@ Ltac unify_execs_prefix :=
         oracle_refines
         (HorizontalComposition AuthenticationOperation TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) 
         _ u s1 p1 ATC_reboot_f o1 oa1 ->
     
         oracle_refines
         (HorizontalComposition AuthenticationOperation TransactionCacheOperation)
         (HorizontalComposition AuthenticationOperation
-           (TransactionalDiskLayer.TDOperation data_length)) ATCLang AD
+           (TransactionalDiskLayer.TDCore data_length)) ATCLang AD
         (HC_Core_Refinement ATCLang AD Definitions.TDCoreRefinement) 
         _ u s2 p2 ATC_reboot_f o2 oa2 ->
     

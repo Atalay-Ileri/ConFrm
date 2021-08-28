@@ -225,20 +225,20 @@ Qed.
 
 Lemma free_all_blocks_finished:
   forall u l_a o s s' r block_map,
-    DiskAllocator.block_allocator_rep block_map (fst s) ->
+    DiskAllocator.block_allocator_rep block_map (fst (snd s)) ->
     exec (TDLang data_length) u o s (free_all_blocks l_a) (Finished s' r) ->
     exists new_block_map,
     ((r = None /\
-     DiskAllocator.block_allocator_rep new_block_map (fst s')) \/
+     DiskAllocator.block_allocator_rep new_block_map (fst (snd s'))) \/
     (r = Some tt /\
-     DiskAllocator.block_allocator_rep new_block_map (fst s') /\
+     DiskAllocator.block_allocator_rep new_block_map (fst (snd s')) /\
      (forall a, In a l_a -> new_block_map a = None))) /\
     (forall a,
        a < DiskAllocatorParams.bitmap_addr \/
        a > DiskAllocatorParams.bitmap_addr + DiskAllocatorParams.num_of_blocks -> 
-       fst s' a = fst s a) /\
+       fst (snd s') a = fst (snd s) a) /\
     (forall a, ~In a l_a -> new_block_map a = block_map a) /\
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   induction l_a; simpl; intros; eauto.
   invert_exec; eexists; intuition eauto.
@@ -279,13 +279,13 @@ Qed.
 
 Lemma change_owner_inner_finished:
   forall u s s' o t own inum fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (change_owner_inner own inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
       fm inum = Some f /\
-      files_inner_rep (Mem.upd fm inum (change_file_owner f own)) (fst s'))) /\
-      snd s' = snd s.
+      files_inner_rep (Mem.upd fm inum (change_file_owner f own)) (fst (snd s')))) /\
+      snd (snd s') = snd (snd s).
 Proof.
   unfold change_owner_inner; intros; repeat invert_exec_no_match.
   unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
@@ -323,11 +323,11 @@ Qed.
 
 Lemma delete_inner_finished:
   forall u s s' o t inum fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (delete_inner inum) (Finished s' t) ->
     (t = None \/
-      (files_inner_rep (Mem.delete fm inum) (fst s'))) /\
-      snd s' = snd s.
+      (files_inner_rep (Mem.delete fm inum) (fst (snd s')))) /\
+      snd (snd s') = snd (snd s).
 Proof.
   unfold delete_inner; intros; repeat invert_exec_no_match.
   unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
@@ -359,7 +359,7 @@ Proof.
     right; eexists; intuition eauto.
     eexists; intuition eauto.
     eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
-    intros; repeat solve_bounds.
+    intros; repeat solve_bounds. 
           {
             unfold addrs_match_exactly in *; intros.
             destruct (addr_dec inum a); subst.
@@ -416,14 +416,14 @@ Qed.
 
 Lemma extend_inner_finished:
   forall u s s' o t inum v fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     
     exec (TDLang data_length) u o s (extend_inner v inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
       fm inum = Some f /\
-      files_inner_rep (Mem.upd fm inum (extend_file f v)) (fst s'))) /\
-      snd s' = snd s.
+      files_inner_rep (Mem.upd fm inum (extend_file f v)) (fst (snd s')))) /\
+      snd (snd s') = snd (snd s).
 Proof.
   unfold extend_inner; intros; repeat invert_exec_no_match.
   unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
@@ -539,15 +539,15 @@ Proof.
 
 Lemma write_inner_finished:
   forall u s s' o t inum off v fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     
     exec (TDLang data_length) u o s (write_inner off v inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
       fm inum = Some f /\
       off < length f.(blocks) /\
-      files_inner_rep (Mem.upd fm inum (update_file f off v)) (fst s'))) /\
-      snd s' = snd s.
+      files_inner_rep (Mem.upd fm inum (update_file f off v)) (fst (snd s')))) /\
+      snd (snd s') = snd (snd s).
 Proof.
   unfold write_inner; intros; repeat invert_exec_no_match.
   unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
@@ -646,10 +646,10 @@ Qed.
   
 Lemma read_inner_finished:
   forall u s s' o t inum off fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (read_inner off inum) (Finished s' t) ->
-    files_inner_rep fm (fst s')
-    /\ snd s' = snd s.
+    files_inner_rep fm (fst (snd s'))
+    /\ snd (snd s') = snd (snd s).
 Proof.
   unfold read_inner; intros; repeat invert_exec_no_match.
   unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.
@@ -681,14 +681,14 @@ Lemma auth_then_exec_crashed:
     files_rep fm s -> 
     exec ADLang u o s (auth_then_exec inum p) (Crashed s') ->
     (forall s s' o, 
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (p inum) (Crashed s') ->
-    snd s' = snd s) ->
+    snd (snd s') = snd (snd s)) ->
     forall fm',
-    (forall s s' o t, files_inner_rep fm (fst s) ->
+    (forall s s' o t, files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (p inum) (Finished s' t) ->
     ( t <> None -> 
-    files_inner_rep fm' (fst s') /\ P) /\ snd s' = snd s) ->    
+    files_inner_rep fm' (fst (snd s')) /\ P) /\ snd (snd s') = snd (snd s)) ->    
     files_crash_rep fm s' \/ 
     (files_crash_rep fm' s' /\ 
     P /\
@@ -703,10 +703,10 @@ Proof.
           try split_ors);
   unfold files_inner_rep in *; cleanup; eauto;
     repeat cleanup_pairs; simpl in *;
-    try eapply get_owner_crashed in H5; eauto;
-    try eapply get_owner_finished in H6; eauto;
-    try eapply H1 in H9; eauto;
-    try eapply H2 in H10; simpl in *; cleanup; eauto;
+    try eapply get_owner_crashed in H6; eauto;
+    try eapply get_owner_finished in H7; eauto;
+    try eapply H1 in H10; eauto;
+    try eapply H2 in H11; simpl in *; cleanup; eauto;
     repeat cleanup_pairs; simpl in *; eauto;
     try solve [left; eauto];
     try solve [right; eauto];
@@ -716,7 +716,7 @@ Proof.
     eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
     intros; solve_bounds];
     try solve [
-    right; edestruct H6; cleanup; 
+    right; edestruct H7; cleanup; 
     try congruence; eexists; repeat (split; eauto); 
     [intuition eauto |];
     split_ors; cleanup;
@@ -724,13 +724,13 @@ Proof.
     eapply_fresh inode_exists_then_file_exists in H10; eauto; cleanup;
     unfold file_map_rep, file_rep in *; cleanup;
     eapply H14 in H10; eauto; cleanup; eexists; intuition eauto ].        
-Qed.
+    Qed.
 
 Lemma read_inner_crashed:
   forall u s s' o inum off fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (read_inner off inum) (Crashed s') ->
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   unfold read_inner; intros; repeat invert_exec_no_match.
   split_ors; cleanup; repeat invert_exec.
@@ -750,7 +750,7 @@ Proof.
         repeat cleanup_pairs; eauto.
       }
       {
-        eapply DiskAllocator.read_finished in H9; eauto; cleanup_no_match.
+        eapply DiskAllocator.read_finished in H10; eauto; cleanup_no_match.
         repeat cleanup_pairs; eauto.
         2: {
           clear H3.
@@ -765,9 +765,9 @@ Qed.
 
 Lemma write_inner_crashed:
   forall u s s' o inum off v fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (write_inner off v inum) (Crashed s') ->
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   unfold write_inner; intros; repeat invert_exec_no_match.
   split_ors; cleanup; repeat invert_exec.
@@ -793,9 +793,9 @@ Qed.
 
 Lemma extend_inner_crashed:
   forall u s s' o inum v fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (extend_inner v inum) (Crashed s') ->
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   unfold extend_inner; intros; repeat invert_exec_no_match.
   split_ors; cleanup; repeat invert_exec.
@@ -824,9 +824,9 @@ Qed.
 
 Lemma free_all_blocks_crashed:
   forall u l_a s s' o block_map,
-    DiskAllocator.block_allocator_rep block_map (fst s) ->
+    DiskAllocator.block_allocator_rep block_map (fst (snd s)) ->
     exec (TDLang data_length) u o s (free_all_blocks l_a) (Crashed s') ->
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   induction l_a; simpl; intros; repeat invert_exec_no_match; eauto.
   split_ors; cleanup; repeat invert_exec.
@@ -846,9 +846,9 @@ Qed.
 
 Lemma delete_inner_crashed:
   forall u s s' o inum fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (delete_inner inum) (Crashed s') ->
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   unfold delete_inner; intros; repeat invert_exec_no_match.
   split_ors; cleanup; repeat invert_exec.
@@ -871,21 +871,21 @@ Proof.
         intros; repeat solve_bounds.
       }
       repeat cleanup_pairs; simpl in *.
-      eapply free_all_blocks_finished in H8; simpl; eauto.
+      eapply free_all_blocks_finished in H9; simpl; eauto.
       2: simpl; eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
         intros; repeat solve_bounds.
       simpl in *; cleanup; split_ors; cleanup;
       repeat invert_exec; eauto.
-      eapply free_crashed in H9; eauto.
+      eapply free_crashed in H10; eauto.
     } 
   }
 Qed.
 
 Lemma change_owner_inner_crashed:
   forall u s s' o inum own fm,
-    files_inner_rep fm (fst s) ->
+    files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (change_owner_inner own inum) (Crashed s') ->
-    snd s' = snd s.
+    snd (snd s') = snd (snd s).
 Proof.
   unfold change_owner_inner; intros; repeat invert_exec_no_match.
   unfold files_rep, files_inner_rep in *; simpl in *; cleanup_no_match.

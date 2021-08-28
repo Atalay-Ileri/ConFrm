@@ -200,12 +200,12 @@ Proof.
     unfold recover in *; repeat invert_exec; simpl in *.
     repeat invert_exec_lift_no_match.
     repeat cleanup_pairs.    
-    destruct s2, s1; simpl in *.
+    destruct s2, s1, p; simpl in *.
     edestruct IHn.
     3: apply H15.
     intros; eauto.
     intros; eauto.
-    instantiate (2:= (s0, (t2, t2))).
+    instantiate (2:= (s0, (Empty, (t4, t4)))).
     unfold refines, files_rep in *; simpl in *.
     cleanup; do 2 eexists; intuition eauto.
     eexists.
@@ -286,8 +286,8 @@ refines s1 fm1 ->
 refines s2 fm2 ->
 same_for_user_except u ex fm1 fm2 ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
-t1 = fst (snd s1) ->
-t2 = fst (snd s2) ->
+t1 = fst (snd (snd s1)) ->
+t2 = fst (snd (snd s2)) ->
 nth_error
 (value_to_bits
   (t1 Inode.InodeAllocatorParams.bitmap_addr))
@@ -310,9 +310,9 @@ Proof.
       Inode.inode_map_rep,
       Inode.InodeAllocator.block_allocator_rep in *.
       cleanup.
-      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H10.
+      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H8.
       cleanup; split_ors; cleanup; try congruence.
-      rewrite H4, H10 in D; simpl in *; congruence.
+      rewrite H4, H8 in D; simpl in *; congruence.
       rewrite nth_seln_eq in H3.
       repeat erewrite nth_error_nth'.
 
@@ -326,8 +326,8 @@ Proof.
       pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
 
       unfold file_map_rep in *; cleanup.
-      edestruct H9; exfalso.
-      apply H13; eauto; congruence.
+      edestruct H7; exfalso.
+      apply H11; eauto; congruence.
     }
     {
       edestruct H1; exfalso.
@@ -346,7 +346,7 @@ Proof.
     {
       unfold file_map_rep in *; cleanup.
       edestruct H3; exfalso.
-      apply H12; eauto; congruence.
+      apply H10; eauto; congruence.
     }
     {
       unfold Inode.inode_rep, 
@@ -362,7 +362,7 @@ Proof.
       cleanup; split_ors; cleanup; try congruence.
       rewrite nth_seln_eq in H19.
       rewrite H0, H19; eauto.
-      rewrite H14, H20 in D1; simpl in *; congruence.
+      rewrite H12, H20 in D1; simpl in *; congruence.
       all: try rewrite value_to_bits_length;
       unfold Inode.InodeAllocatorParams.num_of_blocks in *;
       pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
@@ -379,13 +379,13 @@ same_for_user_except u ex fm1 fm2 ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 nth_error
 (value_to_bits
-  (fst (snd s1) Inode.InodeAllocatorParams.bitmap_addr))
+  (fst (snd (snd s1)) Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
   Inode.owner (Inode.decode_inode
-(fst (snd s1) (Inode.InodeAllocatorParams.bitmap_addr + S inum))) =
+(fst (snd (snd s1)) (Inode.InodeAllocatorParams.bitmap_addr + S inum))) =
   Inode.owner
 (Inode.decode_inode
-(fst (snd s2) (Inode.InodeAllocatorParams.bitmap_addr + S inum))).
+(fst (snd (snd s2)) (Inode.InodeAllocatorParams.bitmap_addr + S inum))).
 Proof.
   unfold refines, files_rep, 
   files_inner_rep, same_for_user_except; intros.
@@ -399,7 +399,7 @@ Proof.
       destruct_fresh (x inum).
       eapply_fresh H5 in D0; eauto; cleanup.
       unfold file_map_rep in *; cleanup.
-      eapply_fresh H13 in D0; eauto.
+      eapply_fresh H10 in D0; eauto.
       eapply_fresh H14 in D; eauto.
       unfold file_rep in *; cleanup.
 
@@ -424,7 +424,7 @@ Proof.
       pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
 
       unfold file_map_rep in *; cleanup.
-      edestruct H8; exfalso.
+      edestruct H6; exfalso.
       apply H14; eauto; congruence.
     }
     {
@@ -460,8 +460,8 @@ nth_error
 (value_to_bits
   (t1 Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
-t1 = fst (snd s1) ->
-t2 = fst (snd s2) ->
+t1 = fst (snd (snd s1)) ->
+t2 = fst (snd (snd s2)) ->
   Inode.owner (Inode.decode_inode
 (t1 (Inode.InodeAllocatorParams.bitmap_addr + S inum))) =
   Inode.owner
@@ -480,8 +480,8 @@ Proof.
       destruct_fresh (x inum).
       eapply_fresh H7 in D0; eauto; cleanup.
       unfold file_map_rep in *; cleanup.
-      eapply_fresh H10 in D0; eauto.
-      eapply_fresh H14 in D; eauto.
+      eapply_fresh H8 in D0; eauto.
+      eapply_fresh H12 in D; eauto.
       unfold file_rep in *; cleanup.
 
       unfold Inode.inode_rep, 
@@ -506,7 +506,7 @@ Proof.
 
       unfold file_map_rep in *; cleanup.
       edestruct H4; exfalso.
-      apply H14; eauto; congruence.
+      apply H12; eauto; congruence.
     }
     {
       edestruct H1; exfalso.
@@ -523,7 +523,7 @@ Proof.
       eapply nth_error_nth in H3.
       rewrite <- nth_seln_eq in H3.
       rewrite H0 in H3; congruence.
-      rewrite H15, H17 in D; simpl in *; congruence.
+      rewrite H13, H17 in D; simpl in *; congruence.
 
       all: try rewrite value_to_bits_length;
       unfold Inode.InodeAllocatorParams.num_of_blocks in *;
@@ -540,18 +540,18 @@ same_for_user_except u ex x x0 ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 nth_error
 (value_to_bits
-  (fst (snd d') Inode.InodeAllocatorParams.bitmap_addr))
+  (fst (snd (snd d')) Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
 nth_error
  (Inode.block_numbers
     (Inode.decode_inode
-       (fst (snd d') (Inode.InodeAllocatorParams.bitmap_addr + S inum))))
+       (fst (snd (snd d')) (Inode.InodeAllocatorParams.bitmap_addr + S inum))))
  off = Some a ->
 off <
 length
 (Inode.block_numbers
 (Inode.decode_inode
-  (fst (snd s2)
+  (fst (snd (snd s2))
      (Inode.InodeAllocatorParams.bitmap_addr + S inum)))).
 Proof.
   unfold refines, files_rep, 
@@ -566,7 +566,7 @@ Proof.
       destruct_fresh (x1 inum).
       eapply_fresh H6 in D0; eauto; cleanup.
       unfold file_map_rep in *; cleanup.
-      eapply_fresh H14 in D0; eauto.
+      eapply_fresh H11 in D0; eauto.
       eapply_fresh H15 in D; eauto.
       unfold file_rep in *; cleanup.
 
@@ -591,7 +591,7 @@ Proof.
       pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
 
       unfold file_map_rep in *; cleanup.
-      edestruct H9; exfalso.
+      edestruct H7; exfalso.
       apply H15; eauto; congruence.
     }
     {
@@ -625,18 +625,18 @@ same_for_user_except u ex x x0 ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 nth_error
 (value_to_bits
-  (fst (snd d') Inode.InodeAllocatorParams.bitmap_addr))
+  (fst (snd (snd d')) Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
 nth_error
  (Inode.block_numbers
     (Inode.decode_inode
-       (fst (snd d') (Inode.InodeAllocatorParams.bitmap_addr + S inum))))
+       (fst (snd (snd d')) (Inode.InodeAllocatorParams.bitmap_addr + S inum))))
  off = None ->
 off >=
 length
 (Inode.block_numbers
 (Inode.decode_inode
-  (fst (snd s2)
+  (fst (snd (snd s2))
      (Inode.InodeAllocatorParams.bitmap_addr + S inum)))).
      Proof.
       unfold refines, files_rep, 
@@ -651,7 +651,7 @@ length
           destruct_fresh (x1 inum).
           eapply_fresh H6 in D0; eauto; cleanup.
           unfold file_map_rep in *; cleanup.
-          eapply_fresh H14 in D0; eauto.
+          eapply_fresh H11 in D0; eauto.
           eapply_fresh H15 in D; eauto.
           unfold file_rep in *; cleanup.
     
@@ -676,7 +676,7 @@ length
           pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds; try lia.
     
           unfold file_map_rep in *; cleanup.
-          edestruct H9; exfalso.
+          edestruct H7; exfalso.
           apply H15; eauto; congruence.
         }
         {
@@ -752,12 +752,12 @@ refines s2 fm ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 nth_error
 (value_to_bits
-  (fst (snd s2) Inode.InodeAllocatorParams.bitmap_addr))
+  (fst (snd (snd s2)) Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
 (nth off
     (Inode.block_numbers
         (Inode.decode_inode
-          (fst (snd s2) (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) 0)
+          (fst (snd (snd s2)) (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) 0)
   < DiskAllocatorParams.num_of_blocks.
   Proof.
     unfold refines, files_rep, 
@@ -777,7 +777,7 @@ inum = Some true ->
   
         eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H7.
         cleanup; split_ors; cleanup; try congruence.
-        rewrite H5, H10 in D; simpl in *; congruence.
+        rewrite H3, H10 in D; simpl in *; congruence.
 
         unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
         eapply_fresh H6 in D; eauto.
@@ -786,7 +786,7 @@ inum = Some true ->
         eapply_fresh H14 in D; eauto; cleanup.
 
         unfold DiskAllocator.block_allocator_rep in *.
-        rewrite H5, H10 in D; simpl in *; cleanup.
+        rewrite H3, H10 in D; simpl in *; cleanup.
 
         destruct_fresh (nth_error (Inode.block_numbers (Inode.decode_inode (seln x4 inum value0))) off).
         eapply_fresh H17 in D; cleanup.
@@ -832,20 +832,20 @@ refines s2 fm ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 off < length (Inode.block_numbers
 (Inode.decode_inode
-    (fst (snd s2)
+    (fst (snd (snd s2))
       (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) ->
 nth_error
 (value_to_bits
-  (fst (snd s2) Inode.InodeAllocatorParams.bitmap_addr))
+  (fst (snd (snd s2)) Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
 nth_error
     (value_to_bits
-      (fst (snd s2)
+      (fst (snd (snd s2))
           DiskAllocatorParams.bitmap_addr))
     (nth off
       (Inode.block_numbers
           (Inode.decode_inode
-            (fst (snd s2)
+            (fst (snd (snd s2))
                 (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) 0) = Some true.
 Proof.
   unfold refines, files_rep, 
@@ -865,7 +865,7 @@ Proof.
 
       eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H8.
       cleanup; split_ors; cleanup; try congruence.
-      rewrite H6, H11 in D; simpl in *; congruence.
+      rewrite H4, H11 in D; simpl in *; congruence.
 
       unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
       eapply_fresh H7 in D; eauto.
@@ -874,7 +874,7 @@ Proof.
       eapply_fresh H15 in D; eauto; cleanup.
 
       unfold DiskAllocator.block_allocator_rep in *.
-      rewrite H6, H11 in D; simpl in *; cleanup.
+      rewrite H4, H11 in D; simpl in *; cleanup.
 
       destruct_fresh (nth_error (Inode.block_numbers (Inode.decode_inode (seln x4 inum value0))) off).
       eapply_fresh H18 in D; cleanup.
@@ -936,18 +936,18 @@ refines s2 fm ->
 inum < Inode.InodeAllocatorParams.num_of_blocks ->
 off < length (Inode.block_numbers
 (Inode.decode_inode
-    (fst (snd s2)
+    (fst (snd (snd s2))
       (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) ->
 nth_error
 (value_to_bits
-  (fst (snd s2) Inode.InodeAllocatorParams.bitmap_addr))
+  (fst (snd (snd s2)) Inode.InodeAllocatorParams.bitmap_addr))
 inum = Some true ->
 DiskAllocatorParams.bitmap_addr +
 S
 (nth off
 (Inode.block_numbers
 (Inode.decode_inode
-  (fst (snd (fst s2, snd s2))
+  (fst (snd (snd (fst s2, snd s2)))
     (Inode.InodeAllocatorParams.bitmap_addr + S inum)))) 0) <
 FSParameters.data_length.
 Proof.
@@ -968,7 +968,7 @@ Proof.
 
       eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H8.
       cleanup; split_ors; cleanup; try congruence.
-      rewrite H6, H11 in D; simpl in *; congruence.
+      rewrite H4, H11 in D; simpl in *; congruence.
 
       unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
       eapply_fresh H7 in D; eauto.
@@ -977,7 +977,7 @@ Proof.
       eapply_fresh H15 in D; eauto; cleanup.
 
       unfold DiskAllocator.block_allocator_rep in *.
-      rewrite H6, H11 in D; simpl in *; cleanup.
+      rewrite H4, H11 in D; simpl in *; cleanup.
 
       destruct_fresh (nth_error (Inode.block_numbers (Inode.decode_inode (seln x4 inum value0))) off).
       eapply_fresh H18 in D; cleanup.
@@ -1069,7 +1069,7 @@ A1: nth_error
   (fst (snd _) Inode.InodeAllocatorParams.bitmap_addr))
 ?inum = Some true |- context [Compare_dec.lt_dec 
   (nth ?off (Inode.block_numbers (Inode.decode_inode
-  (fst (snd (fst ?s2, snd ?s2))
+  (fst (snd (snd (fst ?s2, snd ?s2)))
       (Inode.InodeAllocatorParams.bitmap_addr + S ?inum)))) ?def) ?c] ] =>
       pose proof A1 as A2;
       erewrite inode_allocations_are_same in A2;
@@ -1089,7 +1089,7 @@ A1: nth_error
       setoid_rewrite X
 end;
 try match goal with
-| [A: refines (_, (?t, _)) ?x,
+| [A: refines (_, (_, (?t, _))) ?x,
   A0: refines ?s2 ?x0,
   A1: same_for_user_except _ _ ?x ?x0
   |- exec' (Inode.owner (Inode.decode_inode (?t _))) _ _ _ _ ] =>
@@ -1104,7 +1104,8 @@ try match goal with
 |[A: refines ?x4 ?x,
   A0: refines ?s2 ?x0,
   A1: same_for_user_except _ _ ?x ?x0
-|- context[Some (Inode.owner (Inode.decode_inode (fst (snd (fst ?s2, snd ?s2)) _)))] ] =>
+|- context[Some (Inode.owner (Inode.decode_inode 
+(fst (snd (snd (fst ?s2, snd ?s2))) _)))] ] =>
   erewrite inode_owners_are_same with (s1:= x4)(s2:= s2);
   [| | | eauto | |];
   try match goal with
@@ -1127,7 +1128,7 @@ Ltac solve_termination :=
   H1: same_for_user_except _ _ ?x ?x0,
   A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
     eapply Termination_Sensitive_recover in A;
-    try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
+    try instantiate (1:= (fst s2, (Empty, (snd (snd (snd s2)), snd (snd (snd s2)))))) in A;
     unfold AD_valid_state, refines_valid, FD_valid_state; 
     intros; eauto
   end;
@@ -1221,7 +1222,7 @@ match goal with
     H1: same_for_user_except _ _ ?x ?x0,
     A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
       eapply Termination_Sensitive_recover in A;
-      try instantiate (1:= (fst s2, (fst (snd s2), fst (snd s2)))) in A;
+      try instantiate (1:= (fst s2, (Empty, (fst (snd (snd s2)), fst (snd (snd s2)))))) in A;
       unfold AD_valid_state, refines_valid, FD_valid_state; 
       intros; eauto
     end;
@@ -1273,7 +1274,7 @@ H0: refines ?s2 ?x0,
 H1: same_for_user_except _ _ ?x ?x0,
 A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
   eapply Termination_Sensitive_recover in A;
-  try instantiate (1:= (fst s2, (snd (snd s2), snd (snd s2)))) in A;
+  try instantiate (1:= (fst s2, (Empty, (snd (snd (snd s2)), snd (snd (snd s2)))))) in A;
   unfold AD_valid_state, refines_valid, FD_valid_state; 
   intros; eauto
 end;
@@ -1300,7 +1301,7 @@ try match goal with
   [A : recovery_exec _ _ _ (fst ?s2, _) _ _ _ ?s2' |- _] =>  
     exists (Recovered (extract_state_r s2'));
     econstructor_recovery; [|
-      instantiate (1 := (fst s2, (snd (snd s2), snd (snd s2)))); eauto ]
+      instantiate (1 := (fst s2, (Empty, (snd (snd (snd s2)), snd (snd (snd s2)))))); eauto ]
   end;
   repeat eapply bind_reorder_l;
   repeat (

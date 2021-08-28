@@ -456,7 +456,7 @@ Proof.
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
       (HorizontalComposition AuthenticationOperation
-        (TransactionalDiskLayer.TDOperation
+        (TransactionalDiskLayer.TDCore
             FSParameters.data_length)) ATCLang AD
       (HC_Core_Refinement ATCLang AD
         TDCoreRefinement) T
@@ -487,7 +487,7 @@ Proof.
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
       (HorizontalComposition AuthenticationOperation
-        (TransactionalDiskLayer.TDOperation
+        (TransactionalDiskLayer.TDCore
             FSParameters.data_length)) ATCLang AD
       (HC_Core_Refinement ATCLang AD
         TDCoreRefinement) T
@@ -541,7 +541,7 @@ Language.exec' u o s
            (HorizontalComposition AuthenticationOperation
               TransactionCacheOperation)
            (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDOperation
+              (TransactionalDiskLayer.TDCore
                  FSParameters.data_length)) ATCLang AD
            (HC_Core_Refinement ATCLang AD
               TDCoreRefinement) T
@@ -592,7 +592,7 @@ Proof.
         edestruct H1; eauto.
         unfold refines_reboot, Transaction.transaction_reboot_rep in *; 
         simpl in *; eauto.
-        exists (fst x, (snd x1, snd x1)); eauto.
+        exists (fst x, (Empty, (snd (snd x1), snd (snd x1)))); eauto.
       }
 
       eapply_fresh compile_lift2_comm in H13.
@@ -664,7 +664,7 @@ Proof.
         edestruct H1; eauto.
         unfold refines_reboot, Transaction.transaction_reboot_rep in *; 
         simpl in *; eauto.
-        exists (fst x, (snd x0, snd x0)); eauto.
+        exists (fst x, (Empty, (snd (snd x0), snd (snd x0)))); eauto.
       }
       
       edestruct H0; eauto.

@@ -24,8 +24,8 @@ Proof.
    {
     unfold refines, files_rep in *; cleanup.
      eapply_fresh TS_alloc_inode in H6; eauto.
-     2: setoid_rewrite H2; eauto.
-     2: setoid_rewrite H1; eauto.
+     2: setoid_rewrite H8; eauto.
+     2: setoid_rewrite H3; eauto.
      cleanup.
      destruct x2; simpl in *; try solve [intuition congruence].
     eapply_fresh Inode.alloc_finished_oracle_eq in H6; eauto.
@@ -40,8 +40,8 @@ Proof.
    {
     unfold refines, files_rep in *; cleanup.
     eapply_fresh TS_alloc_inode in H6; eauto.
-    2: setoid_rewrite H2; eauto.
-    2: setoid_rewrite H1; eauto.
+    2: setoid_rewrite H8; eauto.
+    2: setoid_rewrite H3; eauto.
     cleanup.
     destruct x2; simpl in *; try solve [intuition congruence].
    eapply_fresh Inode.alloc_finished_oracle_eq in H6; eauto.
@@ -60,14 +60,14 @@ Proof.
     {
       unfold refines, files_rep in *; logic_clean.
     eapply lift2_invert_exec in H10; logic_clean.
-    eapply_fresh TS_alloc_inode with (v':= own) in H8; eauto.
+    eapply_fresh TS_alloc_inode with (v':= own) in H10; eauto.
     logic_clean.
     destruct x2; simpl in *; try solve [intuition congruence].
-   eapply_fresh Inode.alloc_finished_oracle_eq in H8; eauto.
+   eapply_fresh Inode.alloc_finished_oracle_eq in H10; eauto.
 
    unfold files_inner_rep in *; logic_clean.
-   eapply_fresh Inode.alloc_finished in H8; eauto.
-   eapply_fresh Inode.alloc_finished in H9; eauto.
+   eapply_fresh Inode.alloc_finished in H10; eauto.
+   eapply_fresh Inode.alloc_finished in H11; eauto.
    cleanup; repeat split_ors; cleanup; try solve [intuition congruence].
    {
     repeat invert_step_crash.
@@ -76,7 +76,7 @@ Proof.
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
           eapply Termination_Sensitive_recover in A;
-          try instantiate (1:= (s0, (fst s, fst s))) in A;
+          try instantiate (1:= (s0, (_, (fst (snd s), fst (snd s))))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
      end.
@@ -95,6 +95,7 @@ Proof.
        FD_related_states in *; simpl;
        unfold refines, files_rep, files_crash_rep in *; simpl.
        do 2 eexists; split.
+      split; eauto.
       split; eauto.
       unfold files_inner_rep; eexists; split; eauto.
       eexists; split; eauto.
@@ -116,7 +117,7 @@ Proof.
           intros.
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H1, H3; eauto.
+          rewrite Mem.upd_eq in H1, H5; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -126,11 +127,12 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H3; eauto.
+            rewrite Mem.upd_ne in H1, H5; eauto.
           }
         }
       }
       split.
+      split; eauto.
       split; eauto.
       {
         unfold files_inner_rep; eexists; split; eauto.
@@ -151,7 +153,7 @@ Proof.
           intros.
           destruct (addr_dec inum x6); subst.
           {
-          rewrite Mem.upd_eq in H1, H3; eauto.
+          rewrite Mem.upd_eq in H1, H5; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -161,18 +163,18 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H3; eauto.
+            rewrite Mem.upd_ne in H1, H5; eauto.
           }
         }
       }
       {
         unfold same_for_user_except in *; cleanup.
         assert (x6 = x7). {
-          eapply FileInnerSpecs.inode_missing_then_file_missing in H21; eauto.
-          eapply FileInnerSpecs.inode_missing_then_file_missing in H11; eauto.
+          eapply FileInnerSpecs.inode_missing_then_file_missing in H23; eauto.
+          eapply FileInnerSpecs.inode_missing_then_file_missing in H14; eauto.
           destruct (Compare_dec.lt_dec x6 x7).
           {
-            exfalso; eapply H23; eauto.
+            exfalso; eapply H25; eauto.
             edestruct a.
             destruct_fresh (x3 x6); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
@@ -182,12 +184,12 @@ Proof.
           {
             apply PeanoNat.Nat.nlt_ge in n.
             inversion n; eauto.
-            exfalso; eapply H19 with (i:=x7).
+            exfalso; eapply H21 with (i:=x7).
             lia.
             edestruct a.
             destruct_fresh (x2 x7); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
-            exfalso; eapply H6; eauto.
+            exfalso; eapply H8; eauto.
             congruence.
           }
         }
@@ -204,23 +206,23 @@ Proof.
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H3, H4; eauto.
+          rewrite Mem.upd_eq in H5, H4; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H3, H4; eauto.
+            rewrite Mem.upd_ne in H5, H4; eauto.
           }
         }
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H3, H1; eauto.
+          rewrite Mem.upd_eq in H4, H1; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H3, H1; eauto.
+            rewrite Mem.upd_ne in H4, H1; eauto.
           }
         }
       }
@@ -232,7 +234,7 @@ Proof.
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
           eapply Termination_Sensitive_recover in A;
-          try instantiate (1:= (s0, (snd s, snd s))) in A;
+          try instantiate (1:= (s0, (_, (snd (snd s), snd (snd s))))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
      end.
@@ -266,7 +268,7 @@ Proof.
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
           eapply Termination_Sensitive_recover in A;
-          try instantiate (1:= (s0, (fst s, fst s))) in A;
+          try instantiate (1:= (s0, (_, (fst (snd s), fst (snd s))))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
      end.
@@ -289,6 +291,7 @@ Proof.
        unfold refines, files_rep, files_crash_rep in *; simpl.
        do 2 eexists; split.
       split; eauto.
+      split; eauto.
       unfold files_inner_rep; eexists; split; eauto.
       eexists; split; eauto.
       eapply DiskAllocator.block_allocator_rep_inbounds_eq.
@@ -309,7 +312,7 @@ Proof.
           intros.
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H1, H3; eauto.
+          rewrite Mem.upd_eq in H1, H5; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -319,11 +322,12 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H3; eauto.
+            rewrite Mem.upd_ne in H1, H5; eauto.
           }
         }
       }
       split.
+      split; eauto.
       split; eauto.
       {
         unfold files_inner_rep; eexists; split; eauto.
@@ -344,7 +348,7 @@ Proof.
           intros.
           destruct (addr_dec inum x6); subst.
           {
-          rewrite Mem.upd_eq in H1, H3; eauto.
+          rewrite Mem.upd_eq in H1, H5; eauto.
           cleanup.
           unfold file_rep; simpl; intuition eauto.
           assert (i1 < @length addr []). {
@@ -354,18 +358,18 @@ Proof.
           simpl in *; lia.
           }
           {
-            rewrite Mem.upd_ne in H1, H3; eauto.
+            rewrite Mem.upd_ne in H1, H5; eauto.
           }
         }
       }
       {
         unfold same_for_user_except in *; cleanup.
         assert (x6 = x7). {
-          eapply FileInnerSpecs.inode_missing_then_file_missing in H21; eauto.
-          eapply FileInnerSpecs.inode_missing_then_file_missing in H11; eauto.
+          eapply FileInnerSpecs.inode_missing_then_file_missing in H23; eauto.
+          eapply FileInnerSpecs.inode_missing_then_file_missing in H14; eauto.
           destruct (Compare_dec.lt_dec x6 x7).
           {
-            exfalso; eapply H23; eauto.
+            exfalso; eapply H25; eauto.
             edestruct a.
             destruct_fresh (x3 x6); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
@@ -375,12 +379,12 @@ Proof.
           {
             apply PeanoNat.Nat.nlt_ge in n.
             inversion n; eauto.
-            exfalso; eapply H19 with (i:=x7).
+            exfalso; eapply H21 with (i:=x7).
             lia.
             edestruct a.
             destruct_fresh (x2 x7); eauto.
             eapply FileInnerSpecs.inode_exists_then_file_exists in D; eauto; cleanup.
-            exfalso; eapply H6; eauto.
+            exfalso; eapply H8; eauto.
             congruence.
           }
         }
@@ -397,23 +401,23 @@ Proof.
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H3, H4; eauto.
+          rewrite Mem.upd_eq in H5, H4; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H3, H4; eauto.
+            rewrite Mem.upd_ne in H5, H4; eauto.
           }
         }
         {
           destruct (addr_dec inum x7); subst.
           {
-          rewrite Mem.upd_eq in H3, H1; eauto.
+          rewrite Mem.upd_eq in H4, H1; eauto.
           cleanup.
           simpl; intuition eauto.
           }
           {
-            rewrite Mem.upd_ne in H3, H1; eauto.
+            rewrite Mem.upd_ne in H4, H1; eauto.
           }
         }
       }
@@ -428,7 +432,7 @@ Proof.
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
           eapply Termination_Sensitive_recover in A;
-          try instantiate (1:= (s0, (snd s, snd s))) in A;
+          try instantiate (1:= (s0, (_, (snd (snd s), snd (snd s))))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
      end.
@@ -458,7 +462,7 @@ Proof.
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
           eapply Termination_Sensitive_recover in A;
-          try instantiate (1:= (s0, (snd s, snd s))) in A;
+          try instantiate (1:= (s0, (_, (snd (snd s), snd (snd s))))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
      end.
@@ -491,18 +495,18 @@ Proof.
       eapply lift2_invert_exec_crashed in H9; cleanup.
       unfold refines, files_rep in *; cleanup.
      eapply_fresh TS_alloc_inode in H6; eauto.
-     2: setoid_rewrite H2; eauto.
-     2: setoid_rewrite H1; eauto.
+     2: setoid_rewrite H8; eauto.
+     2: setoid_rewrite H3; eauto.
      cleanup.
      destruct x2; simpl in *; try solve [intuition congruence].
      eapply_fresh Inode.alloc_crashed in H6; eauto.
-     eapply_fresh Inode.alloc_crashed in H8; eauto.
+     eapply_fresh Inode.alloc_crashed in H10; eauto.
      destruct s2, s2.
      match goal with
         [H1: same_for_user_except _ _ ?x ?x0,
         A : recovery_exec' _ _ _ _ _ _ _ |- _] =>  
           eapply Termination_Sensitive_recover in A;
-          try instantiate (1:= (s0, (snd s, snd s))) in A;
+          try instantiate (1:= (s0, (_, (snd (snd s), snd (snd s))))) in A;
           unfold AD_valid_state, refines_valid, FD_valid_state; 
           intros; eauto
      end.
