@@ -6,6 +6,87 @@ Require Import Not_Init ATC_ORS ATC_TS.
 Import FileDiskLayer.
 Set Nested Proofs Allowed.
 
+Lemma same_for_user_except_reflexive :
+forall u ex s,
+same_for_user_except u ex s s.
+Proof.
+  unfold same_for_user_except, addrs_match_exactly; intros;
+  intuition; cleanup; eauto.
+Qed.
+
+
+Lemma data_block_inbounds:
+forall inum off s fm im dm inode,
+Inode.inode_rep im s ->
+File.DiskAllocator.block_allocator_rep dm s ->
+File.file_map_rep fm im dm ->
+im inum = Some inode ->
+off < length (Inode.block_numbers inode) ->
+File.DiskAllocatorParams.bitmap_addr +
+S (seln (Inode.block_numbers inode) off 0) <
+FSParameters.data_length.
+Proof.
+  intros.
+  cleanup; repeat cleanup_pairs.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H2; eauto.
+    cleanup.
+    
+      unfold Inode.inode_rep, 
+      Inode.inode_map_rep,
+      Inode.InodeAllocator.block_allocator_rep in *.
+      cleanup.
+
+      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H7.
+      cleanup; split_ors; cleanup; try congruence.
+      rewrite H5, H10 in H2; simpl in *; congruence.
+
+      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+      eapply_fresh H6 in H2; eauto.
+      cleanup.
+      unfold File.file_map_rep, File.file_rep in *; cleanup.
+      eapply_fresh H14 in H2; eauto; cleanup.
+
+      unfold File.DiskAllocator.block_allocator_rep in *.
+      rewrite H5, H10 in H2; simpl in *; cleanup.
+
+      destruct_fresh (nth_error (Inode.block_numbers (Inode.decode_inode (seln x2 inum value0))) off).
+      eapply_fresh H17 in D; cleanup.
+      eapply nth_error_nth with (d:= 0) in D; rewrite <- D in *.
+
+      eapply File.DiskAllocator.valid_bits_extract with (n:= (nth off
+      (Inode.block_numbers
+         (Inode.decode_inode (seln x2 inum value0)))
+      0)) in H18.
+      cleanup; split_ors; cleanup; try congruence.
+      pose proof File.DiskAllocatorParams.blocks_fit_in_disk.
+      unfold File.DiskAllocatorParams.bitmap_addr, File.DiskAllocatorParams.num_of_blocks in *. 
+
+      eapply Forall_forall in H13.
+      2: eapply nth_In; eauto.
+      instantiate (1:= 0) in H13.
+      apply PeanoNat.Nat.le_succ_l in H13.
+      eapply TSCommon.lt_le_lt; eauto.
+      rewrite nth_seln_eq; eauto.
+      
+
+      rewrite H19.
+      eapply Forall_forall in H13.
+      2: eapply nth_In; eauto.
+      instantiate (1:= 0) in H13.
+      pose proof File.DiskAllocatorParams.num_of_blocks_in_bounds.
+      eapply PeanoNat.Nat.lt_le_trans; eauto.
+
+      rewrite H19, value_to_bits_length. 
+      apply File.DiskAllocatorParams.num_of_blocks_in_bounds.
+      
+      apply nth_error_None in D; lia.
+      destruct (Compare_dec.lt_dec inum (length x2)); eauto.
+      rewrite H5, H9 in H2; simpl in *; try congruence; try lia.
+
+      rewrite H8, value_to_bits_length. 
+      apply Inode.InodeAllocatorParams.num_of_blocks_in_bounds.
+Qed.
+
 
 Theorem recovery_exec_termination_sensitive_bind:
   forall O (L: Language O) 
@@ -436,26 +517,39 @@ Proof.
   }
 Qed.
 
-
 Lemma ATC_ORS_read_inner:
-forall n u u' inum off,
+forall n u u' inum off im1 im2,
 oracle_refines_same_from_related ATC_Refinement u
 (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))
 (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))
 (Simulation.Definitions.compile FD.refinement (| Recover |))
 (ATC_reboot_list n) 
 (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
-File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
+(Inode.inode_rep im1 (fst (snd (snd s1))) /\
+     (exists file_block_map : disk value,
+        File.DiskAllocator.block_allocator_rep file_block_map
+          (fst (snd (snd s1))) /\
+        File.file_map_rep s1a im1 file_block_map)) /\
+  (Inode.inode_rep im2 (fst (snd (snd s2))) /\
+     (exists file_block_map : disk value,
+        File.DiskAllocator.block_allocator_rep file_block_map
+          (fst (snd (snd s2))) /\
+        File.file_map_rep s2a im2 file_block_map)) /\
 FD_related_states u' None s1a s2a).
 Proof.
   intros.
   Opaque Inode.get_block_number.
-  unfold File.read_inner; simpl.
+  unfold File.read_inner; simpl; cleanup.
   eapply ATC_ORS_compositional;
   try solve [intros; apply ATC_ORS_recover];
   try solve [apply oracle_refines_independent_from_reboot_function].
-  intros; apply ATC_ORS_get_block_number; eauto.
+  {
+    intros; eapply  ATC_ORS_equiv_impl.
+    apply ATC_ORS_get_block_number; eauto.
+
+    intros; unfold File.files_inner_rep; cleanup;
+    do 2 eexists; intuition eauto.
+  }
   {
     intros.
     unfold refines_related in *; cleanup.
@@ -473,23 +567,39 @@ Proof.
     eapply map_ext_eq in H; subst; 
     [| intros; cleanup; intuition congruence].
     unfold File.files_inner_rep in *; cleanup.
-    eapply_fresh Inode.get_block_number_finished_oracle_eq in H11; eauto.
+    eapply_fresh Inode.get_block_number_finished_oracle_eq in H15; eauto.
     cleanup.
     destruct r1, r2; try solve [intuition congruence].
     2: apply ATC_ORS_ret.
     simpl.
+    unfold File.files_inner_rep in *; cleanup.
+    eapply_fresh Inode.get_block_number_finished in H15; eauto.
+    eapply_fresh Inode.get_block_number_finished in H16; eauto.
+    repeat split_ors; cleanup; try congruence.
+    repeat split_ors; cleanup; try congruence.
     eapply ATC_ORS_compositional;
     try solve [intros; apply ATC_ORS_recover];
     try solve [apply oracle_refines_independent_from_reboot_function].
-
-    unfold File.files_inner_rep in *; cleanup.
-    eapply_fresh Inode.get_block_number_finished in H11; eauto.
-    eapply_fresh Inode.get_block_number_finished in H12; eauto.
-    repeat split_ors; cleanup; try congruence.
-    repeat split_ors; cleanup; try congruence.
-    intros; apply ATC_ORS_disk_block_allocator_read.
-    shelve.
     
+    intros; eapply ATC_ORS_equiv_impl.
+    apply ATC_ORS_disk_block_allocator_read.
+    shelve.
+    unfold File.files_inner_rep.
+
+    instantiate (2 := (fun s1 s2  => exists s1a s2a, 
+    (Inode.inode_rep im1 (fst (snd (snd s1))) /\
+     (exists file_block_map : disk value,
+        File.DiskAllocator.block_allocator_rep file_block_map
+          (fst (snd (snd s1))) /\
+        File.file_map_rep s1a im1 file_block_map)) /\
+  (Inode.inode_rep im2 (fst (snd (snd s2))) /\
+     (exists file_block_map : disk value,
+        File.DiskAllocator.block_allocator_rep file_block_map
+          (fst (snd (snd s2))) /\
+        File.file_map_rep s2a im2 file_block_map)) /\
+    FD_related_states u' None s1a s2a 
+    )).
+    intros; shelve.
     {
       intros; destruct r1, r2; apply ATC_ORS_ret.
     }
@@ -497,18 +607,18 @@ Proof.
     simpl in *; intros.
     unfold refines_related in *; cleanup.
     simpl in *.
-    eapply_fresh ATC_exec_lift_finished in H16; eauto;
+    eapply_fresh ATC_exec_lift_finished in H27; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
     try solve [apply not_init_read].
-    eapply_fresh ATC_exec_lift_finished in H18; eauto;
+    eapply_fresh ATC_exec_lift_finished in H29; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
     try solve [apply not_init_read].
     cleanup.
-    eapply_fresh lift2_invert_exec in H27; eauto; cleanup.
-    eapply_fresh lift2_invert_exec in H28; eauto; cleanup.
-    eapply_fresh ATC_oracle_refines_prefix_finished in H19; eauto.
+    eapply_fresh lift2_invert_exec in H43; eauto; cleanup.
+    eapply_fresh lift2_invert_exec in H44; eauto; cleanup.
+    eapply_fresh ATC_oracle_refines_prefix_finished in H29; eauto.
   {
     apply map_ext_eq in Hx; subst.
     2: intros; cleanup; intuition congruence.
@@ -525,11 +635,11 @@ Proof.
   }
   {
   intros; unfold refines_related in *; cleanup.
-  eapply ATC_exec_lift_finished in H16; eauto;
+  eapply ATC_exec_lift_finished in H27; eauto;
   try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
   try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
   cleanup.
-  eapply ATC_exec_lift_finished in H18; eauto;
+  eapply ATC_exec_lift_finished in H29; eauto;
   try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
   try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
   cleanup.
@@ -577,11 +687,11 @@ Proof.
 }
 {
 intros; unfold refines_related in *; cleanup.
-eapply ATC_exec_lift_crashed in H16; eauto;
+eapply ATC_exec_lift_crashed in H27; eauto;
 try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
 try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
 cleanup.
-eapply ATC_exec_lift_crashed in H18; eauto;
+eapply ATC_exec_lift_crashed in H29; eauto;
 try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
 try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
 cleanup.
@@ -603,8 +713,8 @@ intros; unfold refines_related in *; cleanup.
   try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
   try solve [apply not_init_read].
   cleanup.
-  eapply lift2_invert_exec in H9; eauto; cleanup.
-  eapply lift2_invert_exec in H11; eauto; cleanup.
+  eapply lift2_invert_exec in H13; eauto; cleanup.
+  eapply lift2_invert_exec in H15; eauto; cleanup.
   simpl in *.
   eapply_fresh ATC_oracle_refines_prefix_finished in H1; eauto.
   {
@@ -648,18 +758,33 @@ intros; unfold refines_related in *; cleanup.
     apply map_ext_eq in Hx; subst.
     2: intros; cleanup; intuition congruence.
     unfold File.files_inner_rep in *; cleanup.
-    eapply_fresh Inode.get_block_number_finished_oracle_eq in H15; eauto.
-    eapply Inode.get_block_number_finished in H13; eauto.
-    eapply Inode.get_block_number_finished in H15; eauto.
+    eapply_fresh Inode.get_block_number_finished_oracle_eq in H19; eauto.
+    eapply Inode.get_block_number_finished in H17; eauto.
+    eapply Inode.get_block_number_finished in H19; eauto.
     repeat split_ors; cleanup; try lia.
     repeat split_ors; cleanup; try lia;
-    try solve [intuition congruence];
-    do 2 eexists; intuition eauto;
-    eexists; intuition eauto;
+    try solve [intuition congruence].
+    do 2 eexists; intuition eauto.
+    eexists; intuition eauto.
+    all: try solve [eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+    intros; FileInnerSpecs.solve_bounds].
     eexists; intuition eauto.
     all: try solve [eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
     intros; FileInnerSpecs.solve_bounds].
     shelve.
+    (*
+    clear H26 H28.
+    do 2 eexists; intuition eauto.
+    eexists; intuition eauto;
+    eexists; intuition eauto.
+    all: try solve [eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+    intros; FileInnerSpecs.solve_bounds].
+    eexists; intuition eauto;
+    eexists; intuition eauto.
+    all: try solve [eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+    intros; FileInnerSpecs.solve_bounds].
+    *)
+    all: shelve.
     }
     all: shelve.
 }
@@ -701,11 +826,17 @@ do 2 eexists; repeat (split; eauto).
 all: shelve.
 }
 Unshelve.
+all: try exact u'.
 all: try solve [exact (fun _ _ => True)].
 all: try solve [simpl; eauto].
-all: try eapply have_same_structure_DiskAllocator_read; eauto.
-all: try eapply have_same_structure_get_block_number; eauto.
+all: try (eapply have_same_structure_DiskAllocator_read; eauto).
+all: try (eapply have_same_structure_get_block_number; eauto).
 all: try solve [eapply not_init_read_inner].
+
+all: try solve [
+unfold File.files_inner_rep in *; cleanup;
+repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto].
+
 all: repeat (simpl in *; try destruct t; simpl; eauto;
 simpl; 
 try match goal with 
@@ -714,39 +845,45 @@ try split; intros
 end).
 all: try solve [eapply not_init_get_block_number].
 all: try solve [eapply not_init_DiskAllocator_read].
-all: try solve [do 2 eexists; intuition eauto].
 all: try solve [
+  unfold File.files_inner_rep; do 2 eexists; intuition eauto;
+  eexists; intuition eauto;
+  repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto].
+all: try solve [
+  unfold File.files_inner_rep; 
   do 2 eexists; intuition eauto;
-  unfold FD_related_states in *;
-  apply TSCommon.same_for_user_except_symmetry; eauto].
-6:{
-  intros.
-     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H16; 
-     eauto; cleanup.
-     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H17; 
-     eauto; cleanup.
-     unfold FD_related_states, same_for_user_except in *; cleanup.
-     eapply_fresh H21 in H18; eauto; cleanup.
-     unfold File.file_map_rep in *; cleanup.
-     eapply H24 in H16; eauto.
-     eapply H25 in H17; eauto.
-     unfold File.file_rep in *; cleanup; eauto.
-}
-6:{
-  intros.
-     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H18; 
-     eauto; cleanup.
-     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H19; 
-     eauto; cleanup.
-     unfold FD_related_states, same_for_user_except in *; cleanup.
-     eapply_fresh H23 in H20; eauto; cleanup.
-     unfold File.file_map_rep in *; cleanup.
-     eapply H26 in H18; eauto.
-     eapply H27 in H19; eauto.
-     unfold File.file_rep in *; cleanup; eauto.
-}
-all:
-  try (eapply Inode.get_block_number_finished in H11; eauto;
+  try (eexists; intuition eauto);
+  try solve [unfold FD_related_states in *;
+  apply TSCommon.same_for_user_except_symmetry; eauto];
+  repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto].
+  9:{
+    intros.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H; 
+    eauto; cleanup.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H17; 
+    eauto; cleanup.
+    unfold FD_related_states, same_for_user_except in *; cleanup.
+    eapply_fresh H21 in H18; eauto; cleanup.
+    unfold File.file_map_rep in *; cleanup.
+    eapply H24 in H; eauto.
+    eapply H25 in H17; eauto.
+    unfold File.file_rep in *; cleanup; eauto.
+  }
+  11:{
+    intros.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H12; 
+    eauto; cleanup.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H14; 
+    eauto; cleanup.
+    unfold FD_related_states, same_for_user_except in *; cleanup.
+    eapply_fresh H23 in H20; eauto; cleanup.
+    unfold File.file_map_rep in *; cleanup.
+    eapply H26 in H12; eauto.
+    eapply H27 in H14; eauto.
+    unfold File.file_rep in *; cleanup; eauto.
+  }
+  all:
+  try solve [try (eapply Inode.get_block_number_finished in H11; eauto;
   eapply Inode.get_block_number_finished in H12; eauto;
   cleanup; repeat split_ors; cleanup; try congruence);
   unfold Inode.inode_rep, Inode.inode_map_rep,
@@ -769,8 +906,72 @@ all:
     eapply Forall_forall in H; [| eapply in_seln; eauto];
     eapply Forall_forall in H0; [| eapply in_seln; eauto]
   end;
-  unfold File.DiskAllocatorParams.num_of_blocks; intuition eauto.
+  unfold File.DiskAllocatorParams.num_of_blocks; intuition eauto].
+{
+  cleanup; do 2 eexists; intuition eauto.
+  repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
+}
+all: try solve [
+  unfold File.files_inner_rep; do 2 eexists; intuition eauto;
+  try solve [unfold FD_related_states in *;
+  apply TSCommon.same_for_user_except_symmetry; eauto] ].
+2: {
+  clear H26 H28.
+  unfold File.files_inner_rep; do 2 eexists; intuition eauto;
+  eexists; intuition eauto;
+  try solve [unfold FD_related_states in *;
+  apply TSCommon.same_for_user_except_symmetry; eauto].
+  all: eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+  intros; FileInnerSpecs.solve_bounds.
+}
+{
+  unfold File.files_inner_rep; do 2 eexists; intuition eauto.
+  apply same_for_user_except_reflexive.
+}
+Unshelve.
+all: eauto.
 Qed.
+
+
+Lemma ATC_ORS_explicit_inode_map:
+      forall n u u' inum off, 
+      (forall im1 im2,
+        oracle_refines_same_from_related ATC_Refinement u
+        (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))
+        (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))
+        (Simulation.Definitions.compile FD.refinement (| Recover |))
+        (ATC_reboot_list n) 
+        (fun s1 s2  => exists s1a s2a, 
+        (Inode.inode_rep im1 (fst (snd (snd s1))) /\
+            (exists file_block_map : disk value,
+                File.DiskAllocator.block_allocator_rep file_block_map
+                  (fst (snd (snd s1))) /\
+                File.file_map_rep s1a im1 file_block_map)) /\
+          (Inode.inode_rep im2 (fst (snd (snd s2))) /\
+            (exists file_block_map : disk value,
+                File.DiskAllocator.block_allocator_rep file_block_map
+                  (fst (snd (snd s2))) /\
+                File.file_map_rep s2a im2 file_block_map)) /\
+        FD_related_states u' None s1a s2a)) ->
+
+oracle_refines_same_from_related ATC_Refinement u
+(@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))
+(@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum))
+(Simulation.Definitions.compile FD.refinement (| Recover |))
+(ATC_reboot_list n) 
+(fun s1 s2  => exists s1a s2a, 
+  File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+  File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
+  FD_related_states u' None s1a s2a).
+
+  Proof.
+    unfold oracle_refines_same_from_related; intros.
+    unfold refines_related, File.files_inner_rep in *.
+    cleanup.
+    eapply H; eauto.
+    do 2 eexists; intuition eauto.
+    do 2 eexists; intuition eauto.
+  Qed.
 
 
 Lemma ATC_ORS_read:
@@ -825,6 +1026,7 @@ Proof.
       eapply ATC_ORS_compositional;
       try solve [intros; apply ATC_ORS_recover];
       try solve [apply oracle_refines_independent_from_reboot_function].
+      intros; eapply ATC_ORS_explicit_inode_map.
       intros; eapply ATC_ORS_read_inner.
       {
        intros.
@@ -884,7 +1086,7 @@ intros; unfold refines_related in *; cleanup.
   eapply_fresh lift2_invert_exec in H19; eauto; cleanup.
   eapply FileInnerSpecs.read_inner_finished in H23; eauto.
   eapply FileInnerSpecs.read_inner_finished in H25; eauto.
-  instantiate (1:= u') in H18.
+  instantiate (1:= u') in H18. 
   instantiate (1:= u').
   repeat invert_exec; try lia;
   simpl in *; cleanup; 
@@ -928,8 +1130,7 @@ unfold HC_refines_reboot; simpl.
 do 2 eexists; repeat (split; eauto).
 all: shelve.
 }
-    }
-    
+} 
   }
   {
     intros; repeat invert_exec.
@@ -1180,7 +1381,10 @@ exists oa : list (Language.token' AuthenticatedDiskLayer.ADOperation),
  oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation ATCLang AD
    ATC_CoreRefinement (option user) u s
    (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_owner inum)) grs o0 oa.
-Proof. Admitted.
+Proof.
+  intros.
+  eapply ATC_oracle_refines_finished; eauto.
+Qed.
 
 Lemma get_block_number_oracle_refines_exists:
      forall u (o0 : oracle' ATCCore) (s : state ATCLang)
@@ -1195,7 +1399,10 @@ exists oa : list (Language.token' AuthenticatedDiskLayer.ADOperation),
  oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation ATCLang AD
    ATC_CoreRefinement _ u s
    (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_block_number inum off)) grs o0 oa.
-Proof. Admitted.
+Proof. 
+  intros.
+  eapply ATC_oracle_refines_finished; eauto.
+Qed.
 
 Lemma read_inner_oracle_refines_exists:
 forall u (o0 : oracle' ATCCore) (s : state ATCLang)
@@ -1210,7 +1417,10 @@ forall grs : state ATCLang -> state ATCLang,
 oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation ATCLang AD
 ATC_CoreRefinement _ u s
 (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum)) grs o0 oa.
-Proof. Admitted.
+Proof. 
+  intros.
+  eapply ATC_oracle_refines_finished; eauto.
+Qed.
 
 
 Lemma ATC_TS_DiskAllocator_read:
@@ -1245,7 +1455,15 @@ Lemma ATC_TS_DiskAllocator_read:
      Transaction.get_first (fst (snd s1)) a = None <-> 
      Transaction.get_first (fst (snd s2)) a = None) /\
   (Transaction.get_first (fst (snd s1)) (File.DiskAllocatorParams.bitmap_addr + S a1) = None <-> 
-   Transaction.get_first (fst (snd s2)) (File.DiskAllocatorParams.bitmap_addr + S a2) = None))
+   Transaction.get_first (fst (snd s2)) (File.DiskAllocatorParams.bitmap_addr + S a2) = None) /\
+   nth_error
+            (value_to_bits
+               (upd_batch (snd (snd s1)) (rev (map fst (fst (snd s1))))
+               (rev (map snd (fst (snd s1)))) File.DiskAllocatorParams.bitmap_addr)) a1 =
+               nth_error
+            (value_to_bits
+               (upd_batch (snd (snd s2)) (rev (map fst (fst (snd s2))))
+               (rev (map snd (fst (snd s2)))) File.DiskAllocatorParams.bitmap_addr)) a2)
   (ATC_reboot_list n).
   Proof.
     unfold File.DiskAllocator.read; intros.
@@ -1267,17 +1485,16 @@ Lemma ATC_TS_DiskAllocator_read:
     unfold refines_related in *; simpl in *; cleanup.
     unfold HC_refines in *; simpl in *; cleanup.
     unfold TransactionToTransactionalDisk.Definitions.refines in *.
-    eapply Transaction.read_finished in H7; eauto.
     eapply Transaction.read_finished in H8; eauto.
+    eapply Transaction.read_finished in H9; eauto.
     cleanup; repeat split_ors; cleanup; try lia.
-    erewrite block_allocations_are_same. 
-    4: eauto.
-    all: eauto.
+    unfold Transaction.transaction_rep in *; cleanup.
+    setoid_rewrite H6.
     destruct_fresh (nth_error
     (value_to_bits
-       (fst (snd (snd x2))
-          File.DiskAllocatorParams.bitmap_addr))
-    a2); setoid_rewrite D.
+       (upd_batch (snd (snd s2)) (rev (map fst (fst (snd s2))))
+          (rev (map snd (fst (snd s2))))
+          File.DiskAllocatorParams.bitmap_addr)) a2); setoid_rewrite D.
     2: intros; apply ATC_TS_ret.
     {
       destruct b.
@@ -1304,7 +1521,7 @@ Lemma ATC_TS_DiskAllocator_read:
       unfold HC_refines in *; simpl in *; cleanup.
       unfold TransactionToTransactionalDisk.Definitions.refines in *.
       eapply Transaction.read_finished in H5; eauto.
-      eapply Transaction.read_finished in H11; eauto.
+      eapply Transaction.read_finished in H12; eauto.
       cleanup; intuition.
     }
     {
@@ -1314,10 +1531,66 @@ Lemma ATC_TS_DiskAllocator_read:
       unfold HC_refines in *; simpl in *; cleanup.
       unfold TransactionToTransactionalDisk.Definitions.refines in *.
       eapply Transaction.read_finished in H5; eauto.
-      eapply Transaction.read_finished in H11; eauto.
+      eapply Transaction.read_finished in H12; eauto.
       cleanup; intuition.
     }
   Qed.
+
+  Lemma ATC_TS_explicit_inode_map:
+  forall n u u' inum off, 
+  (forall im1 im2,
+  Termination_Sensitive u
+  (Simulation.Definitions.compile ATC_Refinement 
+  (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum)))
+  (Simulation.Definitions.compile ATC_Refinement
+  (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum)))
+    (Simulation.Definitions.compile ATC_Refinement File.recover)
+    (refines_valid ATC_Refinement
+     AD_valid_state)
+     (refines_related ATC_Refinement 
+     (fun s1 s2  => exists s1a s2a, 
+    (Inode.inode_rep im1 (fst (snd (snd s1))) /\
+        (exists file_block_map : disk value,
+            File.DiskAllocator.block_allocator_rep file_block_map
+              (fst (snd (snd s1))) /\
+            File.file_map_rep s1a im1 file_block_map)) /\
+      (Inode.inode_rep im2 (fst (snd (snd s2))) /\
+        (exists file_block_map : disk value,
+            File.DiskAllocator.block_allocator_rep file_block_map
+              (fst (snd (snd s2))) /\
+            File.file_map_rep s2a im2 file_block_map)) /\
+    FD_related_states u' None s1a s2a /\
+    fst (snd s1) = Empty /\
+    fst (snd s2) = Empty))
+    (ATC_reboot_list n)) ->
+
+
+    Termination_Sensitive u
+(Simulation.Definitions.compile ATC_Refinement 
+(@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum)))
+(Simulation.Definitions.compile ATC_Refinement
+(@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum)))
+  (Simulation.Definitions.compile ATC_Refinement File.recover)
+(refines_valid ATC_Refinement
+     AD_valid_state)
+(refines_related ATC_Refinement
+(fun s1 s2  => exists s1a s2a, 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
+FD_related_states u' None s1a s2a /\
+fst (snd s1) = Empty /\
+  fst (snd s2) = Empty))
+  (ATC_reboot_list n) .
+Proof.
+unfold Termination_Sensitive; intros.
+unfold refines_related, File.files_inner_rep in *.
+cleanup.
+eapply H.
+3: eauto.
+all: eauto.
+do 2 eexists; intuition eauto.
+do 2 eexists; intuition eauto.
+Qed.
 
 Lemma ATC_TS_read_inner:
     forall n inum off u u',
@@ -1346,6 +1619,8 @@ Lemma ATC_TS_read_inner:
   (ATC_reboot_list n).
   Proof.
     Transparent File.read_inner.
+    intros; 
+    eapply ATC_TS_explicit_inode_map.
     intros; unfold File.read_inner.
     eapply ATC_TS_compositional.
     intros; eapply TS_eqv_impl.
@@ -1367,18 +1642,18 @@ Lemma ATC_TS_read_inner:
       try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       cleanup.
       simpl in *.
-      eapply ATC_oracle_refines_impl_eq in H8; eauto.
+      eapply ATC_oracle_refines_impl_eq in H12; eauto.
       2: eapply have_same_structure_get_block_number; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
 
-      eapply lift2_invert_exec in H10;
-      eapply lift2_invert_exec in H12; cleanup.
-      apply map_ext_eq in H8; cleanup.
+      eapply lift2_invert_exec in H14;
+      eapply lift2_invert_exec in H16; cleanup.
+      apply map_ext_eq in H12; cleanup.
       2: intros; cleanup; intuition congruence.
 
       unfold File.files_inner_rep in *; cleanup.
-      eapply_fresh Inode.get_block_number_finished_oracle_eq in H16; eauto; subst.
+      eapply_fresh Inode.get_block_number_finished_oracle_eq in H20; eauto; subst.
       cleanup; destruct r1, r2; try solve [intuition congruence].
       2: intros; apply ATC_TS_ret.
       
@@ -1389,54 +1664,84 @@ Lemma ATC_TS_read_inner:
       eapply TS_eqv_impl. 
       eapply ATC_TS_DiskAllocator_read.
       {
-        eapply Inode.get_block_number_finished in H16; eauto.
-        eapply Inode.get_block_number_finished in H14; eauto.
+        eapply Inode.get_block_number_finished in H20; eauto.
+        eapply Inode.get_block_number_finished in H18; eauto.
         cleanup; repeat split_ors; cleanup; intuition eauto.
+        eapply SameRetType.all_block_numbers_in_bound in H29.
+        3: eauto.
+        all: eauto.
+        eapply Forall_forall in H29; eauto.
+        apply in_seln; eauto.
+
         eapply SameRetType.all_block_numbers_in_bound in H10.
         3: eauto.
         all: eauto.
         eapply Forall_forall in H10; eauto.
         apply in_seln; eauto.
-
-        eapply SameRetType.all_block_numbers_in_bound in H18.
-        3: eauto.
-        all: eauto.
-        eapply Forall_forall in H18; eauto.
-        apply in_seln; eauto.
       }
       {
-        eapply Inode.get_block_number_finished in H16; eauto.
-        eapply Inode.get_block_number_finished in H14; eauto.
+        eapply Inode.get_block_number_finished in H20; eauto.
+        eapply Inode.get_block_number_finished in H18; eauto.
+
         cleanup; repeat split_ors; cleanup; intuition eauto.
+      eapply data_block_inbounds; eauto.
+      eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+      intros; FileInnerSpecs.solve_bounds.
 
-        (*Prove something similar to TSCommon.data_block_inbounds *)
-        all: admit.
+      eapply data_block_inbounds.
+      4: eauto.
+      all: eauto.
+      eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+      intros; FileInnerSpecs.solve_bounds.
       }
       {
-        instantiate (2:= (fun s4 s5 : state ATCLang =>
-        refines_related ATC_Refinement
-          (fun s6 s7 : state AD =>
-           exists s1a s2a : disk File,
-             File.files_inner_rep s1a (fst (snd (snd s6))) /\
-             File.files_inner_rep s2a (fst (snd (snd s7))) /\
-             FD_related_states u' None s1a s2a /\
-             fst (snd s6) = Empty /\ fst (snd s7) = Empty) s4 s5)).
+        instantiate (2:= refines_related ATC_Refinement
+        (fun s1 s2  => 
+        exists s1a s2a, 
+        (Inode.inode_rep im1 (fst (snd (snd s1))) /\
+            (exists file_block_map,
+                File.DiskAllocator.block_allocator_rep file_block_map
+                  (fst (snd (snd s1))) /\
+                File.file_map_rep s1a im1 file_block_map)) /\
+          (Inode.inode_rep im2 (fst (snd (snd s2))) /\
+            (exists file_block_map,
+                File.DiskAllocator.block_allocator_rep file_block_map
+                  (fst (snd (snd s2))) /\
+                File.file_map_rep s2a im2 file_block_map)) /\
+        FD_related_states u' None s1a s2a /\
+        fst (snd s1) = Empty /\
+        fst (snd s2) = Empty)).
          
          simpl; intros.
          unfold refines_related in *.
          cleanup.
          split.
+         unfold File.files_inner_rep.
          do 2 eexists; intuition eauto.
-         simpl in *; unfold HC_refines in H19, H21; cleanup.
+         do 2 eexists; intuition eauto.
+
+         simpl in *; unfold HC_refines in H12, H21; cleanup.
          simpl in *; unfold TransactionToTransactionalDisk.Definitions.refines,
-         Transaction.transaction_rep  in *; cleanup; repeat split_ors; cleanup; try congruence.
+         Transaction.transaction_rep  in *; cleanup; 
+         repeat split_ors; cleanup; try congruence.
         eapply txn_length_0_empty in H34;
-        eapply txn_length_0_empty in H30; subst.
-        setoid_rewrite H30;
-        setoid_rewrite H34.
+        eapply txn_length_0_empty in H38; subst.
+        setoid_rewrite H34;
+        setoid_rewrite H38.
         simpl; intuition eauto.
+
+        rewrite H38, H34 in *; simpl in *.
+        eapply Inode.get_block_number_finished in H20; eauto.
+        eapply Inode.get_block_number_finished in H18; eauto.
+        cleanup; repeat split_ors; cleanup; intuition eauto.
+        repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
       }
       shelve.
+      {
+        unfold File.files_inner_rep in *; cleanup. 
+        do 2 eexists; intuition eauto.
+      }
+
     Unshelve.
     all: eauto.
     {
@@ -1483,35 +1788,36 @@ Lemma ATC_TS_read_inner:
       try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       cleanup.
       simpl in *.
-      eapply ATC_oracle_refines_impl_eq in H8; eauto.
+      eapply ATC_oracle_refines_impl_eq in H12; eauto.
       2: eapply have_same_structure_get_block_number; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
 
-      eapply lift2_invert_exec in H10;
-      eapply lift2_invert_exec in H12; cleanup.
-      apply map_ext_eq in H8; cleanup.
+      eapply lift2_invert_exec in H14;
+      eapply lift2_invert_exec in H16; cleanup.
+      apply map_ext_eq in H12; cleanup.
       2: intros; cleanup; intuition congruence.
       unfold File.files_inner_rep in *; cleanup.
-      eapply Inode.get_block_number_finished in H16; eauto.
-      eapply Inode.get_block_number_finished in H14; eauto.
+      eapply Inode.get_block_number_finished in H20; eauto.
+      eapply Inode.get_block_number_finished in H18; eauto.
       cleanup.
-      clear H14 H16.
+      clear H12 H20.
       do 2 eexists; intuition eauto.
       do 2 eexists; intuition eauto.
 
       eexists; intuition eauto. 
-      eexists; intuition eauto.
       eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
       intros; FileInnerSpecs.solve_bounds.
       
       eexists; intuition eauto. 
-      eexists; intuition eauto.
       eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
       intros; FileInnerSpecs.solve_bounds.
 
       setoid_rewrite H26; eauto.
       setoid_rewrite H22; eauto.
+
+      unfold File.files_inner_rep in *; cleanup. 
+      do 2 eexists; intuition eauto.
     }
     all: try solve [exact (fun _ _ => True)].
     all: simpl; eauto.
@@ -1549,7 +1855,9 @@ Lemma ATC_TS_read_inner:
        end.
        unfold File.file_rep in *; cleanup; eauto.
     }
-  Admitted.
+    Unshelve.
+    all: eauto.
+  Qed.
     Opaque File.read_inner.
 
     Lemma ATC_TS_read:

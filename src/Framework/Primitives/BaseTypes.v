@@ -79,6 +79,7 @@ length l = block_size ->
 value_to_bits (bits_to_value l) = l.
 
 Axiom value_to_bits_length : forall v, length (value_to_bits v) = block_size.
+Axiom value_to_bits_value0 : value_to_bits value0 = zero_bitlist.
 
 Lemma get_first_zero_index_false:
   forall l_b,

@@ -91,6 +91,126 @@ Proof.
 Qed.
 
 
+Lemma TS_DiskAllocator_read:
+forall o fm1 fm2 u' ex s1 s2 a1 a2 ret1 u,
+same_for_user_except u' ex fm1 fm2 ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
+(a1 < DiskAllocatorParams.num_of_blocks <->
+a2 < DiskAllocatorParams.num_of_blocks) ->
+(nth_error
+(value_to_bits
+   (fst (snd s1) DiskAllocatorParams.bitmap_addr))
+a1 = nth_error
+(value_to_bits
+   (fst (snd s2) DiskAllocatorParams.bitmap_addr))
+a2) ->
+(DiskAllocatorParams.bitmap_addr + S a1 <
+FSParameters.data_length <->
+DiskAllocatorParams.bitmap_addr + S a2 <
+FSParameters.data_length) ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (DiskAllocator.read a1) ret1 ->
+exists ret2, 
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (DiskAllocator.read a2) ret2 /\
+(extract_ret ret1 = None <-> extract_ret ret2 = None).
+Proof.  
+unfold DiskAllocator.read; intros.
+cleanup.
+{
+  repeat invert_step;
+  destruct (Compare_dec.lt_dec a2
+  DiskAllocatorParams.num_of_blocks); try lia.
+  {
+    eexists (Finished _ _); split.
+    repeat exec_step.
+    cleanup.
+    rewrite cons_app.
+    repeat econstructor; eauto.
+    lia.
+    simpl; intuition congruence.
+  }
+  {
+    eexists (Finished _ _); split.
+    repeat exec_step.
+    cleanup.
+    rewrite cons_app.
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+  }
+  {
+    eexists (Finished _ _); split.
+    repeat exec_step.
+    cleanup.
+    rewrite cons_app.
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+  }
+  {
+    repeat invert_step_crash; try solve [solve_illegal_state].
+    exists (Crashed s2); split.
+    repeat exec_step.
+    repeat eapply bind_reorder_l.    
+    rewrite cons_app;
+    eapply ExecBindCrash.
+    repeat cleanup_pairs;
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+
+    cleanup; try solve [solve_illegal_state];
+    repeat invert_step_crash; try solve [solve_illegal_state].
+
+    exists (Crashed s2); split.
+    repeat exec_step.
+    cleanup.
+    repeat eapply bind_reorder_l.    
+    rewrite cons_app;
+    eapply ExecBindCrash.
+    repeat cleanup_pairs;
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+
+    exists (Crashed s2); simpl; split.
+    repeat exec_step.
+    cleanup.
+    repeat eapply bind_reorder_l.
+    rewrite cons_app;
+    repeat econstructor; eauto.
+    lia.
+    simpl; intuition congruence.
+
+    exists (Crashed s2); split.
+    repeat exec_step.
+    cleanup.
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+
+    cleanup; try solve [solve_illegal_state];
+    repeat invert_step_crash; try solve [solve_illegal_state].
+    exists (Crashed s2); split.
+    repeat exec_step.
+    cleanup.
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+  } 
+}
+{
+  repeat invert_step;
+  destruct (Compare_dec.lt_dec a2
+  DiskAllocatorParams.num_of_blocks); try lia.
+  {
+    eexists; repeat exec_step.
+  }
+  {
+    repeat invert_step_crash; try solve [solve_illegal_state].
+    exists (Crashed s2); split.
+    repeat econstructor; eauto.
+    simpl; intuition congruence.
+  }
+}
+Qed.
+Opaque DiskAllocator.read.
+
+
 Lemma TS_get_inode:
 forall o fm1 fm2 u' ex s1 s2 inum ret1 u,
 same_for_user_except u' ex fm1 fm2 ->
@@ -419,6 +539,81 @@ all: eauto.
 Qed.
 Opaque Inode.get_owner.
 
+
+Lemma TS_get_block_number:
+forall o fm1 fm2 s1 s2 inum off ret1 u u' ex,
+same_for_user_except u' ex fm1 fm2 ->
+files_inner_rep fm1 (fst (snd s1)) ->
+files_inner_rep fm2 (fst (snd s2)) ->
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s1 (Inode.get_block_number inum off) ret1 ->
+exists ret2, 
+exec (TransactionalDiskLayer.TDLang FSParameters.data_length) u o s2 (Inode.get_block_number inum off) ret2 /\
+(extract_ret ret1 = None <-> extract_ret ret2 = None).
+Proof.
+Transparent Inode.get_block_number.  
+unfold Inode.get_block_number; intros.
+invert_step.
+{
+  eapply_fresh TS_get_inode in H2; eauto.
+  cleanup.
+  destruct x0; simpl in *; try solve [intuition congruence]. 
+  {
+    eapply Inode.get_inode_finished_oracle_eq in H2; eauto.
+    cleanup; destruct o; try solve [intuition congruence].
+    eexists; split.
+    repeat exec_step.
+    simpl; intuition congruence.
+  }
+}
+{
+  eapply_fresh TS_get_inode in H2; eauto.
+  cleanup.
+  destruct x0; simpl in *; try solve [intuition congruence]. 
+  {
+    eapply Inode.get_inode_finished_oracle_eq in H2; eauto.
+    cleanup; destruct o; try solve [intuition congruence].
+    eexists; split.
+    repeat exec_step.
+    simpl; intuition congruence.
+  }
+}
+{
+  repeat invert_step_crash.
+  eapply_fresh TS_get_inode in H2; eauto.
+  cleanup.
+  destruct x; simpl in *; try solve [intuition congruence]. 
+  {
+    exists (Crashed s0); split.
+    repeat exec_step.
+    eapply ExecBindCrash; eauto.
+    simpl; intuition eauto.
+  }
+  {
+    eapply_fresh TS_get_inode in H3; eauto.
+    cleanup;
+    destruct x3; simpl in *; try solve [intuition congruence]. 
+    {
+        repeat invert_step.
+        eapply Inode.get_inode_finished_oracle_eq in H3; eauto.
+        cleanup; destruct o; try solve [intuition congruence].
+        eexists; split.
+        repeat exec_step.
+        simpl; intuition congruence.
+    }
+    {
+        repeat invert_step.
+        eapply Inode.get_inode_finished_oracle_eq in H3; eauto.
+        cleanup; destruct o; try solve [intuition congruence].
+        eexists; split.
+        repeat exec_step.
+        simpl; intuition congruence.
+    }
+  } 
+}
+Unshelve.
+all: eauto.
+Qed.
+Opaque Inode.get_block_number.
 
 Lemma TS_get_all_block_numbers:
 forall o fm1 fm2 s1 s2 inum ret1 u u' ex,
@@ -882,6 +1077,7 @@ Proof.
       rewrite upd_ne in H.
       rewrite upd_eq in H; eauto.
       rewrite bits_to_value_to_bits_exact in H.
+      
       (*
       replace (firstn DiskAllocatorParams.num_of_blocks
                       (value_to_bits (s DiskAllocatorParams.bitmap_addr))) with

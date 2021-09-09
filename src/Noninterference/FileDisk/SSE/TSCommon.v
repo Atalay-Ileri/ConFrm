@@ -1318,3 +1318,169 @@ try match goal with
   repeat cleanup_pairs;
   repeat econstructor; eauto].
 
+
+  Lemma data_block_inbounds_2:
+forall inum off s fm im dm inode,
+Inode.inode_rep im s ->
+File.DiskAllocator.block_allocator_rep dm s ->
+File.file_map_rep fm im dm ->
+im inum = Some inode ->
+off < length (Inode.block_numbers inode) ->
+File.DiskAllocatorParams.bitmap_addr +
+S (seln (Inode.block_numbers inode) off 0) <
+FSParameters.data_length.
+Proof.
+  intros.
+  cleanup; repeat cleanup_pairs.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H2; eauto.
+    cleanup.
+    
+      unfold Inode.inode_rep, 
+      Inode.inode_map_rep,
+      Inode.InodeAllocator.block_allocator_rep in *.
+      cleanup.
+
+      eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H7.
+      cleanup; split_ors; cleanup; try congruence.
+      rewrite H5, H10 in H2; simpl in *; congruence.
+
+      unfold Inode.inode_map_valid, Inode.inode_valid in *; cleanup.
+      eapply_fresh H6 in H2; eauto.
+      cleanup.
+      unfold File.file_map_rep, File.file_rep in *; cleanup.
+      eapply_fresh H14 in H2; eauto; cleanup.
+
+      unfold File.DiskAllocator.block_allocator_rep in *.
+      rewrite H5, H10 in H2; simpl in *; cleanup.
+
+      destruct_fresh (nth_error (Inode.block_numbers (Inode.decode_inode (seln x2 inum value0))) off).
+      eapply_fresh H17 in D; cleanup.
+      eapply nth_error_nth with (d:= 0) in D; rewrite <- D in *.
+
+      eapply File.DiskAllocator.valid_bits_extract with (n:= (nth off
+      (Inode.block_numbers
+         (Inode.decode_inode (seln x2 inum value0)))
+      0)) in H18.
+      cleanup; split_ors; cleanup; try congruence.
+      pose proof File.DiskAllocatorParams.blocks_fit_in_disk.
+      unfold File.DiskAllocatorParams.bitmap_addr, File.DiskAllocatorParams.num_of_blocks in *. 
+
+      eapply Forall_forall in H13.
+      2: eapply nth_In; eauto.
+      instantiate (1:= 0) in H13.
+      apply PeanoNat.Nat.le_succ_l in H13.
+      eapply TSCommon.lt_le_lt; eauto.
+      rewrite nth_seln_eq; eauto.
+      
+
+      rewrite H19.
+      eapply Forall_forall in H13.
+      2: eapply nth_In; eauto.
+      instantiate (1:= 0) in H13.
+      pose proof File.DiskAllocatorParams.num_of_blocks_in_bounds.
+      eapply PeanoNat.Nat.lt_le_trans; eauto.
+
+      rewrite H19, value_to_bits_length. 
+      apply File.DiskAllocatorParams.num_of_blocks_in_bounds.
+      
+      apply nth_error_None in D; lia.
+      destruct (Compare_dec.lt_dec inum (length x2)); eauto.
+      rewrite H5, H9 in H2; simpl in *; try congruence; try lia.
+
+      rewrite H8, value_to_bits_length. 
+      apply Inode.InodeAllocatorParams.num_of_blocks_in_bounds.
+Qed.
+
+Set Nested Proofs Allowed.
+Lemma used_blocks_are_allocated_2:
+forall s off inum im inode dm fm,
+Inode.inode_rep im s ->
+File.DiskAllocator.block_allocator_rep
+     dm s ->
+     File.file_map_rep fm im dm ->
+im inum = Some inode ->
+off < length (Inode.block_numbers inode) ->
+nth_error
+  (value_to_bits
+    (s File.DiskAllocatorParams.bitmap_addr))
+  (seln (Inode.block_numbers inode) off 0) = Some true.
+Proof.
+intros.
+eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H2; eauto.
+cleanup.
+unfold Inode.inode_rep, Inode.inode_map_rep,
+Inode.inode_map_valid,
+Inode.inode_valid,
+Inode.InodeAllocator.block_allocator_rep in *; cleanup.
+match goal with
+     | [H: ?x1 ?inum = Some _,
+        H1: forall _ _, 
+        ?x1 _ = Some _ -> _ /\ _|- _] =>
+        eapply_fresh H1 in H; eauto; cleanup
+end.
+     
+match goal with
+| [H: Forall _ (Inode.block_numbers _)|- _] =>
+  eapply_fresh Forall_forall in H; [| eapply in_seln; eauto]
+end;
+unfold File.DiskAllocatorParams.num_of_blocks; intuition eauto.
+destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks).
+{
+  match goal with
+| [H: Inode.InodeAllocator.valid_bits
+_ _ (value_to_bits
+   (?s1
+      Inode.InodeAllocatorParams.bitmap_addr))
+?s1 |- _] =>
+eapply Inode.InodeAllocator.valid_bits_extract with (n:= inum) in H; eauto
+end.
+all: try solve [pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds;
+try rewrite value_to_bits_length;
+unfold Inode.InodeAllocatorParams.num_of_blocks in *; try lia].
+cleanup; split_ors; cleanup; try congruence.
+- rewrite H5, H13 in H2; simpl in *; congruence.
+- unfold File.file_map_rep, File.file_rep in *; cleanup.
+eapply_fresh a0 in H2; eauto; cleanup.
+
+unfold File.DiskAllocator.block_allocator_rep in *.
+cleanup.
+rewrite H5, H13 in H2; simpl in *; cleanup.
+
+destruct_fresh (nth_error (Inode.block_numbers (Inode.decode_inode (seln x2 inum value0))) off).
+eapply_fresh H15 in D; cleanup.
+eapply nth_error_nth with (d:= 0) in D; rewrite <- D in *.
+
+eapply File.DiskAllocator.valid_bits_extract with (n:= (nth off
+(Inode.block_numbers
+   (Inode.decode_inode (seln x2 inum value0)))
+0)) in v.
+cleanup; split_ors; cleanup; try congruence.
+erewrite nth_error_nth'; eauto.
+erewrite <- nth_seln_eq, <- H17; eauto.
+repeat rewrite nth_seln_eq; eauto.
+
+rewrite value_to_bits_length.
+pose proof File.DiskAllocatorParams.num_of_blocks_in_bounds.
+eapply PeanoNat.Nat.lt_le_trans; eauto.
+
+rewrite e0.
+rewrite <- nth_seln_eq.
+unfold File.DiskAllocatorParams.num_of_blocks in *;
+pose proof File.DiskAllocatorParams.num_of_blocks_in_bounds.
+eapply PeanoNat.Nat.lt_le_trans; eauto.
+
+rewrite e0, value_to_bits_length. 
+apply File.DiskAllocatorParams.num_of_blocks_in_bounds.
+
+apply nth_error_None in D; lia.
+}
+{
+  unfold Inode.inode_rep, Inode.inode_map_rep,
+    Inode.inode_map_valid,
+    Inode.inode_valid,
+    Inode.InodeAllocator.block_allocator_rep in *; cleanup.
+    
+    rewrite H5, H10 in *; 
+    simpl in *; try lia; try congruence.
+}
+Qed.

@@ -360,7 +360,14 @@ oracle_refines_same_from_related ATC_Refinement u
   (fun s1 s2  => exists s1a s2a, 
   File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
   File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
-  FD_related_states u' None s1a s2a).
+  FD_related_states u' None s1a s2a /\
+  (nth_error
+(value_to_bits
+   (fst (snd (snd s1))
+      File.DiskAllocatorParams.bitmap_addr)) bn1 = nth_error
+      (value_to_bits
+         (fst (snd (snd s2))
+            File.DiskAllocatorParams.bitmap_addr)) bn2)).
 Proof.
   Transparent File.DiskAllocator.read.
   unfold File.DiskAllocator.read; intros.
@@ -390,7 +397,7 @@ Proof.
     eapply ATC_exec_lift_finished in H0; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished].
     cleanup.
-    eapply ATC_exec_lift_crashed in H8; eauto;
+    eapply ATC_exec_lift_crashed in H9; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
     cleanup.
@@ -398,17 +405,17 @@ Proof.
     cleanup.
     repeat invert_exec; cleanup;
     repeat split_ors; cleanup; try congruence.
-    eapply HC_oracle_transformation_app_composed in H13; cleanup.
-    eapply HC_oracle_transformation_unique in H16; eauto; subst.
+    eapply HC_oracle_transformation_app_composed in H14; cleanup.
+    eapply HC_oracle_transformation_unique in H17; eauto; subst.
     eapply Transaction.read_finished_not_crashed; [eauto | | eauto].
     rewrite <-app_assoc; eauto.
 
-    eapply HC_oracle_transformation_app_composed in H13; cleanup.
-    eapply HC_oracle_transformation_unique in H16; eauto; subst.
+    eapply HC_oracle_transformation_app_composed in H14; cleanup.
+    eapply HC_oracle_transformation_unique in H17; eauto; subst.
     eapply Transaction.read_finished_not_crashed; [eauto | | eauto].
     rewrite <-app_assoc; eauto.
     simpl; intros; intuition eauto.
-    inversion H10.
+    inversion H11.
   }
   3: {
     intros; unfold refines_related in *; cleanup.
@@ -416,7 +423,7 @@ Proof.
     eapply ATC_exec_lift_finished in H0; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished].
     cleanup.
-    eapply ATC_exec_lift_crashed in H8; eauto;
+    eapply ATC_exec_lift_crashed in H9; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
     cleanup.
@@ -424,16 +431,16 @@ Proof.
     cleanup.
     repeat invert_exec; cleanup;
     repeat split_ors; cleanup; try congruence.
-    eapply HC_oracle_transformation_app_composed in H16; cleanup.
-    eapply HC_oracle_transformation_unique in H8; eauto; subst.
+    eapply HC_oracle_transformation_app_composed in H17; cleanup.
+    eapply HC_oracle_transformation_unique in H9; eauto; subst.
     eapply Transaction.read_finished_not_crashed; [eauto | | eauto].
     rewrite <-app_assoc; eauto.
-    eapply HC_oracle_transformation_app_composed in H16; cleanup.
-    eapply HC_oracle_transformation_unique in H8; eauto; subst.
+    eapply HC_oracle_transformation_app_composed in H17; cleanup.
+    eapply HC_oracle_transformation_unique in H9; eauto; subst.
     eapply Transaction.read_finished_not_crashed; [eauto | | eauto].
     rewrite <-app_assoc; eauto.
     simpl; intros; intuition eauto.
-    inversion H10.
+    inversion H11.
   }
   {
   intros; unfold refines_related in *; cleanup.
@@ -454,8 +461,6 @@ Proof.
     unfold refines, File.files_rep in *; cleanup.
     repeat cleanup_pairs.
     
-
-    erewrite block_allocations_are_same; eauto.
     destruct_fresh (nth_error (value_to_bits (t File.DiskAllocatorParams.bitmap_addr))
     bn2); try solve [apply ATC_ORS_ret].
     destruct b; try solve [apply ATC_ORS_ret].
@@ -480,7 +485,7 @@ Proof.
       simpl in *; cleanup; 
       repeat split_ors; cleanup; try congruence.
       {
-        eapply HC_oracle_transformation_id_rev in H22; eauto.
+        eapply HC_oracle_transformation_id_rev in H23; eauto.
         eapply HC_oracle_transformation_id_rev in H9; eauto.
         cleanup.
         eapply map_ext_eq_prefix in H10; eauto; cleanup.
@@ -488,7 +493,7 @@ Proof.
         intros; cleanup; intuition congruence.
       }
       {
-        eapply HC_oracle_transformation_id_rev in H22; eauto.
+        eapply HC_oracle_transformation_id_rev in H23; eauto.
         eapply HC_oracle_transformation_id_rev in H9; eauto.
         cleanup.
         eapply map_ext_eq_prefix in H10; eauto; cleanup.

@@ -1108,8 +1108,52 @@ Ltac unify_execs_prefix :=
             repeat (split_ors; cleanup; repeat unify_execs;
             repeat unify_execs_prefix; cleanup);
             try solve [eapply Transaction.write_finished_oracle_eq in H1; eauto; cleanup; eauto].
-            (* May need to change implementation of write to commit automatically *)
-            all: admit.
+            {
+              unfold Transaction.write in *; cleanup; try lia.
+              invert_exec; try lia.
+              invert_exec'' H; try lia.
+              repeat (invert_exec; try lia);
+              simpl in *; cleanup;
+              repeat cleanup_pairs; simpl in *; try lia. 
+              exfalso; eapply PeanoNat.Nat.lt_nge.
+              2: apply l2.
+              eauto.
+              invert_exec'' H; try lia.
+              invert_exec'' H12; try lia.
+              invert_exec'' H11; try lia.
+              exfalso; apply n; eauto.
+            }
+            {
+              unfold Transaction.write in *; cleanup; try lia.
+              invert_exec; try lia.
+              repeat (invert_exec; try lia);
+              simpl in *; cleanup;
+              repeat cleanup_pairs; simpl in *; try lia. 
+            }
+            {
+              unfold Transaction.write in *; cleanup; try lia.
+              invert_exec; try lia.
+              invert_exec'' H; try lia.
+              invert_exec'' H12; try lia.
+              invert_exec'' H11; try lia.
+              exfalso; eapply PeanoNat.Nat.lt_nge.
+              2: apply l1.
+              eauto.
+              invert_exec'' H; try lia.
+              invert_exec'' H12; try lia.
+              invert_exec'' H11; try lia.
+              invert_exec'' H0; try lia.
+              repeat (invert_exec; try lia).
+              simpl in *; cleanup.
+              exfalso; apply n0; eauto.
+            }
+            {
+              unfold Transaction.write in *; cleanup; try lia.
+              invert_exec; try lia.
+              repeat (invert_exec; try lia);
+              simpl in *; cleanup;
+              repeat cleanup_pairs; simpl in *; try lia. 
+            }
           }
           {
             repeat (split_ors; cleanup; repeat unify_execs;
@@ -1133,7 +1177,7 @@ Ltac unify_execs_prefix :=
           }
           Unshelve.
           all: eauto.
-        Admitted.
+        Qed.
       
     
     

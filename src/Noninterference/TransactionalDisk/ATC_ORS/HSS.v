@@ -49,23 +49,24 @@ Fixpoint have_same_structure {T T'} (p1: AD.(prog) T) (p2: AD.(prog) T') u s1 s2
     intuition eauto.
   Qed.
 
-  Lemma block_allocations_are_same:
-  forall (u : user) (fm1 fm2 : disk File) (s1 s2 : total_mem) 
-  (bn1 bn2 : nat) (ex : option addr),
-  File.files_inner_rep fm1 s1 ->
-  File.files_inner_rep fm2 s2 ->
-  same_for_user_except u ex fm1 fm2 ->
-  bn1 < File.DiskAllocatorParams.num_of_blocks ->
-  bn2 < File.DiskAllocatorParams.num_of_blocks ->
-  nth_error (value_to_bits (s1 File.DiskAllocatorParams.bitmap_addr)) bn1 =
-  nth_error (value_to_bits (s2 File.DiskAllocatorParams.bitmap_addr)) bn2.
-  Proof. Admitted.
+
+
   
   Lemma block_allocator_empty:
   forall bn,
   nth_error (value_to_bits value0) bn = Some false \/
   nth_error (value_to_bits value0) bn = None.
-  Proof. Admitted.
+  Proof.
+  intros.
+  rewrite value_to_bits_value0.
+  unfold zero_bitlist.
+  destruct_fresh (nth_error (repeat false block_size) bn); eauto.
+  eapply_fresh nth_error_length in D.
+  eapply_fresh nth_error_nth in D.
+  rewrite <- nth_seln_eq in Hx0.
+  rewrite repeat_seln' in Hx0; 
+  subst; eauto.
+  Qed.
 
 
   Lemma have_same_structure_InodeAllocator_read:
@@ -103,6 +104,13 @@ File.files_inner_rep s2a (fst (snd (snd s2))) /\
 FD_related_states u' None s1a s2a) s1 s2 ->
 (bn1 < File.DiskAllocatorParams.num_of_blocks <->
 bn2 < File.DiskAllocatorParams.num_of_blocks) ->
+(nth_error
+(value_to_bits
+   (fst (snd (snd s1))
+      File.DiskAllocatorParams.bitmap_addr)) bn1 = nth_error
+      (value_to_bits
+         (fst (snd (snd s2))
+            File.DiskAllocatorParams.bitmap_addr)) bn2) ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (File.DiskAllocator.read bn1))
 (@lift_L2 AuthenticationOperation _ TD _ (File.DiskAllocator.read bn2)) u s1 s2.
@@ -115,7 +123,7 @@ simpl; intuition eauto.
 repeat invert_exec; try lia.
 unfold AD_related_states, refines_related in *; cleanup; simpl in *.
 unfold refines, File.files_rep in *; cleanup.
-erewrite block_allocations_are_same; eauto.
+setoid_rewrite H1.
 destruct_fresh (nth_error (value_to_bits (fst (snd (snd s2)) File.DiskAllocatorParams.bitmap_addr)) bn2);
 setoid_rewrite D.
 destruct b; simpl; intuition eauto.
@@ -255,10 +263,78 @@ eauto; intros; FileInnerSpecs.solve_bounds.
   repeat split_ors; cleanup.
   shelve.
 }
+{
+  repeat split_ors; cleanup.
+  shelve.
+}
 
 destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 shelve.
 Unshelve.
 all: eauto.
-Admitted.
+{
+  intuition eauto.
+  eapply SameRetType.all_block_numbers_in_bound in H21.
+  3: eauto.
+  all: eauto.
+  eapply Forall_forall in H21; eauto.
+  apply in_seln; eauto.
+
+  eapply SameRetType.all_block_numbers_in_bound in H23.
+  2: eauto.
+  all: eauto.
+  eapply Forall_forall in H23; eauto.
+  apply in_seln; eauto.
+
+  eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+  intros; FileInnerSpecs.solve_bounds.
+}
+2: {
+  intros.
+  match goal with
+   | [H: _ ?inum = Some _,
+      H0: _ ?inum = Some _ |- _] =>
+   eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H; eauto; cleanup;
+   eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H0; eauto; cleanup
+   end.
+   unfold FD_related_states,
+   same_for_user_except in *; cleanup.
+   match goal with
+   | [H: ?fm1 ?inum = Some _,
+      H0: ?fm2 ?inum = Some _,
+      H1: forall (_: addr) (_ _: File), 
+       ?fm1 _ = Some _ ->
+       ?fm2 _ = Some _ ->
+       _ = _ /\ _ = _ |- _] =>
+       eapply_fresh H1 in H; eauto; cleanup
+  end.
+   unfold File.file_map_rep in *; cleanup.
+   match goal with
+   | [H: ?x1 ?inum = Some _,
+      H0: ?x2 ?inum = Some _,
+      H1: forall (_: Inode.Inum) _ _, 
+      ?x1 _ = Some _ ->
+      _ _ = Some _ -> _,
+      H2: forall (_: Inode.Inum) _ _, 
+      ?x2 _ = Some _ ->
+      _ _ = Some _ -> _ |- _] =>
+      eapply H1 in H; eauto; cleanup;
+      eapply H2 in H0; eauto; cleanup
+   end.
+   unfold File.file_rep in *; cleanup; eauto.
+}
+{
+destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks).
+- repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
+all: eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+intros; FileInnerSpecs.solve_bounds.
+- unfold Inode.inode_rep, Inode.inode_map_rep,
+Inode.inode_map_valid,
+Inode.inode_valid,
+Inode.InodeAllocator.block_allocator_rep in *; cleanup.
+
+rewrite H34, H39 in *; 
+simpl in *; try lia; try congruence.
+}
+Qed.
