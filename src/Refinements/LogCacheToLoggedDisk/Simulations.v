@@ -1,5 +1,5 @@
 Require Import Framework TotalMem FSParameters CachedDiskLayer.
-Require Import Log RepImplications Specs LogCache LoggedDiskLayer.
+Require Import Log Log.RepImplications Specs LogCache LoggedDiskLayer.
 Require Import LogCacheToLoggedDisk.Definitions LogCacheToLoggedDisk.AbstractOracles.
 Require Import ClassicalFacts FunctionalExtensionality Lia.
 
@@ -306,6 +306,7 @@ Proof.
           unfold cached_log_crash_rep in *; cleanup.
           split_ors.
           {
+            cleanup.
             eapply crash_rep_apply_to_reboot_rep in H1.
             repeat split_ors; edestruct recovery_simulation; eauto;
             try solve [eapply H3; eauto].
@@ -314,55 +315,98 @@ Proof.
               split.          
               eexists; intuition eauto.
               intros.
-              apply select_total_mem_synced in H2; eauto.
+              apply select_total_mem_synced in H6; eauto.
             }
             {
-              
               exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
               unfold logged_disk_reboot_list; simpl.
               eapply ExecRecovered.
               repeat econstructor.
+              assert (A: total_mem_map fst
+              (shift (Nat.add data_start)
+                 (list_upd_batch_set (snd (snd x1)) (map addr_list x)
+                    (map data_blocks x))) =
+                    total_mem_map fst
+          (shift (Nat.add data_start)
+             (list_upd_batch_set (select_total_mem t (snd (snd x1)))
+                (map addr_list x) (map data_blocks x)))). {
+              
               unfold refines, cached_log_rep in *; cleanup.
               unfold log_rep, log_reboot_rep, log_rep_general in *.
               logic_clean.
-              erewrite map_addr_list_eq_map_map; eauto.
-              rewrite shift_list_upd_batch_set_comm; eauto.
-              erewrite <- shift_select_total_mem_synced.      
-              repeat rewrite <- shift_list_upd_batch_set_comm.        
-              repeat erewrite <- map_addr_list_eq_map_map; eauto.
-              
-              all: try apply sumbool_agree_addr_dec.
+              rewrite <- H2.
 
-              (** TODO: Investigate this further **)
-              admit.
+              repeat rewrite total_mem_map_shift_comm.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+                 destruct (list_list_in_EXM addr_dec (map addr_list x) (data_start + a)); 
+                 try logic_clean.
+                 eapply list_upd_batch_in; eauto.
+                 eexists; split; eauto.
+                 apply in_seln; eauto.
+
+                 apply forall_forall2.
+                 apply Forall_forall; intros.
+                 rewrite <- combine_map in H21.
+                 apply in_map_iff in H21; logic_clean.
+                 unfold log_rep_explicit, log_rep_inner,
+                 txns_valid in *; logic_clean.
+                 eapply Forall_forall in H38; eauto.
+                 unfold txn_well_formed in H38; logic_clean; eauto.
+                 destruct x15; simpl in *.
+                 inversion H21; subst.
+                 rewrite H49, <- H53, firstn_length_l; eauto. 
+                 repeat rewrite map_length; eauto.
+                 
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 unfold total_mem_map, select_total_mem.
+                 rewrite select_for_addr_synced; simpl; eauto.
+                 eapply H4; eauto.
+                 lia.
+                 intros; logic_clean; eauto.
+                 eapply H18; eauto.
+                }
+                setoid_rewrite <- H2.
+                setoid_rewrite A; eauto.
             }
             {
               unfold refines_reboot, cached_log_reboot_rep; simpl.          
               split.
               eexists; intuition eauto.
               intros.
-              apply select_total_mem_synced in H2; eauto.
+              apply select_total_mem_synced in H6; eauto.
             }
             {
               exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
               unfold logged_disk_reboot_list; simpl.
               eapply ExecRecovered.
               repeat econstructor.
+              simpl in *; eauto.
+
+              assert (A: total_mem_map fst
+              (shift (Nat.add data_start)
+                 (snd (snd x1))) =
+                    total_mem_map fst
+          (shift (Nat.add data_start) (select_total_mem t (snd (snd x1)))
+                )). {
+              
               unfold refines, cached_log_rep in *; cleanup.
-              simpl in *.
               unfold log_rep, log_reboot_rep, log_rep_general in *.
               logic_clean.
-              (** XXXX
-              erewrite map_addr_list_eq_map_map; eauto.
-              rewrite shift_list_upd_batch_set_comm; eauto.
-              erewrite <- shift_select_total_mem_synced.      
-              repeat rewrite <- shift_list_upd_batch_set_comm.        
-              repeat erewrite <- map_addr_list_eq_map_map; eauto.
-              
-              all: try apply sumbool_agree_addr_dec.
-              intros; apply H5; lia.
-              **)
-              admit.
+
+              repeat rewrite total_mem_map_shift_comm.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 unfold total_mem_map, select_total_mem.
+                 rewrite select_for_addr_synced; simpl; eauto.
+                 eapply H5; eauto.
+                 lia.
+                }
+                setoid_rewrite A; eauto.
             }
           }
           {
@@ -382,18 +426,52 @@ Proof.
               unfold logged_disk_reboot_list; simpl.
               eapply ExecRecovered.
               repeat econstructor.
+              assert (A: total_mem_map fst
+              (shift (Nat.add data_start)
+                 (list_upd_batch_set (snd (snd x1)) (map addr_list x)
+                    (map data_blocks x))) =
+                    total_mem_map fst
+          (shift (Nat.add data_start)
+             (list_upd_batch_set (select_total_mem t (snd (snd x1)))
+                (map addr_list x) (map data_blocks x)))). {
+              
               unfold refines, cached_log_rep in *; cleanup.
               unfold log_rep, log_reboot_rep, log_rep_general in *.
               logic_clean.
-              erewrite map_addr_list_eq_map_map; eauto.
-              rewrite shift_list_upd_batch_set_comm; eauto.
-              erewrite <- shift_select_total_mem_synced.      
-              repeat rewrite <- shift_list_upd_batch_set_comm.        
-              repeat erewrite <- map_addr_list_eq_map_map; eauto.
-              
-              all: try apply sumbool_agree_addr_dec.
-              (** Investigate this further **)
-              admit.
+              rewrite <- H13.
+
+              repeat rewrite total_mem_map_shift_comm.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+                 destruct (list_list_in_EXM addr_dec (map addr_list x) (data_start + a)); 
+                 try logic_clean.
+                 eapply list_upd_batch_in; eauto.
+                 eexists; split; eauto.
+                 apply in_seln; eauto.
+
+                 apply forall_forall2.
+                 apply Forall_forall; intros.
+                 rewrite <- combine_map in H19.
+                 apply in_map_iff in H19; logic_clean.
+                 unfold log_rep_explicit, log_rep_inner,
+                 txns_valid in *; logic_clean.
+                 eapply Forall_forall in H36; eauto.
+                 unfold txn_well_formed in H36; logic_clean; eauto.
+                 destruct x15; simpl in *.
+                 inversion H19; subst.
+                 rewrite H47, <- H51, firstn_length_l; eauto. 
+                 repeat rewrite map_length; eauto.
+                 
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 unfold total_mem_map, select_total_mem.
+                 rewrite select_for_addr_synced; simpl; eauto.
+                 eapply H4; eauto.
+                 lia.
+                 intros; logic_clean; eauto.
+                 eapply H16; eauto.
+                }
+                setoid_rewrite A; eauto.
             }
           }        
         }
@@ -431,31 +509,59 @@ Proof.
           split.          
           eapply log_rep_to_reboot_rep in H1.
           eexists; intuition eauto.
-          intros.
-          apply select_total_mem_synced in H5; eauto.
+          apply select_total_mem_synced; eauto.
         }
         {
           exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
           unfold logged_disk_reboot_list; simpl.
           eapply ExecRecovered.
           repeat econstructor; eauto.
-          (** Nodup goal for write crash **)
-          admit.
-          (** Length goal for write crash **)
-          admit.
-          (** Bound goal for write crash **)
-          admit.
-          (** Log length goal for write crash **)
-          admit.  
           unfold refines, cached_log_rep in *; simpl in *; cleanup; eauto.
-          setoid_rewrite H2; eauto.
+          setoid_rewrite H7; eauto.
           {
             unfold log_rep, log_rep_general in H1.
-            
-            (** push shift inside then rewrite 
-                shift_select_total_mem_synced.
-             Too tired to do now. **)
-            admit.
+            assert (A: total_mem_map fst
+              (shift (Nat.add data_start)
+                 (list_upd_batch_set (snd (snd x1)) (map addr_list x)
+                    (map data_blocks x))) =
+                    total_mem_map fst
+          (shift (Nat.add data_start)
+             (list_upd_batch_set (select_total_mem t (snd (snd x1)))
+                (map addr_list x) (map data_blocks x)))). {
+              
+              unfold refines, cached_log_rep in *; cleanup.
+              unfold log_rep, log_reboot_rep, log_rep_general in *.
+              logic_clean.
+              repeat rewrite total_mem_map_shift_comm.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+                 destruct (list_list_in_EXM addr_dec (map addr_list x) (data_start + a)); 
+                 try logic_clean.
+                 eapply list_upd_batch_in; eauto.
+                 eexists; split; eauto.
+                 apply in_seln; eauto.
+
+                 apply forall_forall2.
+                 apply Forall_forall; intros.
+                 rewrite <- combine_map in H22.
+                 apply in_map_iff in H22; logic_clean.
+                 unfold log_rep_explicit, log_rep_inner,
+                 txns_valid in *; logic_clean.
+                 eapply Forall_forall in H39; eauto.
+                 unfold txn_well_formed in H39; logic_clean; eauto.
+                 destruct x14; simpl in *.
+                 inversion H22; subst.
+                 rewrite H50, <- H54, firstn_length_l; eauto. 
+                 repeat rewrite map_length; eauto.
+                 
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 unfold total_mem_map, select_total_mem.
+                 rewrite select_for_addr_synced; simpl; eauto.
+                 eapply H8; eauto.
+                 lia.
+                }
+                setoid_rewrite A; eauto.
           }
         }
       }
@@ -492,28 +598,19 @@ Proof.
             unfold refines_reboot, cached_log_reboot_rep; simpl.          
             split.       
             eexists; intuition eauto.
-            intros.
-            apply select_total_mem_synced in H6; eauto.
+            eapply select_total_mem_synced; eauto.
           }
           {
             exists (Recovered (extract_state_r x0)); simpl; intuition eauto.        
             unfold logged_disk_reboot_list; simpl.
             eapply ExecRecovered.
-            repeat econstructor; eauto.
-            (** Nodup goal for write crash **)
-            admit.
-            (** Length goal for write crash **)
-            admit.
-            (** Bound goal for write crash **)
-            admit.
-            (** Log length goal for write crash **)
-            admit.  
+            repeat econstructor; eauto. 
             unfold refines, cached_log_rep in *; simpl in *; cleanup; eauto.
             setoid_rewrite H4; eauto.
             }
           }
       }
     }
-Admitted.
+Qed.
 
 

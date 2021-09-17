@@ -48,6 +48,8 @@ Import FileDiskLayer.
       cleanup.
       simpl in *.
       cleanup.
+      specialize (H13 tt).
+      specialize (H16 tt).
       repeat invert_exec; cleanup;
       repeat split_ors; cleanup; try congruence.
       eapply HC_oracle_transformation_app_composed in H12; cleanup.
@@ -74,6 +76,8 @@ Import FileDiskLayer.
       cleanup.
       simpl in *.
       cleanup.
+      specialize (H13 tt).
+      specialize (H16 tt).
       repeat invert_exec; cleanup;
       repeat split_ors; cleanup; try congruence.
       eapply HC_oracle_transformation_app_composed in H15; cleanup.
@@ -106,6 +110,8 @@ Import FileDiskLayer.
       unfold AD_related_states, refines_related, FD_related_states in *; cleanup.
       clear H8 H9.
       simpl in *.
+      specialize (H10 tt).
+      specialize (H14 tt).
       unfold refines, File.files_rep in *; cleanup.
       repeat cleanup_pairs.
       erewrite InodeTS.inode_allocations_are_same with (s2:= t); eauto.
@@ -129,7 +135,9 @@ Import FileDiskLayer.
         try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
         cleanup.
         repeat invert_exec; try lia;
-        simpl in *; cleanup; 
+        simpl in *; cleanup;
+      specialize (H19 tt);
+      specialize (H22 tt);
         repeat split_ors; cleanup; try congruence.
         {
           eapply HC_oracle_transformation_id_rev in H21; eauto.
@@ -160,7 +168,9 @@ Import FileDiskLayer.
         try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
         cleanup.
         repeat invert_exec; try lia;
-        simpl in *; cleanup; 
+        simpl in *; cleanup;
+      specialize (H18 tt);
+      specialize (H21 tt);
         repeat split_ors; cleanup; try congruence;
         do 2 eexists; intuition eauto.
         all: shelve.
@@ -206,6 +216,8 @@ Import FileDiskLayer.
       clear H8 H9.
       simpl in *.
       unfold refines, File.files_rep in *; cleanup.
+      specialize (H8 tt);
+      specialize (H11 tt);
       repeat cleanup_pairs.
       destruct_fresh (nth_error (value_to_bits value0)
       inum); try solve [apply ATC_ORS_ret].
@@ -227,7 +239,10 @@ Import FileDiskLayer.
         try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
         cleanup.
         repeat invert_exec; try lia;
-        simpl in *; cleanup; 
+        simpl in *; cleanup;
+        
+      specialize (H19 tt);
+      specialize (H22 tt); 
         repeat split_ors; cleanup; try congruence.
         {
           eapply HC_oracle_transformation_id_rev in H21; eauto.
@@ -250,7 +265,10 @@ Import FileDiskLayer.
         try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
         cleanup.
         repeat invert_exec; try lia;
-        simpl in *; cleanup; 
+        simpl in *; cleanup;
+        
+      specialize (H18 tt);
+      specialize (H21 tt); 
         repeat split_ors; cleanup; try congruence;
         do 2 eexists; intuition eauto.
         all: shelve.
@@ -403,6 +421,9 @@ Proof.
     cleanup.
     simpl in *.
     cleanup.
+
+    specialize (H15 tt);
+    specialize (H18 tt);
     repeat invert_exec; cleanup;
     repeat split_ors; cleanup; try congruence.
     eapply HC_oracle_transformation_app_composed in H14; cleanup.
@@ -429,6 +450,9 @@ Proof.
     cleanup.
     simpl in *.
     cleanup.
+
+    specialize (H15 tt);
+    specialize (H18 tt);
     repeat invert_exec; cleanup;
     repeat split_ors; cleanup; try congruence.
     eapply HC_oracle_transformation_app_composed in H17; cleanup.
@@ -456,6 +480,10 @@ Proof.
   {
     simpl in *.
     unfold AD_related_states, refines_related, FD_related_states in *; cleanup.
+    
+    specialize (H12 tt);
+    specialize (H16 tt);
+    
     clear H9 H10.
     simpl in *.
     unfold refines, File.files_rep in *; cleanup.
@@ -482,7 +510,9 @@ Proof.
       try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       cleanup.
       repeat invert_exec; try lia;
-      simpl in *; cleanup; 
+      simpl in *; cleanup;
+      specialize (H21 tt);
+      specialize (H24 tt);
       repeat split_ors; cleanup; try congruence.
       {
         eapply HC_oracle_transformation_id_rev in H23; eauto.
@@ -525,7 +555,9 @@ Proof.
       try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       cleanup.
       repeat invert_exec; try lia;
-      simpl in *; cleanup; 
+      simpl in *; cleanup;
+      specialize (H20 tt);
+      specialize (H23 tt); 
       repeat split_ors; cleanup; try congruence;
       do 2 eexists; intuition eauto.
       all: shelve.

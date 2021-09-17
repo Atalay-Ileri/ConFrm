@@ -1163,7 +1163,123 @@ Proof.
   }
 Qed.
 
+(*
+Lemma crash_rep_apply_to_reboot_rep_2 :
+  forall s txns selector,
+    log_crash_rep (During_Apply txns) s ->
+    log_reboot_rep txns (fst s, select_total_mem selector (snd s)) \/
+    log_reboot_rep [] (fst s, select_total_mem selector (list_upd_batch_set (snd s) (map Log.addr_list txns)
+    (map data_blocks txns))).
+Proof. 
+   unfold non_colliding_selector, log_crash_rep, log_header_rep,
+  log_reboot_rep, log_rep_general, log_rep_explicit; intros; cleanup.
 
+  unfold log_header_block_rep in *; cleanup.
+  simpl in *.
+  cleanup.
+  
+  destruct (Nat.eq_dec (selector hdr_block_num) 1).
+  {(** Selector rolled back to old header **)
+    left.
+    eexists ?[hdr].
+    exists Current_Part.
+    exists (x0, nil).
+    exists (map (fun v => (v, nil)) (select_list_shifted log_start selector x1)).
+    simpl.    
+    repeat rewrite select_list_shifted_synced; simpl; eauto.
+    rewrite map_map; simpl.
+    repeat rewrite map_noop.
+    simpl; intuition eauto.
+    {
+      unfold select_total_mem, select_for_addr; simpl; cleanup; simpl; eauto.
+    }
+    {    
+      unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
+      intuition eauto.
+      {
+        rewrite H0; eauto.
+        rewrite select_for_addr_synced.
+        rewrite <- H5 in H10.
+        eapply in_seln in H10.
+        apply H4 in H10.
+        instantiate (1:= (value0, nil)) in H10.
+        destruct_fresh (seln x1 i (value0,[])).        
+        simpl in *; subst; eauto.
+        eapply H4.
+        eapply in_seln; lia.
+      }
+    }
+    {
+      rewrite H; eauto.
+    }
+    { congruence. }
+    {
+      unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
+      intros.
+      apply H4 in H10; destruct a; simpl in *; cleanup; eauto.
+    }
+    {
+      unfold log_data_blocks_rep, select_mem in *; cleanup_no_match; simpl in *; eauto.
+    }
+  }
+  { (** Selected the new header **)
+    right.
+    eexists ?[hdr].
+    exists Current_Part.
+    exists (select_for_addr selector hdr_block_num (x,[x0]), nil).
+    exists (x1).
+    simpl.
+    rewrite select_for_addr_not_1_latest in *; eauto.
+    simpl; intuition eauto.
+    {
+      unfold select_total_mem; simpl; cleanup; simpl; eauto.
+      rewrite list_upd_batch_set_not_in.
+      rewrite H3.
+      erewrite select_for_addr_not_1_latest; eauto.
+      unfold not; intros.
+      apply in_map_iff in H0; cleanup.
+      unfold log_rep_explicit, log_rep_inner,
+      txns_valid in *; logic_clean.
+      eapply Forall_forall in H11; eauto.
+      unfold txn_well_formed in H11; logic_clean; eauto.
+      eapply Forall_forall in H18; eauto.
+      pose proof hdr_before_log.
+      pose proof data_start_where_log_ends; cleanup;
+      lia.
+    }
+    {    
+      unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
+      intuition eauto.
+      rewrite list_upd_batch_set_not_in.
+      {
+        rewrite H0; eauto.
+        rewrite select_for_addr_synced.
+        rewrite <- H5 in H10.
+        eapply in_seln in H10.
+        apply H4 in H10.
+        instantiate (1:= (value0, nil)) in H10.
+        destruct_fresh (seln x1 i (value0,[])).
+        simpl in *; subst; eauto.
+        eapply H4.
+        eapply in_seln; lia.
+      }
+      {
+        unfold not; intros.
+      apply in_map_iff in H11; cleanup.
+      unfold log_rep_explicit, log_rep_inner,
+      txns_valid in *; logic_clean.
+      eapply Forall_forall in H14; eauto.
+      unfold txn_well_formed in H11; logic_clean; eauto.
+      eapply Forall_forall in H18; eauto.
+      pose proof hdr_before_log.
+      pose proof data_start_where_log_ends; cleanup;
+      lia.
+      }
+    } 
+    { congruence. }
+  }
+Qed.
+*)
 
 Lemma reboot_rep_to_reboot_rep_updated :
   forall s txns selector,

@@ -217,7 +217,7 @@ Proof.
     erewrite seln_map; eauto.
     erewrite seln_seq; eauto.
     all: try rewrite map_length, seq_length in *; eauto.
-    pose proof hdr_before_log; lia.
+
     intros Hx.
     apply H in Hx.
     pose proof data_start_where_log_ends.
@@ -1373,12 +1373,6 @@ Proof.
         rewrite map_length; eauto.
       }
       {
-        pose proof data_start_where_log_ends.
-        pose proof hdr_before_log.
-        setoid_rewrite H6 in H13.
-        lia.
-      }
-      {
         apply in_map_iff in H13; cleanup; eauto.
       }
       {
@@ -1643,7 +1637,6 @@ Proof.
         intuition.
         
         rewrite upd_ne; eauto.
-        pose proof hdr_before_log; lia.        
       }
       lia.
       {
@@ -1884,8 +1877,9 @@ Proof.
         
         rewrite seln_seq.
         rewrite log_start_eq; simpl.
-        replace (S (S (count (current_part (decode_header v0)) + (i - count (current_part (decode_header v0)))))) with (S (S i)) by lia; eauto.
         lia.
+        lia.
+
         rewrite skipn_seq.
         
         intros Hx; apply in_seq in Hx.
@@ -3768,8 +3762,6 @@ Proof.
           {
             unfold log_data_blocks_rep in *; simpl; intuition eauto.
             rewrite upd_ne; eauto.
-            pose proof hdr_before_log.
-            lia.
           }
           {
             destruct x0; eauto.
@@ -3848,8 +3840,6 @@ Proof.
             simpl; eauto.
             rewrite H; eauto.            
             rewrite <- H12; eauto.
-            pose proof hdr_before_log.
-            lia.
             apply in_map_iff in H10; cleanup; eauto.
             rewrite map_length; eauto.
           }

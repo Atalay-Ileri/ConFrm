@@ -33,6 +33,8 @@ eapply lift2_invert_exec in H2; cleanup.
 eapply lift2_invert_exec in H3; cleanup.
 apply HC_oracle_transformation_id in H6; subst.
 apply map_ext_eq in H0; eauto; subst.
+specialize (H7 tt).
+specialize (H10 tt).
 repeat split_ors; cleanup; eauto;
 repeat unify_execs; cleanup; eauto.
 intros; cleanup; intuition congruence.
@@ -45,6 +47,8 @@ simpl in *; try lia.
 specialize (H7 ATC_reboot_f).
 specialize (H4 ATC_reboot_f).
 cleanup.
+specialize (H7 tt).
+specialize (H10 tt).
 eapply HC_oracle_transformation_unique in H9; eauto.
 subst.
 eapply lift2_invert_exec in H2; cleanup.
@@ -58,6 +62,8 @@ intros; cleanup; intuition congruence.
 {
 eapply HC_oracle_transformation_unique in H12; 
 eauto; subst.
+specialize (H8 tt).
+specialize (H13 tt).
 eapply lift2_invert_exec_crashed in H2; cleanup.
 eapply lift2_invert_exec_crashed in H3; cleanup.
 apply HC_oracle_transformation_id in H7; subst.
@@ -180,6 +186,8 @@ Proof.
   eapply lift2_invert_exec in H3; cleanup.
   apply HC_oracle_transformation_id in H6; subst.
   apply map_ext_eq in H0; eauto; subst.
+  specialize (H7 tt).
+  specialize (H10 tt).
   repeat split_ors; cleanup; eauto;
   repeat unify_execs; cleanup; eauto.
   intros; cleanup; intuition congruence.
@@ -198,6 +206,8 @@ Proof.
   eapply lift2_invert_exec in H3; cleanup.
   apply HC_oracle_transformation_id in H6; subst.
   apply map_ext_eq in H0; eauto; subst.
+  specialize (H7 tt).
+  specialize (H10 tt).
   repeat split_ors; cleanup; eauto;
   repeat unify_execs; cleanup; eauto.
   intros; cleanup; intuition congruence.
@@ -211,6 +221,8 @@ Proof.
   apply map_ext_eq in H2; eauto; subst.
   eapply ATC_ORS_recover in H10.
   apply H10 in H5; subst.
+  specialize (H8 tt).
+  specialize (H13 tt).
   
   repeat split_ors; cleanup; eauto;
   repeat unify_execs; cleanup; eauto.
@@ -239,6 +251,8 @@ Proof.
     simpl in *; cleanup.
     unfold HC_refines, HC_refines_reboot in *; simpl in *;
     cleanup.
+    specialize (H8 tt).
+  specialize (H13 tt).
     repeat split_ors; cleanup; eauto;
     repeat unify_execs; cleanup; eauto.
     unfold TransactionToTransactionalDisk.Definitions.refines,
@@ -247,9 +261,9 @@ Proof.
     unfold Transaction.transaction_rep, 
     Transaction.transaction_reboot_rep in *;
     simpl in *; cleanup.
-    clear H6 H12.
+    clear H11 H16.
     repeat split_ors; cleanup; eauto.
-    - clear H18.
+    - clear H20.
     repeat unify_execs; cleanup; eauto.
     do 2 eexists; intuition eauto.
     shelve.
@@ -259,7 +273,7 @@ Proof.
     - repeat split_ors; subst; cleanup; eauto.
     all: repeat split_ors; cleanup; try lia.
     apply app_inj_tail in H16; cleanup; congruence.
-    - clear H18.
+    - clear H20.
     repeat unify_execs; cleanup; eauto.
     eexists (_, (_, (fst (snd (snd x1)), fst (snd (snd x1))))), 
     (_, (_, (fst (snd (snd x3)), fst (snd (snd x3))))); 
@@ -399,6 +413,8 @@ Proof.
   specialize (H7 ATC_reboot_f).
   specialize (H4 ATC_reboot_f).
   cleanup.
+  specialize (H7 tt).
+  specialize (H10 tt).
   eapply HC_oracle_transformation_unique in H9; eauto.
   subst.
   eapply lift2_invert_exec in H2; cleanup.
@@ -417,17 +433,23 @@ Proof.
   specialize (H7 ATC_reboot_f).
   specialize (H4 ATC_reboot_f).
   cleanup.
+  
+  simpl in *; repeat split_ors; cleanup; eauto;
+  repeat unify_execs; cleanup.
   eapply HC_oracle_transformation_unique in H9; eauto.
   subst.
   eapply lift2_invert_exec in H2; cleanup.
   eapply lift2_invert_exec in H3; cleanup.
   apply HC_oracle_transformation_id in H6; subst.
   apply map_ext_eq in H0; eauto; subst.
+  specialize (H7 tt).
+  specialize (H10 tt).
   repeat split_ors; cleanup; eauto;
   repeat unify_execs; cleanup; eauto.
   intros; cleanup; intuition congruence.
   }
   {
+    
   eapply HC_oracle_transformation_unique in H12; 
   eauto; subst.
   eapply lift2_invert_exec_crashed in H2; cleanup.
@@ -436,7 +458,8 @@ Proof.
   apply map_ext_eq in H2; eauto; subst.
   eapply ATC_ORS_recover in H10.
   apply H10 in H5; subst.
-  
+  specialize (H8 tt).
+  specialize (H13 tt).
   repeat split_ors; cleanup; eauto;
   repeat unify_execs; cleanup; eauto.
   
@@ -447,6 +470,8 @@ Proof.
     simpl in *; cleanup.
     unfold HC_refines, HC_refines_reboot in *; simpl in *;
     cleanup.
+    specialize (H8 tt).
+    specialize (H13 tt).
     repeat split_ors; cleanup; eauto;
     repeat unify_execs; cleanup; eauto.
     unfold TransactionToTransactionalDisk.Definitions.refines,

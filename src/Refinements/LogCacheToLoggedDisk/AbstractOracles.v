@@ -1,5 +1,5 @@
 Require Import Framework TotalMem FSParameters CachedDiskLayer.
-Require Import Log RepImplications Specs LogCache LoggedDiskLayer LogCacheToLoggedDisk.Definitions.
+Require Import Log Log.RepImplications Specs LogCache LoggedDiskLayer LogCacheToLoggedDisk.Definitions.
 Require Import ClassicalFacts FunctionalExtensionality Lia.
 
 Set Nested Proofs Allowed.
@@ -464,6 +464,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           all: try eapply log_rep_forall2_txns_length_match; eauto.
           all: unfold log_rep, log_rep_general; eauto.
           intros; apply H11; lia.
+          erewrite addr_list_to_blocks_length_eq; eauto.
+          rewrite map_length; eauto. 
         }
         (** Non-colliding selector goal **)
         admit.
@@ -491,6 +493,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         setoid_rewrite <- H11; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
         eapply log_rep_forall2_txns_length_match; eauto.
+        erewrite addr_list_to_blocks_length_eq; eauto.
+        rewrite map_length; eauto.
       }
       split_ors; cleanup.
       {
@@ -503,16 +507,17 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         right.
         eexists; left; intuition eauto.
         {
-          unfold cached_log_rep in H3; cleanup.
+          unfold cached_log_rep in *; cleanup.
           right; left; eauto.
           unfold cached_log_crash_rep in *;
           simpl in *; cleanup.
           eexists; intuition eauto.
-          setoid_rewrite <- H8.
-          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H3; eauto.
+          cleanup.
+          setoid_rewrite <- H8; eauto.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H12; eauto.
           repeat rewrite total_mem_map_shift_comm in *.
           repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
-          setoid_rewrite <- H3; eauto.
+          setoid_rewrite <- H12; eauto.
           eapply log_rep_forall2_txns_length_match; eauto.
           eapply log_rep_forall2_txns_length_match; eauto.
         }
@@ -593,18 +598,18 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           {
             split_ors.
             {
+              cleanup.
             eapply crash_rep_apply_to_reboot_rep in H1.
             split_ors;
             eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
-            eexists; intuition eauto.
-            eapply select_total_mem_synced in H8; eauto.
-            eapply select_total_mem_synced in H8; eauto.
+            eexists; intuition eauto;
+            eapply select_total_mem_synced in H13; eauto.
             }
             {
               eapply log_rep_to_reboot_rep in H1.
             eexists; unfold refines_reboot, cached_log_reboot_rep; simpl;
             eexists; intuition eauto.
-            eapply select_total_mem_synced in H8; eauto.
+            eapply select_total_mem_synced in H9; eauto.
             }
           }
           {

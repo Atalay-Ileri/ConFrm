@@ -816,7 +816,7 @@ Proof.
 Qed.
 
 
-  Lemma count_trues_upd:
+  Lemma count_trues_upd_true:
   forall l a,
   seln l a false = false ->
   a < length l ->
@@ -827,8 +827,20 @@ Qed.
     destruct a; eauto;
     erewrite IHl; eauto; lia.
   Qed.
+  
+  Lemma count_trues_upd_false:
+  forall l a,
+  seln l a false = true ->
+  a < length l ->
+  S (count_trues (updn l a false)) = count_trues l.
+  Proof.
+    induction l; simpl; intros; try lia.
+    destruct a0; simpl in *; subst; eauto.
+    destruct a; eauto;
+    erewrite IHl; eauto; lia.
+  Qed.
 
-  Lemma count_trues_upd_list:
+  Lemma count_trues_upd_list_true:
   forall l_a l,
   (forall a, In a l_a -> seln l a false = false) ->
   Forall (fun a => a < length l) l_a ->
@@ -838,11 +850,41 @@ Qed.
     induction l_a; simpl; intros; try lia.
     inversion H0; clear H0; subst.
     inversion H1; clear H1; subst.
-    erewrite count_trues_upd.
+    erewrite count_trues_upd_true.
     rewrite IHl_a; eauto.
     erewrite seln_repeated_apply_updn; eauto.
     rewrite repeated_apply_length; intros; eauto.
     apply updn_length.
+  Qed.
+
+  Lemma count_trues_upd_list_false:
+  forall l_a l,
+  (forall a, In a l_a -> seln l a false = true) ->
+  Forall (fun a => a < length l) l_a ->
+  NoDup l_a -> 
+  length l_a + count_trues (repeated_apply (fun l a => updn l a false) l l_a) 
+  = count_trues l.
+  Proof.
+    induction l_a; simpl; intros; try lia.
+    inversion H0; clear H0; subst.
+    inversion H1; clear H1; subst.
+    rewrite <- PeanoNat.Nat.add_succ_r.
+    erewrite count_trues_upd_false.
+    rewrite IHl_a; eauto.
+    erewrite seln_repeated_apply_updn; eauto.
+    rewrite repeated_apply_length; intros; eauto.
+    apply updn_length.
+  Qed.
+
+  Lemma firstn_repeated_apply_comm:
+  forall T l_a n (b: T) l,
+  firstn n (repeated_apply (fun l a => updn l a b) l l_a) =
+  repeated_apply (fun l a => updn l a b) (firstn n l) l_a.
+  Proof.
+    induction l_a; simpl; eauto.
+    intros.
+    rewrite updn_firstn_comm; eauto.
+    rewrite IHl_a; eauto.
   Qed.
 
 Set Nested Proofs Allowed.
@@ -879,7 +921,7 @@ Proof.
            (updn (value_to_bits (s DiskAllocatorParams.bitmap_addr))
               a false)) DiskAllocatorParams.bitmap_addr))) a true).
 
-  erewrite count_trues_upd.
+  erewrite count_trues_upd_true.
   lia.
   rewrite seln_firstn.
   rewrite upd_eq.
@@ -1035,6 +1077,19 @@ Lemma file_map_rep_delete_file:
 
     Qed.
 
+Lemma get_all_file_sizes_up_to_delete_oob:
+forall n a fm,
+a > n ->
+get_all_file_sizes_up_to (Mem.delete fm a) n =
+get_all_file_sizes_up_to fm n.
+Proof.
+  induction n; simpl; intros; eauto;
+  rewrite delete_ne; eauto.
+  lia.
+  rewrite IHn; lia.
+  lia.
+Qed.
+
 
 Lemma block_counts_up_to_le:
 forall n fm im bm s,
@@ -1068,36 +1123,42 @@ Proof.
     eapply H6; eauto; congruence.
   }
   {
-    destruct_fresh (fm (S n)); try lia.
     destruct_fresh (im (S n)).
     {
+    edestruct FileInnerSpecs.inode_exists_then_file_exists; eauto.
+    cleanup.
+    
       eapply file_map_rep_delete_file in H; eauto.
       cleanup.
       eapply IHn in H; eauto.
       rewrite upd_ne in H.
       rewrite upd_eq in H; eauto.
       rewrite bits_to_value_to_bits_exact in H.
-      
-      (*
-      replace (firstn DiskAllocatorParams.num_of_blocks
-                      (value_to_bits (s DiskAllocatorParams.bitmap_addr))) with
-      (_).
-    
-      eapply count_trues_ge_all_some; eauto.
-      eapply Forall_forall; intros.
-      eapply in_seln_exists in H11; cleanup.
-      rewrite nth_seln_eq in H12.
-      eapply nth_error_nth' in H11.
-      apply H8 in H11; cleanup; try congruence.
-      rewrite H12 in H13; congruence.
+      rewrite get_all_file_sizes_up_to_delete_oob in H; eauto.
+
+
+      assert (A: length (blocks x) + count_trues
+      (firstn DiskAllocatorParams.num_of_blocks
+         (repeated_apply (fun (l : list bool) (a : nat) => updn l a false)
+            (value_to_bits (s DiskAllocatorParams.bitmap_addr))
+            (Inode.block_numbers i))) >=
+            length (blocks x) + get_all_file_sizes_up_to fm n) by lia.
+      rewrite firstn_repeated_apply_comm in A.
+      assume (Ax: (length (blocks x) = length (Inode.block_numbers i))).
+      rewrite Ax in A.
+      erewrite count_trues_upd_list_false in A.
+      lia.
+
+      all: shelve. (* Solvable *)
     }
-    edestruct H; exfalso.
-    eapply H6; eauto; congruence.
-    
+    {
+      eapply FileInnerSpecs.inode_missing_then_file_missing in D; eauto.
+      cleanup.
+      simpl; eauto.
+    }
   }
   Unshelve.
   all: eauto.
-*)
 Admitted.
 
 Lemma block_counts_ge:

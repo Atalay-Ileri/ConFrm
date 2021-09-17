@@ -722,6 +722,8 @@ Ltac unify_execs_prefix :=
           specialize (H7 ATC_reboot_f).
           specialize (H4 ATC_reboot_f).
           cleanup.
+          specialize (H7 tt).
+          specialize (H10 tt).
           repeat invert_exec; simpl in *; cleanup.
           inversion H0; inversion H4; subst; clear H0 H4.
           inversion H9; inversion H1; subst; clear H9 H1.
@@ -750,6 +752,8 @@ Ltac unify_execs_prefix :=
             specialize (H7 ATC_reboot_f).
             specialize (H4 ATC_reboot_f).
             cleanup.
+            specialize (H7 tt).
+            specialize (H10 tt).
             repeat invert_exec; simpl in *; cleanup.
             inversion H0; inversion H4; subst; clear H0 H4.
             inversion H9; inversion H1; subst; clear H9 H1.
@@ -770,9 +774,9 @@ Ltac unify_execs_prefix :=
           {
             cleanup.
             repeat invert_exec; simpl in *; cleanup.
-
-            repeat 
-            split_ors; cleanup;
+            specialize (H8 tt).
+            specialize (H13 tt).
+            repeat split_ors; cleanup;
             repeat invert_exec; simpl in *; cleanup; eauto.
             {
               eapply IHn in H5.
@@ -987,6 +991,7 @@ Ltac unify_execs_prefix :=
         induction p; simpl; intuition eauto.
         {
           cleanup.
+          specialize (H3 tt).
           eexists; intuition eauto.
           eexists; intuition eauto.
           destruct x; simpl in *; cleanup; try congruence.
@@ -1233,12 +1238,14 @@ Ltac unify_execs_prefix :=
         {
           unfold HC_token_refines in *; cleanup;
           simpl in *; cleanup; eauto.
+          specialize (H10 tt).
+          specialize (H12 tt).
           eapply_fresh HC_oracle_transformation_prefix_l in H11; eauto; cleanup.
           eapply lift2_invert_exec in H3; cleanup.
           eapply lift2_invert_exec in H4; cleanup.
           eapply_fresh HC_oracle_transformation_id in H11; eauto; subst.
           eapply_fresh HC_oracle_transformation_id in H9; eauto; subst.
-          assert (x2 = x5 /\ x4 = x1). {
+          assert (x2 = x4 /\ x3 = x1). {
             eapply H6; eauto.
           }
           cleanup; eauto.
@@ -1347,13 +1354,15 @@ Ltac unify_execs_prefix :=
           induction p1; simpl; intros. 
           {
             repeat (simpl in *; cleanup; try tauto; eauto).
+            specialize (H12 tt).
+            specialize (H14 tt).
             eapply lift2_invert_exec in H1; cleanup.
             eapply lift2_invert_exec in H2; cleanup.
             eapply HC_oracle_transformation_id in H11.
             eapply HC_oracle_transformation_id in H13.
             eapply map_ext_eq_prefix in H9; cleanup.
             2: intros; cleanup; intuition congruence.
-            assert (x1 = x4). {
+            assert (x1 = x3). {
               eapply H5; eauto.
             }
             subst; eauto.

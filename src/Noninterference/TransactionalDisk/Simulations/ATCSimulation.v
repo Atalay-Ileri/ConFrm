@@ -76,6 +76,8 @@ Proof.
       eexists (RFinished _ _); split.
       repeat econstructor; eauto.
       simpl; intuition eauto.
+      apply t; eauto.
+      exact tt.
     }
   }
   {
@@ -208,6 +210,8 @@ Proof.
       eexists; split.
       repeat econstructor; eauto.
       simpl; intuition eauto.
+      apply t.
+      exact tt.
     }
   }
   {
@@ -295,6 +299,7 @@ u _
           
           simpl in *; cleanup.
           inversion H; inversion H2; subst.
+          specialize (H4 tt).
           unfold HC_refines in *; simpl in *;
           split_ors; cleanup.
           {
@@ -351,6 +356,7 @@ u _
             invert_exec'' H15; repeat invert_exec.
             simpl in *; cleanup.
             inversion H1; inversion H4; subst.
+            specialize (H6 tt).
             unfold HC_refines in *; simpl in *;
             split_ors; cleanup.
             {
@@ -371,6 +377,7 @@ u _
             invert_exec'' H9; repeat invert_exec.
             simpl in *; cleanup.
             inversion H1; subst.
+            specialize (H6 tt).
             unfold HC_refines in *; simpl in *;
             split_ors; cleanup.
             {
@@ -890,12 +897,11 @@ data_length) u t_abs s_abs o (Finished s_abs' r) /\
       simpl in *; eauto.
     }
     Unshelve.
+    exact tt.
     eauto.
   Qed.
 
-Definition ATC_reboot_f := fun s: ATCLang.(state) => (fst s, TC_reboot_f (snd s)).
 Definition AD_reboot_f := fun s: AD.(state) => (fst s, TD_reboot_f (snd s)).
-
 
 Lemma ATC_exec_lift_crashed:
   forall T (p: AD.(prog) T) u o_imp o_abs s_imp s_abs s_imp',
@@ -955,6 +961,8 @@ fst (ATC_reboot_f s_imp')  = fst (AD_reboot_f s_abs').
         apply HC_oracle_transformation_id in H5; subst.
         unfold HC_refines in *; simpl in *; cleanup.
         edestruct H3; eauto; cleanup.
+        apply H6.
+        exact tt.
         eexists. 
         split.
         repeat econstructor.
@@ -1022,6 +1030,7 @@ Proof.
   cleanup; simpl in *.
   simpl in *.
   repeat invert_exec; cleanup.
+  specialize (H5 tt).
   split_ors; cleanup; repeat invert_exec; cleanup.
   {
     eapply_fresh (Transaction.recover_finished) in H; eauto; cleanup.
@@ -1059,6 +1068,7 @@ Proof.
   cleanup; simpl in *.
   simpl in *.
   repeat invert_exec; cleanup.
+  specialize (H5 tt).
   repeat split_ors; cleanup; repeat invert_exec; cleanup.
   {
     unfold Transaction.recover in *; repeat invert_exec; cleanup.

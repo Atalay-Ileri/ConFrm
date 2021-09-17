@@ -490,7 +490,7 @@ Proof.
 Qed.
 
 Lemma shift_select_total_mem_comm:
-  forall A AEQ V (m: @total_mem A AEQ (V * list V)) f selector,
+  forall A AEQ V (m: @total_mem A AEQ (V * list V)) f (selector: @total_mem A AEQ nat),
     select_total_mem (shift f selector) (shift f m) = shift f (select_total_mem selector m).
 Proof.
   intros; unfold select_total_mem, select_for_addr, shift; eauto.
@@ -504,7 +504,7 @@ Proof.
 Qed.
 
 Lemma select_total_mem_upd_comm:
-  forall A AEQ V (a: A) (vs: V * list V) selector (m: @total_mem A AEQ _),
+  forall A AEQ V (a: A) (vs: V * list V) (selector: @total_mem A AEQ nat) (m: @total_mem A AEQ _),
     snd vs = nil ->
     select_total_mem selector (upd m a vs) =
     upd (select_total_mem selector m) a vs.
@@ -518,7 +518,7 @@ Proof.
 Qed.
 
 Lemma select_total_mem_upd_batch_comm:
-  forall A AEQ V (l_a: list A) (l_vs: list (V * list V)) selector (m: @total_mem A AEQ _),
+  forall A AEQ V (l_a: list A) (l_vs: list (V * list V)) (selector: @total_mem A AEQ nat) (m: @total_mem A AEQ _),
     Forall (fun vs => snd vs = nil) l_vs ->
     
     select_total_mem selector (upd_batch m l_a l_vs) =
@@ -532,7 +532,8 @@ Proof.
 Qed.
 
 Lemma select_total_mem_list_upd_batch_comm:
-  forall A AEQ V (l_l_a: list (list A)) (l_l_vs: list (list (V * list V))) selector (m: @total_mem A AEQ _),
+  forall A AEQ V (l_l_a: list (list A)) (l_l_vs: list (list (V * list V))) 
+  (selector: @total_mem A AEQ nat) (m: @total_mem A AEQ _),
     Forall (fun l_vs => Forall (fun vs => snd vs = nil) l_vs) l_l_vs ->
     select_total_mem selector (list_upd_batch m l_l_a l_l_vs) =
     list_upd_batch (select_total_mem selector m) l_l_a l_l_vs.
@@ -545,7 +546,7 @@ Proof.
 Qed.
 
 Lemma sync_select_total_mem_noop:
-  forall A AEQ V selector (m: @total_mem A AEQ (V * list V)),
+  forall A AEQ V (selector: @total_mem A AEQ nat) (m: @total_mem A AEQ (V * list V)),
     sync (select_total_mem selector m) = select_total_mem selector m.
 Proof.
   unfold sync, select_total_mem; intros; simpl; eauto.
@@ -1238,7 +1239,7 @@ Proof.
 Qed.
 
 Lemma shift_select_total_mem_synced:
-  forall A AEQ V (tm: @total_mem A AEQ (V * list V)) selector f,
+  forall A AEQ V (tm: @total_mem A AEQ (V * list V)) (selector: @total_mem A AEQ nat) f,
     (forall a, snd (tm (f a)) = nil) ->
     shift f (select_total_mem selector tm) = shift f tm.
 Proof.
@@ -1251,7 +1252,7 @@ Proof.
 Qed.
 
 Lemma select_total_mem_synced:
-    forall A AEQ V (m: @total_mem A AEQ (V * list V)) selector (a: A) vs,
+    forall A AEQ V (m: @total_mem A AEQ (V * list V)) (selector: @total_mem A AEQ nat) (a: A) vs,
       select_total_mem selector m a = vs ->
       snd vs = nil.
   Proof.
@@ -1261,7 +1262,7 @@ Lemma select_total_mem_synced:
   Qed.
 
   Lemma select_total_mem_synced_noop:
-    forall A AEQ V (m: @total_mem A AEQ (V * list V)) selector,
+    forall A AEQ V (m: @total_mem A AEQ (V * list V)) (selector: @total_mem A AEQ nat),
       (forall a vs, m a = vs -> snd vs = nil) ->
       select_total_mem selector m = m.
   Proof.
@@ -1273,5 +1274,16 @@ Lemma select_total_mem_synced:
     rewrite select_for_addr_synced; simpl; eauto.
   Qed.
   
+  Lemma list_upd_batch_upd_comm:
+  forall A AEQ V l_l_a l_l_v a v (m: @total_mem A AEQ V),
+  (forall l_a, In l_a l_l_a -> ~ In a l_a) ->
+  upd (list_upd_batch m l_l_a l_l_v) a v =
+  list_upd_batch (upd m a v) l_l_a l_l_v.
+Proof.
+  induction l_l_a; simpl; intros; eauto.
+  destruct l_l_v; eauto.
+  rewrite upd_batch_upd; eauto.
+Qed.
+
 Hint Rewrite upd_eq using (solve [ auto ]) : upd.
 Hint Rewrite upd_ne using (solve [ auto ]) : upd.

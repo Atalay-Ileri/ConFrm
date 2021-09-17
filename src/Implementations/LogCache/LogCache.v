@@ -132,11 +132,20 @@ Definition cached_log_crash_rep cached_log_crash_state (s: Language.state Cached
 
   | During_Apply merged_disk =>
     exists txns,
-    (log_crash_rep (Log.During_Apply txns) (snd s) \/
+    ((log_crash_rep (Log.During_Apply txns) (snd s) /\
+    total_mem_map fst (shift (plus data_start)
+        (list_upd_batch_set (snd (snd s)) (map addr_list txns)
+                        (map data_blocks txns))) 
+    = total_mem_map fst (shift (plus data_start) (snd (snd s))) /\
+    (forall a, a >= data_start -> 
+    snd ((snd (snd s)) a) = [])) \/
     log_rep txns (snd s)) /\
      merged_disk = total_mem_map fst (shift (plus data_start)
         (list_upd_batch_set (snd (snd s)) (map addr_list txns)
-                        (map data_blocks txns)))
+                        (map data_blocks txns))) /\
+      (forall a, a >= data_start -> 
+      ~(exists l_a, In l_a (map addr_list txns) /\ In a l_a) -> 
+      snd ((snd (snd s)) a) = [])
 
   | After_Apply merged_disk =>
     log_rep [] (snd s) /\
@@ -1480,6 +1489,27 @@ Proof.
                  simpl in *; intuition.
                  lia.
                  rewrite map_length; eauto.
+
+                 unfold log_rep, log_rep_general, 
+                 log_rep_explicit, log_crash_rep,
+                 log_rep_inner, txns_valid, header_part_is_valid in *; 
+                 simpl in *; logic_clean.
+                 rewrite <- H25.
+                 erewrite RepImplications.bimap_get_addr_list; eauto.
+                 rewrite upd_batch_set_ne; eauto.
+                 rewrite list_upd_batch_set_not_in; eauto.
+                 intros.
+                 apply in_firstn_in in H31; eauto.
+                 intros Hx.
+                 apply in_firstn_in in Hx; eauto.
+                 eapply H2; eauto.
+                 eexists; split; eauto. 
+                 apply in_seln; eauto.
+                 destruct (lt_dec x0 (length (map addr_list x))); eauto.
+                 rewrite seln_oob in Hx; eauto.
+                 simpl in *; intuition.
+                 lia.
+                 rewrite map_length; eauto.
                }
                split_ors; cleanup.
                {
@@ -1505,7 +1535,42 @@ Proof.
                  right; intuition eauto.
                  right; right; left; unfold cached_log_rep; simpl in *.
                  eexists; intuition eauto.
-                 
+                 left; intuition eauto.
+                 {
+                  assert (A: Forall2
+                  (fun (l_a : list addr) (l_v : list value) =>
+                   length l_a = length l_v) (map addr_list x) 
+                  (map data_blocks x)). {
+                    eapply log_rep_forall2_txns_length_match; eauto.
+                    unfold log_rep; eauto.
+                  }
+                  unfold log_rep_general, log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+                  rewrite <- H11.
+                  erewrite RepImplications.bimap_get_addr_list.
+                  4: eauto.
+                   repeat rewrite total_mem_map_shift_comm.
+                    repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                    repeat rewrite total_mem_map_fst_upd_set.
+                    rewrite total_mem_map_fst_sync_noop.
+                    rewrite total_mem_map_fst_list_upd_batch_set.
+                    rewrite list_upd_batch_upd_comm.
+                    rewrite TotalMem.list_upd_batch_noop; eauto.
+                    unfold not; intros; pose proof hdr_before_log.
+                   pose proof data_start_where_log_ends.
+                   apply in_map_iff in H13; cleanup.
+                   eapply Forall_forall in H12; eauto.
+                   unfold txn_well_formed in H12; cleanup.
+                   eapply Forall_forall in H20; eauto.
+                   lia.
+                    eauto.
+                    rewrite map_length; eauto.
+                 }
+                 {
+                   rewrite upd_set_ne; simpl; eauto.
+                   intros; pose proof hdr_before_log.
+                   pose proof data_start_where_log_ends.
+                   lia.
+                 }
                  repeat rewrite total_mem_map_shift_comm.
                  repeat rewrite total_mem_map_fst_list_upd_batch_set.
                  rewrite total_mem_map_fst_upd_set.
@@ -1569,6 +1634,13 @@ Proof.
                    repeat rewrite map_length; eauto.
                  }
                  {
+                   intros; pose proof hdr_before_log.
+                   pose proof data_start_where_log_ends.
+                   lia.
+                 }
+                 {
+                   rewrite upd_set_ne.
+                   simpl; eauto.
                    intros; pose proof hdr_before_log.
                    pose proof data_start_where_log_ends.
                    lia.

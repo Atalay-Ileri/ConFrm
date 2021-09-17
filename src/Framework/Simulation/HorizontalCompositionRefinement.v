@@ -77,10 +77,11 @@ Definition HC_token_refines T u (d1: HCL1.(state))
 match p with
 | P1 p1 => exists t , t2 = Token1 _ _ t /\ o1 = [OpToken (HorizontalComposition O O1) (Token1 O O1 t)] 
 | P2 p2 =>
-    exists t o grs1, t2 = Token2 _ _ t /\ 
+    exists t o, t2 = Token2 _ _ t /\ 
     (* @minimal_oracle _ HCL1 _ (lift_L2 O (compile_core RC p2)) u d1 o1 om1 /\ *)
     HC_oracle_transformation o1 o /\
-    RC.(token_refines) u (snd d1) p2 grs1 o t
+    forall s,
+    RC.(token_refines) u (snd d1) p2 (fun s1 => snd (get_reboot_state (s, s1))) o t
 end.
     
 
@@ -443,6 +444,7 @@ forall o1 o2 x,
         repeat econstructor; eauto.
       }
       Unshelve.
+      apply (fst s1).
       eauto.
       Qed.
 

@@ -141,7 +141,7 @@ Proof.
       repeat econstructor; eauto.
       destruct si.
       simpl.
-      destruct s0.
+      destruct s1.
       repeat econstructor; eauto.
     }
   }

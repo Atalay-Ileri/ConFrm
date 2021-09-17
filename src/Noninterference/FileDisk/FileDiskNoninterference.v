@@ -28,6 +28,13 @@ Definition same_for_user_except (u: user) (exclude: option addr) (d1 d2: FD.(sta
      file1.(owner) = file2.(owner) /\ 
      length file1.(blocks) = length file2.(blocks)).
 
+Lemma same_for_user_except_reflexive :
+forall u ex s,
+same_for_user_except u ex s s.
+Proof.
+  unfold same_for_user_except, addrs_match_exactly; intros;
+  intuition; cleanup; eauto.
+Qed.
 (*
 Theorem Invariant_for_file_disk_read:
   SelfSimulation FD (fun _ => True) (fun T p => match p with

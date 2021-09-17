@@ -1,23 +1,23 @@
 Require Import Framework Lia.
 
-Definition super_block_num := 0.
-Definition hdr_block_num := 1.
-Definition log_start := 2.
+(* Definition super_block_num := 0. *)
+Definition hdr_block_num := 0.
+Definition log_start := 1.
 Axiom log_length : nat. (** # of log blocks **)
 
 Lemma hdr_block_num_eq:
-  hdr_block_num = 1.
+  hdr_block_num = 0.
 Proof. eauto. Qed.
 
 Lemma log_start_eq:
-  log_start = 2.
+  log_start = 1.
 Proof. eauto. Qed.
 
 Lemma hdr_before_log:
   hdr_block_num < log_start.
 Proof. eauto. Qed.
        
-Definition data_start := 2 + log_length.
+Definition data_start := S log_length.
 Definition data_length := disk_size - data_start.
 
 Lemma data_start_where_log_ends:
@@ -63,4 +63,4 @@ Proof.
   lia.
 Qed.
 
-Global Opaque super_block_num hdr_block_num log_start data_start data_length inode_blocks_start file_blocks_start.
+Global Opaque hdr_block_num log_start data_start data_length inode_blocks_start file_blocks_start.

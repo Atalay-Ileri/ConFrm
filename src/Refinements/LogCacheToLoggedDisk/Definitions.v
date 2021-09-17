@@ -1,4 +1,4 @@
-Require Import Framework TotalMem CachedDiskLayer LoggedDiskLayer Log RepImplications LogCache.
+Require Import Framework TotalMem CachedDiskLayer LoggedDiskLayer Log Log.RepImplications LogCache.
 Require Import FSParameters FunctionalExtensionality Lia.
 Close Scope predicate_scope.
 Import ListNotations.
@@ -51,13 +51,21 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
          o2 = CrashAfter /\
          (forall merged_disk,
             cached_log_rep merged_disk d1 ->
-            cached_log_crash_rep (After_Commit (upd_batch merged_disk la lv)) d1')) \/
+            cached_log_crash_rep (After_Commit (upd_batch merged_disk la lv)) d1' /\
+            NoDup la /\
+            length la = length lv /\
+            Forall (fun a : nat => a < data_length) la /\
+            length (addr_list_to_blocks la) + length lv <= log_length)) \/
         (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          (forall merged_disk,
             cached_log_rep merged_disk d1 ->
             cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk la lv)) d1' /\
             ((cached_log_reboot_rep merged_disk (get_reboot_state d1') /\ o2 = CrashBefore) \/
-            (cached_log_reboot_rep (upd_batch merged_disk la lv) (get_reboot_state d1') /\ o2 = CrashAfter))
+            (cached_log_reboot_rep (upd_batch merged_disk la lv) (get_reboot_state d1') /\ o2 = CrashAfter /\
+            NoDup la /\
+            length la = length lv /\
+            Forall (fun a : nat => a < data_length) la /\
+            length (addr_list_to_blocks la) + length lv <= log_length))
             ))))
    | Recover =>
      (exists d1',
