@@ -725,8 +725,10 @@ Ltac unify_execs_prefix :=
           specialize (H7 tt).
           specialize (H10 tt).
           repeat invert_exec; simpl in *; cleanup.
+          (*
           inversion H0; inversion H4; subst; clear H0 H4.
           inversion H9; inversion H1; subst; clear H9 H1.
+          *) 
           repeat split_ors; cleanup;
           repeat invert_exec; simpl in *; cleanup; eauto.
           unfold Transaction.recover in *.
@@ -755,8 +757,10 @@ Ltac unify_execs_prefix :=
             specialize (H7 tt).
             specialize (H10 tt).
             repeat invert_exec; simpl in *; cleanup.
+            (*
             inversion H0; inversion H4; subst; clear H0 H4.
             inversion H9; inversion H1; subst; clear H9 H1.
+            *)
             repeat split_ors; cleanup;
             repeat invert_exec; simpl in *; cleanup; eauto.
             unfold Transaction.recover in *.
@@ -806,16 +810,16 @@ Ltac unify_execs_prefix :=
             {
               unfold Transaction.recover in *;
               repeat invert_exec; simpl in *; cleanup.
-              try congruence.
             }
             {
               unfold Transaction.recover in *;
               repeat invert_exec; simpl in *; cleanup.
-              try congruence.
             }
             {
               unfold Transaction.recover in *;
               repeat invert_exec; simpl in *; cleanup.
+              repeat split_ors; cleanup;
+              repeat invert_exec; simpl in *; cleanup; eauto.
             }
             {
               unfold Transaction.recover in *;
@@ -846,7 +850,6 @@ Ltac unify_execs_prefix :=
             {
               unfold Transaction.recover in *;
               repeat invert_exec; simpl in *; cleanup.
-              try congruence.
             }
             {
               unfold Transaction.recover in *;
@@ -936,6 +939,7 @@ Ltac unify_execs_prefix :=
       all: eauto.
     Qed.
     
+    (*
     Lemma HC_oracle_refines_lift2:
     forall T (p: TD.(prog) T) o u s x,
     oracle_refines
@@ -949,27 +953,7 @@ Ltac unify_execs_prefix :=
     (fun
     s : HorizontalComposition.state' AuthenticationOperation
           TransactionCacheOperation => (fst s, ([], snd (snd s))))
-    o
-    (map
-    (fun
-        o : Language.token'
-              (TransactionalDiskLayer.TDCore data_length) =>
-      match o with
-      | OpToken _ o1 =>
-          OpToken
-            (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDCore data_length))
-            (Token2 AuthenticationOperation
-              (TransactionalDiskLayer.TDCore data_length) o1)
-      | Language.Crash _ =>
-          Language.Crash
-            (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDCore data_length))
-      | Language.Cont _ =>
-          Language.Cont
-            (HorizontalComposition AuthenticationOperation
-              (TransactionalDiskLayer.TDCore data_length))
-      end) x) ->
+    o x ->
     
       ((RefinementLift.compile
     (HorizontalComposition AuthenticationOperation
@@ -983,10 +967,8 @@ Ltac unify_execs_prefix :=
     (TransactionalDiskLayer.TDCore data_length) Definitions.imp TD
     Definitions.TDCoreRefinement T p))) ->
     
-      exists o',
       oracle_refines _ _ Definitions.imp TD Definitions.TDCoreRefinement
-      T u (snd s) p (fun s => ([], snd s)) o' x /\
-      HC_oracle_transformation o o'.
+      T u (snd s) p (fun s => ([], snd s)) (HC_transform_oracle _ o) x.
       Proof.
         induction p; simpl; intuition eauto.
         {
@@ -1026,7 +1008,7 @@ Ltac unify_execs_prefix :=
             simpl in *.
             eexists; intuition eauto.
             eapply lift2_invert_exec_crashed in H0; cleanup.
-            apply HC_oracle_transformation_id in H6; subst.
+            apply HC_map_ext_eq in H6; subst.
             left; eexists; intuition eauto.
           }
           {
@@ -1044,11 +1026,11 @@ Ltac unify_execs_prefix :=
               edestruct H; eauto; cleanup.
     
               eapply lift2_invert_exec in H3; cleanup.
-              apply HC_oracle_transformation_id in H2; subst.
+              apply HC_map_ext_eq in H2; subst.
               destruct x6.
               {
                 eapply lift2_invert_exec in H4; cleanup.
-                apply HC_oracle_transformation_id in H10; subst.
+                apply HC_map_ext_eq in H10; subst.
                 eexists; intuition eauto.
                 right; do 7 eexists; intuition eauto.
                 rewrite firstn_skipn; eauto.
@@ -1057,7 +1039,7 @@ Ltac unify_execs_prefix :=
               }
               {
                 eapply lift2_invert_exec_crashed in H4; cleanup.
-                apply HC_oracle_transformation_id in H10; subst.
+                apply HC_map_ext_eq in H10; subst.
                 eexists; intuition eauto.
                 right; do 7 eexists; intuition eauto.
                 rewrite firstn_skipn; eauto.
@@ -1072,7 +1054,7 @@ Ltac unify_execs_prefix :=
             }
           }
       Qed.
-
+*)
     
           Lemma TD_oracle_refines_operation_eq:
           forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
@@ -1240,12 +1222,12 @@ Ltac unify_execs_prefix :=
           simpl in *; cleanup; eauto.
           specialize (H10 tt).
           specialize (H12 tt).
-          eapply_fresh HC_oracle_transformation_prefix_l in H11; eauto; cleanup.
+          eapply HC_map_ext_eq_prefix in H7; cleanup.
           eapply lift2_invert_exec in H3; cleanup.
           eapply lift2_invert_exec in H4; cleanup.
-          eapply_fresh HC_oracle_transformation_id in H11; eauto; subst.
-          eapply_fresh HC_oracle_transformation_id in H9; eauto; subst.
-          assert (x2 = x4 /\ x3 = x1). {
+          eapply HC_map_ext_eq in H4; cleanup.
+          eapply HC_map_ext_eq in H0; cleanup.
+            assert (x6 = x5 /\ x3 = x1). {
             eapply H6; eauto.
           }
           cleanup; eauto.
@@ -1358,10 +1340,9 @@ Ltac unify_execs_prefix :=
             specialize (H14 tt).
             eapply lift2_invert_exec in H1; cleanup.
             eapply lift2_invert_exec in H2; cleanup.
-            eapply HC_oracle_transformation_id in H11.
-            eapply HC_oracle_transformation_id in H13.
-            eapply map_ext_eq_prefix in H9; cleanup.
-            2: intros; cleanup; intuition congruence.
+            eapply HC_map_ext_eq in H2.
+            eapply HC_map_ext_eq in H.
+            eapply HC_map_ext_eq_prefix in H9; cleanup.
             assert (x1 = x3). {
               eapply H5; eauto.
             }
@@ -1467,11 +1448,10 @@ Ltac unify_execs_prefix :=
             repeat invert_exec.
             eapply lift2_invert_exec in H1; cleanup.
             eapply lift2_invert_exec_crashed in H2; cleanup.
-            eapply HC_oracle_transformation_id in H10.
-            eapply HC_oracle_transformation_id in H12.
+            eapply HC_map_ext_eq in H.
+            eapply HC_map_ext_eq in H2.
             subst.
-            eapply map_ext_eq_prefix in H8; cleanup.
-            2: intros; cleanup; intuition congruence.
+            eapply HC_map_ext_eq_prefix in H8; cleanup.
             destruct o0, o6; cleanup; try tauto.
     
             eapply Transaction.read_finished_not_crashed; eauto.

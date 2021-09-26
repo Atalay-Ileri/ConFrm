@@ -108,7 +108,6 @@ Proof.
       invert_exec'' H0; repeat invert_exec; cleanup;
       simpl in *; cleanup;
       specialize (H4 tt);
-      inversion H0;
       unfold HC_refines in *; simpl in *; cleanup;
       unfold HC_refines in *; simpl in *; cleanup;
       unfold ATC_reboot_list; simpl;
@@ -124,10 +123,10 @@ Proof.
     }
     {
       eapply lift2_invert_exec in H0; cleanup.
-      apply HC_oracle_transformation_id in h; subst.
-      specialize (e0 tt).
+      apply HC_map_ext_eq in H0; subst.
+      specialize (e1 tt).
       eapply lift2_invert_exec in H4; cleanup.
-      apply HC_oracle_transformation_id in H7; subst.
+      apply HC_map_ext_eq in H0; subst.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold ATC_reboot_list; simpl.
@@ -334,7 +333,6 @@ Proof.
       invert_exec'' H0; repeat invert_exec; cleanup;
       simpl in *; cleanup;
       specialize (H5 tt);
-      inversion H0;
       unfold HC_refines in *; simpl in *; cleanup;
       unfold HC_refines in *; simpl in *; cleanup;
       unfold ATC_reboot_list; simpl;
@@ -346,17 +344,16 @@ Proof.
     {
       eapply lift2_invert_exec_crashed in H0; cleanup.
       eapply lift2_invert_exec_crashed in H5; cleanup.
-      specialize (e0 tt).
+      specialize (e1 tt).
       unfold HC_refines in *; simpl in *; cleanup.
       unfold HC_refines in *; simpl in *; cleanup.
-      apply HC_oracle_transformation_id in h; cleanup.
-      apply HC_oracle_transformation_id in H8; cleanup.
+      repeat apply HC_map_ext_eq in H0; cleanup.
       unfold ATC_reboot_list; simpl.
-      eapply H3 in H6; eauto; cleanup.
+      eapply H3 in H7; eauto; cleanup.
       eexists; split.
       repeat econstructor; eauto.
       simpl; intuition eauto.
-      apply H9; econstructor.
+      apply H10; econstructor.
     }
   }
   {
@@ -446,21 +443,26 @@ u _
           invert_exec'' H; repeat invert_exec.
           invert_exec'' H2; repeat invert_exec.
           simpl in *; cleanup.
+          rewrite <- H4 in H1.
           inversion H1; cleanup.
+
+          invert_exec'' H; repeat invert_exec.
+          simpl in *; cleanup.
+          rewrite <- H in H5.
+          simpl in *; cleanup.
           unify_execs; cleanup.
           specialize (H9 tt).
           specialize (H13 tt).
           eapply lift2_invert_exec in H12; cleanup.
-          eapply lift2_invert_exec in H2; cleanup.
-          eapply HC_oracle_transformation_id in H8; eauto; cleanup.
-          eapply HC_oracle_transformation_id in h; eauto; cleanup.
+          eapply lift2_invert_exec in H4; cleanup.
+          simpl in *; cleanup.
+          repeat apply HC_map_ext_eq in H1; eauto; cleanup.
           specialize (o []).
           split_ors; cleanup; try unify_execs; cleanup.
           simpl in *.
           eexists (RFinished _ _); intuition eauto.
           econstructor.
           rewrite cons_app; repeat econstructor; eauto.
-          simpl.
           unfold HC_refines; simpl.
           unfold HC_refines; simpl.
           unfold refines, refines_reboot in *;
@@ -479,7 +481,8 @@ u _
             unfold HC_refines in *; simpl in *;
             split_ors; cleanup; try unify_execs; cleanup.
             specialize (H6 tt).
-            destruct o2; simpl in *; cleanup; try congruence.
+            simpl in *; cleanup; try congruence.
+            simpl in *; cleanup.
             exfalso; eapply exec_empty_oracle; eauto.
             
             specialize (H10 tt).
@@ -487,17 +490,16 @@ u _
             invert_exec'' H4; repeat invert_exec.
             simpl in *; cleanup.
 
-          inversion H6; cleanup.
+          simpl in *; cleanup.
           unify_execs; cleanup.
           eapply lift2_invert_exec_crashed in H14; cleanup.
           eapply lift2_invert_exec_crashed in H4; cleanup.
           simpl in *.
-          eapply HC_oracle_transformation_id in H9; eauto; cleanup.
-          eapply HC_oracle_transformation_id in H7; eauto; cleanup.
+          repeat eapply HC_map_ext_eq in H1; eauto; cleanup.
           specialize (H8 []).
           split_ors; cleanup; try unify_execs; cleanup.
           simpl in *.
-          rewrite <- H4 in *; clear H4.
+          rewrite <- H5 in *; clear H5.
           unfold TCD_reboot_list  in *; simpl in *.
           unfold refines_reboot in *; simpl in *; cleanup.
           edestruct IHl_selector; eauto.
@@ -519,10 +521,10 @@ u _
             invert_exec'' H8; repeat invert_exec.
               unfold HC_refines in *; simpl in *;
               split_ors; cleanup; try unify_execs; cleanup.
-              2: invert_exec'' H1; repeat invert_exec; simpl in *; cleanup; congruence.
             
               specialize (H6 tt).
               invert_exec'' H1; repeat invert_exec; cleanup.
+              simpl in *; cleanup.
               edestruct IHl_selector; simpl; eauto.
               simpl; intuition eauto.
               instantiate (1:= (fst s_abs, ([], snd (snd s_abs)))).
@@ -532,10 +534,13 @@ u _
               econstructor.
               repeat econstructor.
               simpl; repeat econstructor; eauto.
+
+              invert_exec'' H4; repeat invert_exec; simpl in *; cleanup.
+              rewrite <- H2 in H1; simpl in *; cleanup.
           }
       }
       Unshelve.
-      exact ATCDLang.
+  all: exact ATCDLang.
   Qed.
 
   Theorem HC_recovery_exec_same:
@@ -853,6 +858,11 @@ destruct o.
     simpl.
     eexists; intuition eauto.
     do 2 eexists; intuition eauto.
+    eexists; intuition eauto.
+    eexists; intuition eauto.
+    simpl.
+    do 2 eexists; intuition eauto.
+    simpl; eauto.
   }
   {
     eapply lift2_invert_exec in H0; cleanup.
@@ -924,6 +934,7 @@ induction p; simpl in *; intros.
     simpl.
     eexists; intuition eauto.
     do 2 eexists; intuition eauto.
+    simpl; eauto.
   }
   {
     eapply lift2_invert_exec_crashed in H0; cleanup.
@@ -998,7 +1009,7 @@ Lemma ATCD_exec_lift_finished:
         unfold HC_refines in *; simpl in *; cleanup.
         unfold HC_refines in *; simpl in *; cleanup.
         destruct o1; simpl in *; repeat invert_exec;
-        cleanup; simpl in *; cleanup; inversion H.
+        cleanup; simpl in *; cleanup.
         {
           destruct s_abs.
           eexists; split.
@@ -1022,9 +1033,9 @@ Lemma ATCD_exec_lift_finished:
         simpl in *; cleanup.
         specialize (H4 tt); cleanup.
         eapply lift2_invert_exec in H; cleanup.
-        apply HC_oracle_transformation_id in H3; subst.
-        eapply lift2_invert_exec in H6; cleanup.
-        apply HC_oracle_transformation_id in H4; subst.
+        apply HC_map_ext_eq in H; subst.
+        eapply lift2_invert_exec in H3; cleanup.
+        apply HC_map_ext_eq in H; subst.
         unfold HC_refines in *; simpl in *; cleanup.
         unfold HC_refines in *; simpl in *; cleanup.
         edestruct operation_simulation_finished; eauto; cleanup.
@@ -1092,7 +1103,7 @@ Lemma ATCD_exec_lift_crashed:
       simpl; apply refines_to_refines_reboot; eauto.
       }
       {
-        apply HC_oracle_transformation_id in H3; subst.
+        apply HC_map_ext_eq in H3; subst.
         specialize (H4 tt).
         unfold HC_refines in *; simpl in *; cleanup.
         unfold HC_refines in *; simpl in *; cleanup.
@@ -1122,13 +1133,13 @@ Lemma ATCD_exec_lift_crashed:
       simpl; apply refines_to_refines_reboot; eauto].
       }
       {
-        apply HC_oracle_transformation_id in H3; subst.
+        apply HC_map_ext_eq in H3; subst.
         specialize (H4 tt).
         simpl in *; cleanup.
         unfold HC_refines in *; simpl in *; cleanup.
         unfold HC_refines in *; simpl in *; cleanup.
         eapply lift2_invert_exec_crashed in H6; cleanup.
-        apply HC_oracle_transformation_id in H1; subst.
+        apply HC_map_ext_eq in H4; subst.
         edestruct operation_simulation_crashed; eauto.
         eapply H3; eauto.
         constructor.
@@ -1201,15 +1212,16 @@ Proof.
   simpl in *.
   repeat invert_exec; cleanup.
   split_ors; cleanup; repeat invert_exec; cleanup.
+  rewrite <- H3 in H8. simpl in H8.
+  inversion H8; cleanup.
   specialize (H13 tt).
   specialize (H16 tt).
   simpl in *; cleanup.
-  eapply HC_oracle_transformation_id in H12; cleanup.
-  eapply HC_oracle_transformation_id in H10; cleanup.
+  simpl in *; cleanup.
+  repeat eapply HC_map_ext_eq in H10; cleanup.
   specialize (H11 []).
   split_ors; cleanup; repeat unify_execs; cleanup.
   unfold refines_reboot in *; cleanup.
-  inversion H9.
   destruct s_abs.
   eexists; split.
   rewrite cons_app;
@@ -1245,7 +1257,7 @@ Proof.
   {
     specialize (H7 tt).
   simpl in *; cleanup.
-  inversion H3.
+  simpl in *; cleanup.
   destruct s_abs.
   eexists; split.
   repeat econstructor; eauto.
@@ -1254,16 +1266,21 @@ Proof.
   } 
   {
     simpl in *; cleanup.
-    inversion H3.
+    rewrite <- H in H6; clear H; simpl; cleanup.
   }
   {
     specialize (H11 tt).
     specialize (H14 tt).
   simpl in *; cleanup.
-  eapply HC_oracle_transformation_id in H10; cleanup.
-  eapply HC_oracle_transformation_id in H11; cleanup.
-  specialize (H12 []).
-  inversion H9; cleanup.
+  simpl in *; cleanup; congruence.
+  }
+  {
+    specialize (H11 tt).
+    specialize (H14 tt).
+  simpl in *; cleanup.
+  simpl in *; cleanup.
+  repeat eapply HC_map_ext_eq in H10; cleanup.
+  specialize (H11 []).
   split_ors; cleanup; repeat unify_execs; cleanup.
     destruct s_abs.
     eexists; split.
@@ -1272,7 +1289,7 @@ Proof.
     simpl; intuition eauto.
     unfold refines_reboot in *; cleanup.
     simpl in *; split.
-    eapply H5 in H0; repeat split_ors.
+    eapply H4 in H0; repeat split_ors.
     eapply cached_log_reboot_rep_to_reboot_rep; eauto.
     eapply cached_log_crash_rep_during_recovery_to_reboot_rep; eauto.
     eapply cached_log_crash_rep_after_commit_to_reboot_rep; eauto.

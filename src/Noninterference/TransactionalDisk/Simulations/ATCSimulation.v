@@ -69,7 +69,7 @@ Proof.
     }
     {
       eapply lift2_invert_exec in H0; cleanup.
-      apply HC_oracle_transformation_id in h; subst.
+      apply HC_map_ext_eq in H0; subst.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold authenticated_disk_reboot_list; simpl.
       eapply_fresh H3 in H4; eauto; cleanup.
@@ -204,7 +204,7 @@ Proof.
     {
       eapply lift2_invert_exec_crashed in H0; cleanup.
       unfold HC_refines in *; simpl in *; cleanup.
-      apply HC_oracle_transformation_id in h; cleanup.
+      apply HC_map_ext_eq in H0; cleanup.
       unfold authenticated_disk_reboot_list; simpl.
       eapply H3 in H5; eauto; cleanup.
       eexists; split.
@@ -294,8 +294,8 @@ u _
           split_ors; cleanup; repeat unify_execs; cleanup.
           specialize (H2 (fun s => s)); cleanup.
           invert_exec'' H8; repeat invert_exec.
-          invert_exec'' H10; repeat invert_exec.
-          invert_exec'' H13; repeat invert_exec.
+          invert_exec'' H9; repeat invert_exec.
+          invert_exec'' H12; repeat invert_exec.
           
           simpl in *; cleanup.
           inversion H; inversion H2; subst.
@@ -323,7 +323,7 @@ u _
              unfold transactional_disk_reboot_list,
              authenticated_disk_reboot_list in *; simpl in *; invert_exec.
              simpl in *; cleanup; 
-             invert_exec'' H11; repeat invert_exec.
+             invert_exec'' H12; repeat invert_exec.
              
              eexists (RFinished _ _); split.
              repeat (econstructor; eauto).
@@ -352,8 +352,8 @@ u _
           split_ors; cleanup; repeat unify_execs; cleanup.
           invert_exec'' H11; repeat invert_exec.
           {
-            invert_exec'' H10; repeat invert_exec.
-            invert_exec'' H15; repeat invert_exec.
+            invert_exec'' H9; repeat invert_exec.
+            invert_exec'' H14; repeat invert_exec.
             simpl in *; cleanup.
             inversion H1; inversion H4; subst.
             specialize (H6 tt).
@@ -374,7 +374,7 @@ u _
             }
           }
           {
-            invert_exec'' H9; repeat invert_exec.
+            invert_exec'' H8; repeat invert_exec.
             simpl in *; cleanup.
             inversion H1; subst.
             specialize (H6 tt).
@@ -741,7 +741,6 @@ destruct o.
   do 2 eexists; intuition eauto.
   simpl.
   do 3 eexists; intuition eauto.
-  apply HC_oracle_transformation_same.
 }
 }
 {
@@ -797,7 +796,6 @@ induction p; simpl in *; intros.
     do 2 eexists; intuition eauto.
     simpl.
     do 3 eexists; intuition eauto.
-    apply HC_oracle_transformation_same.
   }
 }
 {
@@ -863,7 +861,7 @@ data_length) u t_abs s_abs o (Finished s_abs' r) /\
       repeat econstructor; eauto.
       }
       {
-        apply HC_oracle_transformation_id in H3; subst.
+        apply HC_map_ext_eq in H3; subst.
         unfold HC_refines in *; simpl in *; cleanup.
         edestruct H2; eauto; cleanup.
         eexists. 
@@ -958,7 +956,7 @@ fst (ATC_reboot_f s_imp')  = fst (AD_reboot_f s_abs').
       unfold HC_refines in *; simpl in *; cleanup; eauto.
       }
       {
-        apply HC_oracle_transformation_id in H5; subst.
+        apply HC_map_ext_eq in H5; subst.
         unfold HC_refines in *; simpl in *; cleanup.
         edestruct H3; eauto; cleanup.
         apply H6.

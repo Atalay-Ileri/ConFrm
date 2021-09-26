@@ -131,6 +131,41 @@ Definition oracle_refines_same_from_related
     recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
 
+Definition oracle_refines_same_from_related_explicit
+            (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
+            rec_abs
+            l_get_reboot_state_imp
+           (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) 
+l_o_imp l_o_abs l_o_abs' s1_imp s2_imp :=
+    refines_related related_states_abs s1_imp s2_imp ->
+    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+l_o_abs = l_o_abs'.
+
+Definition oracle_refines_same_from_related_prefix
+            (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
+            rec_abs
+            l_get_reboot_state_imp
+           (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
+  forall l_o_imp l_o_imp' l_o_abs l_o_abs' s1_imp s2_imp,
+    refines_related related_states_abs s1_imp s2_imp ->
+    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp' l_o_abs' ->
+    Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_imp l_o_imp'->
+    Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_abs l_o_abs'.
+
+    Definition oracle_refines_same_from_related_prefix_explicit
+            (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
+            rec_abs
+            l_get_reboot_state_imp
+           (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) 
+    l_o_imp l_o_imp' l_o_abs l_o_abs' s1_imp s2_imp :=
+    refines_related related_states_abs s1_imp s2_imp ->
+    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp' l_o_abs' ->
+    Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_imp l_o_imp'->
+    Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_abs l_o_abs'.
+
 
 Definition oracle_refines_same_from_related_reboot
             (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
@@ -432,6 +467,74 @@ Arguments Termination_Sensitive_explicit {_ _} _ _ _ {_}.
 
 Arguments Simulation {_ _ _ _}.
 Arguments SimulationForProgram {_ _ _ _} _ _ {_}.
+
+
+
+Arguments oracle_refines_same_from_related_prefix {_ _ _ _} _ _ {_}.
+Arguments oracle_refines_same_from_related_explicit {_ _ _ _} _ _ {_}.
+Arguments oracle_refines_same_from_related_prefix_explicit {_ _ _ _} _ _ {_}.
+
+Lemma ORS_prefix_explicit_to_ORS_explicit:
+forall O_imp O_abs (L_imp: Language O_imp) 
+(L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+u T (p1_abs p2_abs: L_abs.(prog) T)
+  rec_abs
+  l_get_reboot_state_imp
+  l_get_reboot_state_abs
+equivalent_states_abs 
+  l_o_imp 
+  l_o_abs1 l_o_abs2
+  s1_imp s2_imp
+  s1_abs s2_abs
+  s1_abs' s2_abs',
+
+(forall l_o_imp1 l_o_imp2,
+oracle_refines_same_from_related_prefix_explicit R u
+p1_abs
+p2_abs
+rec_abs
+l_get_reboot_state_imp
+equivalent_states_abs 
+l_o_imp1 l_o_imp2
+l_o_abs1 l_o_abs2 
+s1_imp s2_imp) ->
+
+(forall l_o_abs1 l_o_abs2 s1_abs s2_abs s1_abs' s2_abs',
+(equivalent_states_abs s1_abs s2_abs ->
+L_abs.(recovery_exec) u l_o_abs1 s1_abs l_get_reboot_state_abs p1_abs rec_abs s1_abs' ->
+L_abs.(recovery_exec) u l_o_abs2 s2_abs l_get_reboot_state_abs p2_abs rec_abs s2_abs' ->
+results_match_r s1_abs' s2_abs' ->
+Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_abs1 l_o_abs2->
+l_o_abs1 = l_o_abs2)) ->
+
+R.(refines) s1_imp s1_abs ->
+R.(refines) s2_imp s2_abs ->
+equivalent_states_abs s1_abs s2_abs ->
+L_abs.(recovery_exec) u l_o_abs1 s1_abs l_get_reboot_state_abs p1_abs rec_abs s1_abs' ->
+L_abs.(recovery_exec) u l_o_abs2 s2_abs l_get_reboot_state_abs p2_abs rec_abs s2_abs' ->
+results_match_r s1_abs' s2_abs' ->
+
+oracle_refines_same_from_related_explicit R u
+p1_abs
+p2_abs
+rec_abs
+l_get_reboot_state_imp
+equivalent_states_abs
+l_o_imp 
+  l_o_abs1 l_o_abs2 
+  s1_imp s2_imp.
+Proof.
+  unfold oracle_refines_same_from_related_explicit, 
+  oracle_refines_same_from_related_prefix_explicit; intros.
+  eapply_fresh H in H8; eauto.
+  eapply forall_forall2; eauto.
+  eapply Forall_forall; intros.
+  apply in_combine_same in H10; cleanup; eauto.
+  Unshelve.
+  constructor.
+Qed.
+
+
 
 Lemma SS_transfer:
   forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)

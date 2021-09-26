@@ -32,8 +32,8 @@ Proof.
       repeat econstructor; eauto).
       eexists; intuition eauto.
       do 3 eexists; intuition eauto.
-      simpl; eexists; intuition eauto.
-      simpl; eexists; intuition eauto.
+      instantiate (1:= [OpToken _ _; OpToken _ _]).
+      simpl; eauto.
       left; do 2 eexists; intuition eauto.
       repeat (rewrite cons_app;
       repeat econstructor; eauto).
@@ -67,28 +67,8 @@ Proof.
       repeat econstructor; eauto.
       eexists; intuition eauto.
       do 3 eexists; intuition eauto.
-      simpl.
-      do 2 eexists; intuition eauto.
-      (*
-      rewrite app_nil_r; eauto.
-      simpl; intuition eauto.
-      do 2 eexists; intuition eauto.
-      {
-        unfold minimal_oracle; intros.
-        intros Hn; simpl in *.
-        destruct n0; simpl in *.
-        eapply exec_empty_oracle; eauto.
-        destruct n0; simpl in *; try lia.
-        invert_exec'' Hn.
-        apply app_eq_unit in H3;
-        split_ors; cleanup; 
-        eapply exec_empty_oracle; eauto.
-        apply app_eq_unit in H3;
-        split_ors; cleanup; 
-        try solve [eapply exec_empty_oracle; eauto].
-        invert_exec'' H8; repeat invert_exec.
-      }
-      *)
+      instantiate (1:= [OpToken _ _; OpToken _ _]).
+      simpl; eauto.
       right. do 2 eexists.
       unfold Transaction.recover.
       rewrite cons_app;
@@ -122,18 +102,7 @@ Proof.
       repeat econstructor; eauto.
       eexists; intuition eauto.
       do 3 eexists; intuition eauto.
-      (*
-      do 2 eexists; intuition eauto.
-      instantiate (1:= o2).
-      rewrite cons_app; eauto.
-      simpl; eauto.
-      {
-        unfold minimal_oracle; intros.
-        intros Hn; simpl in *.
-        destruct n0; simpl in *; try lia.
-        eapply exec_empty_oracle; eauto.
-      }
-      *)
+      instantiate (1:= [OpToken _ _]); simpl; eauto.
       right; do 2 eexists; intuition eauto.
       unfold Transaction.recover.
       rewrite cons_app;

@@ -338,3 +338,116 @@ rewrite H34, H39 in *;
 simpl in *; try lia; try congruence.
 }
 Qed.
+
+
+Lemma get_owner_related_ret_eq:
+forall u u' ex s1 s2 o s1' s2' r1 r2 inum, 
+AD_related_states u' ex s1 s2 ->
+exec TD u o (snd s1) (Inode.get_owner inum) (Finished s1' r1) ->
+exec TD u o (snd s2) (Inode.get_owner inum) (Finished s2' r2) ->
+r1 = r2.
+Proof.
+  unfold AD_related_states, refines_related, FD_related_states; simpl;
+  intros; cleanup.
+  unfold refines, File.files_rep, File.files_inner_rep in *.
+  cleanup.
+  rewrite <- H8, <- H4 in *.
+  eapply Inode.get_owner_finished in H0; eauto.
+  eapply Inode.get_owner_finished in H1; eauto.
+  cleanup; repeat split_ors; cleanup; try lia; eauto.
+  {
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
+    cleanup.
+    unfold File.file_map_rep in *; cleanup.
+    eapply_fresh H22 in H1; eauto.
+    eapply_fresh H23 in H0; eauto.
+    destruct H3; cleanup.
+    eapply H25 in H0; eauto; cleanup.
+    unfold File.file_rep in *; cleanup; eauto.
+  }
+  {
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
+    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H21; eauto.
+    cleanup.
+    destruct H3; cleanup.
+    edestruct H1. 
+    exfalso; eapply H24; eauto. congruence.
+  }
+  {
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
+    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H20; eauto.
+    cleanup.
+    destruct H3; cleanup.
+    edestruct H1. 
+    exfalso; eapply H23; eauto. congruence.
+  }
+Qed.
+
+
+Lemma have_same_structure_read:
+forall inum off u u' s1 s2,
+AD_related_states u' None s1 s2 ->
+have_same_structure (File.read inum off) (File.read inum off) u s1 s2.
+Proof.
+  Opaque File.read_inner Inode.get_owner.
+  unfold File.read, File.auth_then_exec.
+  intros; simpl.
+  intuition eauto.
+  eapply have_same_structure_get_owner; eauto.
+
+  eapply lift2_invert_exec in H0.
+eapply lift2_invert_exec in H1; cleanup.
+apply HC_map_ext_eq in H1; subst.
+eapply_fresh get_owner_related_ret_eq in H3; eauto.
+
+unfold AD_related_states, refines_related in *; 
+simpl in *; cleanup.
+
+unfold refines, File.files_rep in *; cleanup.
+rewrite <- H6, <- H8 in *; clear H6 H8.
+unfold File.files_inner_rep in *; cleanup.
+eapply Inode.get_owner_finished in H5; eauto.
+eapply Inode.get_owner_finished in H3; eauto.
+repeat split_ors; cleanup.
+
+clear H3 H5. destruct r2; simpl; intuition eauto.
+repeat invert_exec; intuition.
+simpl; intuition eauto.
+eapply have_same_structure_read_inner; eauto.
+do 2 eexists; intuition eauto.
+
+unfold File.files_inner_rep; eexists; intuition eauto.
+eexists; intuition eauto.
+eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+intros; SameRetType.solve_bounds.
+
+unfold File.files_inner_rep; eexists; intuition eauto.
+eexists; intuition eauto.
+eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+intros; SameRetType.solve_bounds.
+
+eapply lift2_invert_exec in H3.
+eapply lift2_invert_exec in H5; cleanup.
+apply HC_map_ext_eq in H5; subst.
+unfold FD_related_states  in *.
+eapply SameRetType.read_inner_finished_oracle_eq in H21. 
+2: eapply H24. 
+all: eauto.
+cleanup. 
+destruct r1, r2; simpl; intuition congruence.
+
+unfold File.files_inner_rep; eexists; intuition eauto.
+eexists; intuition eauto.
+eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+intros; SameRetType.solve_bounds.
+
+unfold File.files_inner_rep; eexists; intuition eauto.
+eexists; intuition eauto.
+eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+intros; SameRetType.solve_bounds.
+
+simpl; intuition eauto.
+Unshelve.
+eauto.
+Qed.

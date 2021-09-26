@@ -48,6 +48,7 @@ forall T (p2: (HorizontalComposition O O2).(operation) T) o1 s1 s1' r u,
     }
 Qed.
 
+(*
 Fixpoint HC_oracle_transformation (o1: oracle HCL1) (o2: oracle L1) :=
 match o1 with
 | [] => o2 = []
@@ -68,7 +69,16 @@ match o1 with
         HC_oracle_transformation o1' o2'
     end
 end.
+*)
 
+Definition HC_transform_oracle := 
+map (fun o : Language.token' O1 =>
+match o with
+| OpToken _ o3 =>
+    OpToken (HorizontalComposition O O1) (Token2 O O1 o3)
+| Language.Crash _ => Language.Crash (HorizontalComposition O O1)
+| Language.Cont _ => Language.Cont (HorizontalComposition O O1)
+end).
 
 (* Problem Here is A single token in abstract turns into an oracle for implementation, it is like flattened *)
 Definition HC_token_refines T u (d1: HCL1.(state)) 
@@ -78,8 +88,7 @@ match p with
 | P1 p1 => exists t , t2 = Token1 _ _ t /\ o1 = [OpToken (HorizontalComposition O O1) (Token1 O O1 t)] 
 | P2 p2 =>
     exists t o, t2 = Token2 _ _ t /\ 
-    (* @minimal_oracle _ HCL1 _ (lift_L2 O (compile_core RC p2)) u d1 o1 om1 /\ *)
-    HC_oracle_transformation o1 o /\
+    o1 = HC_transform_oracle o /\
     forall s,
     RC.(token_refines) u (snd d1) p2 (fun s1 => snd (get_reboot_state (s, s1))) o t
 end.
@@ -92,7 +101,7 @@ HC_exec_compiled_preserves_refinement_finished_core.
 
 Definition HC_Refinement := LiftRefinement HCL2 HC_Core_Refinement.
 
-
+(*
 Lemma HC_oracle_transformation_id:
 forall o1 o2,
 HC_oracle_transformation
@@ -381,7 +390,43 @@ forall o1 o2 x,
     simpl; eauto; try congruence;
     erewrite IHo1; eauto.
   Qed.
+*)
 
+    Lemma HC_map_ext_eq:
+    forall x x1,
+    HC_transform_oracle x1 =
+    HC_transform_oracle x ->
+    x1 = x.
+      Proof.
+        intros. 
+        eapply map_ext_eq in H; eauto.
+        intros; cleanup; intuition congruence.
+      Qed.
+
+      Lemma HC_map_ext_eq_prefix:
+    forall x x1 x' x1',
+    HC_transform_oracle x1 ++ x1' =
+    HC_transform_oracle x ++ x' ->
+    exists x1' x', x1 ++ x1' = x ++ x'.
+      Proof.
+        intros. 
+        eapply map_ext_eq_prefix in H; eauto.
+        solve [repeat constructor].
+        intros; cleanup; intuition congruence.
+      Qed.
+
+      Ltac HC_map_ext_unify :=
+        match goal with
+        |[H: HC_transform_oracle _ 
+        = HC_transform_oracle _ |- _] =>
+          apply HC_map_ext_eq in H; subst
+        | [H: HC_transform_oracle _ 
+        = map _ _ |- _] =>
+          apply HC_map_ext_eq in H; subst
+        |[H: HC_transform_oracle _ ++ _ 
+         = HC_transform_oracle _ ++ _ |- _] =>
+          apply HC_map_ext_eq_prefix in H
+        end; repeat HC_map_ext_unify.
 
     (* HC preserving simulations *)
     Lemma HC_exec_exists_2_to_1:
@@ -415,7 +460,7 @@ forall o1 o2 x,
             simpl in *; cleanup.
             repeat invert_exec.
             simpl in *; cleanup.
-            apply HC_oracle_transformation_id in H4; subst.
+            HC_map_ext_unify.
             edestruct H; eauto; cleanup.
             eexists; repeat econstructor; eauto.
           }

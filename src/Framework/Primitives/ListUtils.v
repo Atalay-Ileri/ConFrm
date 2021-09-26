@@ -5636,3 +5636,24 @@ Proof.
   right; intuition eauto.
   subst; eauto.
 Qed.
+
+
+Lemma map_ext_eq_prefix:
+forall (A B : Type) (l1 l2 : list A) l3 l4 (f : A -> B),
+A ->
+map f l1 ++ l3 = map f l2 ++ l4 -> 
+(forall a a' : A, f a = f a' -> a = a') -> 
+exists l3' l4', 
+l1 ++ l3' = l2 ++ l4'.
+Proof.
+    induction l1; simpl; intros.
+    eauto.
+    destruct l2; simpl in *. eauto.
+    inversion H.
+    apply H0 in H2; rewrite H2.
+    edestruct IHl1; eauto.
+    destruct H1; subst.
+    do 2 eexists; rewrite H1; eauto.
+    Unshelve.
+    all: eauto.
+Qed.  

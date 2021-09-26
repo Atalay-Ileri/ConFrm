@@ -1,16 +1,16 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
-Require Import ATCLayer ATCSimulation ATCAOE FileDisk.TransferProofs.
-Require Import HSS ATC_ORS_Common ATC_ORS_TD.
+Require Import ATCDLayer ATCDSimulation ATCDAOE FileDisk.TransferProofs.
+Require Import ATC_ORS_Common.
 Import FileDiskLayer.
 
-  Lemma ATC_ORS_inode_allocator_read:
+  Lemma ATCD_ORS_inode_allocator_read:
   forall n inum u u',
-  oracle_refines_same_from_related ATC_Refinement u
-    (@lift_L2 AuthenticationOperation _ TD _ (Inode.InodeAllocator.read inum))
+  oracle_refines_same_from_related ATCD_Refinement u
+    (@lift_L2 AuthenticationOperation _  _ (Inode.InodeAllocator.read inum))
     (@lift_L2 AuthenticationOperation _ TD _ (Inode.InodeAllocator.read inum))
     (Simulation.Definitions.compile FD.refinement (| Recover |))
-    (ATC_reboot_list n) 
+    (ATCD_reboot_list n) 
     (fun s1 s2  => exists s1a s2a, 
     File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
     File.files_inner_rep s2a (fst (snd (snd s2))) /\ 

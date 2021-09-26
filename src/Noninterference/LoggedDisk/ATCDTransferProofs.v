@@ -1,28 +1,11 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
-Require Import ATCDLayer TransactionalDisk.TransferProofs ATCDSimulation ATCDAOE.
-Require Import Not_Init. (* ATCD_ORS ATCD_TS.*)
+Require Import ATCDLayer ATCSimulation HSS(*TransactionalDisk.TransferProofs*) ATCDSimulation ATCDAOE.
+Require Import Not_Init ATCD_ORS_Common. (*ATCD_TS.*)
 
 Import FileDiskLayer.
 Set Nested Proofs Allowed.
 
-
-
-Lemma ATCD_ORS_read:
-forall (l_selector: list (@total_mem addr addr_dec nat)) T (p: AD.(prog) T) rec u u' ex,
-
-oracle_refines_same_from_related ATC_Refinement u p p rec
-(ATC_reboot_list (length l_selector)) (AD_related_states u' ex) -> 
-
-oracle_refines_same_from_related ATCD_Refinement u
-(Simulation.Definitions.compile ATC_Refinement p)
-(Simulation.Definitions.compile ATC_Refinement p)
-(Simulation.Definitions.compile ATC_Refinement rec)
-(ATCD_reboot_list l_selector) 
-(refines_related ATC_Refinement (AD_related_states u' ex)).
-Proof.
-  unfold oracle_refines_same_from_related; intros.
-  unfold refines_related in *; cleanup.
 
 
 Opaque File.read File.recover.
@@ -45,7 +28,7 @@ Theorem ss_ATCD_read:
 Proof.
     intros.
     eapply SS_transfer.
-      - apply ss_ATC_read.
+      - admit. (* apply ss_ATC_read. *)
       - eapply ATCD_simulation.
         shelve.
       - eapply ATCD_simulation.
@@ -54,15 +37,18 @@ Proof.
         shelve.
       - apply ATCD_AOE.
         shelve.
-      - simpl. admit. (* apply ATCD_ORS_read. *)
+      - eapply ATCD_ORS_transfer; simpl.
+        all: shelve.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - apply ATCD_TS_read.
-Qed.
+      - admit. (* apply ATCD_TS_read. *)
+      Unshelve.
+      all: simpl; try solve [try apply not_init_compile; apply not_init_read].
+      Qed.
 
 
 
@@ -330,60 +316,7 @@ Proof.
  intros; destruct l; eauto; simpl in *; lia.
 Qed.
 
-(* Need to figure out oracles instead of exists *)
-Lemma ROR_transfer:
-forall l_o_imp l_o_abs n u s1_imp x inum off , 
-recovery_oracles_refine_to ATCD_Refinement u s1_imp 
-(File.read inum off) File.recover (ATCD_reboot_list n) l_o_imp l_o_abs ->
-TransactionToTransactionalDisk.Definitions.refines (snd s1_imp) (snd x) ->
-fst s1_imp = fst x ->
-exists l_o_abs',
-recovery_oracles_refine_to FD.refinement u x 
-(| Read inum off |) (| Recover |) (authenticated_disk_reboot_list n)
-l_o_abs l_o_abs'.
-Proof.
-  induction l_o_imp; simpl; intros; intuition.
-  
-  destruct l_o_abs; intuition.
-  {
-    simpl in *; cleanup.
-    eapply ATCD_exec_lift_finished in H; eauto.
-    2: simpl; unfold HC_refines; eauto.
-    cleanup.
-    eexists [_].
-    simpl; intuition eauto.
-    left; do 2 eexists; intuition eauto.
-    eexists; intuition eauto.
-    left; do 2 eexists; intuition eauto.
-    eapply FileSpecs.read_finished in H; cleanup; eauto.
-    simpl.
-    
-    apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished; eauto.
-  }
-  {
-    cleanup; intuition.
-    unfold ATCD_reboot_list in *; 
-    destruct n; simpl in *; try congruence.
-    cleanup.
 
-    eapply ATCD_exec_lift_crashed in H; eauto; cleanup.
-    eapply ROR_transfer_recovery in H4; eauto.
-    cleanup.
-    eexists (_::_).
-    simpl; intuition eauto.
-    eapply recovery_oracles_refine_to_length in H4; eauto.
-    right; eexists; intuition eauto.
-    eexists; intuition eauto.
-    right; eexists; intuition eauto.
-    eapply FileSpecs.read_crashed in H; eauto.
-    simpl; unfold HC_refines; eauto.
-    apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished; eauto.
-    apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed; eauto.
-    apply not_init_read.
-  }
-  Unshelve.
-  all: eauto.
-Qed.
 
 
 Lemma get_owner_related_ret_eq:
@@ -531,7 +464,7 @@ Proof.
     cleanup.
     eapply_fresh lift2_invert_exec in H43; eauto; cleanup.
     eapply_fresh lift2_invert_exec in H44; eauto; cleanup.
-    eapply_fresh ATCD_oracle_refines_prefix_finished in H29; eauto.
+    eapply_fresh ATCD_oracle_refines_impl_eq in H29; eauto.
   {
     apply map_ext_eq in Hx; subst.
     2: intros; cleanup; intuition congruence.
@@ -629,7 +562,7 @@ intros; unfold refines_related in *; cleanup.
   eapply lift2_invert_exec in H13; eauto; cleanup.
   eapply lift2_invert_exec in H15; eauto; cleanup.
   simpl in *.
-  eapply_fresh ATCD_oracle_refines_prefix_finished in H1; eauto.
+  eapply_fresh ATCD_oracle_refines_impl_eq in H1; eauto.
   {
     apply map_ext_eq in Hx; subst.
     2: intros; cleanup; intuition congruence.
@@ -665,7 +598,7 @@ intros; unfold refines_related in *; cleanup.
   repeat split_ors; cleanup; try congruence;
   do 2 eexists; intuition eauto.
 
-  eapply_fresh ATCD_oracle_refines_prefix_finished in H1; eauto.
+  eapply_fresh ATCD_oracle_refines_impl_eq in H1; eauto.
   2: apply TD_oracle_refines_operation_eq.
   {
     apply map_ext_eq in Hx; subst.
@@ -974,7 +907,7 @@ intros; unfold refines_related in *; cleanup.
   eapply_fresh lift2_invert_exec in H14; eauto; cleanup.
   eapply_fresh lift2_invert_exec in H23; eauto; cleanup.
   simpl in *.
-  eapply_fresh ATCD_oracle_refines_prefix_finished in H10; eauto.
+  eapply_fresh ATCD_oracle_refines_impl_eq in H10; eauto.
   {
     apply map_ext_eq in Hx; subst.
     2: intros; cleanup; intuition congruence.
@@ -1138,7 +1071,7 @@ all: shelve.
   eapply_fresh lift2_invert_exec in H7; eauto; cleanup.
   eapply_fresh lift2_invert_exec in H9; eauto; cleanup.
   simpl in *.
-  eapply_fresh ATCD_oracle_refines_prefix_finished in H1; eauto.
+  eapply_fresh ATCD_oracle_refines_impl_eq in H1; eauto.
   {
     apply map_ext_eq in Hx; subst.
     2: intros; cleanup; intuition congruence.
@@ -1890,7 +1823,7 @@ Lemma ATCD_TS_read_inner:
       eapply lift2_invert_exec in H22;
       eapply lift2_invert_exec in H24; cleanup.
       
-      eapply ATCD_oracle_refines_prefix_finished in H21.
+      eapply ATCD_oracle_refines_impl_eq in H21.
       2: apply H20.
       all: simpl in *; eauto.
       2: apply TD_oracle_refines_operation_eq.

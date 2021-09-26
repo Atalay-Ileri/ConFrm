@@ -285,21 +285,7 @@ try solve [
 
 
 
-Lemma map_ext_eq_prefix:
-forall (A B : Type) (l1 l2 : list A) l3 l4 (f : A -> B),
-map f l1 ++ l3 = map f l2 ++ l4 -> 
-(forall a a' : A, f a = f a' -> a = a') -> 
-exists l3' l4', 
-l1 ++ l3' = l2 ++ l4'.
-Proof.
-    induction l1; simpl; intros; eauto.
-    destruct l2; simpl in *; cleanup; eauto.
-    apply H0 in H2; rewrite H2; eauto.
-    edestruct IHl1; eauto; cleanup; eauto.
-    do 2 eexists; rewrite H; eauto.
-    Unshelve.
-    all: eauto.
-Qed.
+
 
 Lemma HC_oracle_map_prefix :
 forall x7 x8 o2 o3,
@@ -347,6 +333,7 @@ map
         x7 ++ l3' = x8 ++ l4'.
         Proof.
             intros; eapply map_ext_eq_prefix; eauto.
+            repeat constructor.
             intros; destruct a, a'; cleanup; congruence.
         Qed.
         

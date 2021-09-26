@@ -473,50 +473,6 @@ Proof.
 Qed.
 
 
-Lemma get_owner_related_ret_eq:
-forall u u' ex s1 s2 o s1' s2' r1 r2 inum, 
-AD_related_states u' ex s1 s2 ->
-exec TD u o (snd s1) (Inode.get_owner inum) (Finished s1' r1) ->
-exec TD u o (snd s2) (Inode.get_owner inum) (Finished s2' r2) ->
-r1 = r2.
-Proof.
-  unfold AD_related_states, refines_related, FD_related_states; simpl;
-  intros; cleanup.
-  unfold refines, File.files_rep, File.files_inner_rep in *.
-  cleanup.
-  rewrite <- H8, <- H4 in *.
-  eapply Inode.get_owner_finished in H0; eauto.
-  eapply Inode.get_owner_finished in H1; eauto.
-  cleanup; repeat split_ors; cleanup; try lia; eauto.
-  {
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
-    cleanup.
-    unfold File.file_map_rep in *; cleanup.
-    eapply_fresh H22 in H1; eauto.
-    eapply_fresh H23 in H0; eauto.
-    destruct H3; cleanup.
-    eapply H25 in H0; eauto; cleanup.
-    unfold File.file_rep in *; cleanup; eauto.
-  }
-  {
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
-    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H21; eauto.
-    cleanup.
-    destruct H3; cleanup.
-    edestruct H1. 
-    exfalso; eapply H24; eauto. congruence.
-  }
-  {
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
-    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H20; eauto.
-    cleanup.
-    destruct H3; cleanup.
-    edestruct H1. 
-    exfalso; eapply H23; eauto. congruence.
-  }
-Qed.
-
 Lemma ATC_ORS_read_inner:
 forall n u u' inum off im1 im2,
 oracle_refines_same_from_related ATC_Refinement u

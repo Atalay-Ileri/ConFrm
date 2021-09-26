@@ -46,10 +46,8 @@ Proof.
       eexists; intuition eauto.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      eapply HC_oracle_transformation_same.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      eapply HC_oracle_transformation_same.
       left; eexists; simpl in *; intuition eauto.
       destruct t; eauto.
       eapply LogCache.recover_finished; eauto.
@@ -102,10 +100,8 @@ Proof.
       eexists; intuition eauto.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      eapply HC_oracle_transformation_same.
       eexists; intuition eauto.
       eexists; intuition eauto.
-      eapply HC_oracle_transformation_same.
       right; eexists; simpl in *; intuition eauto.
       eapply LogCache.recover_crashed; eauto.
 
@@ -138,6 +134,7 @@ Proof.
       eexists; intuition eauto.
       eexists; intuition eauto.
       eexists; intuition eauto.
+      simpl; eauto.
     }
   }
   Unshelve.
