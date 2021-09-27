@@ -1,6 +1,6 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference LoggedDiskRefinement.
-Require Import (*HSS*) ATCDLayer ATCDSimulation ATCDAOE FinishedNotCrashed.
+Require Import (*HSS*) ATCDLayer ATCD_Simulation ATCD_AOE FinishedNotCrashed.
 Import FileDiskLayer.
 
 Ltac unify_execs_prefix :=
@@ -1637,8 +1637,8 @@ Lemma ATCD_ORS_transfer:
 forall (l_selector: list (@total_mem addr addr_dec nat)) 
 T (p1 p2: AD.(prog) T)  u u' ex,
 
-ATCSimulation.not_init p1 ->
-ATCSimulation.not_init p2 ->
+ATC_Simulation.not_init p1 ->
+ATC_Simulation.not_init p2 ->
 
 (forall s1 s2, 
 (refines_related ATC_Refinement (AD_related_states u' ex)) s1 s2 ->

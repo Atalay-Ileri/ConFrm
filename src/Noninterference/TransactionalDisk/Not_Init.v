@@ -1,6 +1,6 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
-Require Import ATCLayer ATCSimulation ATCAOE.
+Require Import ATCLayer ATC_Simulation ATC_AOE.
 
 Import FileDiskLayer.
 

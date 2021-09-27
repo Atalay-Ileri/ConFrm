@@ -1,6 +1,6 @@
 Require Import Lia Framework ATCDLayer File FileDiskNoninterference.
 Require Import LoggedDiskRefinement LogCache.RepImplications Not_Init.
-Require Import ATCDSimulation.
+Require Import ATCD_Simulation.
 
 Opaque LogCache.recover.
 Lemma ATCD_AOE_recover:

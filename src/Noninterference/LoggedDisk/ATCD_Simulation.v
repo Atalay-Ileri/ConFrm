@@ -1,5 +1,5 @@
 Require Import Lia Framework FSParameters FileDiskLayer FileDiskNoninterference. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
-Require Import ATCSimulation Not_Init ATCDLayer. (** TransferProofs. *)
+Require Import ATC_Simulation Not_Init ATCDLayer. (** TransferProofs. *)
 Require Import LoggedDiskRefinement LogCache.RepImplications.
 Require Import Coq.Program.Equality.
 Require Import Eqdep FunctionalExtensionality.
@@ -28,7 +28,7 @@ Fixpoint not_init {T} (p: ATCLang.(prog) T) :=
 
 Lemma not_init_compile:
 forall T (p: AD.(prog) T),
-ATCSimulation.not_init p ->
+ATC_Simulation.not_init p ->
 not_init (Simulation.Definitions.compile ATC_Refinement p).
 Proof.
   induction p; simpl; intros; cleanup; simpl; eauto.
