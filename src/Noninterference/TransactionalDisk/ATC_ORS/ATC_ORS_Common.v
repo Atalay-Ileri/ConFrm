@@ -1167,6 +1167,104 @@ Ltac unify_execs_prefix :=
         Qed.
       
     
+        Lemma TD_oracle_refines_operation_eq_crashed:
+          forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
+          (T' : Type) (o2 : operation Definitions.abs_op T')
+          (x16 : list (Language.token' TransactionCacheOperation))
+          (x17 : TransactionalDiskLayer.token')
+          (x18 : oracle' TransactionCacheOperation)
+          (x19 : state Definitions.imp -> state Definitions.imp)
+          (x20 : list (Language.token' TransactionCacheOperation))
+          (x21 : oracle' TransactionCacheOperation)
+          (x22 : state Definitions.imp -> state Definitions.imp)
+          (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
+          (s1' s2' : Language.state' TransactionCacheOperation),
+        TransactionToTransactionalDisk.Definitions.token_refines T u0 s0 o1 x22 x21
+          x17 ->
+        TransactionToTransactionalDisk.Definitions.token_refines T' u0 s3 o2 x19 x18
+          x23 ->
+        exec Definitions.imp u0 x21 s0
+          (TransactionToTransactionalDisk.Definitions.compile T o1) 
+          (Crashed s1') ->
+        exec Definitions.imp u0 x18 s3
+          (TransactionToTransactionalDisk.Definitions.compile T' o2)
+          (Crashed s2') ->
+        TD_have_same_structure o1 o2 ->
+        x18 ++ x16 = x21 ++ x20 -> x17 = x23.
+        Proof.
+          intros;
+          destruct o1, o2; simpl in *; cleanup; try tauto.
+          {
+            repeat split_ors; cleanup; repeat unify_execs_prefix; cleanup; eauto.
+            exfalso; eapply Transaction.read_finished_not_crashed; eauto.
+            exfalso; eapply Transaction.read_finished_not_crashed; eauto.
+          }
+          {
+            repeat (split_ors; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup);
+            try solve [eapply Transaction.write_finished_oracle_eq in H1; eauto; cleanup; eauto].
+            eauto.
+          }
+          {
+            split_ors; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup.
+            split_ors; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup; eauto;
+            destruct H; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup; eauto;
+            destruct H0; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup; eauto.
+
+            unfold Transaction.commit in *.
+            repeat (repeat invert_exec; repeat split_ors;
+            cleanup; simpl in *; try lia; try congruence).
+
+            all: try solve [repeat rewrite app_length in *;
+            match goal with
+            | [H: length ?x + _ = _ |- _] =>
+               destruct x
+            end; simpl in *; try lia; cleanup; try congruence;
+            match goal with
+            | [H: S (length ?x + _) = _ |- _] =>
+               destruct x
+            end; simpl in *; try lia; cleanup; try congruence].
+
+            all: try solve [setoid_rewrite cons_app in H1 at 2; eapply app_inj_tail in H1; cleanup; congruence].
+            all: try solve [setoid_rewrite cons_app in H at 2; eapply app_inj_tail in H; cleanup; congruence].
+
+            unfold Transaction.commit in *.
+            repeat (repeat invert_exec; repeat split_ors;
+            cleanup; simpl in *; try lia; try congruence).
+
+            all: try solve [repeat rewrite app_length in *;
+            match goal with
+            | [H: length ?x + _ = _ |- _] =>
+               destruct x
+            end; simpl in *; try lia; cleanup; try congruence;
+            match goal with
+            | [H: S (length ?x + _) = _ |- _] =>
+               destruct x
+            end; simpl in *; try lia; cleanup; try congruence].
+
+            all: try solve [setoid_rewrite cons_app in H1 at 2; eapply app_inj_tail in H1; cleanup; congruence].
+            all: try solve [setoid_rewrite cons_app in H at 2; eapply app_inj_tail in H; cleanup; congruence].
+
+          }
+          {
+            repeat (split_ors; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup; eauto).          
+            }
+          {
+            repeat (split_ors; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup; eauto).
+                      }
+          {
+            repeat (split_ors; cleanup; repeat unify_execs;
+            repeat unify_execs_prefix; cleanup; eauto).
+          }
+          Unshelve.
+          all: eauto.
+        Qed.
     
       Lemma ATC_oracle_refines_impl_eq:
       forall u T p1 T' p2 s1 s2 s1' s2' s1a s2a r1 r2 o1 o2 o3 o4 oa1 oa2, (* oa3 oa4, *)
@@ -1540,4 +1638,292 @@ Ltac unify_execs_prefix :=
         Qed.
         
 
+
+        Lemma ATC_oracle_refines_impl_eq_crashed:
+        forall u T p1 T' p2 s1 s2 s1' s2' s1a s2a o1 o2 o3 o4 oa1 oa2, (* oa3 oa4, *)
+        oracle_refines _ _ ATCLang AD ATC_CoreRefinement
+          T u s1 p1 ATC_reboot_f o1 oa1 ->
+        oracle_refines _ _ ATCLang AD ATC_CoreRefinement
+          T' u s2 p2 ATC_reboot_f o2 oa2 ->
         
+        @HC_refines _ _ _ _ _ AD TransactionToTransactionalDisk.Definitions.TDCoreRefinement s1 s1a ->
+        @HC_refines _ _ _ _ _ AD TransactionToTransactionalDisk.Definitions.TDCoreRefinement s2 s2a ->
+        
+          exec ATCLang u o1 s1 (ATC_Refinement.(Simulation.Definitions.compile) p1) (Crashed s1') ->
+          exec ATCLang u o2 s2 (ATC_Refinement.(Simulation.Definitions.compile) p2) (Crashed s2') ->
+          have_same_structure p1 p2 u s1a s2a ->
+        
+          (forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
+          (T' : Type) (o2 : operation Definitions.abs_op T')
+          (x16 : list (Language.token' TransactionCacheOperation))
+          (x17 : TransactionalDiskLayer.token')
+          (x18 : oracle' TransactionCacheOperation)
+          (x19 : state Definitions.imp -> state Definitions.imp)
+          (x20 : list (Language.token' TransactionCacheOperation))
+          (x21 : oracle' TransactionCacheOperation)
+          (x22 : state Definitions.imp -> state Definitions.imp)
+          (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
+          (s1' s2' : Language.state' TransactionCacheOperation) 
+          (r1 : T) (r2 : T'),
+        TransactionToTransactionalDisk.Definitions.token_refines T u0 s0 o1 x22 x21
+          x17 ->
+        TransactionToTransactionalDisk.Definitions.token_refines T' u0 s3 o2 x19 x18
+          x23 ->
+        exec Definitions.imp u0 x21 s0
+          (TransactionToTransactionalDisk.Definitions.compile T o1) 
+          (Finished s1' r1) ->
+        exec Definitions.imp u0 x18 s3
+          (TransactionToTransactionalDisk.Definitions.compile T' o2)
+          (Finished s2' r2) ->
+        TD_have_same_structure o1 o2 ->
+        x18 ++ x16 = x21 ++ x20 -> x18 = x21 /\ x17 = x23) ->
+        
+        (forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
+        (T' : Type) (o2 : operation Definitions.abs_op T')
+        (x16 : list (Language.token' TransactionCacheOperation))
+        (x17 : TransactionalDiskLayer.token')
+        (x18 : oracle' TransactionCacheOperation)
+        (x19 : state Definitions.imp -> state Definitions.imp)
+        (x20 : list (Language.token' TransactionCacheOperation))
+        (x21 : oracle' TransactionCacheOperation)
+        (x22 : state Definitions.imp -> state Definitions.imp)
+        (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
+        (s1' s2' : Language.state' TransactionCacheOperation),
+      TransactionToTransactionalDisk.Definitions.token_refines T u0 s0 o1 x22 x21
+        x17 ->
+      TransactionToTransactionalDisk.Definitions.token_refines T' u0 s3 o2 x19 x18
+        x23 ->
+      exec Definitions.imp u0 x21 s0
+        (TransactionToTransactionalDisk.Definitions.compile T o1) 
+        (Crashed s1') ->
+      exec Definitions.imp u0 x18 s3
+        (TransactionToTransactionalDisk.Definitions.compile T' o2)
+        (Crashed s2') ->
+      TD_have_same_structure o1 o2 ->
+      x18 ++ x16 = x21 ++ x20 ->  x17 = x23) ->
+        
+        o1 ++ o3 = o2 ++ o4 ->
+        not_init p1 /\ not_init p2 ->
+        oa1 = oa2.
+        Proof.
+          induction p1; destruct p2; simpl; intros; try tauto; 
+          cleanup_no_match; try tauto.
+          {
+            clear H9 H10.
+            cleanup; try tauto;
+            unfold HC_token_refines in *; cleanup;
+            simpl in *; cleanup; eauto.
+        
+            specialize (H10 tt).
+            specialize (H12 tt).
+            eapply_fresh HC_map_ext_eq_prefix in H8; eauto; cleanup_no_match.
+            eapply lift2_invert_exec_crashed in H3; cleanup.
+            eapply lift2_invert_exec_crashed in H4; cleanup.
+            eapply_fresh HC_map_ext_eq in H4; eauto; subst.
+            eapply_fresh HC_map_ext_eq in H0; eauto; subst.
+        
+            assert (x3 = x1). {
+              eapply H7; eauto.
+            }
+            cleanup; eauto.
+          }
+          {
+            repeat invert_exec; eauto.
+            repeat split_ors; cleanup; 
+            simpl in *; cleanup; 
+            try congruence; eauto.
+            repeat invert_exec.
+            repeat invert_exec.
+          }
+          {
+            repeat invert_exec.
+            repeat rewrite <- app_assoc in *.
+            repeat split_ors; cleanup; repeat unify_execs_prefix;
+            cleanup; repeat unify_execs; cleanup.
+            eapply IHp1; eauto.
+        
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H17.
+            eapply H17; eauto.
+            rewrite <- app_assoc; eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H14.
+            eapply H14; eauto.
+            rewrite <- app_assoc; eauto.
+        
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H21.
+            eapply H21; eauto.
+            rewrite <- app_assoc; eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto.
+            rewrite <- app_assoc; eauto.
+        
+            rewrite <- app_assoc in *.
+            eapply exec_finished_deterministic_prefix in H19; eauto; cleanup.
+            exfalso; eapply ATC_oracle_refines_prefix_one_crashed.
+            4: eauto.
+            6: eauto.
+            8: eauto.
+            all: eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto.
+            rewrite <- app_assoc; eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H5; eauto.
+            rewrite <- app_assoc; eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H1; eauto.
+            rewrite <- app_assoc; eauto.
+        
+            rewrite <- app_assoc in *.
+            eapply exec_finished_deterministic_prefix in H18; eauto; cleanup.
+            exfalso; eapply ATC_oracle_refines_prefix_one_crashed.
+            4: apply H4.
+            3: apply H6.
+            5: eapply have_same_structure_sym; eauto.
+            all: eauto.
+        
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto;
+            rewrite <- app_assoc; eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H1; eauto;
+            rewrite <- app_assoc; eauto.
+        
+            exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto;
+            rewrite <- app_assoc; eauto.
+        
+            eapply exec_finished_deterministic_prefix in H20; eauto; cleanup.
+            eapply exec_finished_deterministic_prefix in H25; eauto; cleanup.
+            repeat unify_execs; cleanup.
+            repeat rewrite <- app_assoc in *.
+            eapply_fresh ATC_oracle_refines_impl_eq in H6.
+            7: eauto.
+            all: eauto.
+            cleanup.
+        
+            eapply ATC_exec_lift_finished in H6; eauto;
+            try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+            try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+            try solve [apply not_init_read].
+            eapply ATC_exec_lift_finished in H17; eauto;
+            try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+            try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+            try solve [apply not_init_read].
+            simpl in *; cleanup.
+        
+            eapply H in H14.
+            6: eauto.
+            2: eauto.
+            2: eauto.
+            all: eauto.
+            cleanup; eauto.
+          }
+        Unshelve.
+        all: eauto.
+        Qed.
+        
+        
+        
+  Lemma ATCD_ORS_transfer:
+        forall n T (p1 p2: AD.(prog) T)  u u' ex,
+        
+        not_init p1 ->
+        not_init p2 ->
+        
+        (forall s1 s2, 
+        AD_related_states u' ex s1 s2 ->
+        have_same_structure p1 p2 u s1 s2) ->
+        
+        oracle_refines_same_from_related ATC_Refinement u
+        p1 p2 File.recover (ATC_reboot_list n) 
+        (AD_related_states u' ex).
+        Proof.
+          unfold ATC_reboot_list; induction n; intros.
+          {
+            unfold oracle_refines_same_from_related; intros.
+            simpl in *.
+            destruct l_o_imp; simpl in *; try tauto.
+            cleanup; try tauto.
+            simpl in *; repeat split_ors; cleanup; try tauto.
+            unfold refines_related at 1 in H2; cleanup; eauto.
+            simpl in *. 
+            eapply ATC_oracle_refines_impl_eq in H10.
+            5: apply H5.
+            all: eauto.
+            3: apply TD_oracle_refines_operation_eq.
+            cleanup; eauto.
+            all: shelve.
+          }
+          {
+            unfold oracle_refines_same_from_related; intros.
+            simpl in *.
+            destruct l_o_imp; simpl in *; try tauto.
+            cleanup; try tauto.
+            unfold refines_related at 1 in H2; cleanup; eauto.
+            simpl in *; repeat split_ors; cleanup; try tauto.
+            {
+              simpl in *. 
+              eapply ATC_oracle_refines_impl_eq in H12.
+              5: apply H5.
+              all: eauto.
+              3: apply TD_oracle_refines_operation_eq.
+              cleanup; eauto.
+              all: shelve.
+            }
+            {
+              simpl in *.
+              exfalso; eapply ATC_oracle_refines_prefix_one_crashed.
+              3: eauto.
+              3: eauto.
+              all: eauto.
+              all: shelve.
+            }
+            {
+              simpl in *.
+              exfalso; eapply ATC_oracle_refines_prefix_one_crashed.
+              3: eauto.
+              3: eauto.
+              all: eauto.
+              all: shelve.
+            }
+            {
+              simpl in *. 
+              eapply_fresh ATC_oracle_refines_impl_eq_crashed in H11.
+              5: apply H5.
+              all: eauto.
+              3: apply TD_oracle_refines_operation_eq.
+              3: apply TD_oracle_refines_operation_eq_crashed.
+              cleanup; eauto.
+              eapply ATC_ORS_recover in H10.
+              apply H10 in H12; 
+              subst; eauto.
+              all: shelve.
+            }
+          }
+          Unshelve.
+          all: eauto.
+          all: try split.
+          all: try solve [eapply not_init_compile; eauto].
+          all: try solve [ apply H1 in H8; eauto; apply have_same_structure_sym; eauto].
+          exact (fun _ _ => True).
+          {
+            unfold refines_related_reboot in *; cleanup; simpl in *.
+            eapply ATC_exec_lift_crashed in H6; eauto;
+          try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+          try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+          eapply ATC_exec_lift_crashed in H7; eauto;
+          try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+          try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+          cleanup.
+        
+        
+          unfold HC_refines_reboot; simpl;
+          unfold HC_refines_reboot; simpl.
+          eexists (_, (_, _)), (_, (_, _)).
+          simpl; intuition eauto.
+          }
+          Unshelve.
+          all: exact Empty.
+        Qed.

@@ -4,7 +4,8 @@ Require Import ATCLayer ATCSimulation ATCAOE FileDisk.TransferProofs.
 Require Import HSS ATC_ORS_Common ATC_ORS_TD.
 Import FileDiskLayer.
 
-  Lemma ATC_ORS_inode_allocator_read:
+
+Lemma ATC_ORS_inode_allocator_read:
   forall n inum u u',
   oracle_refines_same_from_related ATC_Refinement u
     (@lift_L2 AuthenticationOperation _ TD _ (Inode.InodeAllocator.read inum))
@@ -27,13 +28,12 @@ Import FileDiskLayer.
       eapply lift2_invert_exec in H; cleanup.
       eapply lift2_invert_exec in H0; cleanup.
 
-      apply HC_map_ext_eq in H6; subst.
-      apply HC_map_ext_eq in H9; subst.
+      apply HC_map_ext_eq in H; subst.
+      apply HC_map_ext_eq in H0; subst.
       repeat split_ors; cleanup; eauto;
       repeat unify_execs; cleanup; eauto.
-      eapply map_ext_eq_prefix in H3; eauto; cleanup.
+      eapply HC_map_ext_eq_prefix in H3; eauto; cleanup.
       eapply Transaction.read_finished_oracle_eq in H2; eauto; subst; eauto.
-      intros; cleanup; intuition congruence.
     }
     2: apply oracle_refines_independent_from_reboot_function.
     3: {
