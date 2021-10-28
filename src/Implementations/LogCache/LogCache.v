@@ -934,6 +934,7 @@ Proof.
 Qed.
 
 
+
 Theorem write_crashed:
   forall merged_disk s o al vl s' u,
   cached_log_rep merged_disk s ->
@@ -2001,7 +2002,3 @@ Proof.
   Unshelve.
   apply value0.
 Qed.
-
-
-  
-  

@@ -27,9 +27,9 @@ Termination_Sensitive u
  AD_valid_state)
 (fun s1 s2 => refines_related ATC_Refinement
  (fun s1 s2  => exists s1a s2a, 
-File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
-File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
-FD_related_states u' None s1a s2a) s1 s2 /\
+    File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+    File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
+    FD_related_states u' None s1a s2a) s1 s2 /\
 (forall a, 
  Transaction.get_first (fst (snd s1)) a = None <-> 
  Transaction.get_first (fst (snd s2)) a = None))

@@ -32,33 +32,30 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
             cached_log_rep merged_disk d1 -> 
             cached_log_rep merged_disk d1'))
    | Write la lv =>
+   forall merged_disk,
+      cached_log_rep merged_disk d1 ->
      (exists d1' r,
           exec impl u o1 d1 (write la lv) (Finished d1' r) /\          
           o2 = Cont /\
-          (forall merged_disk,
-             cached_log_rep merged_disk d1 ->
-             (cached_log_rep merged_disk d1' \/
+          ((cached_log_rep merged_disk d1' \/
              cached_log_rep (upd_batch merged_disk la lv) d1'))) \/
      (exists d1',
         (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashBefore /\
-         (forall merged_disk,
-            cached_log_rep merged_disk d1 -> 
+         (
             cached_log_rep merged_disk d1' \/
             cached_log_crash_rep (During_Apply merged_disk) d1' \/
             cached_log_crash_rep (After_Apply merged_disk) d1') \/
         (exec impl u o1 d1 (write la lv) (Crashed d1') /\
          o2 = CrashAfter /\
-         (forall merged_disk,
-            cached_log_rep merged_disk d1 ->
+         (
             cached_log_crash_rep (After_Commit (upd_batch merged_disk la lv)) d1' /\
             NoDup la /\
             length la = length lv /\
             Forall (fun a : nat => a < data_length) la /\
             length (addr_list_to_blocks la) + length lv <= log_length)) \/
         (exec impl u o1 d1 (write la lv) (Crashed d1') /\
-         (forall merged_disk,
-            cached_log_rep merged_disk d1 ->
+         (
             cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk la lv)) d1' /\
             ((cached_log_reboot_rep merged_disk (get_reboot_state d1') /\ o2 = CrashBefore) \/
             (cached_log_reboot_rep (upd_batch merged_disk la lv) (get_reboot_state d1') /\ o2 = CrashAfter /\
@@ -90,7 +87,7 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
         exec impl u o1 d1 (init l_av) (Finished d1' tt) /\
         o2 = Cont /\
         length l_a = length l_v /\
-        cached_log_rep (total_mem_map fst (shift (Nat.add data_start) (upd_batch_set (snd (snd d1)) l_a l_v))) d1') \/
+        cached_log_rep (total_mem_map fst (shift (Nat.add data_start) (upd_batch_set (snd (snd d1)) (map (PeanoNat.Nat.add data_start) l_a) l_v))) d1') \/
      (exists d1',
         exec impl u o1 d1 (init l_av) (Crashed d1') /\
         o2 = CrashBefore)

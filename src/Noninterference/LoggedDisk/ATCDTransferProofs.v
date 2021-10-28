@@ -1,12 +1,11 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
-Require Import ATCDLayer ATC_Simulation HSS(*TransactionalDisk.TransferProofs*) ATCD_Simulation ATCD_AOE.
+Require Import ATCDLayer ATC_Simulation HSS ATC_TransferProofs.
+Require Import ATCD_Simulation ATCD_AOE.
 Require Import Not_Init ATCD_ORS. (*ATCD_TS.*)
 
 Import FileDiskLayer.
 Set Nested Proofs Allowed.
-
-
 
 Opaque File.read File.recover.
 Theorem ss_ATCD_read:
@@ -26,29 +25,29 @@ Theorem ss_ATCD_read:
     (refines_related ATC_Refinement (AD_related_states u' None)))
     (eq u') (ATCD_reboot_list n).
 Proof.
-    intros.
-    eapply SS_transfer.
-      - admit. (* apply ss_ATC_read. *)
-      - eapply ATCD_simulation.
-        shelve.
-      - eapply ATCD_simulation.
-        shelve.
-      - apply ATCD_AOE.
-        shelve.
-      - apply ATCD_AOE.
-        shelve.
-      - eapply ATCD_ORS_transfer; simpl.
-        all: shelve.
-      - unfold exec_compiled_preserves_validity, AD_valid_state, 
-      refines_valid, FD_valid_state; 
-      intros; simpl; eauto.
-      - unfold exec_compiled_preserves_validity, AD_valid_state, 
-      refines_valid, FD_valid_state; 
-      intros; simpl; eauto.
-      - admit. (* apply ATCD_TS_read. *)
-      Unshelve.
-      all: simpl; try solve [try apply not_init_compile; apply not_init_read].
-      Qed.
+  intros.
+  eapply SS_transfer.
+  - apply ss_ATC_read.
+  - eapply ATCD_simulation.
+    shelve.
+  - eapply ATCD_simulation.
+    shelve.
+  - apply ATCD_AOE.
+    shelve.
+  - apply ATCD_AOE.
+    shelve.
+  - eapply ATCD_ORS_transfer; simpl.
+    all: shelve.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - admit. (* apply ATCD_TS_read. *)
+  Unshelve.
+  all: simpl; try solve [try apply not_init_compile; apply not_init_read].
+Qed.
 
 
 

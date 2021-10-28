@@ -1018,7 +1018,7 @@ Definition LD_have_same_structure {T T'} (p1: LoggedDiskLayer.logged_disk_prog T
   | LoggedDiskLayer.Read _, LoggedDiskLayer.Read _ => True
   | LoggedDiskLayer.Write _ _, LoggedDiskLayer.Write _ _ => True
   | LoggedDiskLayer.Recover, LoggedDiskLayer.Recover => True
-  | LoggedDiskLayer.Init _, LoggedDiskLayer.Init _ => True
+  | LoggedDiskLayer.Init l1, LoggedDiskLayer.Init l2 => length l1 = length l2
   | _, _ => False
   end.
 
@@ -1097,11 +1097,10 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup).
   eapply init_finished_oracle_eq in H1; eauto.
-  admit.
 }
 Unshelve.
 all: eauto.
-Admitted.
+Qed.
 
 Lemma TC_oracle_refines_operation_eq:
 forall (u0 : user) (T : Type) (o1 : operation TransactionCacheOperation T)
@@ -1149,6 +1148,8 @@ exec (CachedDiskLang) u0 x18 s3
 (LoggedDiskCoreRefinement.(Simulation.Definitions.compile_core) o2)
 (Crashed s2') ->
 LD_have_same_structure o1 o2 -> 
+(exists merged_disk, LogCache.cached_log_rep merged_disk s0) ->
+(exists merged_disk, LogCache.cached_log_rep merged_disk s3) ->
 x18 ++ x16 = x21 ++ x20 -> x17 = x23.
 Proof.
 intros;
@@ -1160,9 +1161,9 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
 {
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup; eauto);
-  try solve [eapply write_finished_oracle_eq in H1; eauto; cleanup; eauto].
-  (* Use oracle length thing *)
-  all: admit.
+  try apply H0 in H4; cleanup; try split_ors; cleanup; eauto;
+  try apply H7 in H5; cleanup; try split_ors; cleanup; eauto.
+  all: admit. (* Use oracle length thing *)
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1191,6 +1192,8 @@ exec (TCDLang) u0 x18 s3
 (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
 (Crashed s2') ->
 TC_have_same_structure o1 o2 -> 
+(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s0)) ->
+(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s3)) ->
 x18 ++ x16 = x21 ++ x20 -> x17 = x23.
 Proof.
 intros;
@@ -1198,7 +1201,7 @@ destruct o1, o2; simpl in *; cleanup; try tauto;
 repeat invert_exec; cleanup; eauto.
 eapply HC_map_ext_eq in H;
 eapply HC_map_ext_eq in H1; cleanup.
-apply HC_map_ext_eq_prefix in H4; eauto; cleanup.
+apply HC_map_ext_eq_prefix in H6; eauto; cleanup.
 eapply LD_oracle_refines_operation_eq_crashed in H; eauto.
 cleanup; eauto.
 Unshelve.
@@ -1506,6 +1509,8 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
   (Crashed s2') ->
   TC_have_same_structure o1 o2 ->
+(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s1)) ->
+(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s2)) ->
   x1 ++ x = x4 ++ x3 ->
   x0 = x6) ->
 
@@ -1530,6 +1535,8 @@ Proof.
     eapply_fresh HC_map_ext_eq in H0; eauto; subst.
 
     assert (x3 = x1). {
+      unfold HC_refines in *; simpl in *; cleanup.
+      unfold HC_refines in *; simpl in *; cleanup.
       eapply H7; eauto.
     }
     cleanup; eauto.
@@ -1706,8 +1713,7 @@ Proof.
       5: apply H5.
       all: eauto.
       3: apply TC_oracle_refines_operation_eq.
-      3: apply TC_oracle_refines_operation_eq_crashed.
-      cleanup; eauto.
+      3: apply TC_oracle_refines_operation_eq_crashed; eauto.
       eapply ATCD_ORS_recover in H10.
       apply H10 in H12; 
       subst; eauto.
@@ -1739,5 +1745,5 @@ Proof.
   eexists (_, (_, _)), (_, (_, _)).
   simpl; intuition eauto.
   all: eapply not_init_compile; eauto.
-  }
+  } 
 Qed.

@@ -676,8 +676,16 @@ LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
          split; eauto.
          left; do 2 eexists; intuition eauto.
          cleanup.
-         repeat split_ors; cleanup; unify_execs; cleanup.
+         eexists; intuition eauto.
+         apply H0 in H3.
+         repeat split_ors; cleanup; try unify_execs; cleanup.
          unfold logged_disk_reboot_list  in *; simpl in *.
+         cleanup; simpl in *.
+         repeat invert_exec; simpl in *; cleanup.
+        (* invert_exec'' H12. *)
+         intros; left; 
+         eexists; intuition eauto.
+         repeat split_ors; cleanup; try unify_execs; cleanup.
          cleanup; simpl in *.
          repeat invert_exec; simpl in *; cleanup.
         invert_exec'' H12.
@@ -738,13 +746,12 @@ data_length u x2
       }
       {
         intuition cleanup.
-        eapply exec_deterministic_wrt_oracle_prefix in H; eauto; cleanup.
-
+        apply H0 in H1.
+        repeat split_ors; cleanup;
         repeat split_ors; cleanup; try unify_execs; cleanup.
         {
           eexists; split; [repeat econstructor |]; eauto.
           unfold refines, refines_reboot in *; cleanup.
-          eapply H4 in H1.
           split; try solve [simpl; eapply select_total_mem_synced]. 
           repeat split_ors.
             eapply cached_log_rep_to_reboot_rep; eauto.
@@ -753,7 +760,6 @@ data_length u x2
         }
         {
           unfold refines, refines_reboot in *; cleanup.
-          eapply H4 in H1; cleanup.
           eexists; split; [repeat econstructor |]; eauto.
           split; try solve [simpl; eapply select_total_mem_synced]. 
           eapply cached_log_crash_rep_after_commit_to_reboot_rep; eauto.
@@ -761,7 +767,6 @@ data_length u x2
 
         {
           unfold refines, refines_reboot in *; cleanup.
-          eapply H3 in H1; cleanup.
           split_ors; cleanup.
           eexists; split; [repeat econstructor |]; eauto.
           split; try solve [simpl; eapply select_total_mem_synced].
@@ -807,6 +812,120 @@ SimulationForProgram ATCD_Refinement u
     eapply operation_simulation_finished.
     eapply operation_simulation_crashed.
   Qed.
+
+  Lemma LD_token_refines_finished:
+  forall u T o s orc s' r ,
+  exec Definitions.impl u orc s (compile T o) (Finished s' r) ->
+  exists t, 
+  forall (s0: AuthenticationLayer.state')
+  (s1: state' (addr * value)) 
+  (grs: HorizontalComposition.state' AuthenticationOperation TCDCore ->
+  HorizontalComposition.state' AuthenticationOperation TCDCore),
+  token_refines T u s o 
+  (fun s2: HorizontalComposition.state' (CacheOperation addr_dec value)
+  CryptoDiskOperation => snd (snd (grs (s0, (s1, s2))))) orc t.
+  Proof.
+    intros; destruct o; simpl in *;
+    eexists; left; do 2 eexists; intuition eauto.
+    eapply LogCache.read_finished in H; eauto; cleanup; eauto.
+    eapply LogCache.write_finished in H; eauto; cleanup; eauto.
+    split_ors; cleanup; eauto.
+    destruct r; eauto.
+    eapply LogCache.recover_finished in H; eauto; cleanup; eauto.
+    destruct r; eauto.
+    eapply LogCache.init_finished in H; eauto; cleanup; eauto.
+    repeat rewrite map_length; eauto.
+    eapply LogCache.init_finished in H; eauto; cleanup; eauto.
+  Qed.
+
+
+Lemma cached_log_rep_eq:
+forall s m1 m2,
+LogCache.cached_log_rep m1 s ->
+LogCache.cached_log_rep m2 s ->
+m1 = m2.
+Proof.
+  unfold LogCache.cached_log_rep; intros; cleanup.
+  eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H0.
+  repeat rewrite total_mem_map_shift_comm.
+  repeat rewrite total_mem_map_fst_list_upd_batch_set.
+  setoid_rewrite H0; eauto.
+  all: eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+Qed.
+
+  Lemma LD_token_refines_crashed:
+  forall u T o s orc s' selector,
+  exec Definitions.impl u orc s (compile T o) (Crashed s') ->
+  ( forall l : list (addr * value),
+  ~ eq_dep Type logged_disk_prog T o unit (Init l)) ->
+  (exists merged_disk, LogCache.cached_log_rep merged_disk s) ->
+  non_colliding_selector selector (snd s') ->
+  forall (s0: AuthenticationLayer.state')
+  (s1: state' (addr * value)) 
+  (grs: HorizontalComposition.state' AuthenticationOperation TCDCore ->
+  HorizontalComposition.state' AuthenticationOperation TCDCore),
+  exists t, token_refines T u s o 
+  (fun s0 => (empty_mem, (fst (snd s0), 
+select_total_mem selector (snd (snd s0))))) orc t.
+  Proof.
+    intros; destruct o; simpl in *.
+    {
+      eapply_fresh LogCache.read_crashed in H; eauto; cleanup; eauto.
+      eexists; right; eexists; intuition eauto.
+    }
+    { 
+      cleanup;
+      eapply_fresh LogCache.write_crashed in H; eauto; cleanup; eauto.
+      repeat split_ors; cleanup.
+      {
+        eexists; intros; right; intuition eauto.
+        eexists; left; intuition eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+      }
+      repeat split_ors; cleanup.
+      {
+        eapply_fresh cached_log_crash_rep_during_commit_to_reboot_rep in H2; eauto.
+        split_ors; cleanup.
+        eexists; intros; right; intuition eauto.
+        eexists; right; right; intuition eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+
+        eexists; intros; right; intuition eauto.
+        eexists; right; right; intuition eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+        right; intuition eauto.
+        erewrite addr_list_to_blocks_length_eq; eauto.
+        rewrite map_length; eauto.
+      }
+      {
+        eexists; intros; right; intuition eauto.
+        eexists; right; left; intuition eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+        erewrite addr_list_to_blocks_length_eq; eauto.
+        rewrite map_length; eauto.
+      }
+      {
+        eexists; intros; right; intuition eauto.
+        eexists; left; intuition eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+      }
+      {
+        eexists; intros; right; intuition eauto.
+        eexists; left; intuition eauto.
+        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
+      }
+    }
+    {
+      cleanup.
+      eexists; right; eexists; eauto.
+      repeat (split; eauto).
+      intros; 
+      eapply_fresh LogCache.recover_crashed in H; eauto; cleanup; eauto.
+    }
+    intuition eauto.
+Qed.
 
 Lemma ATCD_oracle_refines_finished:
 forall T (p: ATCLang.(prog) T) u (o : oracle' ATCDCore)
@@ -867,15 +986,12 @@ destruct o.
   {
     eapply lift2_invert_exec in H0; cleanup.
     eapply lift2_invert_exec in H2; cleanup.
-  (*
-  edestruct LD_token_refines_finished; eauto; cleanup.
-  unfold HC_refines in *; cleanup; eauto.
+  edestruct LD_token_refines_finished; eauto.
+    eexists; intuition eauto.
+    eexists; intuition eauto.
+    simpl.
   do 2 eexists; intuition eauto.
-  simpl.
-  do 3 eexists; intuition eauto.
-  apply HC_oracle_transformation_same.
-  *)
-  admit.
+  do 2 eexists; intuition eauto.
   }
 }
 }
@@ -893,7 +1009,7 @@ eexists.
 right.
 do 7 eexists; intuition eauto.
 }
-Admitted.
+Qed.
 
 Lemma ATCD_oracle_refines_crashed:
 forall T (p: ATCLang.(prog) T) u (o : oracle' ATCDCore) selector
@@ -905,7 +1021,7 @@ exec ATCDLang u o s
 (ATCD_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
 
 not_init p ->
-
+non_colliding_selector selector (snd (snd (snd s'))) ->
 exists oa,
 oracle_refines ATCDCore ATCCore
 ATCDLang ATCLang ATCD_CoreRefinement
@@ -938,16 +1054,16 @@ induction p; simpl in *; intros.
   }
   {
     eapply lift2_invert_exec_crashed in H0; cleanup.
-    eapply lift2_invert_exec_crashed in H3; cleanup.
-  (*
-  edestruct LD_token_refines_finished; eauto; cleanup.
-  unfold HC_refines in *; cleanup; eauto.
+    eapply lift2_invert_exec_crashed in H4; cleanup.
+    unfold HC_refines in *; simpl in *.
+      unfold HC_refines in *; simpl in *.
+      unfold refines in *; simpl in *; cleanup.
+    edestruct LD_token_refines_crashed; eauto.
+    exact tt.
+    exact [].
   do 2 eexists; intuition eauto.
-  simpl.
-  do 3 eexists; intuition eauto.
-  apply HC_oracle_transformation_same.
-  *)
-  admit.
+  do 2 eexists; intuition eauto.
+  do 2 eexists; intuition eauto.
   }
 }
 }
@@ -962,8 +1078,8 @@ induction p; simpl in *; intros.
     edestruct IHp; eauto.
   }
   {
-    eapply_fresh ATCD_oracle_refines_finished in H4; eauto; cleanup.
-    eapply_fresh exec_compiled_preserves_refinement_finished in H4; eauto.
+    eapply_fresh ATCD_oracle_refines_finished in H5; eauto; cleanup.
+    eapply_fresh exec_compiled_preserves_refinement_finished in H5; eauto.
     simpl in *; cleanup.
     edestruct H; eauto.
     eexists.
@@ -971,7 +1087,7 @@ induction p; simpl in *; intros.
     do 7 eexists; intuition eauto.
   }
 }
-Admitted.
+Qed.
 
 Lemma ATCD_exec_lift_finished:
   forall T (p: ATCLang.(prog) T) u o_imp o_abs s_imp s_abs s_imp' r grs,

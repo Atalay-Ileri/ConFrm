@@ -467,8 +467,8 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           erewrite addr_list_to_blocks_length_eq; eauto.
           rewrite map_length; eauto. 
         }
-        (** Non-colliding selector goal **)
-        admit.
+        admit. (** Non-colliding selector goal **)
+        
       }
       split_ors; cleanup.
       {
@@ -514,15 +514,15 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
           eexists; intuition eauto.
           cleanup.
           setoid_rewrite <- H8; eauto.
-          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H12; eauto.
+          eapply empty_mem_list_upd_batch_eq_list_upd_batch_total in H11; eauto.
           repeat rewrite total_mem_map_shift_comm in *.
           repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
-          setoid_rewrite <- H12; eauto.
+          setoid_rewrite <- H11; eauto.
           eapply log_rep_forall2_txns_length_match; eauto.
           eapply log_rep_forall2_txns_length_match; eauto.
         }
         {
-          unfold cached_log_rep in H3; cleanup.
+          unfold cached_log_rep in H11; cleanup.
         right; left; eauto.
         unfold cached_log_crash_rep in *;
         simpl in *; cleanup.
@@ -584,8 +584,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
             eexists; intuition eauto.
             eapply select_total_mem_synced in H12; eauto.
             eapply select_total_mem_synced in H12; eauto.
-            (** Non-colliding selector goal **)
-            admit.
+            admit. (** Non-colliding selector goal **)
           }
           split_ors; cleanup.
           {
