@@ -1419,6 +1419,7 @@ forall u grs T (p: ATCLang.(prog) T) o s s',
 exec ATCDLang u o s
   (Simulation.Definitions.compile ATCD_Refinement p) (Crashed s') ->
 not_init p ->
+non_colliding_selector grs (snd (snd (snd s'))) ->
 exists s1', ATCD_refines_reboot grs s' s1'.
 Proof.
   intros; cleanup.

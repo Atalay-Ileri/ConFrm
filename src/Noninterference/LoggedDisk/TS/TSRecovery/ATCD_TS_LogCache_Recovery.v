@@ -1,6 +1,7 @@
 Require Import Eqdep Lia Framework FSParameters CachedDiskLayer.
 Require Import BatchOperations Log LogCache.
-Require Import ATCD_TS_BatchOperations ATCD_TS_Log.
+Require Import ATCDLayer.
+Require Import ATCD_TS_BatchOperations_Recovery ATCD_TS_Log_Recovery.
 
 Set Nested Proofs Allowed.
 
@@ -170,7 +171,7 @@ sa2 = total_mem_map fst (shift (plus data_start)
 
 length txns1 = length txns2 ->
 
-(valid_part = Log.Old_Part -> Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2)) ->
+(Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2)) ->
 
 Forall2
 (fun rec1 rec2 : Log.txn_record =>
@@ -198,15 +199,19 @@ eapply_fresh Log_TS_recover in H13; eauto; cleanup.
 eapply_fresh Specs.recover_finished in H; eauto.
 eapply_fresh Specs.recover_finished in H13; eauto.
 all: try solve[unfold Log.log_reboot_rep; 
+rewrite <- H3 in *; eauto;
 do 4 eexists; intuition eauto].
-
+2:{
+  unfold Log.log_reboot_rep; 
+do 4 eexists; intuition eauto.
+}
 eapply LogCache_TS_write_lists_to_cache in H5; cleanup.
 
 do 2 eexists; repeat econstructor; eauto.
 rewrite cons_app; repeat econstructor; eauto.
 eapply lift2_exec_step; eauto.
 
-repeat rewrite combine_length_eq; repeat rewrite map_length; eauto.
+do 2 rewrite combine_length; do 4 rewrite map_length; eauto.
 apply forall_forall2.
 apply Forall_forall; intros.
 repeat rewrite <- combine_map' in H14.
@@ -270,7 +275,7 @@ sa2 = total_mem_map fst (shift (plus data_start)
 
 length txns1 = length txns2 ->
 
-(valid_part = Log.Old_Part -> Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2)) ->
+(Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2)) ->
 
 Forall2
 (fun rec1 rec2 : Log.txn_record =>
@@ -303,17 +308,25 @@ eexists; econstructor; eauto.
 repeat econstructor.
 econstructor.
 eapply lift2_exec_step_crashed; eauto.
+rewrite <- H3 in *; eauto.
 }
 {
 eapply_fresh Log_TS_recover in H13; eauto; cleanup.
 eapply_fresh Specs.recover_finished in H14; eauto.
 eapply_fresh Specs.recover_finished in H13; eauto.
 all: try solve[unfold Log.log_reboot_rep; 
+rewrite <- H3 in *; eauto;
 do 4 eexists; intuition eauto].
+2:{
+  unfold Log.log_reboot_rep; 
+do 4 eexists; intuition eauto.
+}
+
 eapply LogCache_TS_write_lists_to_cache_crashed in H9; cleanup.
 rewrite cons_app.
 eexists; repeat econstructor; eauto.
 eapply lift2_exec_step; eauto.
+
 
 repeat rewrite combine_length_eq; repeat rewrite map_length; eauto.
 apply forall_forall2.
@@ -347,3 +360,4 @@ repeat rewrite firstn_length_l; try lia.
 Unshelve.
 all: exact CachedDiskLang.
 Qed.
+

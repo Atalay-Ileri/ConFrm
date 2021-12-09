@@ -295,6 +295,7 @@ Qed.
 
 Lemma log_read_encrypted_log_finished_oracle_eq:
 forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2,
+
 exec CryptoDiskLang u o1 s1
 read_encrypted_log (Finished s1' r1) ->
 exec CryptoDiskLang u o2 s2
@@ -374,6 +375,10 @@ exec CryptoDiskLang u o1 s1
 exec CryptoDiskLang u o2 s2
 (apply_txn txn_rec2 l2) (Finished s2' r2) ->
 o1 ++ o3 = o2 ++ o4 ->
+length
+  (firstn (addr_count txn_rec2 + data_count txn_rec2) (skipn (start txn_rec2) l2)) =
+length
+  (firstn (addr_count txn_rec1 + data_count txn_rec1) (skipn (start txn_rec1) l1)) ->
 o1 = o2.
 Proof.
   Transparent apply_txn.
@@ -382,8 +387,9 @@ Proof.
   repeat rewrite <- app_assoc in *.
   eapply_fresh log_decrypt_txn_finished_oracle_eq in H; eauto.
   cleanup.
-  eapply BatchOperations_write_batch_finished_oracle_eq in H3; eauto.
+  eapply BatchOperations_write_batch_finished_oracle_eq in H4; eauto.
   cleanup; eauto.
+  eapply Specs.decrypt_txn_finished in H0; eauto.
 Admitted.
 
 
@@ -406,7 +412,8 @@ Proof.
   cleanup.
   eapply IHtxn_recs1 in H3; eauto.
   cleanup; eauto.
-Qed.
+  admit.
+Admitted.
 
 Lemma log_decrypt_txns_finished_oracle_eq:
 forall u txn_recs1 txn_recs2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1 r2,

@@ -1546,3 +1546,106 @@ Proof.
     all: simpl in *; try rewrite select_for_addr_synced in *; eauto.
   }
 Qed.
+
+
+Lemma log_rep_explicit_after_reboot :
+  forall s txns selector hdr hbs lbs,
+    log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs s ->
+    log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs (fst s, select_total_mem selector (snd s)).
+Proof. 
+  unfold log_rep, log_header_rep, log_reboot_rep, log_rep_general, log_rep_explicit; intros; cleanup.
+  
+  cleanup.
+  { (** new txns **)
+    simpl; intuition eauto.
+    {
+      unfold log_header_block_rep in *; cleanup_no_match; simpl in *.
+      unfold select_total_mem; simpl.
+      repeat rewrite select_for_addr_synced; simpl; eauto.
+      destruct_fresh (snd s hdr_block_num); simpl in *;
+      cleanup; simpl in *; eauto.
+      subst; eauto.
+    }
+    {    
+      unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
+      
+      intuition eauto.
+      { 
+        match goal with
+        | [H: forall _, _ -> snd _ _ = seln _ _ _ |- _] =>
+          rewrite H
+        end.   
+        rewrite select_for_addr_synced.
+        all: repeat constructor; eauto.
+        all: try exact value0.
+        rewrite <- H2 in H7.
+        eapply in_seln in H7.
+        apply H1 in H7.
+        instantiate (1:= (value0, [])) in H7.
+        destruct_fresh (seln lbs i (value0, [])).
+        simpl in *; subst; eauto.
+        eapply H1.
+        eapply in_seln; lia.       
+      }
+    }
+  }
+Qed.
+
+Lemma log_rep_explicit_consistent_with_upds:
+     
+forall s1 s2 s3 txns hdr hbs lbs l1 l2,
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs  (s1, s2, s3) ->
+  consistent_with_upds s2 l1 l2 ->
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs (s1, Mem.upd_batch s2 l1 l2, s3).
+Proof. 
+unfold log_rep, log_header_rep, log_reboot_rep, log_rep_general, log_rep_explicit, log_rep_inner; intros; cleanup.
+cleanup.
+simpl in *; intuition eauto.
+eapply txns_valid_subset; eauto.
+apply upd_batch_consistent_subset; eauto.
+Qed.
+
+Lemma log_rep_explicit_consistent_with_upds_hashmap:
+     
+forall s1 s2 s3 s4 txns hdr hbs lbs l1 l2,
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs  (s1, s2, s3, s4) ->
+  consistent_with_upds s2 l1 l2 ->
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs (s1, Mem.upd_batch s2 l1 l2, s3, s4).
+Proof. 
+unfold log_rep, log_header_rep, log_reboot_rep, log_rep_general, log_rep_explicit, log_rep_inner; intros; cleanup.
+cleanup.
+simpl in *; intuition eauto.
+eapply header_part_is_valid_subset; eauto.
+apply upd_batch_consistent_subset; eauto.
+Qed.
+
+Lemma log_rep_explicit_subset_hashmap:
+     
+forall s1 s2 s2' s3 s4 txns hdr hbs lbs,
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs  (s1, s2, s3, s4) ->
+  subset s2 s2' ->
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs (s1, s2', s3, s4).
+Proof. 
+unfold log_rep, log_header_rep, log_reboot_rep, log_rep_general, log_rep_explicit, log_rep_inner; intros; cleanup.
+cleanup.
+simpl in *; intuition eauto.
+eapply header_part_is_valid_subset; eauto.
+Qed.
+
+Lemma log_rep_explicit_new_key:
+forall s1 s2 s3 s4 k txns hdr hbs lbs,
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs  (s1, s2, s3, s4) ->
+  ~In k s1 ->
+  Log.log_rep_explicit Log.Hdr_Synced Log.Synced Current_Part hdr txns hbs lbs (k::s1, s2, s3, s4).
+Proof. 
+unfold log_rep, log_header_rep, log_reboot_rep, log_rep_general, log_rep_explicit, log_rep_inner; intros; cleanup.
+cleanup.
+simpl in *; intuition eauto.
+unfold txns_valid in *; cleanup; intuition eauto.
+eapply Forall_forall; intros.
+eapply Forall_forall in H7; eauto.
+unfold txn_well_formed in *; cleanup; 
+intuition eauto.
+unfold record_is_valid in *; cleanup; intuition eauto.
+simpl; intuition.
+Qed.

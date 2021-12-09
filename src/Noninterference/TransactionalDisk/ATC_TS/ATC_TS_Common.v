@@ -10,11 +10,11 @@ Set Nested Proofs Allowed.
 (* TODO: Move to framework *)
 Lemma TS_explicit_and_inject:
 forall u s1 s2 T (p1 p2: ATCLang.(prog) T) rec V 
-(R1 R2: state ATCLang -> state ATCLang -> Prop) l_grs,
+(R1 R2: state ATCLang -> state ATCLang -> Prop) l_grs lo,
 R2 s1 s2 ->
-Termination_Sensitive_explicit u s1 s2
+Termination_Sensitive_explicit u lo s1 s2
 p1 p2 rec V (fun s1 s2 => R1 s1 s2 /\ R2 s1 s2) l_grs ->
-Termination_Sensitive_explicit u s1 s2
+Termination_Sensitive_explicit u lo s1 s2
 p1 p2 rec V R1 l_grs.
 Proof.
   unfold Termination_Sensitive_explicit; intros.
@@ -24,7 +24,7 @@ Qed.
 Lemma TS_explicit_to_TS:
 forall u T (p1 p2: ATCLang.(prog) T) rec V 
 (R: state ATCLang -> state ATCLang -> Prop) l_grs,
-  (forall s1 s2, Termination_Sensitive_explicit u s1 s2
+  (forall lo s1 s2, Termination_Sensitive_explicit u lo s1 s2
 p1 p2 rec V R l_grs) <->
 Termination_Sensitive u
 p1 p2 rec V R l_grs.
@@ -264,9 +264,9 @@ Qed.
 Lemma ATC_TS_explicit_compositional:
 forall T (p1 p2: ATCLang.(prog) T) 
 T' (p3 p4: T -> ATCLang.(prog) T') 
-u n (R R': state ATCLang -> state ATCLang -> Prop) s1 s2,
-(forall n,
-Termination_Sensitive_explicit u s1 s2 p1 p2
+u n (R R': state ATCLang -> state ATCLang -> Prop) lo s1 s2,
+(forall n lo,
+Termination_Sensitive_explicit u lo s1 s2 p1 p2
 (Simulation.Definitions.compile
  ATC_Refinement
  (Simulation.Definitions.compile
@@ -276,11 +276,11 @@ Termination_Sensitive_explicit u s1 s2 p1 p2
  AD_valid_state) R
 (ATC_reboot_list n)) ->
 
-(forall n s1 s2 o s1' r1 s2' r2 ,
+(forall n lo s1 s2 o s1' r1 s2' r2 ,
 exec ATCLang u o s1 p1 (Finished s1' r1) ->
 exec ATCLang u o s2 p2 (Finished s2' r2) ->
 R s1 s2 ->
-Termination_Sensitive_explicit u s1' s2' (p3 r1) (p4 r2)
+Termination_Sensitive_explicit u lo s1' s2' (p3 r1) (p4 r2)
 (Simulation.Definitions.compile
 ATC_Refinement
 (Simulation.Definitions.compile
@@ -298,7 +298,7 @@ exec ATCLang u o s2 p2 (Finished s2' r2) ->
 R s1 s2 ->
 R' s1' s2') ->
 
-Termination_Sensitive_explicit u s1 s2 
+Termination_Sensitive_explicit u lo s1 s2 
 (Bind p1 p3) (Bind p2 p4)
 (Simulation.Definitions.compile
 ATC_Refinement

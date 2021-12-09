@@ -197,9 +197,46 @@ Proof.
   Qed.
 *)
 
+Fixpoint non_colliding_selector_rec {T}
+u (R: state ATCDLang -> T -> Prop) l_selector (rec: prog ATCDLang unit) l_o s1 :=
+  match l_selector with
+  | nil => True
+  | selector :: ls =>
+    match l_o with
+    | nil => True
+    | o::lo =>
+    forall s1', 
+    (exists s2, R s1 s2) ->
+    exec ATCDLang u o s1 rec (Crashed s1') ->
+    non_colliding_selector selector (snd (snd (snd s1'))) /\
+    non_colliding_selector_rec u R ls rec lo 
+    (ATCD_reboot_f selector s1')
+    end
+  end.
+
+Definition non_colliding_selector_list {T T'}
+u (R: state ATCDLang -> T -> Prop) 
+(Rc: state ATCDLang -> T -> Prop) 
+l_selector 
+(p: prog ATCDLang T') 
+(rec: prog ATCDLang unit) l_o s1 :=
+match l_selector with
+  | nil => True
+  | selector :: ls =>
+    match l_o with
+    | nil => True
+    | o::lo =>
+    forall s1', 
+    (exists s2, R s1 s2) ->
+    exec ATCDLang u o s1 p (Crashed s1') ->
+    non_colliding_selector selector (snd (snd (snd s1'))) /\
+    non_colliding_selector_rec u Rc ls rec lo 
+    (ATCD_reboot_f selector s1')
+    end
+  end.
 
 Lemma ATCD_AOE':
-forall u T (p: ATCLang.(prog) T) l_grs, 
+forall u T (p: ATCLang.(prog) T) l_grs l_o s1 s2, 
 
 (forall o s s' r, 
 (exists s1, ATCD_Refinement.(Simulation.Definitions.refines) s s1) ->
@@ -213,6 +250,9 @@ oracle_refines _ _
 (forall o s s', 
 (exists s1, ATCD_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec ATCDLang u o s (ATCD_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
+non_colliding_selector
+  (seln l_grs 0 (fun _ : addr => 0))
+  (snd (snd (snd s'))) ->
 exists oa, 
 oracle_refines _ _
   ATCDLang ATCLang
@@ -223,19 +263,31 @@ oracle_refines _ _
 (exists s1, ATCD_Refinement.(Simulation.Definitions.refines) s s1) ->
 exec ATCDLang u o s 
 (ATCD_Refinement.(Simulation.Definitions.compile) p) (Crashed s') ->
+non_colliding_selector
+  (seln l_grs 0 (fun _ : addr => 0))
+  (snd (snd (snd s'))) ->
 exists s1', 
 ATCD_refines_reboot (seln l_grs 0 (fun _ => 0)) s' s1') ->
 
-abstract_oracles_exist_wrt ATCD_Refinement 
+non_colliding_selector_list
+u (ATCD_Refinement.(Simulation.Definitions.refines)) 
+(ATCD_Refinement.(Simulation.Definitions.refines_reboot)) l_grs
+(ATCD_Refinement.(Simulation.Definitions.compile) p) 
+(ATCD_Refinement.(Simulation.Definitions.compile) 
+ (ATC_Refinement.(Simulation.Definitions.compile) File.recover))  
+  l_o s1 ->
+
+abstract_oracles_exist_wrt_explicit ATCD_Refinement 
   (ATCD_Refinement.(Simulation.Definitions.refines)) u p 
   (ATC_Refinement.(Simulation.Definitions.compile) File.recover) 
-  (ATCD_reboot_list l_grs).
+  (ATCD_reboot_list l_grs) l_o s1 s2.
 Proof.
     intros; destruct l_grs; simpl; eauto.
     {
-      unfold abstract_oracles_exist_wrt, ATC_reboot_list in *; 
+      unfold abstract_oracles_exist_wrt_explicit, ATCD_reboot_list in *; 
       simpl in *; intros.
       repeat invert_exec.
+      simpl.
       edestruct H; eauto.
 
       eexists [_]; simpl; eauto.
@@ -243,32 +295,41 @@ Proof.
       left; do 2 eexists; intuition eauto.
     }
     {
-      unfold abstract_oracles_exist_wrt, ATC_reboot_list in *; 
+      unfold abstract_oracles_exist_wrt_explicit, ATC_reboot_list in *; 
       simpl in *; intros.
       repeat invert_exec.
+      cleanup.
+      edestruct H2; eauto.
       edestruct ATCD_AOE_recover; eauto.
       {
         unfold HC_refines in *; 
         simpl in *; cleanup.
         edestruct H1; eauto.
       }
-      
+    
       edestruct H0; eauto.
 
       eexists (_ :: _).
       simpl.
       intuition eauto.
-      eapply recovery_oracles_refine_to_length in H3; eauto.
+      eapply recovery_oracles_refine_to_length in H6; eauto.
       }
 Qed.
 
 Lemma ATCD_AOE:
-forall T (p: ATCLang.(prog) T) l_selector u,
+forall T (p: ATCLang.(prog) T) l_selector u l_o s1 s2,
 not_init p ->
-abstract_oracles_exist_wrt ATCD_Refinement
+non_colliding_selector_list
+u (ATCD_Refinement.(Simulation.Definitions.refines)) 
+(ATCD_Refinement.(Simulation.Definitions.refines_reboot)) l_selector
+(ATCD_Refinement.(Simulation.Definitions.compile) p) 
+(ATCD_Refinement.(Simulation.Definitions.compile) 
+ (ATC_Refinement.(Simulation.Definitions.compile) File.recover))  
+  l_o s1 ->
+abstract_oracles_exist_wrt_explicit ATCD_Refinement
 (Simulation.Definitions.refines ATCD_Refinement) u p
 (Simulation.Definitions.compile ATC_Refinement File.recover)
-(ATCD_reboot_list l_selector).
+(ATCD_reboot_list l_selector) l_o s1 s2.
 Proof.
 intros; eapply ATCD_AOE'.
 {
@@ -282,4 +343,5 @@ intros; eapply ATCD_AOE'.
 {
   intros; edestruct ATCD_simulation_crash; eauto.
 }
+eauto.
 Qed.

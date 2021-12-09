@@ -827,7 +827,10 @@ Lemma oracle_refines_independent_from_reboot_function:
             do 2 eexists; intuition eauto;
             simpl; intuition eauto.
             do 2 eexists; intuition eauto.
+            specialize H5 with (1:= H).
 
+            repeat split_ors; cleanup; repeat unify_execs; cleanup.
+            left; eexists; intuition eauto.
             repeat split_ors; cleanup; repeat unify_execs; cleanup.
           }
           {
@@ -1074,6 +1077,10 @@ exec (CachedDiskLang) u0 x18 s3
 (LoggedDiskCoreRefinement.(Simulation.Definitions.compile_core) o2)
 (Finished s2' r2) ->
 LD_have_same_structure o1 o2 -> 
+
+(exists s1a,refines s0 s1a) ->
+(exists s2a, refines s3 s2a) ->
+
 x18 ++ x16 = x21 ++ x20 -> x18 = x21 /\ x17 = x23.
 Proof.
 intros;
@@ -1084,9 +1091,11 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   eapply read_finished_oracle_eq in H1; eauto.
 }
 {
+  specialize H with (1:= H4).
+  specialize H0 with (1:= H5).
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup);
-  try solve [eapply write_finished_oracle_eq in H1; eauto; cleanup; eauto].
+  eapply write_finished_oracle_eq in H1; eauto; cleanup; eauto.
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1118,6 +1127,8 @@ exec (TCDLang) u0 x18 s3
 (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
 (Finished s2' r2) ->
 TC_have_same_structure o1 o2 -> 
+(exists s1a,refines (snd s0) s1a) ->
+(exists s2a, refines (snd s3) s2a) ->
 x18 ++ x16 = x21 ++ x20 -> x18 = x21 /\ x17 = x23.
 Proof.
 intros;
@@ -1125,7 +1136,7 @@ destruct o1, o2; simpl in *; cleanup; try tauto;
 repeat invert_exec; cleanup; eauto.
 eapply HC_map_ext_eq in H;
 eapply HC_map_ext_eq in H1; cleanup.
-apply HC_map_ext_eq_prefix in H4; eauto; cleanup.
+apply HC_map_ext_eq_prefix in H6; eauto; cleanup.
 eapply LD_oracle_refines_operation_eq in H; eauto.
 cleanup; eauto.
 Unshelve.
@@ -1159,6 +1170,8 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   repeat unify_execs; cleanup; eauto.
 }
 {
+  specialize H with (1:= H4).
+  specialize H0 with (1:= H5).
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup; eauto);
   try apply H0 in H4; cleanup; try split_ors; cleanup; eauto;
@@ -1232,6 +1245,9 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
   (Finished s2' r2) ->
   TC_have_same_structure o1 o2 ->
+
+(exists s1a,refines (snd s1) s1a) ->
+(exists s2a, refines (snd s2) s2a) ->
   x1 ++ x = x4 ++ x3 ->
   x1 = x4 /\ x0 = x6) ->
 
@@ -1256,7 +1272,8 @@ Proof.
     eapply_fresh HC_map_ext_eq in H0; eauto; subst.
 
     assert (x6 = x5 /\ x3 = x1). {
-      eapply H6; eauto.
+      unfold HC_refines in *; cleanup; simpl in *; eauto.
+      unfold HC_refines in *; cleanup; simpl in *; eauto.
     }
     cleanup; eauto.
   }
@@ -1366,7 +1383,6 @@ Proof.
     try congruence.
 
     eapply read_finished_not_crashed; eauto.
-    eapply write_finished_not_crashed; eauto.
     eapply write_finished_not_crashed; eauto.
     eapply recover_finished_not_crashed; eauto.
     eapply H6; eauto.
@@ -1495,6 +1511,8 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
   (Finished s2' r2) ->
   TC_have_same_structure o1 o2 ->
+(exists s1a0 : state Definitions.abs, refines (snd s1) s1a0) ->
+(exists s2a0 : state Definitions.abs, refines (snd s2) s2a0) ->
   x1 ++ x = x4 ++ x3 ->
   x1 = x4 /\ x0 = x6) ->
 

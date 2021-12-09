@@ -75,6 +75,12 @@ Definition abstract_oracles_exist_wrt Rel (u: user) {T} (p_abs: L_abs.(prog) T) 
     L_imp.(recovery_exec) u l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
     exists l_oa, recovery_oracles_refine_to u si p_abs rec_abs l_get_reboot_state l_oi l_oa.
 
+    Definition abstract_oracles_exist_wrt_explicit Rel (u: user) {T} (p_abs: L_abs.(prog) T) rec_abs l_get_reboot_state l_oi si si' :=
+        (exists sa: L_abs.(state), Rel si sa) -> 
+        L_imp.(recovery_exec) u l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
+        exists l_oa, recovery_oracles_refine_to u si p_abs rec_abs l_get_reboot_state l_oi l_oa.
+    
+
 (** 
 A relation that takes 
    - two input states (si1 and si2), 
@@ -248,13 +254,13 @@ Proof.
   all: eauto.
 Qed.
 
-Definition SelfSimulation_explicit (u: user) s1 s2 {T} (p1 p2: L_abs.(prog) T)
+Definition SelfSimulation_explicit (u: user) lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
        (rec: L_abs.(prog) unit)
        (valid_state: L_abs.(state) -> Prop)
        (R: L_abs.(state) -> L_abs.(state) -> Prop)
        (cond: user -> Prop)
        l_get_reboot_state :=
-  forall lo s1',
+  forall s1',
     L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
     valid_state s1 ->
     valid_state s2 ->
@@ -266,12 +272,12 @@ Definition SelfSimulation_explicit (u: user) s1 s2 {T} (p1 p2: L_abs.(prog) T)
       valid_state (extract_state_r s1') /\
       valid_state (extract_state_r s2').
 
-Definition Termination_Sensitive_explicit u s1 s2 {T} (p1 p2: L_abs.(prog) T)
+Definition Termination_Sensitive_explicit u lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
       (rec: L_abs.(prog) unit)
       (valid_state: L_abs.(state) -> Prop)
       (R: L_abs.(state) -> L_abs.(state) -> Prop)
       l_get_reboot_state :=
-forall lo s1',
+forall s1',
 valid_state s1 ->
 valid_state s2 -> 
 L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
@@ -279,13 +285,13 @@ R s1 s2 ->
 exists s2', 
  L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2'.
 
- Definition SelfSimulation_Weak_explicit u s1 s2 {T} (p1 p2: L_abs.(prog) T)
+ Definition SelfSimulation_Weak_explicit u lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
            (rec: L_abs.(prog) unit)
            (valid_state: L_abs.(state) -> Prop)
            (R: L_abs.(state) -> L_abs.(state) -> Prop)
            (cond: user -> Prop)
            l_get_reboot_state :=
-  forall lo s1' s2',
+  forall s1' s2',
     L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
     L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2' ->
     valid_state s1 ->
@@ -304,10 +310,10 @@ Lemma SS_explicit_state_iff_SS:
       valid_state_abs
       cond,
 
-    (forall s1 s2,
+    (forall lo s1 s2,
     equivalent_states_abs s1 s2 ->
     SelfSimulation_explicit
-      u s1 s2 
+      u lo s1 s2 
       p1_abs p2_abs
       rec_abs
       valid_state_abs
@@ -330,12 +336,12 @@ Qed.
 
 Lemma Self_Simulation_Weak_explicit_to_Self_Simulation_explicit:
   forall u T (p1 p2: L_abs.(prog) T) R
-    valid_state rec cond l_get_reboot_state s1 s2,
+    valid_state rec cond l_get_reboot_state lo s1 s2,
 
-    Termination_Sensitive_explicit u s1 s2 p1 p2 rec valid_state R l_get_reboot_state ->
-    SelfSimulation_Weak_explicit u s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state ->
+    Termination_Sensitive_explicit u lo s1 s2 p1 p2 rec valid_state R l_get_reboot_state ->
+    SelfSimulation_Weak_explicit u lo s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state ->
     
-    SelfSimulation_explicit u s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state.
+    SelfSimulation_explicit u lo s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state.
 Proof.
   unfold Termination_Sensitive_explicit, SelfSimulation_Weak_explicit, SelfSimulation_explicit; intros.
   edestruct H.
@@ -380,11 +386,11 @@ Lemma SS_explicit_state_and_inject:
              (equivalent_states_abs1
              equivalent_states_abs2 : state L_abs -> state L_abs -> Prop)
              valid_state_abs
-             cond s1 s2,
+             cond lo s1 s2,
 
           ( equivalent_states_abs2 s1 s2 ->
            SelfSimulation_explicit
-             u s1 s2 
+             u lo s1 s2 
              p1_abs p2_abs
              rec_abs
              valid_state_abs
@@ -399,7 +405,7 @@ Lemma SS_explicit_state_and_inject:
             equivalent_states_abs2 (extract_state_r s1') (extract_state_r s2')) ->
 
            SelfSimulation_explicit
-             u s1 s2
+             u lo s1 s2
              p1_abs p2_abs
              rec_abs
              valid_state_abs
@@ -420,10 +426,10 @@ Lemma SS_explicit_state_and_inject:
         (equivalent_states_abs1
         equivalent_states_abs2 : state L_abs -> state L_abs -> Prop)
         valid_state_abs
-        cond s1 s2,
+        cond lo s1 s2,
 
         SelfSimulation_explicit
-        u s1 s2
+        u lo s1 s2
         p1_abs p2_abs
         rec_abs
         valid_state_abs
@@ -434,7 +440,7 @@ Lemma SS_explicit_state_and_inject:
         equivalent_states_abs2 s1 s2 ->
 
       SelfSimulation_explicit
-        u s1 s2 
+        u lo s1 s2 
         p1_abs p2_abs
         rec_abs
         valid_state_abs
@@ -456,19 +462,18 @@ Arguments refines_related {_ _ _ _}.
 Arguments refines_valid {_ _ _ _}.
 Arguments exec_compiled_preserves_validity {_ _ _ _} _ {_}.
 Arguments abstract_oracles_exist_wrt {_ _ _ _} _ _ _ {_}.
+Arguments abstract_oracles_exist_wrt_explicit {_ _ _ _} _ _ _ {_}.
 Arguments oracle_refines_same_from_related {_ _ _ _} _ _ {_}.
 Arguments SelfSimulation {_ _} _ {_}.
 Arguments SelfSimulation_Weak {_ _} _ {_}.
 Arguments Termination_Sensitive {_ _} _ {_}.
 
-Arguments SelfSimulation_explicit {_ _} _ _ _ {_}.
-Arguments SelfSimulation_Weak_explicit {_ _} _ _ _ {_}.
-Arguments Termination_Sensitive_explicit {_ _} _ _ _ {_}.
+Arguments SelfSimulation_explicit {_ _} _ _ _ _ {_}.
+Arguments SelfSimulation_Weak_explicit {_ _} _ _ _ _ {_}.
+Arguments Termination_Sensitive_explicit {_ _} _ _ _ _ {_}.
 
 Arguments Simulation {_ _ _ _}.
 Arguments SimulationForProgram {_ _ _ _} _ _ {_}.
-
-
 
 Arguments oracle_refines_same_from_related_prefix {_ _ _ _} _ _ {_}.
 Arguments oracle_refines_same_from_related_explicit {_ _ _ _} _ _ {_}.
@@ -766,7 +771,7 @@ Lemma SS_explicit_transfer:
       l_get_reboot_state_abs
       equivalent_states_abs
       valid_state_abs
-      cond s1_imp s2_imp,
+      cond l_o s1_imp s2_imp,
 
     SelfSimulation
       u p1_abs p2_abs
@@ -797,7 +802,7 @@ Lemma SS_explicit_transfer:
     u p2_abs rec_abs l_get_reboot_state_imp
     (refines_valid R valid_state_abs) ->
 
-    Termination_Sensitive_explicit u s1_imp s2_imp
+    Termination_Sensitive_explicit u l_o s1_imp s2_imp
     (compile R p1_abs)
     (compile R p2_abs) (compile R rec_abs)
     (refines_valid R valid_state_abs)
@@ -805,7 +810,7 @@ Lemma SS_explicit_transfer:
     l_get_reboot_state_imp ->
     
     SelfSimulation_explicit
-      u s1_imp s2_imp
+      u l_o s1_imp s2_imp
       (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
