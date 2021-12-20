@@ -544,6 +544,7 @@ Lemma write_inner_finished:
     exec (TDLang data_length) u o s (write_inner off v inum) (Finished s' t) ->
     (t = None \/
       (exists f, 
+      t = Some tt /\
       fm inum = Some f /\
       off < length f.(blocks) /\
       files_inner_rep (Mem.upd fm inum (update_file f off v)) (fst (snd s')))) /\
@@ -635,6 +636,7 @@ Proof.
       eapply seln_not_In_ne; eauto.
     }
   }
+  
 }
 {
   unfold file_map_rep; intuition eauto.
@@ -687,7 +689,7 @@ Lemma auth_then_exec_crashed:
     forall fm',
     (forall s s' o t, files_inner_rep fm (fst (snd s)) ->
     exec (TDLang data_length) u o s (p inum) (Finished s' t) ->
-    ( t <> None -> 
+    (t <> None -> 
     files_inner_rep fm' (fst (snd s')) /\ P) /\ snd (snd s') = snd (snd s)) ->    
     files_crash_rep fm s' \/ 
     (files_crash_rep fm' s' /\ 

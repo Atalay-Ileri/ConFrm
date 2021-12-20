@@ -2,7 +2,7 @@ Require Import AuthenticationLayer TransactionalDiskLayer AuthenticatedDiskLayer
 Require Import Framework File FileDiskLayer FileDiskNoninterference FileDiskRefinement.
 Require Import FunctionalExtensionality Lia TSCommon SameRetType.
 
-(*
+
 Lemma write_refines_same_core_input:
 forall u u' o_imp s1_imp s2_imp x x0  get_reboot_state 
 o_abs o_abs' inum off v v',
@@ -1071,7 +1071,7 @@ forall u u' inum n off v,
 oracle_refines_same_from_related FDRefinement u 
 (|Write inum off v|) (|Write inum off v|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' None).
-Proof. Admitted. (*
+Proof.
     unfold oracle_refines_same_from_related,
     refines_related; intros; destruct n; simpl in *; cleanup.
      {

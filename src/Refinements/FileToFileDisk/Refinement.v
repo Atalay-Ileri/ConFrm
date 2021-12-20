@@ -297,6 +297,7 @@ Section FDSimulation.
     
     Unshelve.
     all: repeat constructor; eauto.
+    all: exact (fun _ => value0).
   Qed.
 
     Theorem abstract_oracles_exist_wrt_extend:

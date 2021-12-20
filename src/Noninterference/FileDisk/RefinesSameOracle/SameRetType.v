@@ -367,7 +367,7 @@ H0: Language.exec' _ _ _ (Bind _ _) _ |- _] =>
 invert_exec'' H; invert_exec'' H0
 end.
 
-
+(* Maybe change to prefix version? *)
 Lemma auth_then_exec_same_type_ret:
 forall u o s1 s2 T (p1 p2: addr -> (TDLang FSParameters.data_length).(prog) (option T)) inum  sr1 sr2 r1 r2,
 (forall o' s1' s2' sr1' sr2' ret1 ret2,
@@ -396,14 +396,24 @@ forall u o s1 s2 T (p1 p2: addr -> (TDLang FSParameters.data_length).(prog) (opt
             eapply Automation.lift2_invert_exec in H11; cleanup_no_match.
             eapply Automation.lift2_invert_exec in H12; cleanup_no_match.
             cleanup; invert_binds; repeat invert_exec;
-            try solve [invert_exec'' H17; invert_exec'' H18;
+            try invert_binds; repeat invert_exec;
+            try solve [
+             invert_exec'' H16; invert_exec'' H19;
+            repeat invert_exec;
+            invert_exec'' H23; invert_exec'' H24;
+            cleanup; intuition congruence];
+            try solve [
+             invert_exec'' H17; invert_exec'' H18;
             repeat invert_exec;
             invert_exec'' H21; invert_exec'' H22;
-            cleanup; intuition congruence].
-            
-            invert_exec'' H17; invert_exec'' H18;
             repeat invert_exec;
+            cleanup; intuition congruence].
+
+            invert_exec'' H17; invert_exec'' H18;
+            repeat invert_exec.
             invert_exec'' H21; invert_exec'' H22; cleanup.
+            invert_exec'' H16; invert_exec'' H19;
+            repeat invert_exec; cleanup.
             eapply map_ext_eq in H0; subst.
             simpl in *; repeat cleanup_pairs; 
             eapply H; eauto.
@@ -2988,8 +2998,6 @@ Qed.
   }
 Qed.
 
-
-(*
 Lemma write_crashed_same_token:
 forall u u' o s1 s2 x x0 inum off v v' get_reboot_state sr1 sr2 tk1 tk2,
  same_for_user_except u' (Some inum) x x0 ->
@@ -3025,4 +3033,3 @@ Proof.
     apply same_for_user_except_symmetry; eauto.
     all: eauto.
 Qed.
-*)

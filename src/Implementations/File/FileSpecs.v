@@ -924,7 +924,7 @@ Proof.
     eapply free_all_blocks_finished in H8; eauto.
     simpl in *; cleanup; split_ors; cleanup.
     unfold inode_rep in *; cleanup.
-    eapply block_allocator_rep_inbounds_eq with (s2:= fst (snd x8)) in H.    
+    eapply block_allocator_rep_inbounds_eq with (s2:= fst (snd x7)) in H.    
     eapply free_finished in H9; simpl; eauto.
     2: unfold inode_rep; eauto.
     all: eauto.
@@ -1555,6 +1555,15 @@ Proof.
   split_ors; cleanup; eauto.
 Qed.
 
+Definition hidden (P: Type) := P.
+  Lemma hide : forall P, P -> hidden P.
+  Proof. eauto. Qed.
+  Lemma reveal : forall P, hidden P -> P.
+  Proof. eauto. Qed.
+  Ltac hide H := apply hide in H.
+  Ltac reveal H := apply reveal in H.
+  Arguments hidden: simpl never.
+
 Lemma write_crashed:
   forall u o s s' inum off v fm,
     files_rep fm s ->
@@ -1567,20 +1576,316 @@ Lemma write_crashed:
           files_crash_rep (Mem.upd fm inum (update_file f off v)) s').
 Proof.
   unfold write; intros; cleanup.
-  destruct_fresh (fm inum);
-  eapply auth_then_exec_crashed in H0; cleanup; eauto;
+ destruct_fresh (fm inum);
+ try solve [
+   eapply auth_then_exec_crashed in H0; cleanup; eauto;
+   try solve [
+    cleanup; split_ors; cleanup; [ intuition eauto|
+  right; eexists; intuition eauto ] ] ;
+  try solve [
+    cleanup; split_ors; cleanup; intuition eauto;
+  right; eexists; intuition eauto] ;
   try solve [ intros; eapply write_inner_crashed; eauto];
   try solve [
    intros;
     eapply write_inner_finished in H2; eauto;
-    cleanup; split_ors; cleanup; intuition eauto];
-  try solve [
-      cleanup; split_ors; cleanup; intuition eauto;
-    right; eexists; intuition eauto].
+    cleanup; split_ors; cleanup; intuition eauto]
+  ].
   Unshelve.
   all: eauto.
   exact True.
 Qed.
+
+Ltac invert_exec_temp H :=
+  invert_exec'' H; cleanup; simpl; try lia;
+    repeat match goal with 
+    | [H: Core.exec _ _ _ _ _ _ |- _] =>
+    invert_exec'' H; cleanup;
+    repeat (invert_exec; split_ors; cleanup); simpl; try lia
+    | [H: Language.exec' _ _ _ _ _ |- _] =>
+    invert_exec'' H; cleanup;
+    repeat (invert_exec; split_ors; cleanup); simpl; try lia
+    end. 
+
+Lemma write_crashed_oracle_length:
+  forall u o s s' inum off v fm,
+    files_rep fm s ->
+    exec ADLang u o s (write inum off v) (Crashed s') ->
+    (files_crash_rep fm s' /\
+    (length o  <= 15 /\ 
+    (* (length o = 15 -> 
+    exists f, fm inum = Some f /\
+    inum < inode_count /\
+    f.(BaseTypes.owner) = u /\
+    off >= length f.(blocks)) /\ *)
+    ~In (OpToken ADOperation (Token2 _ (TDCore data_length) CrashAfter)) o) \/
+    ((exists f, fm inum = Some f /\
+          inum < inode_count /\
+          f.(BaseTypes.owner) = u /\
+          off < length f.(blocks) /\
+          files_crash_rep (Mem.upd fm inum (update_file f off v)) s') /\
+    (length o  > 15 \/ In (OpToken ADOperation (Token2 _ (TDCore data_length) CrashAfter)) o))).
+Proof.
+  Opaque write_inner get_block_number.
+  intros; cleanup.
+    unfold write, auth_then_exec in *; 
+    repeat (repeat invert_exec; split_ors; cleanup).
+    {(* get_owner crashed*)
+      eapply Automation.lift2_invert_exec_crashed in H0; cleanup.
+      repeat rewrite map_length.
+      Transparent get_owner.
+      unfold get_owner, Inode.get_inode, InodeAllocator.read in *; 
+      simpl in *.
+      invert_exec_temp H2.
+      all: unfold files_rep, files_crash_rep in *; cleanup;
+      repeat cleanup_pairs; left; split; eauto; 
+      split; try lia; intuition congruence.
+    }
+    {
+      eapply Automation.lift2_invert_exec in H1; cleanup_no_match.
+      repeat rewrite map_length.
+      unfold files_rep, files_inner_rep in *; cleanup_no_match.
+      repeat cleanup_pairs.
+      eapply_fresh get_owner_finished in H3; eauto.
+      cleanup; split_ors; cleanup.
+      simpl in *.
+      unfold get_owner, Inode.get_inode, InodeAllocator.read in *; 
+      simpl in *.
+      hide H2.
+      cleanup; invert_exec_temp H3.
+      {
+          reveal H2.
+          repeat (invert_exec; split_ors; cleanup); simpl; try lia.
+          invert_exec_temp H.
+          unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+          repeat cleanup_pairs; left; split; eauto; 
+          split; try lia; try intuition congruence.
+          cleanup.
+          {
+            hide H10.
+            invert_exec_temp H2.
+            reveal H10.
+            invert_exec'' H10.
+            {
+              eapply Automation.lift2_invert_exec in H17; cleanup_no_match.
+              simpl in *; repeat cleanup_pairs.
+              eapply_fresh write_inner_finished in H10; eauto.
+              2: simpl; unfold files_inner_rep; eauto.
+              cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+              simpl in *; repeat cleanup_pairs; try lia.
+              {
+                hide H20.
+                Transparent write_inner.
+                unfold write_inner in *.
+                invert_exec'' H10.
+                eapply_fresh get_block_number_finished in H12; eauto.
+                cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+                simpl in *; repeat cleanup_pairs; try lia.
+                {
+                  eapply_fresh DiskAllocator.write_finished in H17; eauto.
+                  2: simpl; eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto; intros; solve_bounds.
+                  cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+                  simpl in *; repeat cleanup_pairs; try lia.
+                  Transparent get_block_number.
+                  hide H17.
+                  unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+                  cleanup;
+                  invert_exec_temp H12.
+                  
+                  reveal H17.
+                  unfold DiskAllocator.write in *; cleanup;
+                  invert_exec_temp H17.
+                  all: simpl in *; reveal H20;
+                    invert_exec_temp H20;
+                    (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                    repeat cleanup_pairs; left; split; [eauto | 
+                    split; try lia; intuition congruence]).
+                }
+                {
+                hide H17.
+                unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+                cleanup;
+                invert_exec_temp H12.
+                
+                reveal H17.
+                unfold DiskAllocator.write in *; cleanup;
+                invert_exec_temp H17.
+                all: simpl in *; reveal H20;
+                    invert_exec_temp H20;
+                    (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                    repeat cleanup_pairs; left; split; [eauto | 
+                    split; try lia; intuition congruence]).
+                }
+            }
+            {(* Commit Crashed*)
+            hide H20.
+            Transparent write_inner.
+            unfold write_inner in *.
+            invert_exec'' H10.
+            eapply_fresh get_block_number_finished in H17; eauto.
+            cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+            simpl in *; repeat cleanup_pairs; try lia.
+            {
+              eapply_fresh DiskAllocator.write_finished in H21; eauto.
+              2: simpl; eapply DiskAllocator.block_allocator_rep_inbounds_eq; eauto; intros; solve_bounds.
+              cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+              simpl in *; repeat cleanup_pairs; try lia.
+              Transparent get_block_number.
+              hide H21.
+              unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+              cleanup;
+              invert_exec_temp H17.
+              
+              reveal H21.
+              unfold DiskAllocator.write in *; cleanup;
+              invert_exec_temp H21.
+              
+              simpl in *; reveal H20;
+                invert_exec_temp H20.
+
+                (* After commit crash *)
+                unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                repeat cleanup_pairs; right; split.
+                eexists; intuition eauto.
+                unfold file_map_rep, file_rep in *; logic_clean.
+                eapply H13 in H9; eauto; cleanup; eauto.
+                try lia; intuition congruence.
+
+                (* Commit crash CrashBefore *)
+                (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                repeat cleanup_pairs; left; split; [eauto | 
+                split; try lia; intuition congruence]).
+
+                (* Commit crash CrashAfter *)
+                unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                repeat cleanup_pairs; right; split.
+                eexists; intuition eauto.
+                unfold file_map_rep, file_rep in *; logic_clean.
+                eapply H13 in H9; eauto; cleanup; eauto.
+                try lia; intuition congruence.
+
+                (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                repeat cleanup_pairs; left; split; [eauto | 
+                split; try lia; intuition congruence]).
+            }
+            {
+              unfold file_map_rep, file_rep in *; logic_clean.
+              eapply H6 in H9; eauto; cleanup; eauto.
+              try lia.
+            }
+          }
+        }
+        {
+          eapply Automation.lift2_invert_exec_crashed in H16; cleanup_no_match.
+          simpl in *; repeat cleanup_pairs.
+          eapply_fresh write_inner_crashed in H10; eauto.
+              2: simpl; unfold files_inner_rep; eauto.
+              cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+              simpl in *; repeat cleanup_pairs; try lia.
+              {
+                unfold write_inner in *.
+                invert_exec'' H10.
+                {
+                  eapply_fresh get_block_number_finished in H12; eauto.
+                  cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+                  simpl in *; repeat cleanup_pairs; try lia.
+                  {
+                    eapply_fresh DiskAllocator.write_crashed in H17; eauto.
+                    cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+                    simpl in *; repeat cleanup_pairs; try lia.
+                    Transparent get_block_number.
+                    hide H17.
+                    unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+                    cleanup;
+                    invert_exec_temp H12.
+                    
+                    reveal H17.
+                    unfold DiskAllocator.write in *; cleanup;
+                    invert_exec_temp H17.
+                    all: simpl in *; 
+                      (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                      repeat cleanup_pairs; left; split; [eauto | 
+                      split; try lia; intuition congruence]).
+                  }
+                  {
+                  hide H17.
+                  unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+                  cleanup;
+                  invert_exec_temp H12.
+                  
+                  reveal H17.
+                  unfold DiskAllocator.write in *; cleanup;
+                  invert_exec_temp H17.
+                  all: simpl in *;
+                      (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                      repeat cleanup_pairs; left; split; eauto).
+                      split; try lia; intuition congruence.
+                  }
+                }
+                {
+                  eapply_fresh get_block_number_crashed in H11; eauto.
+                  cleanup_no_match; repeat (split_ors; cleanup_no_match); 
+                  simpl in *; repeat cleanup_pairs; try lia.
+
+                  unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+                  cleanup;
+                  invert_exec_temp H11.
+
+                  all: simpl in *;
+                      (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                      repeat cleanup_pairs; left; split; eauto).
+                  all: split; try lia; intuition congruence.
+                }
+              }
+        }
+          }
+            {
+              invert_exec_temp H2.
+              invert_exec_temp H.
+
+              simpl in *;
+              (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+              repeat cleanup_pairs; left; split; eauto).
+              split; try lia; intuition congruence.
+
+              invert_exec_temp H2.
+              invert_exec_temp H10.
+              simpl in *;
+              (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+              repeat cleanup_pairs; left; split; eauto).
+              split; try lia; intuition congruence.
+            }
+      }
+      {
+        unfold inode_rep, block_allocator_rep, inode_map_rep in *.
+        cleanup.
+        rewrite H4 in H9; rewrite H13 in H9; simpl in *; try congruence.
+        unfold InodeAllocatorParams.bitmap_addr, InodeAllocatorParams.num_of_blocks in *; 
+        pose proof InodeAllocatorParams.blocks_fit_in_disk.
+        lia.
+      }
+      {
+        unfold InodeAllocatorParams.bitmap_addr, InodeAllocatorParams.num_of_blocks in *; 
+        pose proof InodeAllocatorParams.blocks_fit_in_disk.
+        lia.
+      }
+      {
+        simpl in *.
+        hide H2.
+        unfold get_owner, Inode.get_inode, InodeAllocator.read  in *; simpl in *;
+        invert_exec_temp H3.
+
+        all: simpl in *; reveal H2;
+                    invert_exec_temp H2;
+                    (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+                    repeat cleanup_pairs; left; split; [eauto | 
+                    split; try lia; intuition congruence]).
+      }
+    }
+    Unshelve.
+    all: exact ADLang.
+Qed.
+           
 
 Lemma extend_crashed:
   forall u o s s' inum v fm,
