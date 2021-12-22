@@ -190,75 +190,12 @@ Proof.
         split_ors; cleanup; try lia; tauto.
     }
     {
-        eapply write_crashed_same_token in H2.
-        5: apply H3.
-        all: eauto.
-        2:{
-            simpl.
-            intros.
-            unfold refines in *;
-            repeat match goal with
-            |[H: files_rep _ ?s,
-            H0 : files_rep _ ?s |- _] =>
-
-            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
-            end.
-            right.
-            eexists; intuition eauto.
-            right; eexists; intuition eauto.
-        }
-        2:{
-            simpl.
-            intros.
-            unfold refines in *;
-            repeat match goal with
-            |[H: files_rep _ ?s,
-            H0 : files_rep _ ?s |- _] =>
-
-            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
-            end.
-            right.
-            eexists; intuition eauto.
-        }
-        congruence.
+        inversion H15; intuition.
     }
     {
-        eapply write_crashed_same_token in H2.
-        5: apply H3.
-        all: eauto.
-        2:{
-            simpl.
-            intros.
-            unfold refines in *;
-            repeat match goal with
-            |[H: files_rep _ ?s,
-            H0 : files_rep _ ?s |- _] =>
-
-            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
-            end.
-            right.
-            eexists; intuition eauto.
-        }
-        2:{
-            simpl.
-            intros.
-            unfold refines in *;
-            repeat match goal with
-            |[H: files_rep _ ?s,
-            H0 : files_rep _ ?s |- _] =>
-
-            eapply FileInnerSpecs.files_rep_eq in H; eauto; subst
-            end.
-            right.
-            eexists; intuition eauto.
-            right; eexists; intuition eauto.
-        }
-        congruence.
+        inversion H10; intuition.
     }
-    Unshelve.
-    all: eauto.
 Qed.
-*)
 
 
 Lemma extend_refines_same_core:
@@ -1085,7 +1022,13 @@ Proof.
          repeat split_ors; cleanup; 
          repeat unify_execs; cleanup;
          simpl in *; try lia.
-
+         specialize (H6 (fun x => x)).
+         specialize (H9 (fun x => x)).
+         simpl in *; try tauto.
+         cleanup; try tauto.
+         repeat split_ors; cleanup; 
+         repeat unify_execs; cleanup;
+         simpl in *; try lia.
          erewrite write_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
@@ -1123,14 +1066,14 @@ Proof.
         Unshelve.
         all: eauto.
 Qed.
-*)
+
 
 Lemma ORS_write_input:
 forall u u' inum n off v v',
 oracle_refines_same_from_related FDRefinement u 
 (|Write inum off v|) (|Write inum off v'|) (|Recover|) 
 (authenticated_disk_reboot_list n) (same_for_user_except u' (Some inum)).
-Proof. Admitted. (*
+Proof. 
     unfold oracle_refines_same_from_related,
     refines_related; intros; destruct n; simpl in *; cleanup.
      {
@@ -1144,7 +1087,13 @@ Proof. Admitted. (*
          repeat split_ors; cleanup; 
          repeat unify_execs; cleanup;
          simpl in *; try lia.
-
+         specialize (H6 (fun x => x)).
+         specialize (H9 (fun x => x)).
+         simpl in *; try tauto.
+         cleanup; try tauto.
+         repeat split_ors; cleanup; 
+         repeat unify_execs; cleanup;
+         simpl in *; try lia.
          erewrite write_refines_same_core with (o_abs := [OpToken FDOp x6]).
         eauto.
         3: eauto.
@@ -1182,7 +1131,6 @@ Proof. Admitted. (*
         Unshelve.
         all: eauto.
 Qed.
-*)
 
 Lemma ORS_extend:
 forall u u' inum n v v' ex,

@@ -78,7 +78,11 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
            (
              exec impl u o1 d1 (write inum off v) (Crashed d') /\
              o2 = CrashBefore /\
-             files_crash_rep fd d'
+             files_crash_rep fd d' /\
+             length o1  <= 15 /\ 
+            (length o1 = 15 -> 
+            In (OpToken ADOperation (Token2 _ (TDCore data_length) TransactionalDiskLayer.TxnFull)) o1) /\
+            ~In (OpToken ADOperation (Token2 _ (TDCore data_length) TransactionalDiskLayer.CrashAfter)) o1
            ) \/
            (exists file,
               exec impl u o1 d1 (write inum off v) (Crashed d') /\
@@ -87,9 +91,11 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
               fd inum = Some file /\
               file.(owner) = u /\
               off < length file.(blocks) /\
-              seln file.(blocks) off value0 <> v /\
               let new_file := update_file file off v in
-              files_crash_rep (Mem.upd fd inum new_file) d'     
+              files_crash_rep (Mem.upd fd inum new_file) d' /\
+              length o1  >= 14 /\ 
+              (length o1 = 14 -> In (OpToken ADOperation (Token2 _ (TDCore data_length) TransactionalDiskLayer.CrashAfter)) o1) /\
+              ~In (OpToken ADOperation (Token2 _ (TDCore data_length) TransactionalDiskLayer.TxnFull)) o1
            )
         )
       )

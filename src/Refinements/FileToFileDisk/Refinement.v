@@ -237,7 +237,7 @@ Section FDSimulation.
     }
     {        
       eapply abstract_oracles_exist_wrt_recover in H11; eauto; cleanup.
-      eapply_fresh write_crashed in H10; eauto; cleanup.
+      eapply_fresh FileSpecs.write_crashed_oracle_length in H10; eauto; cleanup.
       split_ors; cleanup.
       {
         exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
@@ -252,7 +252,7 @@ Section FDSimulation.
         right; eexists; intuition eauto.
       }
       {
-        destruct (value_dec (seln (blocks x1) a value0) v).
+        (* destruct (value_dec (seln (blocks x1) a value0) v).
         {
           unfold update_file in *; rewrite <- e in *.
           rewrite updn_seln_eq in H5.
@@ -269,7 +269,7 @@ Section FDSimulation.
         simpl in *; intros.
         eapply files_rep_eq in H; eauto; subst.
         right; eexists; intuition eauto.
-        }
+        } *)
         {
         exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto.

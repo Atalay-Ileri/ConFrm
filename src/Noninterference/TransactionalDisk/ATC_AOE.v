@@ -1,5 +1,5 @@
 Require Import Lia Framework ATCLayer File FileDiskNoninterference.
-Require Import TransactionalDiskRefinement.
+Require Import TransactionalDiskRefinement ATC_Simulation.
 
 Lemma AOE_recover:
 forall n u,
@@ -173,7 +173,7 @@ Proof.
   Qed.
 
 
-
+(*
 Lemma ATC_AOE:
 forall u T (p: TD.(prog) T) n, 
 
@@ -277,7 +277,7 @@ Proof.
     Unshelve.
     all: exact ATCLang.
 Qed.
-
+*)
 
 Lemma ATC_AOE_2:
 forall u T (p: AD.(prog) T) n, 
@@ -344,4 +344,27 @@ Proof.
       intuition eauto.
       eapply recovery_oracles_refine_to_length in H3; eauto.
       }
+Qed.
+
+Lemma ATC_AOE:
+forall n T (p: FD.(prog) T) u,
+not_init (Simulation.Definitions.compile FD.refinement p) -> 
+abstract_oracles_exist_wrt ATC_Refinement
+(Simulation.Definitions.refines ATC_Refinement) u
+(Simulation.Definitions.compile FD.refinement p)
+(Simulation.Definitions.compile FD.refinement (Op (FileDiskLayer.FDOperation FSParameters.inode_count) FileDiskLayer.Recover))
+(ATC_reboot_list n).
+Proof.
+intros; eapply ATC_AOE_2.
+{
+  intros.
+  eapply ATC_oracle_refines_finished; eauto.
+}
+{
+  intros.
+  eapply ATC_oracle_refines_crashed; eauto.
+}
+{
+  intros; eapply ATC_simulation_crash; eauto.
+}
 Qed.

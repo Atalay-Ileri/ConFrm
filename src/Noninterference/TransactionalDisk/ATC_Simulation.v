@@ -1090,3 +1090,78 @@ Proof.
     repeat econstructor; eauto.
   }
 Qed.
+
+Lemma ATC_simulation_crash':
+forall u (o : oracle' ATCCore) (s : state ATCLang)
+  (s' : Language.state' ATCCore) T (p: FD.(prog) T),
+(exists s1 : state AD,
+   Simulation.Definitions.refines ATC_Refinement s s1) ->
+exec ATCLang u o s
+  (Simulation.Definitions.compile ATC_Refinement
+     (Simulation.Definitions.compile FD.refinement
+        p)) (Crashed s') ->
+
+          
+  (forall T o s_imp s_imp' s_abs r o_imp t_abs grs, 
+  exec Definitions.imp u o_imp s_imp
+  (TransactionToTransactionalDisk.Definitions.compile
+      T o) (Finished s_imp' r) ->
+  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
+  TransactionToTransactionalDisk.Definitions.token_refines
+  T u s_imp o grs o_imp t_abs ->
+  exists s_abs',
+  Core.exec (TransactionalDiskLayer.TDCore
+data_length) u t_abs s_abs o (Finished s_abs' r) /\
+  TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
+  
+  (forall T o s_imp s_imp' s_abs o_imp t_abs, 
+  exec Definitions.imp u o_imp s_imp
+  (TransactionToTransactionalDisk.Definitions.compile
+      T o) (Crashed s_imp') ->
+  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
+  TransactionToTransactionalDisk.Definitions.token_refines
+  T u s_imp o TransactionToTransactionalDisk.Refinement.TC_reboot_f o_imp t_abs ->
+  (forall l, ~ eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
+  exists s_abs',
+  Core.exec (TransactionalDiskLayer.TDCore
+data_length) u t_abs s_abs o (Crashed s_abs') /\
+  TransactionToTransactionalDisk.Definitions.refines_reboot (TransactionToTransactionalDisk.Refinement.TC_reboot_f s_imp') (TransactionToTransactionalDisk.Refinement.TD_reboot_f s_abs')) ->
+
+  not_init (Simulation.Definitions.compile FD.refinement p) -> 
+exists s1',
+  TransactionToTransactionalDisk.Definitions.refines_reboot
+    (snd s') s1'.
+    Proof.
+      intros; cleanup.
+      eapply_fresh ATC_oracle_refines_crashed in H0; eauto.
+      cleanup.
+      eapply ATC_exec_lift_crashed in H0; eauto.
+      cleanup; simpl in *.
+      unfold TransactionToTransactionalDisk.Refinement.TC_reboot_f, 
+      TransactionToTransactionalDisk.Refinement.TD_reboot_f in *; simpl in *.
+      eexists; unfold TransactionToTransactionalDisk.Definitions.refines_reboot,
+      Transaction.transaction_reboot_rep  in ; simpl in *; eauto.
+      simpl in *; eauto.
+    Qed.
+
+    Lemma ATC_simulation_crash:
+forall u (o : oracle' ATCCore) (s : state ATCLang)
+  (s' : Language.state' ATCCore) T (p: FD.(prog) T),
+(exists s1 : state AD,
+   Simulation.Definitions.refines ATC_Refinement s s1) ->
+
+exec ATCLang u o s
+  (Simulation.Definitions.compile ATC_Refinement
+     (Simulation.Definitions.compile FD.refinement
+        p)) (Crashed s') ->
+
+  not_init (Simulation.Definitions.compile FD.refinement p) -> 
+exists s1',
+  TransactionToTransactionalDisk.Definitions.refines_reboot
+    (snd s') s1'.
+Proof.
+  intros;
+eapply ATC_simulation_crash'; eauto.
+apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished; eauto.
+eapply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed; eauto.
+Qed.

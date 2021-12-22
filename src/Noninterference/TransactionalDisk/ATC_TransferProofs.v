@@ -1,10 +1,121 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
 Require Import ATCLayer FileDisk.TransferProofs ATC_Simulation ATC_AOE.
-Require Import Not_Init HSS ATC_ORS ATC_TS.
+Require Import Not_Init HSS ATC_ORS. (* ATC_TS. *)
 
 Import FileDiskLayer.
 Set Nested Proofs Allowed.
+
+
+Opaque Inode.get_owner File.read_inner.
+Theorem ss_ATC_read:
+  forall n inum off u u',
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' None))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_read.
+      - eapply ATC_simulation.
+        apply not_init_read.
+      - eapply ATC_simulation.
+        apply not_init_read.
+      - apply ATC_AOE.
+      apply not_init_read.
+      - apply ATC_AOE.
+      apply not_init_read.
+      - apply ATC_ORS_transfer.
+        apply not_init_read.
+        apply not_init_read.
+        apply have_same_structure_read.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_read. *) admit.
+Admitted.
+
+
+Theorem ss_ATC_write:
+  forall n inum off u u' v,
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' None))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_write.
+      - eapply ATC_simulation.
+        apply not_init_write.
+      - eapply ATC_simulation.
+        apply not_init_write.
+      - apply ATC_AOE.
+        apply not_init_write.
+      - apply ATC_AOE.
+        apply not_init_write.
+      - apply ATC_ORS_transfer.
+        apply not_init_write.
+        apply not_init_write.
+        intros; eapply have_same_structure_write; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_write. *) admit. 
+Admitted.
+
+
+Theorem ss_ATC_extend:
+  forall n inum u u' v,
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' None))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_extend.
+      - eapply ATC_simulation.
+        apply not_init_extend.
+      - eapply ATC_simulation.
+        apply not_init_extend.
+      - apply ATC_AOE.
+        apply not_init_extend.
+      - apply ATC_AOE.
+        apply not_init_extend.
+      - apply ATC_ORS_transfer.
+        apply not_init_extend.
+        apply not_init_extend.
+        intros; eapply have_same_structure_extend; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_extend. *) admit. 
+Admitted.
+
+
 
 Lemma same_for_user_except_reflexive :
 forall u ex s,
@@ -87,7 +198,7 @@ Proof.
       apply Inode.InodeAllocatorParams.num_of_blocks_in_bounds.
 Qed.
 
-
+(*
 Theorem recovery_exec_termination_sensitive_bind:
   forall O (L: Language O) 
   T (p1 p2: L.(prog) T) 
@@ -264,89 +375,6 @@ Proof.
   eapply_fresh H in H3; eauto; cleanup.
   eapply_fresh H1 in H5; eauto; cleanup.
   eapply H0; eauto.
-Qed.
-
-
-Lemma ATC_simulation_crash:
-forall u inum off (o : oracle' ATCCore) (s : state ATCLang)
-  (s' : Language.state' ATCCore),
-(exists s1 : state AD,
-   Simulation.Definitions.refines ATC_Refinement s s1) ->
-exec ATCLang u o s
-  (Simulation.Definitions.compile ATC_Refinement
-     (Simulation.Definitions.compile FD.refinement
-        (| Read inum off |))) (Crashed s') ->
-
-          
-  (forall T o s_imp s_imp' s_abs r o_imp t_abs grs, 
-  exec Definitions.imp u o_imp s_imp
-  (TransactionToTransactionalDisk.Definitions.compile
-      T o) (Finished s_imp' r) ->
-  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
-  TransactionToTransactionalDisk.Definitions.token_refines
-  T u s_imp o grs o_imp t_abs ->
-  exists s_abs',
-  Core.exec (TransactionalDiskLayer.TDCore
-data_length) u t_abs s_abs o (Finished s_abs' r) /\
-  TransactionToTransactionalDisk.Definitions.refines s_imp' s_abs') ->
-  
-  (forall T o s_imp s_imp' s_abs o_imp t_abs, 
-  exec Definitions.imp u o_imp s_imp
-  (TransactionToTransactionalDisk.Definitions.compile
-      T o) (Crashed s_imp') ->
-  TransactionToTransactionalDisk.Definitions.refines s_imp s_abs ->
-  TransactionToTransactionalDisk.Definitions.token_refines
-  T u s_imp o TransactionToTransactionalDisk.Refinement.TC_reboot_f o_imp t_abs ->
-  (forall l, ~ eq_dep Type (operation Definitions.abs_op) T o unit (TransactionalDiskLayer.Init l)) ->
-  exists s_abs',
-  Core.exec (TransactionalDiskLayer.TDCore
-data_length) u t_abs s_abs o (Crashed s_abs') /\
-  TransactionToTransactionalDisk.Definitions.refines_reboot (TransactionToTransactionalDisk.Refinement.TC_reboot_f s_imp') (TransactionToTransactionalDisk.Refinement.TD_reboot_f s_abs')) ->
-
-exists s1',
-  TransactionToTransactionalDisk.Definitions.refines_reboot
-    (snd s') s1'.
-    Proof.
-      intros; cleanup.
-      eapply_fresh ATC_oracle_refines_crashed in H0; eauto.
-      cleanup.
-      eapply ATC_exec_lift_crashed in H0; eauto.
-      cleanup; simpl in *.
-      unfold TransactionToTransactionalDisk.Refinement.TC_reboot_f, 
-      TransactionToTransactionalDisk.Refinement.TD_reboot_f in *; simpl in *.
-      eexists; unfold TransactionToTransactionalDisk.Definitions.refines_reboot,
-      Transaction.transaction_reboot_rep  in ; simpl in *; eauto.
-      apply not_init_read.
-      simpl in *; eauto.
-      apply not_init_read.
-    Qed.
-
-
-
-  Lemma ATC_AOE_read:
-  forall n inum off u,
-  abstract_oracles_exist_wrt ATC_Refinement
-(Simulation.Definitions.refines ATC_Refinement) u
-(Simulation.Definitions.compile FD.refinement (| Read inum off |))
-(Simulation.Definitions.compile FD.refinement (| Recover |))
-(ATC_reboot_list n).
-Proof.
-  intros; eapply ATC_AOE_2.
-  {
-    intros.
-    eapply ATC_oracle_refines_finished; eauto.
-  }
-  {
-    intros.
-    eapply ATC_oracle_refines_crashed; eauto.
-    apply not_init_read.
-  }
-  {
-    intros;
-    eapply ATC_simulation_crash; eauto.
-    apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished; eauto.
-    eapply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed; eauto.
-  }
 Qed.
 
 Opaque File.read File.recover.
@@ -556,7 +584,6 @@ Lemma ATC_TS_DiskAllocator_read:
     fst (snd s1) = Empty /\
     fst (snd s2) = Empty))
     (ATC_reboot_list n)) ->
-
 
     Termination_Sensitive u
 (Simulation.Definitions.compile ATC_Refinement 
@@ -1119,38 +1146,6 @@ Lemma ATC_TS_read_inner:
     Unshelve.
     all: eauto.
   Qed.
+*)
 
-Opaque Inode.get_owner File.read_inner.
-Theorem ss_ATC_read:
-  forall n inum off u u',
-    SelfSimulation u
-    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off)))) 
-    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off)))) 
-    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
-    (refines_valid ATC_Refinement AD_valid_state)
-    (refines_related ATC_Refinement
-     (AD_related_states u' None))
-    (eq u') (ATC_reboot_list n).
-Proof.
-    intros.
-    eapply SS_transfer.
-      - apply ss_AD_read.
-      - eapply ATC_simulation.
-        apply not_init_read.
-      - eapply ATC_simulation.
-        apply not_init_read.
-      - apply ATC_AOE_read.
-      - apply ATC_AOE_read.
-      - apply ATC_ORS_transfer.
-        apply not_init_read.
-        apply not_init_read.
-        apply have_same_structure_read.
-      - unfold exec_compiled_preserves_validity, AD_valid_state, 
-      refines_valid, FD_valid_state; 
-      intros; simpl; eauto.
-      - unfold exec_compiled_preserves_validity, AD_valid_state, 
-      refines_valid, FD_valid_state; 
-      intros; simpl; eauto.
-      - apply ATC_TS_read.
-Qed.
-      
+Admitted.

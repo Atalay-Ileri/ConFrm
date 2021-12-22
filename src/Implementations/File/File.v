@@ -56,7 +56,7 @@ Definition auth_then_exec {T} (inum: Inum) (p: Inum -> prog (TDLang data_length)
     if ok is Some tt then
       r <- |ADDP| p inum;
       if r is Some v then
-        _ <- Ret tt; (* This is a hack to get around the case where write succeeds but is a noop*)
+        (* _ <- Ret tt; This is a hack to get around the case where write succeeds but is a noop*)
         _ <- |ADDO| Commit;
         Ret (Some v)
       else

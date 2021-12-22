@@ -288,7 +288,6 @@ Proof.
 Qed.    
      
   
-
 Lemma write_finished:
   forall u o s s' r inum off v fm,
     files_rep fm s ->
@@ -924,7 +923,7 @@ Proof.
     eapply free_all_blocks_finished in H8; eauto.
     simpl in *; cleanup; split_ors; cleanup.
     unfold inode_rep in *; cleanup.
-    eapply block_allocator_rep_inbounds_eq with (s2:= fst (snd x7)) in H.    
+    eapply block_allocator_rep_inbounds_eq with (s2:= fst (snd x8)) in H.    
     eapply free_finished in H9; simpl; eauto.
     2: unfold inode_rep; eauto.
     all: eauto.
@@ -1612,19 +1611,18 @@ Lemma write_crashed_oracle_length:
     files_rep fm s ->
     exec ADLang u o s (write inum off v) (Crashed s') ->
     (files_crash_rep fm s' /\
-    (length o  <= 15 /\ 
-    (* (length o = 15 -> 
-    exists f, fm inum = Some f /\
-    inum < inode_count /\
-    f.(BaseTypes.owner) = u /\
-    off >= length f.(blocks)) /\ *)
+    length o  <= 15 /\ 
+    (length o = 15 -> 
+    In (OpToken ADOperation (Token2 _ (TDCore data_length) TxnFull)) o) /\
     ~In (OpToken ADOperation (Token2 _ (TDCore data_length) CrashAfter)) o) \/
     ((exists f, fm inum = Some f /\
           inum < inode_count /\
           f.(BaseTypes.owner) = u /\
           off < length f.(blocks) /\
           files_crash_rep (Mem.upd fm inum (update_file f off v)) s') /\
-    (length o  > 15 \/ In (OpToken ADOperation (Token2 _ (TDCore data_length) CrashAfter)) o))).
+    length o  >= 14 /\ 
+    (length o = 14 -> In (OpToken ADOperation (Token2 _ (TDCore data_length) CrashAfter)) o) /\
+    ~In (OpToken ADOperation (Token2 _ (TDCore data_length) TxnFull)) o).
 Proof.
   Opaque write_inner get_block_number.
   intros; cleanup.
@@ -1695,22 +1693,56 @@ Proof.
                   reveal H17.
                   unfold DiskAllocator.write in *; cleanup;
                   invert_exec_temp H17.
-                  all: simpl in *; reveal H20;
+
+                  all: try solve [  pose proof DiskAllocatorParams.blocks_fit_in_disk;
+                    pose proof DiskAllocatorParams.num_of_blocks_in_bounds;
+                    unfold DiskAllocatorParams.bitmap_addr,
+                    DiskAllocatorParams.num_of_blocks in *;
+                    lia].
+
+                  all: try solve [ 
+                    simpl in *; reveal H20;
                     invert_exec_temp H20;
                     (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
-                    repeat cleanup_pairs; left; split; [eauto | 
-                    split; try lia; intuition congruence]).
+                    repeat cleanup_pairs; left; split; [eauto | ];
+                    split; [|split]; intros; try lia; intuition congruence)].
+                  {
+                    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H9; eauto.
+                    unfold file_map_rep, file_rep in *; simpl in *; cleanup.
+                    unfold DiskAllocator.block_allocator_rep in *; simpl in *; cleanup.
+                    eapply DiskAllocator.valid_bits_extract in H7; eauto.
+                    2 : rewrite H10; eauto.
+                    cleanup.
+                    eapply H6 in H9; eauto.
+                    eapply nth_error_nth with (d:= false) in D3; eauto.
+                    rewrite <- nth_seln_eq in D3.
+                    split_ors; cleanup; try congruence.
+
+                    edestruct H13.
+                    eapply seln_nth_error; eauto.
+                    cleanup.
+                    rewrite H19 in H17; congruence.
+                    rewrite value_to_bits_length.
+                    unfold DiskAllocatorParams.num_of_blocks in *.
+                    pose DiskAllocatorParams.num_of_blocks_in_bounds; lia.
+                  }
+                  {
+                    eapply nth_error_None in D3.
+                    rewrite value_to_bits_length in D3;
+                    unfold DiskAllocatorParams.num_of_blocks in *;
+                    pose DiskAllocatorParams.num_of_blocks_in_bounds; lia.
+                  }
                 }
                 {
-                hide H17.
-                unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
-                cleanup;
-                invert_exec_temp H12.
-                
-                reveal H17.
-                unfold DiskAllocator.write in *; cleanup;
-                invert_exec_temp H17.
-                all: simpl in *; reveal H20;
+                  hide H17.
+                  unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
+                  cleanup;
+                  invert_exec_temp H12.
+                  
+                  reveal H17.
+                  unfold DiskAllocator.write in *; cleanup;
+                  invert_exec_temp H17.
+                  all: simpl in *; reveal H20;
                     invert_exec_temp H20;
                     (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
                     repeat cleanup_pairs; left; split; [eauto | 
@@ -1741,32 +1773,30 @@ Proof.
               invert_exec_temp H21.
               
               simpl in *; reveal H20;
-                invert_exec_temp H20.
+              invert_exec_temp H20.
 
-                (* After commit crash *)
-                unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
-                repeat cleanup_pairs; right; split.
-                eexists; intuition eauto.
-                unfold file_map_rep, file_rep in *; logic_clean.
-                eapply H13 in H9; eauto; cleanup; eauto.
-                try lia; intuition congruence.
+              (* After commit crash *)
+              unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+              repeat cleanup_pairs; right; split.
+               eexists; intuition eauto.
+              unfold file_map_rep, file_rep in *; logic_clean.
+              eapply H13 in H9; eauto; cleanup; eauto.
 
-                (* Commit crash CrashBefore *)
-                (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
-                repeat cleanup_pairs; left; split; [eauto | 
-                split; try lia; intuition congruence]).
+              split; try lia.
+              intuition congruence.
 
-                (* Commit crash CrashAfter *)
-                unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
-                repeat cleanup_pairs; right; split.
-                eexists; intuition eauto.
-                unfold file_map_rep, file_rep in *; logic_clean.
-                eapply H13 in H9; eauto; cleanup; eauto.
-                try lia; intuition congruence.
+              (* Commit crash CrashBefore *)
+              (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+              repeat cleanup_pairs; left; split; [eauto | 
+              split; try lia; intuition congruence]).
 
-                (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
-                repeat cleanup_pairs; left; split; [eauto | 
-                split; try lia; intuition congruence]).
+              (* Commit crash CrashAfter *)
+              unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
+              repeat cleanup_pairs; right; split.
+              eexists; intuition eauto.
+              unfold file_map_rep, file_rep in *; logic_clean.
+              eapply H13 in H9; eauto; cleanup; eauto.
+              split; try lia; intuition congruence.
             }
             {
               unfold file_map_rep, file_rep in *; logic_clean.
