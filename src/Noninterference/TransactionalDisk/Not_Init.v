@@ -16,7 +16,9 @@ Ltac not_init_solve:=
   File.DiskAllocator.read, 
   Inode.InodeAllocator.read,
   File.DiskAllocator.write,
-  Inode.InodeAllocator.write; simpl; intuition eauto
+  Inode.InodeAllocator.write,
+  File.DiskAllocator.free,
+  Inode.InodeAllocator.free; simpl; intuition eauto
   end.
 
 (*  
@@ -108,7 +110,9 @@ Proof.
 Qed.
 *)
 
-Transparent Inode.get_owner Inode.get_block_number Inode.extend Inode.set_inode.
+Transparent Inode.get_owner Inode.get_block_number 
+Inode.extend Inode.set_inode Inode.change_owner 
+Inode.get_all_block_numbers Inode.free Inode.alloc.
 Lemma not_init_read:
 forall inum off,
 not_init (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off))).
@@ -127,6 +131,38 @@ Qed.
 Lemma not_init_extend:
 forall inum v,
 not_init (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v))).
+Proof.
+  intros; repeat not_init_solve.
+Qed.
+
+Lemma not_init_change_owner:
+forall inum v,
+not_init (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (ChangeOwner inum v))).
+Proof.
+  intros; repeat not_init_solve.
+Qed.
+
+
+Lemma not_init_free_all_blocks:
+forall l,
+not_init (@lift_L2 AuthenticationOperation _ (TransactionalDiskLayer.TDLang  data_length) _ (File.free_all_blocks l)).
+Proof.
+induction l; intros; repeat not_init_solve.
+Qed.
+
+Lemma not_init_delete:
+forall inum,
+not_init (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Delete inum))).
+Proof.
+  intros; repeat not_init_solve.
+  apply not_init_free_all_blocks.
+  unfold Inode.free, Inode.InodeAllocator.free;
+  repeat not_init_solve.
+Qed.
+
+Lemma not_init_create:
+forall v,
+not_init (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Create v))).
 Proof.
   intros; repeat not_init_solve.
 Qed.

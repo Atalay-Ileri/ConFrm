@@ -116,6 +116,115 @@ Proof.
 Admitted.
 
 
+Theorem ss_ATC_change_owner:
+  forall n inum u u' v,
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (ChangeOwner inum v)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (ChangeOwner inum v)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' (Some inum)))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_change_owner.
+      - eapply ATC_simulation.
+        apply not_init_change_owner.
+      - eapply ATC_simulation.
+        apply not_init_change_owner.
+      - apply ATC_AOE.
+        apply not_init_change_owner.
+      - apply ATC_AOE.
+        apply not_init_change_owner.
+      - apply ATC_ORS_transfer.
+        apply not_init_change_owner.
+        apply not_init_change_owner.
+        intros; eapply have_same_structure_change_owner; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_change_owner. *) admit. 
+Admitted.
+
+Theorem ss_ATC_create:
+  forall n u u' o,
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Create o)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Create o)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' None))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_create.
+      - eapply ATC_simulation.
+        apply not_init_create.
+      - eapply ATC_simulation.
+        apply not_init_create.
+      - apply ATC_AOE.
+        apply not_init_create.
+      - apply ATC_AOE.
+        apply not_init_create.
+      - apply ATC_ORS_transfer.
+        apply not_init_create.
+        apply not_init_create.
+        intros; eapply have_same_structure_create; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_create. *) admit. 
+Admitted.
+
+
+
+
+Theorem ss_ATC_delete:
+  forall n inum u u',
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Delete inum)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Delete inum)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' None))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_delete.
+      - eapply ATC_simulation.
+        apply not_init_delete.
+      - eapply ATC_simulation.
+        apply not_init_delete.
+      - apply ATC_AOE.
+        apply not_init_delete.
+      - apply ATC_AOE.
+        apply not_init_delete.
+      - apply ATC_ORS_transfer.
+        apply not_init_delete.
+        apply not_init_delete.
+        intros; eapply have_same_structure_delete; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_delete. *) admit. 
+Admitted.
+
+
 
 Lemma same_for_user_except_reflexive :
 forall u ex s,
