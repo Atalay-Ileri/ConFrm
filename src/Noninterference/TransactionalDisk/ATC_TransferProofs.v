@@ -1256,5 +1256,3 @@ Lemma ATC_TS_read_inner:
     all: eauto.
   Qed.
 *)
-
-Admitted.

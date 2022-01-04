@@ -789,8 +789,8 @@ Lemma SS_explicit_transfer:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
-    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
+    (forall s_abs, abstract_oracles_exist_wrt_explicit R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp l_o s1_imp s_abs)->
+    (forall s_abs, abstract_oracles_exist_wrt_explicit R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp l_o s2_imp s_abs)->
     
     oracle_refines_same_from_related R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
@@ -828,11 +828,13 @@ Proof.
   (** Construct abs oracles **)
   (* unfold refines_valid, refines_related in *; cleanup. *)
 
+  specialize (H2 s1').
+  specialize (H3 s2').
   match goal with
   | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
      H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
-     H1: abstract_oracles_exist_wrt _ _ _ ?p1 _ _,
-     H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
+     H1: abstract_oracles_exist_wrt_explicit _ _ _ ?p1 _ _ _ _ _,
+     H2: abstract_oracles_exist_wrt_explicit _ _ _ ?p2 _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
     eapply_fresh H2 in H0; eauto; cleanup;
     try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]

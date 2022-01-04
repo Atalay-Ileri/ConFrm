@@ -1,6 +1,6 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference LoggedDiskRefinement.
-Require Import (*HSS*) ATCDLayer ATCD_Simulation ATCD_AOE FinishedNotCrashed.
+Require Import ATC_ORS HSS ATCDLayer ATCD_Simulation ATCD_AOE FinishedNotCrashed.
 Import FileDiskLayer.
 
 Ltac unify_execs_prefix :=
@@ -1764,4 +1764,138 @@ Proof.
   simpl; intuition eauto.
   all: eapply not_init_compile; eauto.
   } 
+Qed.
+
+Theorem have_same_structure_Transaction_read:
+forall u s1 s2 a1 a2,
+(a1 < data_length <-> a2 < data_length) ->
+(Transaction.get_first (fst (snd s1)) a1 = None <->
+Transaction.get_first (fst (snd s2)) a2 = None) ->
+ATC_have_same_structure
+  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a1))
+  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a2)) u s1 s2.
+Proof.
+  unfold Transaction.read; intros.
+  destruct (Compare_dec.lt_dec a1 data_length);
+  destruct (Compare_dec.lt_dec a2 data_length); try lia;
+  simpl; intuition eauto.
+
+  repeat invert_exec.
+  destruct_fresh (Transaction.get_first (fst (snd s1)) a1);
+  destruct_fresh (Transaction.get_first (fst (snd s2)) a2);
+  simpl in *; 
+  setoid_rewrite D;
+  setoid_rewrite D0; 
+  try (intuition congruence);
+  simpl; intuition eauto.
+Qed.
+  
+Theorem have_same_structure_Transaction_write:
+forall u s1 s2 a1 a2 v1 v2,
+(a1 < data_length <-> a2 < data_length) ->
+((length (addr_list_to_blocks (map fst (fst (snd s1)) ++ [a1])) +
+length (map snd (fst (snd s1)) ++ [v1])) <= log_length <->
+(length (addr_list_to_blocks (map fst (fst (snd s2)) ++ [a2])) +
+          length (map snd (fst (snd s2)) ++ [v2])) <= log_length) ->
+ATC_have_same_structure
+  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a1 v1))
+  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a2 v2)) u s1 s2.
+Proof.
+  unfold Transaction.write; intros.
+  destruct (Compare_dec.lt_dec a1 data_length);
+  destruct (Compare_dec.lt_dec a2 data_length); try lia;
+  simpl; intuition eauto.
+
+  repeat invert_exec.
+  destruct_fresh (Compare_dec.le_dec
+  (length (addr_list_to_blocks (map fst (fst (snd s1)) ++ [a1])) +
+   length (map snd (fst (snd s1)) ++ [v1])) log_length);
+  destruct_fresh (Compare_dec.le_dec (length (addr_list_to_blocks (map fst (fst (snd s2)) ++ [a2])) +
+  length (map snd (fst (snd s2)) ++ [v2])) log_length);
+  simpl in *; 
+  setoid_rewrite D;
+  setoid_rewrite D0; 
+  try (intuition congruence);
+  simpl; intuition eauto.
+Qed.
+
+
+Fixpoint transaction_input_equiv 
+{T1 T2} 
+(p1: AD.(prog) T1) (p2: AD.(prog) T2) 
+(s1 s2: ATCLang.(state)) :=
+match p1, p2 with
+| Op _ o1, Op _ o2 =>
+  match o1, o2 with
+  | P2 (TransactionalDiskLayer.Read a1), 
+    P2 (TransactionalDiskLayer.Read a2) =>
+    (a1 < data_length <-> a2 < data_length) /\
+    (Transaction.get_first (fst (snd s1)) a1 = None <->
+    Transaction.get_first (fst (snd s2)) a2 = None)
+
+  | P2 (TransactionalDiskLayer.Write a1 v1), 
+    P2 (TransactionalDiskLayer.Write a2 v2) =>
+    (a1 < data_length <-> a2 < data_length) /\
+  ((length (addr_list_to_blocks (map fst (fst (snd s1)) ++ [a1])) +
+  length (map snd (fst (snd s1)) ++ [v1])) <= log_length <->
+  (length (addr_list_to_blocks (map fst (fst (snd s2)) ++ [a2])) +
+            length (map snd (fst (snd s2)) ++ [v2])) <= log_length)
+  | _, _ => True
+  end
+
+|Bind p1 p3, Bind p2 p4 =>
+transaction_input_equiv p1 p2 s1 s2 /\
+(forall s1' s2' r1 r2 u o,
+exec ATCLang u o s1 (ATC_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+exec ATCLang u o s2 (ATC_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+transaction_input_equiv (p3 r1) (p4 r2) s1' s2' 
+)
+
+| _, _ => True
+end.
+
+
+Theorem ATC_HSS_transfer:
+forall u T (p1 p2: AD.(prog) T) s1 s2 s1a s2a,
+HSS.have_same_structure p1 p2 u s1a s2a ->
+ATC_Refinement.(Simulation.Definitions.refines) s1 s1a ->
+ATC_Refinement.(Simulation.Definitions.refines) s2 s2a ->
+ATC_Simulation.not_init p1 ->
+ATC_Simulation.not_init p2 ->
+transaction_input_equiv p1 p2 s1 s2 -> 
+ATC_have_same_structure (ATC_Refinement.(Simulation.Definitions.compile) p1) (ATC_Refinement.(Simulation.Definitions.compile) p2) u s1 s2.
+Proof.
+  induction p1; destruct p2; simpl in *; intros; try tauto.
+  {
+    simpl.
+    cleanup; simpl in *; try tauto.
+    eapply have_same_structure_Transaction_read; eauto.
+    eapply have_same_structure_Transaction_write; eauto.
+    all: cleanup; try tauto; simpl; intuition eauto.
+    exfalso; eapply H3; eauto.
+  }
+  {
+    intuition; cleanup.
+    eapply IHp1; eauto.
+
+    eapply_fresh ATC_Simulation.ATC_oracle_refines_finished in H11; eauto; cleanup.
+    eapply_fresh ATC_Simulation.ATC_oracle_refines_finished in H13; eauto; cleanup.
+    
+    eapply_fresh ATC_Simulation.ATC_exec_lift_finished in H11; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    cleanup.
+    eapply_fresh ATC_Simulation.ATC_exec_lift_finished in H13; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    cleanup.
+
+
+    eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H6; eauto.
+    2: apply TD_oracle_refines_operation_eq.
+    cleanup.
+    eapply H; eauto.
+  }
+  Unshelve.
+  all: eauto.
 Qed.
