@@ -10,7 +10,8 @@
 /\_build/
 /slf/
 /test.v
-*.hs
+/src/Extraction/*.hs
+/src/Extraction/extracted/
 *.hi
 *.o
 *.hse

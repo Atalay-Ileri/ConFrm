@@ -1173,7 +1173,7 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   specialize H with (1:= H4).
   specialize H0 with (1:= H5).
   repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup; eauto);
+  repeat unify_execs_prefix; cleanup; eauto).
   try apply H0 in H4; cleanup; try split_ors; cleanup; eauto;
   try apply H7 in H5; cleanup; try split_ors; cleanup; eauto.
   all: admit. (* Use oracle length thing *)

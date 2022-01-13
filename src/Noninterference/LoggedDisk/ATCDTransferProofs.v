@@ -305,11 +305,148 @@ Proof.
   }
 Admitted.
 
+Opaque File.change_owner File.recover.
+Theorem ss_ATCD_change_owner:
+  forall n u u' inum v lo s1 s2,
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (Simulation.Definitions.compile ATCD_Refinement
+     (Simulation.Definitions.compile ATC_Refinement
+        (Simulation.Definitions.compile FD.refinement (| ChangeOwner inum v |))))
+  (Simulation.Definitions.compile ATCD_Refinement
+     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (Simulation.Definitions.compile ATCD_Refinement
+    (Simulation.Definitions.compile ATC_Refinement
+        (Simulation.Definitions.compile FD.refinement (| ChangeOwner inum v |))))
+  (Simulation.Definitions.compile ATCD_Refinement
+    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
+    SelfSimulation_explicit u lo s1 s2
+    (ATCD_Refinement.(Simulation.Definitions.compile) 
+    (ATC_Refinement.(Simulation.Definitions.compile) 
+    (FD.refinement.(Simulation.Definitions.compile) 
+    (FDOp.(Op) (ChangeOwner inum v))))) 
+    (ATCD_Refinement.(Simulation.Definitions.compile) 
+    (ATC_Refinement.(Simulation.Definitions.compile) 
+    (FD.refinement.(Simulation.Definitions.compile) 
+    (FDOp.(Op) (ChangeOwner inum v))))) 
+    (ATCD_Refinement.(Simulation.Definitions.compile) 
+    (ATC_Refinement.(Simulation.Definitions.compile) 
+    (FD.refinement.(Simulation.Definitions.compile) 
+    (FDOp.(Op) Recover)))) 
+    (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
+    (refines_related ATCD_Refinement
+    (refines_related ATC_Refinement (AD_related_states u' (Some inum))))
+    (eq u') (ATCD_reboot_list n).
+Proof.
+  intros.
+  eapply SS_explicit_transfer.
+  - apply ss_ATC_change_owner.
+  - eapply ATCD_simulation.
+    shelve.
+  - eapply ATCD_simulation.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - eapply ATCD_ORS_transfer; simpl.
+    all: shelve.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - admit. (* apply ATCD_TS_write. *)
+  Unshelve.
+  all: simpl; try solve [try apply not_init_compile; apply not_init_change_owner].
+  {
+    unfold refines_related; simpl; intros.
+    cleanup.
+    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply have_same_structure_change_owner; eauto.
+    all: simpl; try solve [try apply not_init_compile; apply not_init_change_owner].
+    intros; eapply TIE_auth_then_exec; eauto.
+    intros. eapply TIE_change_owner_inner; eauto.
+    unfold refines_related; simpl; intuition eauto.
+  }
+Admitted.
 
 
-
-
-
+Opaque File.delete File.recover.
+Theorem ss_ATCD_delete:
+  forall n u u' inum lo s1 s2,
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (Simulation.Definitions.compile ATCD_Refinement
+     (Simulation.Definitions.compile ATC_Refinement
+        (Simulation.Definitions.compile FD.refinement (| Delete inum |))))
+  (Simulation.Definitions.compile ATCD_Refinement
+     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (Simulation.Definitions.compile ATCD_Refinement
+    (Simulation.Definitions.compile ATC_Refinement
+        (Simulation.Definitions.compile FD.refinement (| Delete inum |))))
+  (Simulation.Definitions.compile ATCD_Refinement
+    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
+    SelfSimulation_explicit u lo s1 s2
+    (ATCD_Refinement.(Simulation.Definitions.compile) 
+    (ATC_Refinement.(Simulation.Definitions.compile) 
+    (FD.refinement.(Simulation.Definitions.compile) 
+    (FDOp.(Op) (Delete inum))))) 
+    (ATCD_Refinement.(Simulation.Definitions.compile) 
+    (ATC_Refinement.(Simulation.Definitions.compile) 
+    (FD.refinement.(Simulation.Definitions.compile) 
+    (FDOp.(Op) (Delete inum))))) 
+    (ATCD_Refinement.(Simulation.Definitions.compile) 
+    (ATC_Refinement.(Simulation.Definitions.compile) 
+    (FD.refinement.(Simulation.Definitions.compile) 
+    (FDOp.(Op) Recover)))) 
+    (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
+    (refines_related ATCD_Refinement
+    (refines_related ATC_Refinement (AD_related_states u' None)))
+    (eq u') (ATCD_reboot_list n).
+Proof.
+  intros.
+  eapply SS_explicit_transfer.
+  - apply ss_ATC_delete.
+  - eapply ATCD_simulation.
+    shelve.
+  - eapply ATCD_simulation.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - eapply ATCD_ORS_transfer; simpl.
+    all: shelve.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - admit. (* apply ATCD_TS_write. *)
+  Unshelve.
+  all: simpl; try solve [try apply not_init_compile; apply not_init_delete].
+  {
+    unfold refines_related; simpl; intros.
+    cleanup.
+    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply have_same_structure_delete; eauto.
+    all: simpl; try solve [try apply not_init_compile; apply not_init_delete].
+    intros; eapply TIE_auth_then_exec; eauto.
+    intros. eapply TIE_delete_inner; eauto.
+    unfold refines_related; simpl; intuition eauto.
+  }
+Admitted.
 
 
 
