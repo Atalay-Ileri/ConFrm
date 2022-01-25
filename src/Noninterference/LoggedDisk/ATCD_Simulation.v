@@ -986,7 +986,7 @@ destruct o.
   {
     eapply lift2_invert_exec in H0; cleanup.
     eapply lift2_invert_exec in H2; cleanup.
-  edestruct LD_token_refines_finished; eauto.
+    edestruct LD_token_refines_finished; eauto.
     eexists; intuition eauto.
     eexists; intuition eauto.
     simpl.

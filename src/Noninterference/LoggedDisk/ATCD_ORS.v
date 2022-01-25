@@ -36,6 +36,7 @@ Ltac unify_execs_prefix :=
       try solve [rewrite <- app_assoc; setoid_rewrite app_nil_r at 2; eauto]
   end.
 
+  (*
   Lemma ATCD_ORS_compositional:
   forall l_selector u T (p1 p2: prog ATCLang T) T' (p3 p4: T -> prog ATCLang T') rec P RS RSR, 
   (forall l_selector, oracle_refines_same_from_related ATCD_Refinement u p1 p2 rec (ATCD_reboot_list l_selector) RS) ->
@@ -539,7 +540,7 @@ Ltac unify_execs_prefix :=
     Unshelve.
     all: eauto.
   Qed.
-
+*)
 
 
   Opaque LogCache.recover.
@@ -1749,20 +1750,20 @@ Proof.
   {
     unfold refines_related_reboot in *; cleanup; simpl in *.
     eapply ATCD_exec_lift_crashed in H6; eauto;
-  try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
-  try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
-  eapply ATCD_exec_lift_crashed in H7; eauto;
-  try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
-  try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
-  cleanup.
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    eapply ATCD_exec_lift_crashed in H7; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    cleanup.
 
 
-  unfold ATCD_refines_reboot in *; simpl in *.
-  unfold HC_refines_reboot; simpl;
-  unfold HC_refines_reboot; simpl.
-  eexists (_, (_, _)), (_, (_, _)).
-  simpl; intuition eauto.
-  all: eapply not_init_compile; eauto.
+    unfold ATCD_refines_reboot in *; simpl in *.
+    unfold HC_refines_reboot; simpl;
+    unfold HC_refines_reboot; simpl.
+    eexists (_, (_, _)), (_, (_, _)).
+    simpl; intuition eauto.
+    all: eapply not_init_compile; eauto.
   } 
 Qed.
 

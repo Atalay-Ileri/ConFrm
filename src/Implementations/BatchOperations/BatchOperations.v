@@ -329,6 +329,133 @@ Definition write_consecutive_finished := write_batch_finished.
 Definition write_consecutive_crashed := write_batch_crashed.
 
 
+(* Oracle length versions*)
+Theorem decrypt_all_finished_oracle:
+  forall key evl o s s' t u,
+    exec CryptoDiskLang u o s (decrypt_all key evl) (Finished s' t) ->
+    t = map (decrypt key) evl /\
+    consistent_with_upds (snd (fst s)) evl (map (fun ev => (key, decrypt key ev)) evl) /\
+    fst (fst s') = fst (fst s) /\
+    snd (fst s') = upd_batch (snd (fst s)) evl (map (fun ev => (key, decrypt key ev)) evl) /\
+    snd s' = snd s /\
+    length o = (length evl * 2) + 1.
+Proof.
+  induction evl; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; simpl; eauto.
+  intuition eauto.
+
+  edestruct IHevl; eauto; cleanup.
+  eexists; intuition eauto.
+  repeat cleanup_pairs; eauto.
+  rewrite app_length; simpl.
+  setoid_rewrite H5; lia.
+Qed.
+
+Theorem decrypt_all_crashed_oracle:
+  forall key evl o s s' u,
+    exec CryptoDiskLang u o s (decrypt_all key evl) (Crashed s') ->
+    exists n,
+      consistent_with_upds (snd (fst s)) (firstn n evl) (firstn n (map (fun ev => (key, decrypt key ev)) evl)) /\
+      fst (fst s') = fst (fst s) /\
+      snd (fst s') = upd_batch (snd (fst s)) (firstn n evl) (firstn n (map (fun ev => (key, decrypt key ev)) evl)) /\
+      snd s' = snd s /\
+      n <= length evl /\
+      length o >= 1 /\
+      length o <= (length evl * 2) + 1.
+Proof.
+  induction evl; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try lia; eauto.
+  exists 0; simpl; eauto.
+  intuition eauto.
+  
+  split_ors; cleanup; repeat invert_exec.
+  exists 0; simpl; eauto.
+  intuition eauto.
+  lia.
+  lia.
+
+  split_ors; cleanup; repeat invert_exec.
+  {
+    apply IHevl in H; cleanup.
+    exists (S x); simpl; intuition eauto.
+    repeat cleanup_pairs; eauto.
+    destruct p; eauto.
+    lia.
+    lia.
+  }
+  {
+    eapply decrypt_all_finished_oracle in H0; cleanup; eauto.
+    exists (S (length evl)); simpl.
+    repeat rewrite firstn_oob; try lia.
+    intuition eauto.
+    repeat cleanup_pairs; eauto.
+    destruct p; eauto.
+    lia.
+    rewrite app_length; simpl.
+    setoid_rewrite H4; lia.   
+    rewrite map_length; eauto.
+  }
+Qed.
+
+Theorem read_consecutive_finished_oracle:
+  forall count a o s s' t u,
+    exec CryptoDiskLang u o s (read_consecutive a count) (Finished s' t) ->
+    length t = count /\
+    (forall i,
+       i < count ->
+       exists vs,
+         (snd s) (a + i) = vs /\
+         fst vs = seln t i value0) /\
+    s' = s /\
+    length o = (count * 2) + 1.
+Proof.
+  induction count; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try solve [intuition eauto; lia].
+
+  edestruct IHcount; eauto; cleanup.
+  split; intros; eauto.
+  split; intros; eauto.
+  destruct i; eauto.
+  rewrite PeanoNat.Nat.add_0_r.
+  simpl; eexists; eauto.
+  simpl.
+  rewrite <- PeanoNat.Nat.add_succ_comm.
+  eapply H1; lia.
+  simpl in *.
+  rewrite app_length; simpl in *.
+  setoid_rewrite H3.
+  destruct s; intuition eauto.
+  lia.
+Qed.
+
+Theorem read_consecutive_crashed_oracle:
+  forall count a o s s' u,
+    exec CryptoDiskLang u o s (read_consecutive a count) (Crashed s') ->
+    s' = s /\
+    length o >= 1 /\
+    length o <= (count * 2) + 1.
+Proof.
+  induction count; simpl; intros;
+  cleanup; simpl in *; repeat invert_exec;
+  cleanup; try solve [intuition eauto; lia].
+  repeat (split_ors; cleanup; repeat invert_exec; simpl; eauto).
+  destruct s; simpl; intuition eauto.
+  lia.
+ 
+  eapply IHcount in H; eauto; cleanup.
+  destruct s; simpl in *; intuition eauto.
+  lia.
+  apply read_consecutive_finished_oracle in H0; cleanup; eauto.
+  destruct s; intuition eauto.
+  repeat rewrite app_length; simpl in *.
+  lia.
+  repeat rewrite app_length; simpl in *.
+  setoid_rewrite H2; lia.
+Qed.
+
 Theorem encrypt_all_finished_oracle:
   forall key vl o s s' t u,
     exec CryptoDiskLang u o s (encrypt_all key vl) (Finished s' t) ->
@@ -337,7 +464,7 @@ Theorem encrypt_all_finished_oracle:
     fst (fst s') = fst (fst s) /\
     snd (fst s') = upd_batch (snd (fst s)) (map (encrypt key) vl) (map (fun v => (key, v)) vl) /\
     snd s' = snd s /\
-    (length o = S (length vl + length vl)).
+    length o = (length vl * 2) + 1.
 Proof.
   induction vl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -359,8 +486,8 @@ Theorem encrypt_all_crashed_oracle:
       fst (fst s') = fst (fst s) /\
       snd (fst s') = upd_batch (snd (fst s)) (firstn n (map (encrypt key) vl)) (firstn n (map (fun v => (key, v)) vl)) /\
       snd s' = snd s /\
-      n <= length vl + length vl /\
-      S n = length o.
+      length o >= 1 /\
+      length o <= (length vl * 2) + 1.
 Proof.
   induction vl; simpl; intros;
   cleanup_no_match; simpl in *; 
@@ -410,7 +537,7 @@ Theorem hash_all_finished_oracle:
     fst (fst (fst s')) = fst (fst (fst s)) /\
     snd (fst s') = snd (fst s) /\
     snd s' = snd s /\
-    length o = S (length vl + length vl).
+    length o = (length vl * 2) + 1.
 Proof.
   induction vl; simpl; intros.
   repeat invert_exec; cleanup; intuition eauto.
@@ -438,7 +565,8 @@ Theorem hash_all_crashed_oracle:
     fst (fst (fst s')) = fst (fst (fst s)) /\
     snd (fst s') = snd (fst s) /\
     snd s' = snd s /\
-    length o <= S (n + n).
+    length o >= 1 /\
+    length o <= (length (rolling_hash_list h vl) * 2) + 1.
 Proof.
   induction vl; simpl; intros.
   repeat invert_exec; cleanup; simpl; eauto.
@@ -447,6 +575,7 @@ Proof.
   repeat invert_exec; cleanup.
   repeat (split_ors; cleanup; repeat invert_exec; simpl; eauto).
   exists 0; simpl; intuition eauto.
+  lia.
   lia.
   
   edestruct IHvl; eauto; cleanup.
@@ -462,6 +591,9 @@ Proof.
   repeat rewrite firstn_oob;
   simpl; intuition eauto.
  
+  repeat rewrite app_length.
+  simpl.
+  setoid_rewrite H5; lia.
   repeat rewrite rolling_hash_list_length, app_length.
   simpl.
   setoid_rewrite H5; lia.
@@ -479,7 +611,7 @@ Theorem write_batch_finished_oracle:
     exec CryptoDiskLang u o s (write_batch al vl) (Finished s' t) ->
     (forall a, In a al -> a < disk_size) /\
     fst s' = fst s /\ snd s' = TotalMem.upd_batch_set (snd s) al vl /\
-    length o = S (length al + length al).
+    length o = (length al * 2) + 1.
 Proof.
   induction al; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -503,8 +635,8 @@ Theorem write_batch_crashed_oracle:
       (forall a, In a (firstn n al) -> a < disk_size) /\
       fst s' = fst s /\ 
       snd s' = TotalMem.upd_batch_set (snd s) (firstn n al) (firstn n vl) /\
-      length o > 0 /\
-      length o <= S (n + n).
+      length o >= 1 /\
+      length o <= (length al * 2) + 1.
 Proof.
   induction al; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -519,6 +651,7 @@ Proof.
     exists 0; split; intuition eauto; simpl in *.
     lia.
     intuition.
+    lia.
   }
 
   split_ors; cleanup; repeat invert_exec; simpl in *.
