@@ -1,4 +1,4 @@
-Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
+Require Import Eqdep Lia Lra Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference LoggedDiskRefinement.
 Require Import ATC_ORS HSS ATCDLayer ATCD_Simulation ATCD_AOE FinishedNotCrashed.
 Import FileDiskLayer.
@@ -1020,7 +1020,7 @@ Definition LD_have_same_structure {T T'} (p1: LoggedDiskLayer.logged_disk_prog T
 (p2: LoggedDiskLayer.logged_disk_prog T') :=
   match p1, p2 with
   | LoggedDiskLayer.Read _, LoggedDiskLayer.Read _ => True
-  | LoggedDiskLayer.Write _ _, LoggedDiskLayer.Write _ _ => True
+  | LoggedDiskLayer.Write l1 l3, LoggedDiskLayer.Write l2 l4 => length l1 = length l2 /\ length l3 = length l4
   | LoggedDiskLayer.Recover, LoggedDiskLayer.Recover => True
   | LoggedDiskLayer.Init l1, LoggedDiskLayer.Init l2 => length l1 = length l2
   | _, _ => False
@@ -1144,6 +1144,38 @@ Unshelve.
 all: exact [].
 Qed.
 
+Lemma exec_crashed_oracle_length_prefix:
+    forall l l1 l0 l2 u o1 o2 o3 o4 s1 s2 s3 s4,
+        exec CachedDiskLang u o1 s1 (LogCache.write l1 l2) (Crashed s3) ->
+        exec CachedDiskLang u o2 s2 (LogCache.write l l0) (Crashed s4) -> 
+        o1 ++ o3 = o2 ++ o4 ->
+        length o1 = length o2.
+  Proof. Admitted.
+
+  Set Nested Proofs Allowed.
+  Lemma le_lt_exfalso:
+  forall c n m,
+    n < m ->
+    c < n ->
+    ~ c >= m.
+    unfold not; intros. lia.
+  Qed.
+
+Lemma lt_lt_exfalso:
+forall a b c n m,
+n < m ->
+a < b ->
+c * n + a < c * m + b.
+intros; destruct c; eauto.
+nia.
+Qed.
+
+Lemma lt_weaken:
+forall a n m,
+n < m ->
+n < a + m.
+intros; lia.
+Qed.
 
 Lemma LD_oracle_refines_operation_eq_crashed:
 forall (u0 : user) (T : Type) (o1 : operation (LoggedDiskOperation log_length data_length) T)
@@ -1171,10 +1203,186 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   repeat unify_execs; cleanup; eauto.
 }
 {
-  specialize H with (1:= H4).
-  specialize H0 with (1:= H5).
+  eapply_fresh exec_crashed_oracle_length_prefix in H1; eauto.
+  setoid_rewrite Hx in H0.
+  clear Hx.
+  setoid_rewrite app_length in H.
+  setoid_rewrite app_length in H0.
+  setoid_rewrite H7 in H.
+  setoid_rewrite addr_list_to_blocks_length_eq in H;
+  try solve [do 2 rewrite map_length with (f:= (Nat.add data_start)); apply H3].
+  unfold LogCache.cached_log_rep, Log.log_rep, Log.log_header_rep  in  H4, H5.
+  logic_clean.
+  edestruct H; 
+  edestruct H0; eauto;
+  logic_clean; clear H H0.
   repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup; eauto).
+  repeat unify_execs_prefix; cleanup; eauto; try lia).
+  repeat (split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia).
+  repeat (split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia).
+
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  
+  repeat (split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia).
+
+  exfalso; eapply le_lt_exfalso in H0;
+  eauto; eapply lt_lt_exfalso; eauto; lia.
+
+  exfalso; eapply le_lt_exfalso in H0;
+  eauto.
+  repeat rewrite <- PeanoNat.Nat.add_assoc.
+  do 2 apply lt_weaken.
+  eapply lt_lt_exfalso; lia.
+  remember (length (addr_list_to_blocks (map (Nat.add data_start) l1)) + length l2) as y.
+  setoid_rewrite <- Heqy in H14.
+  lia.
+
+  all: try solve [remember (length (addr_list_to_blocks (map (Nat.add data_start) l1)) + length l2) as y;
+  try setoid_rewrite <- Heqy in H14; try setoid_rewrite <- Heqy in H1;
+  lia].
+
+  admit.
+  admit.
+  (* Problem cases 
+    **** 
+     length x21 <
+     Log.count (Log.current_part x3) * 4 + 10 
+
+     length x21 >=
+     (length
+        (addr_list_to_blocks
+           (map (Nat.add data_start) l1)) + 
+      length l2) * 6 + 13
+
+    ****
+      length x21 <
+      Log.count (Log.current_part x4) * 4 +
+      fold_left Nat.add
+        (map
+           (fun txnr : Log.txn_record =>
+            Log.addr_count txnr * 2 +
+            Log.data_count txnr * 4 + 3)
+           (Log.records (Log.current_part x4))) 0 +
+      (length
+         (addr_list_to_blocks
+            (map (Nat.add data_start) l1)) + 
+       length l2) * 6 + length l2 + 32 
+
+      length x21 <
+      Log.count (Log.current_part x3) * 4 + 10
+    ****
+    length x21 >=
+      (length
+         (addr_list_to_blocks
+            (map (Nat.add data_start) l1)) + 
+       length l2) * 4 + 8
+    
+    length x21 <
+     Log.count
+       (Log.current_part x3) *
+     4 + 10
+  *)
+  remember (length (addr_list_to_blocks (map (Nat.add data_start) l1)) + length l2) as y.
+  setoid_rewrite <- Heqy in H1.
+  lia.
+  
+  2: eauto. eauto; lia.
+
+  instantiate (1:= (Nat.add data_start)).
+  nia.
+  lia.
+  eapply PeanoNat.Nat.add_lt_le_mono in H. 
+  eauto.
+  lia.
+    {
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.
+    
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.
+    
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.
+    
+    admit.
+    admit.
+
+    repeat (split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia).
+    admit.
+    admit.
+    
+    repeat (split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia).
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    admit.
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.
+
+    Set Nested Proofs Allowed.
+    
+    unfold LogCache.write; simpl; intros;
+  try solve [repeat invert_exec; simpl in *; cleanup;
+  simpl; eauto; try solve [intuition] ].
+  cleanup; repeat invert_exec.
+  {
+    repeat split_ors; cleanup; repeat invert_exec; simpl in *; cleanup.
+  }
+  }
+  {
+    repeat invert_exec.
+    {
+    generalize dependent o2. 
+    generalize dependent o3. 
+    generalize dependent o4.
+    generalize dependent s.
+    generalize dependent s2.
+    induction p2; intros;
+    repeat invert_exec; simpl in *; cleanup; eauto.
+    split_ors; cleanup; eauto.
+    rewrite <- app_assoc in *.
+
+    exfalso.
+    generalize dependent x1.
+    generalize (x2 ++ o4).
+    generalize p2.
+    Lemma 
+    induction p0; intros;
+    repeat invert_exec; simpl in *; cleanup; eauto.
+    rewrite <- app_assoc in *; eauto.
+    eapply IHp0; eauto.
+
+
+    
+    destruct p2; repeat invert_exec; simpl in *; cleanup; eauto.
+    simpl in *; cleanup.
+  }
+  eapply O.(exec_deterministic_wrt_token) in H8; eauto; cleanup; eauto.
+  
+  repeat rewrite <- app_assoc in H2.
+  specialize IHp with (1:= H9)(2:= H19)(3:=H2); cleanup.
+  specialize H with (1:= H12)(2:= H22)(3:=H2); cleanup; eauto.
+Qed.
+
+    split_ors; cleanup; repeat unify_execs;
+    repeat unify_execs_prefix; cleanup; eauto; try lia.          
+  }
+  repeat (split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia).
   try apply H0 in H4; cleanup; try split_ors; cleanup; eauto;
   try apply H7 in H5; cleanup; try split_ors; cleanup; eauto.
   all: admit. (* Use oracle length thing *)

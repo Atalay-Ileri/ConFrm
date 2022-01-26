@@ -89,6 +89,7 @@ Separate Extraction
            File.read File.write
            File.change_owner File.extend
            File.delete File.create
+           File.get_file_size
            File.recover File.init
            Transaction.read
            Transaction.write Transaction.commit

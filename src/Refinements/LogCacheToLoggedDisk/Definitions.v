@@ -31,38 +31,81 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
         (forall merged_disk,
             cached_log_rep merged_disk d1 -> 
             cached_log_rep merged_disk d1'))
-   | Write la lv =>
-   forall merged_disk,
-      cached_log_rep merged_disk d1 ->
+   | Write al vl =>
+   forall merged_disk hdr txns,
+   (fst d1 = Mem.list_upd_batch empty_mem (map addr_list txns) (map data_blocks txns) /\
+    log_header_rep hdr txns (snd d1) /\
+    merged_disk = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd d1)) (map addr_list txns) (map data_blocks txns))) /\
+    (forall a, a >= data_start -> snd ((snd (snd d1)) a) = [])) ->
      (exists d1' r,
-          exec impl u o1 d1 (write la lv) (Finished d1' r) /\          
+          exec impl u o1 d1 (write al vl) (Finished d1' r) /\          
           o2 = Cont /\
           ((cached_log_rep merged_disk d1' \/
-             cached_log_rep (upd_batch merged_disk la lv) d1'))) \/
+             cached_log_rep (upd_batch merged_disk al vl) d1'))) \/
      (exists d1',
-        (exec impl u o1 d1 (write la lv) (Crashed d1') /\
-         o2 = CrashBefore /\
-         (
-            cached_log_rep merged_disk d1' \/
-            cached_log_crash_rep (During_Apply merged_disk) d1' \/
-            cached_log_crash_rep (After_Apply merged_disk) d1') \/
-        (exec impl u o1 d1 (write la lv) (Crashed d1') /\
+        (exec impl u o1 d1 (write al vl) (Crashed d1') /\
+         (o2 = CrashBefore /\
+         (cached_log_rep merged_disk d1' \/
+          cached_log_crash_rep (During_Apply merged_disk) d1' \/
+          cached_log_crash_rep (After_Apply merged_disk) d1') /\
+          (
+            (length o1 < length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 8) \/
+        
+            (count (current_part hdr) + length (addr_list_to_blocks 
+              (map (Init.Nat.add data_start) al)) + length vl > log_length /\
+              (
+                length o1 < (count (current_part hdr)) * 4 + 10 \/
+                
+                (length o1 > count (current_part hdr) * 4 + 
+                fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 + 11 /\
+                length o1 <= count (current_part hdr) * 4 + 
+                fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
+                length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 23)
+              )
+            ) \/
+
+            (length o1 >= count (current_part hdr) * 4 + 10 /\
+            length o1 <  count (current_part hdr) * 4 + 
+            fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 + 16) \/
+            
+            (length o1 >= count (current_part hdr) * 4 + 
+            fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 + 16)
+          )) \/
+        (exec impl u o1 d1 (write al vl) (Crashed d1') /\
          o2 = CrashAfter /\
          (
-            cached_log_crash_rep (After_Commit (upd_batch merged_disk la lv)) d1' /\
-            NoDup la /\
-            length la = length lv /\
-            Forall (fun a : nat => a < data_length) la /\
-            length (addr_list_to_blocks la) + length lv <= log_length)) \/
-        (exec impl u o1 d1 (write la lv) (Crashed d1') /\
+            cached_log_crash_rep (After_Commit (upd_batch merged_disk al vl)) d1' /\
+            NoDup al /\
+            length al = length vl /\
+            Forall (fun a : nat => a < data_length) al /\
+            length (addr_list_to_blocks al) + length vl <= log_length /\
+            ((length o1 >=  length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++vl) * 6 + 13 /\
+            length o1 <  length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++vl) * 6 + length al + 16) \/
+            (length o1 >= count (current_part hdr) * 4 + 
+              fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
+              length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + 29 /\
+            length o1 < count (current_part hdr) * 4 + 
+              fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
+              length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + length al + 32)))) \/
+        
+        (exec impl u o1 d1 (write al vl) (Crashed d1') /\
          (
-            cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk la lv)) d1' /\
+            cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk al vl)) d1' /\
             ((cached_log_reboot_rep merged_disk (get_reboot_state d1') /\ o2 = CrashBefore) \/
-            (cached_log_reboot_rep (upd_batch merged_disk la lv) (get_reboot_state d1') /\ o2 = CrashAfter /\
-            NoDup la /\
-            length la = length lv /\
-            Forall (fun a : nat => a < data_length) la /\
-            length (addr_list_to_blocks la) + length lv <= log_length))
+            (cached_log_reboot_rep (upd_batch merged_disk al vl) (get_reboot_state d1') /\ o2 = CrashAfter /\
+            NoDup al /\
+            length al = length vl /\
+            Forall (fun a : nat => a < data_length) al /\
+            length (addr_list_to_blocks al) + length vl <= log_length /\
+            ((length o1 >= length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 8 /\ 
+            length o1 <  length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + 13) \/
+        
+            (length o1 > count (current_part hdr) * 4 + 
+            fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
+            length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 23 /\
+            length o1 <= count (current_part hdr) * 4 + 
+            fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
+            length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + 28))))
             ))))
    | Recover =>
      (exists d1',

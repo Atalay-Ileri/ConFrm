@@ -50,26 +50,31 @@ getCipher k = do
       return newCipher
 
 
-fsImage :: Handle
+fsImage :: IORef (Handle)
 {-# NOINLINE fsImage #-}
-fsImage = unsafePerformIO (openBinaryFile "fs_image" ReadWriteMode)
+fsImage = unsafePerformIO (do 
+  r <- openBinaryFile "temp" ReadWriteMode
+  newIORef r)
 
 -- Disk Operations
 diskRead :: Coq_addr -> IO Coq_value
 diskRead a = --return BaseTypes.value0
-  do 
-  hSeek fsImage AbsoluteSeek (fromIntegral(4096 Prelude.* a))
-  BS.hGet fsImage 4096
+  do
+  fs <-  readIORef fsImage
+  hSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
+  BS.hGet fs 4096
 
 diskWrite :: Coq_addr -> Coq_value -> IO ()
 diskWrite a v = --return ()
   do
-  hSeek fsImage AbsoluteSeek (fromIntegral(4096 Prelude.* a))
-  BS.hPut fsImage v
+  fs <-  readIORef fsImage
+  hSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
+  BS.hPut fs v
 
 diskSync :: IO ()
-diskSync = --return ()
-  hFlush fsImage
+diskSync = do --return ()
+  fs <-  readIORef fsImage
+  hFlush fs
 
 -- Cache Operations
 cacheRead :: Coq_addr -> IO (Maybe Coq_value)

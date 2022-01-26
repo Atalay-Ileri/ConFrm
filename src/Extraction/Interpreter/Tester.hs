@@ -32,6 +32,7 @@ main = do
   do
     File.init
     userId <- getEffectiveUserID
+    
     fn <- File.create userId
     print fn
     let fileName = fromJust fn

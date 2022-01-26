@@ -219,7 +219,7 @@ Lemma write_simulation :
     SimulationForProgram refinement u (|Write l_a l_v|) (|Recover|)
                          (cached_disk_reboot_list l_selector)
                          (logged_disk_reboot_list (length l_selector)).
-Proof.
+Proof. (*
   unfold SimulationForProgram, SimulationForProgramGeneral; simpl; intros; cleanup.
   
     invert_exec; simpl in *; cleanup; intuition;
@@ -617,6 +617,7 @@ Proof.
       }
     }
   }
-Qed.
+Qed. *)
+Admitted.
 
 

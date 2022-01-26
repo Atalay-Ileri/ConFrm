@@ -646,7 +646,7 @@ eq_dep Type (operation (LoggedDiskOperation log_length data_length)) T
 exists s_abs' : LoggedDiskLayer.state',
 LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
   (Finished s_abs' x0) /\ refines x s_abs'.
-    Proof.
+    Proof. (*
       intros; destruct o.
       {
         edestruct Simulations.read_simulation with (l_selector:= nil: list (@total_mem addr addr_dec nat)); eauto.
@@ -712,7 +712,9 @@ LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
         eapply H2.
         eauto.
       }
-    Qed.
+    Qed. 
+*)
+    Admitted.
 
 Lemma operation_simulation_crashed:
 forall u s_imp s_abs T o x x2 x3 t,
@@ -729,7 +731,7 @@ exec (CachedDiskLang) u x3 s_imp
 data_length u x2
     s_abs o (Crashed s_abs') /\
   refines_reboot (empty_mem, (fst (snd x), select_total_mem t (snd (snd x)))) s_abs'.
-    Proof.
+    Proof. (*
       intros; destruct o; simpl in *.
       {
         intuition cleanup;
@@ -795,7 +797,7 @@ data_length u x2
     Unshelve.
     all: eauto.
   Qed.
-
+*) Admitted.
 
 Theorem ATCD_simulation:
 forall u l_selector T (p: ATCLang.(prog) T),
@@ -824,7 +826,7 @@ SimulationForProgram ATCD_Refinement u
   token_refines T u s o 
   (fun s2: HorizontalComposition.state' (CacheOperation addr_dec value)
   CryptoDiskOperation => snd (snd (grs (s0, (s1, s2))))) orc t.
-  Proof.
+  Proof. (*
     intros; destruct o; simpl in *;
     eexists; left; do 2 eexists; intuition eauto.
     eapply LogCache.read_finished in H; eauto; cleanup; eauto.
@@ -837,7 +839,7 @@ SimulationForProgram ATCD_Refinement u
     repeat rewrite map_length; eauto.
     eapply LogCache.init_finished in H; eauto; cleanup; eauto.
   Qed.
-
+*) Admitted.
 
 Lemma cached_log_rep_eq:
 forall s m1 m2,
@@ -867,7 +869,7 @@ Qed.
   exists t, token_refines T u s o 
   (fun s0 => (empty_mem, (fst (snd s0), 
 select_total_mem selector (snd (snd s0))))) orc t.
-  Proof.
+  Proof. (*
     intros; destruct o; simpl in *.
     {
       eapply_fresh LogCache.read_crashed in H; eauto; cleanup; eauto.
@@ -926,6 +928,7 @@ select_total_mem selector (snd (snd s0))))) orc t.
     }
     intuition eauto.
 Qed.
+*) Admitted.
 
 Lemma ATCD_oracle_refines_finished:
 forall T (p: ATCLang.(prog) T) u (o : oracle' ATCDCore)

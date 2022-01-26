@@ -121,12 +121,21 @@ Definition extend_inner v inum :=
   else
     Ret None.
 
+(* For Implementation Purposes *)
+Definition get_file_size_inner inum :=
+  mbl <- Inode.get_all_block_numbers inum;
+  if mbl is Some block_numbers then
+    Ret (Some (length block_numbers))
+  else
+    Ret None.
+
 
 Definition read inum off := auth_then_exec inum (read_inner off).
 Definition write inum off v := auth_then_exec inum (write_inner off v).
 Definition extend inum v := auth_then_exec inum (extend_inner v).
 Definition change_owner inum owner := auth_then_exec inum (change_owner_inner owner).
 Definition delete inum := auth_then_exec inum delete_inner.
+Definition get_file_size inum := auth_then_exec inum get_file_size_inner.
 
 Definition create owner :=
   r <- |ADDP| Inode.alloc owner;

@@ -248,7 +248,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
   Theorem abstract_oracles_exist_wrt_write:
     forall l_selector l_a l_v u,
       abstract_oracles_exist_wrt refinement refines u (|Write l_a l_v|) (|Recover|) (cached_disk_reboot_list l_selector).
-  Proof.
+  Proof. (*
     unfold abstract_oracles_exist_wrt, refines_reboot; induction l_selector;
     simpl; intros; cleanup; invert_exec.
     {
@@ -620,7 +620,7 @@ Local Notation "'refinement'" := LoggedDiskRefinement.
         }
       }
     }
-    
+    *)
   Admitted.
 
   Fixpoint not_init {T} (p_abs: abs.(prog) T) :=

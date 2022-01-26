@@ -50,6 +50,5 @@ sed -ie '/^module/a import qualified Crypto.Hash.Algorithms' BaseTypes.hs
 sed -ie '/^module/a import Prelude' BaseTypes.hs
 
 # Compile Haskell files 
-ghc Tester.hs
-./Tester
+ghc ConFs.hs
 

@@ -1025,6 +1025,9 @@ Qed.
 
 Theorem write_crashed_oracle:
   forall merged_disk s o al vl s' u hdr txns,
+  let c1 := length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) in
+  let c2 := count (current_part hdr) in
+  let c3 := fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 in
   (fst s = Mem.list_upd_batch empty_mem (map addr_list txns) (map data_blocks txns) /\
   log_header_rep hdr txns (snd s) /\
   merged_disk = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd s)) (map addr_list txns) (map data_blocks txns))) /\
@@ -1032,18 +1035,15 @@ Theorem write_crashed_oracle:
   exec CachedDiskLang u o s (write al vl) (Crashed s') ->
   (cached_log_rep merged_disk s' /\ 
     (
-      (length o < length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 8) \/
+      (length o < c1 * 4 + 8) \/
   
       (count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length /\
         (
-          length o < (count (current_part hdr)) * 4 + 10 \/
+          length o < c2 * 4 + 10 \/
           
-          (length o > count (current_part hdr) * 4 + 
-          fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 + 11 /\
-          length o <= count (current_part hdr) * 4 + 
-          fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
-          length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 23)
+          (length o > c2 * 4 + c3 + 11 /\
+          length o <= c2 * 4 + c3 + c1 * 4 + 23)
         )
       )
     )
@@ -1051,39 +1051,30 @@ Theorem write_crashed_oracle:
   ((
     (cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk al vl)) s' /\
       (
-        (length o >= length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 8 /\ 
-        length o <  length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + 13) \/
+        (length o >= c1 * 4 + 8 /\ 
+        length o <  c1 * 6 + 13) \/
     
-        (length o > count (current_part hdr) * 4 + 
-        fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
-        length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 4 + 23 /\
-        length o <= count (current_part hdr) * 4 + 
-        fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
-        length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + 28)
+        (length o > c2 * 4 + c3 + c1 * 4 + 23 /\
+        length o <= c2 * 4 + c3 + c1 * 6 + 28)
       )
     ) \/
   
     (cached_log_crash_rep (After_Commit (upd_batch merged_disk al vl)) s' /\
-     ((length o >=  length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++vl) * 6 + 13 /\
-      length o <  length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++vl) * 6 + length al + 16) \/
-      (length o >= count (current_part hdr) * 4 + 
-        fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
-        length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + 29 /\
-      length o < count (current_part hdr) * 4 + 
-        fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 +
-        length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl) * 6 + length al + 32))) \/
+     ((length o >=  c1 * 6 + 13 /\
+      length o <  c1 * 6 + length al + 16) \/
+      
+      (length o >= c2 * 4 + c3 + c1 * 6 + 29 /\
+      length o < c2 * 4 + c3 + c1 * 6 + length al + 32))) \/
     
     (cached_log_crash_rep (During_Apply merged_disk) s' /\
-    length o >= count (current_part hdr) * 4 + 10 /\
-    length o <  count (current_part hdr) * 4 + 
-    fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 + 16) \/
+    length o >= c2 * 4 + 10 /\
+    length o <  c2 * 4 + c3 + 16) \/
     
     (cached_log_crash_rep (After_Apply merged_disk) s' /\ 
-    length o >= count (current_part hdr) * 4 + 
-    fold_left Nat.add (map (fun txnr => (addr_count txnr) * 2 + (data_count txnr) * 4 + 3) (records (current_part hdr))) 0 + 16)
+    length o >= c2 * 4 + c3 + 16)
    ) /\
   
-  Forall (fun a => a < data_length) al /\
+   Forall (fun a => a < data_length) al /\
    NoDup al /\
    length al = length vl /\
    length (addr_list_to_blocks (map (plus data_start) al)) + length vl <= log_length).

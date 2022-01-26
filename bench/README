@@ -1,0 +1,22 @@
+Before starting, Make sure that mkfs and fscq binaries for both dfscq 
+and sfscq are in fs/ 
+folder.
+
+for dfscq, binaries need to be named "dmkfs" and "sfscq"
+for sfscq, binaries need to be named "smkfs" and "dfscq"
+
+If sfscq fails to compile with 'ambiguous type from Prelude.succ' error, 
+open codegen/AsyncFS.hs and replace each instance of "(Prelude.succ 
+inum)" with "((Prelude.succ inum)::Prelude.Integer)", then rerun 
+make (without running make clean).
+
+To compile the tests, run
+./compile-sources
+
+To run the tests
+./run-all.sh <num-of-iterations>
+FUSE will complain a little but it runs so no worries.
+
+To calculate means and standard deviation of the results, run
+python process-results.py
+python process-results-largefile.py 

@@ -1,0 +1,20 @@
+=== Unmount /tmp/ConFs ===
+=== Recreate /tmp/ConFs ===
+=== Mount ConFs at /tmp/ConFs ===
+=== Starting Testing ===
+=== smallfile Bench ===
+DATA: 152844 1000002
+DATA: 107731 1008426
+DATA: 116174 1007126
+DATA: 102549 1013558
+DATA: 109379 1014166
+DATA: 107802 1000004
+DATA: 109271 1000040
+DATA: 109880 1000004
+DATA: 108470 1005314
+DATA: 114927 1000001
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+Recovering file system
+Starting file system.
+=== Delete /tmp/ConFs ===

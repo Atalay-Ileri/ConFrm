@@ -1,0 +1,20 @@
+=== Unmount /tmp/ConFs ===
+=== Recreate /tmp/ConFs ===
+=== Mount ConFs at /tmp/ConFs ===
+=== Starting Testing ===
+=== createdelete Bench ===
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+./tests/createdelete: create /tmp/ConFs/d failed Function not implemented
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+Recovering file system
+Starting file system.
+=== Delete /tmp/ConFs ===
