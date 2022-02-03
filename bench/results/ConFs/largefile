@@ -1,0 +1,21 @@
+=== Unmount /tmp/ConFs ===
+=== mkfs in /dev/sdb3 ===
+"--MKFS--"
+"/dev/sdb3"
+=== Recreate /tmp/ConFs ===
+=== Mount ConFs at /tmp/ConFs ===
+=== Starting Testing ===
+=== largefile Bench ===
+./tests/largefile: write /tmp/ConFs/d/f failed Success
+./tests/largefile: create /tmp/ConFs/d failed File exists
+./tests/largefile: create /tmp/ConFs/d failed File exists
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+=== Delete /tmp/ConFs ===
+Starting file system.
+Recovering file system
+"Reads:  305\nWrites: 1\nSyncs:  1\n"
+Disk I/O stats:
+Reads:  1634
+Writes: 2591
+Syncs:  544

@@ -407,11 +407,11 @@ Qed.
 
 
 Lemma have_same_structure_DiskAllocator_write:
-forall bn1 bn2 u u' s1 s2 v1 v2,
+forall bn1 bn2 u u' s1 s2 v1 v2 ex,
 (fun s1 s2  => exists s1a s2a, 
 File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
 File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
-FD_related_states u' None s1a s2a) s1 s2 ->
+FD_related_states u' ex s1a s2a) s1 s2 ->
 (bn1 < File.DiskAllocatorParams.num_of_blocks <->
 bn2 < File.DiskAllocatorParams.num_of_blocks) ->
 (nth_error
@@ -486,11 +486,11 @@ Qed.
 
 
 Lemma have_same_structure_DiskAllocator_alloc:
-forall u u' s1 s2 v1 v2,
+forall u u' s1 s2 v1 v2 ex,
 (fun s1 s2  => exists s1a s2a, 
 File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
 File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
-FD_related_states u' None s1a s2a) s1 s2 ->
+FD_related_states u' ex s1a s2a) s1 s2 ->
 
 (get_first_zero_index
    (firstn File.DiskAllocatorParams.num_of_blocks
@@ -656,11 +656,11 @@ Qed.
 
 
 Lemma have_same_structure_get_block_number:
-forall inum off u u' s1 s2,
+forall inum off u u' s1 s2 ex,
 (fun s1 s2  => exists s1a s2a, 
 File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
 File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
-FD_related_states u' None s1a s2a) s1 s2 ->
+FD_related_states u' ex s1a s2a) s1 s2 ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_block_number inum off))
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_block_number inum off)) u s1 s2.
@@ -676,8 +676,6 @@ unfold refines, File.files_rep in *; cleanup.
 eapply have_same_structure_get_inode; eauto.
 destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
-Unshelve.
-all: eauto.
 Qed.
 
 Lemma have_same_structure_get_all_block_numbers:
@@ -707,11 +705,11 @@ Qed.
 
 
 Lemma have_same_structure_Inode_extend:
-forall inum v1 v2 u u' s1 s2,
+forall inum v1 v2 u u' s1 s2 ex,
 (fun s1 s2  => exists s1a s2a, 
 File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
 File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
-FD_related_states u' None s1a s2a) s1 s2 ->
+FD_related_states u' ex s1a s2a) s1 s2 ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.extend inum v1))
 (@lift_L2 AuthenticationOperation _ TD _ (Inode.extend inum v2)) u s1 s2.
@@ -1052,12 +1050,212 @@ simpl in *; try lia; try congruence.
 Qed.
 
 
+Lemma have_same_structure_write_inner_input:
+forall inum off u u' s1 s2 v1 v2,
+(fun s1 s2  => exists s1a s2a, 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
+FD_related_states u' (Some inum) s1a s2a) s1 s2 ->
+have_same_structure
+(@lift_L2 AuthenticationOperation _ TD _ (File.write_inner off v1 inum))
+(@lift_L2 AuthenticationOperation _ TD _ (File.write_inner off v2 inum)) u s1 s2.
+Proof.
+Transparent File.write_inner.
+Opaque Inode.get_block_number.
+unfold File.write_inner; simpl; intros.
+simpl; intuition eauto.
+
+eapply have_same_structure_get_block_number; eauto.
+eapply lift2_invert_exec in H0.
+eapply lift2_invert_exec in H1; cleanup.
+apply map_ext_eq in H1; subst.
+2: intros; cleanup; intuition congruence.
+unfold File.files_inner_rep in *; cleanup.
+eapply_fresh Inode.get_block_number_finished_oracle_eq in H5; eauto.
+cleanup; destruct r1,r2; try solve [intuition congruence];
+simpl; eauto.
+intuition.
+eapply Inode.get_block_number_finished in H5; eauto.
+eapply Inode.get_block_number_finished in H3; eauto.
+repeat split_ors; cleanup.
+
+eapply have_same_structure_DiskAllocator_write; eauto.
+clear H3 H5.
+do 2 eexists; intuition eauto.
+
+unfold File.files_inner_rep; 
+do 2 eexists; intuition eauto.
+do 2 eexists; intuition eauto.
+eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
+eauto; intros; FileInnerSpecs.solve_bounds.
+
+unfold File.files_inner_rep; 
+do 2 eexists; intuition eauto.
+do 2 eexists; intuition eauto.
+eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
+eauto; intros; FileInnerSpecs.solve_bounds.
+
+{
+  repeat split_ors; cleanup.
+  shelve.
+}
+{
+  repeat split_ors; cleanup.
+  shelve.
+}
+{
+  intros.
+  match goal with
+   | [H: _ ?inum = Some _,
+      H0: _ ?inum = Some _ |- _] =>
+   eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H; eauto; cleanup;
+   eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H0; eauto; cleanup
+   end.
+   unfold FD_related_states,
+   same_for_user_except in *; cleanup.
+   match goal with
+   | [H: ?fm1 ?inum = Some _,
+      H0: ?fm2 ?inum = Some _,
+      H1: forall (_: addr) (_ _: File), 
+       ?fm1 _ = Some _ ->
+       ?fm2 _ = Some _ ->
+       _ = _ /\ _ = _ |- _] =>
+       eapply_fresh H1 in H; eauto; cleanup
+  end.
+   unfold File.file_map_rep in *; cleanup.
+   match goal with
+   | [H: ?x1 ?inum = Some _,
+      H0: ?x2 ?inum = Some _,
+      H1: forall (_: Inode.Inum) _ _, 
+      ?x1 _ = Some _ ->
+      _ _ = Some _ -> _,
+      H2: forall (_: Inode.Inum) _ _, 
+      ?x2 _ = Some _ ->
+      _ _ = Some _ -> _ |- _] =>
+      eapply H1 in H; eauto; cleanup;
+      eapply H2 in H0; eauto; cleanup
+   end.
+   unfold File.file_rep in *; cleanup; eauto.
+}
+
+Unshelve.
+all: eauto.
+{
+  intuition eauto.
+  eapply SameRetType.all_block_numbers_in_bound in H21.
+  3: eauto.
+  all: eauto.
+  eapply Forall_forall in H21; eauto.
+  apply in_seln; eauto.
+
+  eapply SameRetType.all_block_numbers_in_bound in H23.
+  2: eauto.
+  all: eauto.
+  eapply Forall_forall in H23; eauto.
+  apply in_seln; eauto.
+
+  eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
+  intros; FileInnerSpecs.solve_bounds.
+}
+{
+destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks).
+- repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
+all: eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
+intros; FileInnerSpecs.solve_bounds.
+- unfold Inode.inode_rep, Inode.inode_map_rep,
+Inode.inode_map_valid,
+Inode.inode_valid,
+Inode.InodeAllocator.block_allocator_rep in *; cleanup.
+
+rewrite H34, H39 in *; 
+simpl in *; try lia; try congruence.
+}
+Qed.
+
 Lemma have_same_structure_extend_inner:
 forall inum u u' s1 s2 v1 v2,
 (fun s1 s2  => exists s1a s2a, 
 File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
 File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
 FD_related_states u' None s1a s2a) s1 s2 ->
+have_same_structure
+(@lift_L2 AuthenticationOperation _ TD _ (File.extend_inner v1 inum))
+(@lift_L2 AuthenticationOperation _ TD _ (File.extend_inner v2 inum)) u s1 s2.
+Proof.
+Transparent File.extend_inner.
+Opaque Inode.get_block_number Inode.extend File.DiskAllocator.alloc.
+unfold File.extend_inner. simpl; intros.
+simpl; intuition eauto.
+
+eapply have_same_structure_DiskAllocator_alloc; eauto.
+cleanup; eapply InodeTS.free_block_exists_iff; eauto.
+eapply lift2_invert_exec in H0.
+eapply lift2_invert_exec in H1; cleanup.
+apply HC_map_ext_eq in H1; subst.
+unfold File.files_inner_rep, Inode.inode_rep in *; cleanup.
+eapply_fresh File.DiskAllocator.alloc_finished_oracle_eq in H5; eauto.
+cleanup; destruct r1,r2; try solve [intuition congruence];
+simpl; eauto.
+eapply have_same_structure_Inode_extend; eauto.
+
+eapply File.DiskAllocator.alloc_finished in H3; eauto.
+eapply File.DiskAllocator.alloc_finished in H5; eauto.
+repeat (repeat split_ors; cleanup).
+repeat cleanup_pairs.
+
+unfold File.files_inner_rep, Inode.inode_rep in *; cleanup;
+do 2 eexists; intuition eauto.
+eexists; intuition eauto.
+eexists; split.
+eapply Inode.InodeAllocator.block_allocator_rep_inbounds_eq.
+apply H.
+eauto; intros; FileInnerSpecs.solve_bounds.
+eauto.
+eexists; intuition eauto.
+{
+  unfold File.file_map_rep in *; cleanup; intuition eauto.
+  eapply_fresh H10 in H13; eauto.
+  unfold File.file_rep in *; cleanup.
+  intuition eauto.
+  erewrite Mem.upd_ne; eauto.
+
+  intuition; cleanup.
+  unfold Inode.inode_map_rep,
+  Inode.inode_map_valid,
+  Inode.inode_valid in *; cleanup.
+  eapply H26 in H27; cleanup.
+}
+
+unfold File.files_inner_rep; 
+do 2 eexists; intuition eauto.
+do 2 eexists; intuition eauto.
+eapply Inode.InodeAllocator.block_allocator_rep_inbounds_eq; 
+eauto; intros; FileInnerSpecs.solve_bounds.
+eexists; intuition eauto.
+{
+  unfold File.file_map_rep in *; cleanup; intuition eauto.
+  eapply_fresh H5 in H13; eauto.
+  unfold File.file_rep in *; cleanup.
+  intuition eauto.
+  erewrite Mem.upd_ne; eauto.
+
+  intuition; cleanup.
+  unfold Inode.inode_map_rep,
+  Inode.inode_map_valid,
+  Inode.inode_valid in *; cleanup.
+  eapply H26 in H27; cleanup.
+}
+
+Unshelve.
+all: eauto.
+Qed.
+
+Lemma have_same_structure_extend_inner_input:
+forall inum u u' s1 s2 v1 v2,
+(fun s1 s2  => exists s1a s2a, 
+File.files_inner_rep s1a (fst (snd (snd s1))) /\ 
+File.files_inner_rep s2a (fst (snd (snd s2))) /\ 
+FD_related_states u' (Some inum) s1a s2a) s1 s2 ->
 have_same_structure
 (@lift_L2 AuthenticationOperation _ TD _ (File.extend_inner v1 inum))
 (@lift_L2 AuthenticationOperation _ TD _ (File.extend_inner v2 inum)) u s1 s2.
@@ -1617,6 +1815,17 @@ Proof.
  intros; eapply SameRetType.write_inner_finished_oracle_eq; eauto. 
 Qed.
 
+Lemma have_same_structure_write_input:
+forall inum off u u' s1 s2 v1 v2,
+AD_related_states u' (Some inum) s1 s2 ->
+have_same_structure (File.write inum off v1) (File.write inum off v2) u s1 s2.
+Proof.
+  unfold File.write; intros.
+  eapply have_same_structure_auth_then_exec; eauto.
+  intros; eapply have_same_structure_write_inner_input; eauto.
+ intros; eapply SameRetType.write_inner_finished_oracle_eq; eauto. 
+Qed.
+
 Lemma have_same_structure_extend:
 forall inum u u' s1 s2 v1 v2,
 AD_related_states u' None s1 s2 ->
@@ -1625,6 +1834,17 @@ Proof.
   unfold File.extend; intros.
   eapply have_same_structure_auth_then_exec; eauto.
   intros; eapply have_same_structure_extend_inner; eauto.
+ intros; eapply SameRetType.extend_inner_finished_oracle_eq; eauto. 
+Qed.
+
+Lemma have_same_structure_extend_input:
+forall inum u u' s1 s2 v1 v2,
+AD_related_states u' (Some inum) s1 s2 ->
+have_same_structure (File.extend inum v1) (File.extend inum v2) u s1 s2.
+Proof.
+  unfold File.extend; intros.
+  eapply have_same_structure_auth_then_exec; eauto.
+  intros; eapply have_same_structure_extend_inner_input; eauto.
  intros; eapply SameRetType.extend_inner_finished_oracle_eq; eauto. 
 Qed.
 

@@ -336,24 +336,37 @@ simpl; split_ors.
   }
 Qed.
 
+(*
 Lemma cached_log_crash_rep_during_commit_to_reboot_rep:
 forall s_abs1 s_abs2 s_imp a,
 LogCache.cached_log_crash_rep (LogCache.During_Commit s_abs1 s_abs2) s_imp ->
 non_colliding_selector a (snd s_imp) ->
-LogCache.cached_log_reboot_rep s_abs1
-(empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp)))) \/
-LogCache.cached_log_reboot_rep s_abs2
-(empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp)))).
+(LogCache.cached_log_reboot_rep_explicit_part s_abs1 Current_Part
+(empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp))))) \/
+(LogCache.cached_log_reboot_rep_explicit_part s_abs1 Old_Part
+(empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp)))) /\ a hdr_block_num <> 1) \/
+(LogCache.cached_log_reboot_rep_explicit_part s_abs2 Current_Part
+(empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp)))) /\ a hdr_block_num <> 1).
 Proof.
+  *)
+  Lemma cached_log_crash_rep_during_commit_to_reboot_rep:
+  forall s_abs1 s_abs2 s_imp a,
+  LogCache.cached_log_crash_rep (LogCache.During_Commit s_abs1 s_abs2) s_imp ->
+  non_colliding_selector a (snd s_imp) ->
+  (LogCache.cached_log_reboot_rep s_abs1
+  (empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp))))) \/
+  (LogCache.cached_log_reboot_rep s_abs2
+  (empty_mem, (fst (snd s_imp), select_total_mem a (snd (snd s_imp))))).
+  Proof.
 unfold LogCache.cached_log_crash_rep, LogCache.cached_log_reboot_rep; intros; cleanup.
 split_ors; cleanup.
 {
-left; eexists; intuition eauto.
-eapply RepImplications.crash_rep_log_write_to_reboot_rep; eauto.
-simpl.
-{
-      unfold Log.log_crash_rep, Log.log_rep_general in *.
-      logic_clean.
+  left; eexists; intuition eauto.
+  eapply RepImplications.crash_rep_log_write_to_reboot_rep; eauto.
+  simpl.
+  {
+        unfold Log.log_crash_rep, Log.log_rep_general in *.
+        logic_clean.
       repeat rewrite total_mem_map_shift_comm.
         repeat rewrite total_mem_map_fst_list_upd_batch_set.
         extensionality index.
@@ -456,6 +469,7 @@ simpl.
     eauto.
 }
 Qed.
+
 
 
 Lemma cached_log_crash_rep_after_apply_to_reboot_rep:

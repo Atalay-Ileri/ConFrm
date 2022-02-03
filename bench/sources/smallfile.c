@@ -67,28 +67,28 @@ int main(int argc, char *argv[])
     exit(-1);
   }
   
-  sprintf(buf, "%s", argv[1]);
-  
+  dir = argv[1];
+  sprintf(buf, "%s/d", argv[1]);
+  if (mkdir(buf,  S_IRWXU) < 0) {
+    printf("%s: create %s failed %s\n", argv[0], buf, strerror(errno));
+    exit(1);
+  }
+  printstats(1);
   start = usec_now();
-  
   for (i = 0; ; i++) {
-    sprintf(name, "%s/%d", argv[1], i);
-    /* 
-    if((fd = open(name, O_RDWR, S_IRWXU)) < 0) {
-	printf("%s: create %s failed %s :: %d\n", argv[0], name, strerror(errno), fd);
-	exit(1);
+    sprintf(name, "%s/d/f%d", argv[1], i);
+    if((fd = open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU)) < 0) {
+      printf("%s: create %s failed %s\n", argv[0], name, strerror(errno));
+      exit(1);
     }
-    */
-    if (write(0, buf, FILESIZE) != FILESIZE) {
+    if (write(fd, buf, FILESIZE) != FILESIZE) {
       printf("%s: write %s failed %s\n", argv[0], name, strerror(errno));
       exit(1);
     }
-    /*
     if (fsync(fd) < 0) {
       printf("%s: fsync %s failed %s\n", argv[0], name, strerror(errno));
       exit(1);
     }
-    */
     close(fd);
 
     end = usec_now();
@@ -98,5 +98,5 @@ int main(int argc, char *argv[])
 
   printf("DATA: %d %ld\n", i, end-start);
 
-  //printstats(0);
+  printstats(0);
 }

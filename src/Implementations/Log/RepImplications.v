@@ -523,17 +523,18 @@ Proof.
 Qed.
  
 
-Lemma crash_rep_header_write_to_reboot_rep :
+Lemma crash_rep_header_write_to_reboot_rep' :
   forall s old_txns new_txns selector,
     log_crash_rep (During_Commit_Header_Write old_txns new_txns) s ->
     
     non_colliding_selector selector s ->
     
-    log_reboot_rep old_txns (fst s, select_total_mem selector (snd s)) \/
-    log_reboot_rep new_txns (fst s, select_total_mem selector (snd s)).
+    (exists hdr, log_reboot_rep_explicit_part hdr old_txns Current_Part (fst s, select_total_mem selector (snd s)) /\ selector hdr_block_num = 1) \/
+    (exists hdr, log_reboot_rep_explicit_part hdr old_txns Old_Part (fst s, select_total_mem selector (snd s)) /\ selector hdr_block_num <> 1) \/
+    (exists hdr, log_reboot_rep_explicit_part hdr new_txns Current_Part (fst s, select_total_mem selector (snd s)) /\ selector hdr_block_num <> 1).
 Proof. 
   unfold non_colliding_selector, log_crash_rep, log_header_rep,
-  log_reboot_rep, log_rep_general, log_rep_explicit; intros; cleanup.
+  log_reboot_rep_explicit_part, log_rep_general, log_rep_explicit; intros; cleanup.
 
   unfold log_header_block_rep in *; cleanup.
   simpl in *.
@@ -543,7 +544,7 @@ Proof.
   {(** Selector rolled back to old header **)
     left.
     eexists ?[hdr].
-    exists Current_Part.
+    split; eauto.
     exists (select_for_addr selector hdr_block_num (x0,[x]), nil).
     exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
     simpl; intuition eauto.
@@ -744,9 +745,9 @@ Proof.
       }
       
       rewrite A in *.
-      right.
+      right; right.
       eexists ?[hdr].
-      exists Current_Part.
+      split; eauto.
       exists (select_for_addr selector hdr_block_num (x0,[x]), nil).
       exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
 
@@ -822,9 +823,9 @@ Proof.
       { congruence. }
     }
     {(** Selector rolled back to old header **)
-      left.
+      right; left.
       eexists ?[hdr].
-      exists Old_Part.
+      split; eauto.
       exists (select_for_addr selector hdr_block_num (x0,[x]), nil).
       exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
       repeat rewrite select_for_addr_not_1_latest; eauto.
@@ -935,6 +936,23 @@ Proof.
   all: repeat econstructor; eauto.
 Qed.
 
+Lemma crash_rep_header_write_to_reboot_rep :
+  forall s old_txns new_txns selector,
+    log_crash_rep (During_Commit_Header_Write old_txns new_txns) s ->
+    
+    non_colliding_selector selector s ->
+    
+    log_reboot_rep old_txns (fst s, select_total_mem selector (snd s)) \/
+    log_reboot_rep new_txns (fst s, select_total_mem selector (snd s)).
+Proof. 
+  intros.
+  eapply crash_rep_header_write_to_reboot_rep' in H; eauto.
+  unfold log_reboot_rep_explicit_part, log_reboot_rep in *; 
+  repeat split_ors; cleanup; eauto.
+  left; do 4 eexists; intuition eauto.
+  left; do 4 eexists; intuition eauto.
+  right; do 4 eexists; intuition eauto.
+Qed.
 
 Lemma crash_rep_log_write_to_reboot_rep :
   forall s txns selector,

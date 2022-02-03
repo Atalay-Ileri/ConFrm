@@ -79,6 +79,41 @@ Proof.
       - (* apply ATC_TS_write. *) admit. 
 Admitted.
 
+Theorem ss_ATC_write_input:
+  forall n inum off u u' v1 v2,
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v1)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v2)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' (Some inum)))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_write_input.
+      - eapply ATC_simulation.
+        apply not_init_write.
+      - eapply ATC_simulation.
+        apply not_init_write.
+      - apply ATC_AOE.
+        apply not_init_write.
+      - apply ATC_AOE.
+        apply not_init_write.
+      - apply ATC_ORS_transfer.
+        apply not_init_write.
+        apply not_init_write.
+        intros; eapply have_same_structure_write; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_write. *) admit. 
+Admitted.
+
 
 Theorem ss_ATC_extend:
   forall n inum u u' v,
@@ -89,6 +124,41 @@ Theorem ss_ATC_extend:
     (refines_valid ATC_Refinement AD_valid_state)
     (refines_related ATC_Refinement
      (AD_related_states u' None))
+    (eq u') (ATC_reboot_list n).
+Proof.
+    intros.
+    eapply SS_transfer.
+      - apply ss_AD_extend.
+      - eapply ATC_simulation.
+        apply not_init_extend.
+      - eapply ATC_simulation.
+        apply not_init_extend.
+      - apply ATC_AOE.
+        apply not_init_extend.
+      - apply ATC_AOE.
+        apply not_init_extend.
+      - apply ATC_ORS_transfer.
+        apply not_init_extend.
+        apply not_init_extend.
+        intros; eapply have_same_structure_extend; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - unfold exec_compiled_preserves_validity, AD_valid_state, 
+      refines_valid, FD_valid_state; 
+      intros; simpl; eauto.
+      - (* apply ATC_TS_extend. *) admit. 
+Admitted.
+
+Theorem ss_ATC_extend_input:
+  forall n inum u u' v1 v2,
+    SelfSimulation u
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v1)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v2)))) 
+    (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
+    (refines_valid ATC_Refinement AD_valid_state)
+    (refines_related ATC_Refinement
+     (AD_related_states u' (Some inum)))
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.

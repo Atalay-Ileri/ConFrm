@@ -5,9 +5,9 @@ DEV=$3
 I=$4
 
 MK="mkfs"
-FSCQ="ConFs"
-MKFS="$FSP$MK"
-FS="$FSCQ"
+FSCQ="fscq"
+MKFS="$MK"
+FS="$FSP"
 TMP="/tmp/"
 DIR="$TMP$FS"
 
@@ -23,24 +23,23 @@ echo "=== Unmount $DIR ==="
 if [[ $(findmnt $DIR) ]]; then fusermount -u $DIR; fi
 while [[ $(findmnt $DIR) ]]; do :; done
 
-#echo "=== $MKFS in $DEV ==="
-#./fs/$MKFS $DEV
+echo "=== $MKFS in $DEV ==="
+./fs/$MKFS $DEV
 
 echo "=== Recreate $DIR ==="
 rm -rf $DIR
 mkdir $DIR
 
 echo "=== Mount $FS at $DIR ==="
-./fs/$FS $DEV -f -o big_writes,atomic_o_trunc,nonempty $DIR &
+./fs/$FS $DEV -f -o big_writes,atomic_o_trunc,nonempty,default_permissions $DIR &
 while ! [[ $(findmnt $DIR) ]]; do :; done
-#rm -rf $DIR/d
 
 echo "=== Starting Testing ==="
 
 echo "=== $TEST Bench ==="
 for i in $(seq 1 $I);
 do
-#    rm -rf $DIR/d;
+    rm -rf $DIR/*;
     ./tests/$TEST $DIR
 done
 

@@ -1,0 +1,32 @@
+=== Unmount /tmp/ConFs ===
+=== mkfs in /dev/sdb3 ===
+"--MKFS--"
+"/dev/sdb3"
+=== Recreate /tmp/ConFs ===
+=== Mount ConFs at /tmp/ConFs ===
+=== Starting Testing ===
+=== smallfile Bench ===
+DATA: 58 1003113
+=== FS Stats ===
+========
+DATA: 66 1011563
+=== FS Stats ===
+========
+DATA: 65 1006788
+=== FS Stats ===
+========
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+=== Delete /tmp/ConFs ===
+Starting file system.
+Recovering file system
+"Reads:  305\nWrites: 1\nSyncs:  1\n"
+"Reads:  533\nWrites: 590\nSyncs:  177\n"
+"Reads:  177\nWrites: 236\nSyncs:  59\n"
+"Reads:  603\nWrites: 670\nSyncs:  201\n"
+"Reads:  201\nWrites: 268\nSyncs:  67\n"
+"Reads:  594\nWrites: 660\nSyncs:  198\n"
+Disk I/O stats:
+Reads:  0
+Writes: 0
+Syncs:  0

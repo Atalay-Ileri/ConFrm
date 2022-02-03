@@ -430,3 +430,9 @@ Definition log_reboot_rep  (txns: list txn) (state: state CryptoDiskLang) :=
     (valid_part = Old_Part ->
      hash (current_part hdr) <> rolling_hash hash0 (firstn (count (current_part hdr)) (map fst log_blocksets))).
 
+Definition log_reboot_rep_explicit_part hdr (txns: list txn) valid_part (state: state CryptoDiskLang) :=
+        exists (hdr_blockset: set value) (log_blocksets: list (set value)),
+        log_rep_explicit Hdr_Synced Synced valid_part hdr txns hdr_blockset log_blocksets state /\
+        (valid_part = Old_Part ->
+         hash (current_part hdr) <> rolling_hash hash0 (firstn (count (current_part hdr)) (map fst log_blocksets))).
+

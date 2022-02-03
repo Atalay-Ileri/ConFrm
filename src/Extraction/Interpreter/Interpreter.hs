@@ -52,14 +52,56 @@ getCipher k = do
 
 fsImage :: IORef (Handle)
 {-# NOINLINE fsImage #-}
-fsImage = unsafePerformIO (do 
-  r <- openBinaryFile "temp" ReadWriteMode
-  newIORef r)
+fsImage = unsafePerformIO (newIORef stdout)
+
+-- DiskStats counts the number of reads, writes, and syncs
+data DiskStats = Stats !Int !Int !Int
+
+stats :: IORef (DiskStats)
+{-# NOINLINE stats #-}
+stats = unsafePerformIO (newIORef (Stats 0 0 0))
+
+bumpRead :: IO ()
+bumpRead = do
+  Stats r w s <- readIORef stats
+  writeIORef stats (Stats (r+1) w s)
+
+bumpWrite :: IO ()
+bumpWrite = do
+  Stats r w s <- readIORef stats
+  writeIORef stats (Stats r (w+1) s)
+
+bumpSync :: IO ()
+bumpSync = do
+  Stats r w s <- readIORef stats
+  writeIORef stats (Stats r w (s+1))
+
+getStatsString :: DiskStats -> String
+getStatsString (Stats r w s) =
+  "Disk I/O stats:" ++ 
+  "\nReads:  " ++ (show r) ++
+  "\nWrites: " ++ (show w) ++
+  "\nSyncs:  " ++ (show s)
+
+printStats :: DiskStats -> IO ()
+printStats (Stats r w s) = do
+  putStrLn $ "Disk I/O stats:"
+  putStrLn $ "Reads:  " ++ (show r)
+  putStrLn $ "Writes: " ++ (show w)
+  putStrLn $ "Syncs:  " ++ (show s)
+
+clearStats :: IO ()
+clearStats = writeIORef stats (Stats 0 0 0)
+
+getStats :: IO DiskStats
+getStats = readIORef stats
+
 
 -- Disk Operations
 diskRead :: Coq_addr -> IO Coq_value
 diskRead a = --return BaseTypes.value0
   do
+  bumpRead
   fs <-  readIORef fsImage
   hSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
   BS.hGet fs 4096
@@ -67,14 +109,19 @@ diskRead a = --return BaseTypes.value0
 diskWrite :: Coq_addr -> Coq_value -> IO ()
 diskWrite a v = --return ()
   do
+  bumpWrite
   fs <-  readIORef fsImage
   hSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
   BS.hPut fs v
 
 diskSync :: IO ()
 diskSync = do --return ()
+  bumpSync
   fs <-  readIORef fsImage
   hFlush fs
+
+diskClose :: IO DiskStats
+diskClose = readIORef stats
 
 -- Cache Operations
 cacheRead :: Coq_addr -> IO (Maybe Coq_value)

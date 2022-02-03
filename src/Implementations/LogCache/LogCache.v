@@ -167,6 +167,12 @@ Definition cached_log_reboot_rep merged_disk (s: Language.state CachedDiskLang) 
     merged_disk = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd s)) (map addr_list txns) (map data_blocks txns))) /\
     (forall a, a >= data_start -> snd ((snd (snd s)) a) = []).
 
+  Definition cached_log_reboot_rep_explicit_part hdr merged_disk valid_part (s: Language.state CachedDiskLang) :=
+      exists txns,
+        log_reboot_rep_explicit_part hdr txns valid_part (snd s) /\
+        merged_disk = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd s)) (map addr_list txns) (map data_blocks txns))) /\
+        (forall a, a >= data_start -> snd ((snd (snd s)) a) = []).
+
 
 Set Nested Proofs Allowed.
 

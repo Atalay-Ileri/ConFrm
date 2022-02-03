@@ -1,0 +1,15 @@
+=== Unmount /tmp/ConFs ===
+=== mkfs in /dev/sdb3 ===
+"--MKFS--"
+"/dev/sdb3"
+=== Recreate /tmp/ConFs ===
+=== Mount ConFs at /tmp/ConFs ===
+=== Starting Testing ===
+=== createdelete Bench ===
+Starting file system.
+Recovering file system
+"Reads:  305\nWrites: 1\nSyncs:  1\n"
+Disk I/O stats:
+Reads:  199
+Writes: 231
+Syncs:  66

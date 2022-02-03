@@ -10,8 +10,8 @@
 
 /* Measure creating a large file and overwriting that file */
 
-#define WSIZE (4096)
-#define FILESIZE 500 * 4096
+#define WSIZE (16 * 4096)
+#define FILESIZE  2 * 1024 * 1024
 #define NAMESIZE 100
 
 static char name[NAMESIZE];
@@ -51,23 +51,74 @@ int makefile()
 
   int n = FILESIZE/WSIZE;
   
-  sprintf(name, "%s", dir);
-  /*
-  if((fd = open(name, O_RDWR, S_IRWXU)) < 0) {
+  sprintf(name, "%s/d/f", dir);
+  if((fd = open(name, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU)) < 0) {
     printf("%s: create %s failed %s\n", prog, name, strerror(errno));
     exit(1);
   }
-  */
+
   sprintf(buf, "%s/stats", dir);
     
   for (i = 0; i < n; i++) {
-    if (write(1, buf, WSIZE) != WSIZE) {
+    if (write(fd, buf, WSIZE) != WSIZE) {
       printf("%s: write %s failed %s\n", prog, name, strerror(errno));
       exit(1);
     }
   }
+  if (fsync(fd) < 0) {
+    printf("%s: fsync %s failed %s\n", prog, name, strerror(errno));
+    exit(1);
+  }
+
+  lseek(fd, SEEK_SET, 0);
+  write(fd, buf, WSIZE);
+  close(fd);
+  
+  fd = open(".", O_DIRECTORY | O_RDONLY);
+  if (fd < 0) {
+    perror("open dir");
+    exit(-1);
+  }
+  if (fsync(fd) < 0) {
+    perror("fsync");
+    exit(-1);
+  }
 }
 
+int writefile()
+{
+  int i;
+  int r;
+  int fd;
+
+  int n = FILESIZE/WSIZE;
+  
+  sprintf(name, "%s/d/f", dir);
+  if((fd = open(name, O_RDWR, S_IRWXU)) < 0) {
+    printf("%s: open %s failed %s\n", prog, name, strerror(errno));
+    exit(1);
+  }
+  
+  sprintf(buf, "%s/stats", dir);
+  
+  for (i = 0; i < n; i++) {
+    if (write(fd, buf, WSIZE) != WSIZE) {
+      printf("%s: write %s failed %s\n", prog, name, strerror(errno));
+      exit(1);
+    }
+    if (((i + 1) * WSIZE) % (64 * 1024) == 0) {
+      if (fsync(fd) < 0) {
+	  printf("%s: fsync %s failed %s\n", prog, name, strerror(errno));
+	  exit(1);
+	}
+    }
+  }
+  if ((i * WSIZE) % (64 * 1024) != 0 && fsync(fd) < 0) {
+    printf("%s: fsync %s failed %s\n", prog, name, strerror(errno));
+    exit(1);
+  }
+  close(fd);
+}
 
 int main(int argc, char *argv[])
 {
@@ -83,7 +134,13 @@ int main(int argc, char *argv[])
   
   prog = argv[0];
   dir = argv[1];
+  sprintf(name, "%s/d", dir);
+  if (mkdir(name,  S_IRWXU) < 0) {
+    printf("%s: create %s failed %s\n", prog, name, strerror(errno));
+    exit(1);
+  }
 
+  printstats(1);
     
   gettimeofday ( &before, NULL );  
   makefile();
@@ -93,4 +150,20 @@ int main(int argc, char *argv[])
 	(after.tv_usec - before.tv_usec);
   tput = ((float) (FILESIZE/1024) /  (time / 1000000.0));
   printf("makefile %d MB %ld usec throughput %5.1f KB/s\n", FILESIZE/(1024*1024), time, tput);
+
+  printstats(0);
+    
+  gettimeofday ( &before, NULL );  
+  writefile();
+  gettimeofday ( &after, NULL );
+  
+  time = (after.tv_sec - before.tv_sec) * 1000000 +
+	(after.tv_usec - before.tv_usec);
+  tput = ((float) (FILESIZE/1024) /  (time / 1000000.0));
+  printf("writefile %d MB %ld usec throughput %5.1f KB/s\n", FILESIZE/(1024*1024), time, tput);
+
+  printstats(0);
+  
+   sprintf(name, "%s/d/f", dir);
+   remove(name);
 }

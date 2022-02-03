@@ -1,5 +1,6 @@
 import Prelude
 import Helpers
+import qualified ConFs
 import qualified File
 import qualified BaseTypes
 import qualified Data.ByteString as BS
@@ -9,6 +10,8 @@ import qualified Data.List.Split as L
 import System.Posix.Types
 import System.Posix.User
 import Data.Maybe
+import Data.Time.Clock
+import Data.IORef
 
 repeatNTimes 0 _ = return ()
 repeatNTimes n action =
@@ -16,6 +19,26 @@ repeatNTimes n action =
   action n
   repeatNTimes (n-1) action
 
+repeatUntil' start end duration action count = do
+  r <- action
+  curTime <- getCurrentTime
+  beginTime <- readIORef start
+  -- print (show (diffUTCTime curTime beginTime))
+  case r of
+    Nothing -> do
+      writeIORef end curTime
+      return (count + 1)
+    Just _ -> do
+      if diffUTCTime curTime beginTime < duration then
+        repeatUntil' start end duration action (count + 1)
+      else do
+        writeIORef end curTime
+        return (count + 1)
+    
+repeatUntil start end duration action = repeatUntil' start end duration action 0
+
+smallWriteSize :: Int
+smallWriteSize = 100
 
 main :: IO ()
 main = do 
@@ -30,52 +53,30 @@ main = do
 -}
 
   do
-    File.init
+    ConFs.confsInit "disk_file"
+    -- small file
+    print "Starting Small File Test"
     userId <- getEffectiveUserID
-    
-    fn <- File.create userId
-    print fn
-    let fileName = fromJust fn
-    repeatNTimes 510 (\ i ->  File.extend fileName (stringToBlock (div BaseTypes.block_size 8) "I love you <3"))
-    repeatNTimes 510 (\ i -> do
-      dat <- File.read fileName (i-1)
-      print ((blockToString . fromJust) dat))
-
-    File.write fileName 0 (stringToBlock (div BaseTypes.block_size 8) "Goodbye World!")
-    dat <- File.read fileName 0
-    print ((blockToString . fromJust) dat)
-
-    ret <- File.delete fileName
-    print (isJust ret)
-    dat <- File.read fileName 0
-    print (isNothing dat) --Should fail
-  
-    fn <- File.create userId
-    print fn
-    fa <- File.create (CUid 123)
-    print fa
-    let fileName = fromJust fn
-    dat <- File.read fileName 0
-    print (isNothing dat) --should fail
-
-    File.extend fileName (stringToBlock (div BaseTypes.block_size 8) "")
-    dat <- File.read fileName 0
-    print ((blockToString . fromJust) dat)
-
-    ret <- File.change_owner fileName userId
-    print (isJust ret) --should succeed
-    dat <- File.read fileName 0
-    print ((blockToString . fromJust) dat)
-
-    ret <- File.change_owner fileName (CUid 123)
-    print (isJust ret)
-
-    dat <- File.read fileName 0
-    print (isNothing dat) --should fail
-
-    ret <- File.change_owner fileName userId
-    print (isNothing dat) --should fail
-
-    fn <- File.create userId
-    print fn
+    time <- getCurrentTime
+    begin <- newIORef time
+    end <- newIORef time
+    count <- repeatUntil begin end (50 :: NominalDiffTime) (do 
+      mfn <- File.create userId
+      case mfn of
+        Just fn -> do 
+          r <- ConFs.confsWrite "" fn (BS.replicate 100 128) 0
+          case r of 
+            Left _ -> do 
+              print "Write error"
+              return Nothing
+            Right _ -> return (Just ())
+        Nothing -> do 
+          print "Create error"
+          return Nothing) 
+    begin <- readIORef begin
+    end <- readIORef end
+    print (show begin)
+    print (show end)
+    print (show (diffUTCTime end begin))
+    print (show count) 
     return ()
