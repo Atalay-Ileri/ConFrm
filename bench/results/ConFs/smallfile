@@ -6,13 +6,13 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === smallfile Bench ===
-DATA: 58 1003113
+DATA: 72 1008879
 === FS Stats ===
 ========
-DATA: 66 1011563
+DATA: 76 1001599
 === FS Stats ===
 ========
-DATA: 65 1006788
+DATA: 75 1010616
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -20,12 +20,12 @@ DATA: 65 1006788
 === Delete /tmp/ConFs ===
 Starting file system.
 Recovering file system
-"Reads:  305\nWrites: 1\nSyncs:  1\n"
-"Reads:  533\nWrites: 590\nSyncs:  177\n"
-"Reads:  177\nWrites: 236\nSyncs:  59\n"
-"Reads:  603\nWrites: 670\nSyncs:  201\n"
-"Reads:  201\nWrites: 268\nSyncs:  67\n"
-"Reads:  594\nWrites: 660\nSyncs:  198\n"
+"Reads:  305\nWrites: 2\nSyncs:  2\n"
+"Reads:  659\nWrites: 803\nSyncs:  292\n"
+"Reads:  219\nWrites: 367\nSyncs:  148\n"
+"Reads:  693\nWrites: 847\nSyncs:  308\n"
+"Reads:  231\nWrites: 387\nSyncs:  156\n"
+"Reads:  684\nWrites: 836\nSyncs:  304\n"
 Disk I/O stats:
 Reads:  0
 Writes: 0

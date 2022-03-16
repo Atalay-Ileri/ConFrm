@@ -6,10 +6,27 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === createdelete Bench ===
+DATA: 70 1006806
+=== FS Stats ===
+========
+DATA: 73 1001415
+=== FS Stats ===
+========
+DATA: 80 1011860
+=== FS Stats ===
+========
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+=== Delete /tmp/ConFs ===
 Starting file system.
 Recovering file system
-"Reads:  305\nWrites: 1\nSyncs:  1\n"
+"Reads:  305\nWrites: 2\nSyncs:  2\n"
+"Reads:  427\nWrites: 639\nSyncs:  284\n"
+"Reads:  0\nWrites: 2\nSyncs:  2\n"
+"Reads:  444\nWrites: 666\nSyncs:  296\n"
+"Reads:  0\nWrites: 2\nSyncs:  2\n"
+"Reads:  486\nWrites: 729\nSyncs:  324\n"
 Disk I/O stats:
-Reads:  199
-Writes: 231
-Syncs:  66
+Reads:  0
+Writes: 0
+Syncs:  0

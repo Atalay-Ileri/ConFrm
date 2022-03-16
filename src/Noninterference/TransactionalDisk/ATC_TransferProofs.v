@@ -104,7 +104,7 @@ Proof.
       - apply ATC_ORS_transfer.
         apply not_init_write.
         apply not_init_write.
-        intros; eapply have_same_structure_write; eauto.
+        intros; eapply have_same_structure_write_input; eauto.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
@@ -163,7 +163,7 @@ Theorem ss_ATC_extend_input:
 Proof.
     intros.
     eapply SS_transfer.
-      - apply ss_AD_extend.
+      - apply ss_AD_extend_input.
       - eapply ATC_simulation.
         apply not_init_extend.
       - eapply ATC_simulation.
@@ -175,7 +175,7 @@ Proof.
       - apply ATC_ORS_transfer.
         apply not_init_extend.
         apply not_init_extend.
-        intros; eapply have_same_structure_extend; eauto.
+        intros; eapply have_same_structure_extend_input; eauto.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.

@@ -39,7 +39,6 @@ Section TransactionalDisk.
         a >= disk_size ->
         exec' u Cont s (Read a) (Finished s value0)
              
-  (*Make sure  never happens?*)
   | ExecWriteInbound :
       forall s a v u ,
         let st := fst s in

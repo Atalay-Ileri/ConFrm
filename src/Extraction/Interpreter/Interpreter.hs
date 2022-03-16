@@ -17,6 +17,17 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Random
 import qualified Data.ByteArray
 
+import System.IO
+import System.Posix.Types
+import System.Posix.Unistd
+import System.Posix.Files
+import System.Posix.IO
+import qualified "unix-bytestring" System.Posix.IO.ByteString as PBS
+import qualified Data.ByteString.Internal as BSI
+import GHC.Exts
+import Foreign.Ptr
+import Foreign.ForeignPtr
+import Foreign.Marshal.Alloc
 
 
 addrsPerBlock :: Int
@@ -50,9 +61,9 @@ getCipher k = do
       return newCipher
 
 
-fsImage :: IORef (Handle)
+fsImage :: IORef (Fd)
 {-# NOINLINE fsImage #-}
-fsImage = unsafePerformIO (newIORef stdout)
+fsImage = unsafePerformIO (newIORef (Fd 0))
 
 -- DiskStats counts the number of reads, writes, and syncs
 data DiskStats = Stats !Int !Int !Int
@@ -103,25 +114,30 @@ diskRead a = --return BaseTypes.value0
   do
   bumpRead
   fs <-  readIORef fsImage
-  hSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
-  BS.hGet fs 4096
+  PBS.fdSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
+  PBS.fdRead fs 4096
+
 
 diskWrite :: Coq_addr -> Coq_value -> IO ()
 diskWrite a v = --return ()
   do
   bumpWrite
   fs <-  readIORef fsImage
-  hSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
-  BS.hPut fs v
+  PBS.fdSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
+  _ <- PBS.fdWrite fs v
+  return ()
 
 diskSync :: IO ()
 diskSync = do --return ()
   bumpSync
   fs <-  readIORef fsImage
-  hFlush fs
+  fileSynchronise fs
 
 diskClose :: IO DiskStats
-diskClose = readIORef stats
+diskClose = do 
+  fs <- readIORef fsImage
+  closeFd fs
+  readIORef stats
 
 -- Cache Operations
 cacheRead :: Coq_addr -> IO (Maybe Coq_value)

@@ -381,7 +381,6 @@ Definition log_crash_rep (log_crash_state: Log_Crash_State) (state: state Crypto
       log_rep_inner Current_Part hdr txns (map fst log_blocksets) state
 
   | During_Commit_Header_Write old_txns new_txns =>
-
     exists old_hdr_block new_hdr_block
       (synced_log_blocksets: list (set value)) (unsynced_log_blocksets: list (set value)),
       let hdr_blockset := (new_hdr_block, [old_hdr_block]) in
@@ -399,7 +398,11 @@ Definition log_crash_rep (log_crash_state: Log_Crash_State) (state: state Crypto
       length synced_log_blocksets >= count (old_part hdr) /\
       
       log_rep_inner Current_Part hdr new_txns (map fst log_blocksets) state /\
-      log_rep_inner Old_Part hdr old_txns (map fst log_blocksets) state
+      log_rep_inner Old_Part hdr old_txns (map fst log_blocksets) state /\
+      (forall i, i >= count (current_part (decode_header old_hdr_block)) ->
+      i < count (current_part (decode_header new_hdr_block)) -> 
+      length (snd (seln log_blocksets i (value0 ,[]))) = 1) /\
+      length synced_log_blocksets = count (current_part (decode_header old_hdr_block))
 
   | During_Recovery txns =>
     

@@ -5,17 +5,20 @@
 === Recreate /tmp/ConFs ===
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
-=== largefile Bench ===
-./tests/largefile: write /tmp/ConFs/d/f failed Success
-./tests/largefile: create /tmp/ConFs/d failed File exists
-./tests/largefile: create /tmp/ConFs/d failed File exists
+=== rename Bench ===
+DATA: 111 1002489
+=== FS Stats ===
+========
+./tests/rename: mkdir /tmp/ConFs/d failed File exists
+./tests/rename: mkdir /tmp/ConFs/d failed File exists
 === Finished Testing ===
 === Unmount /tmp/ConFs ===
+=== Delete /tmp/ConFs ===
 Starting file system.
 Recovering file system
 "Reads:  305\nWrites: 2\nSyncs:  2\n"
+"Reads:  337\nWrites: 782\nSyncs:  446\n"
 Disk I/O stats:
-Reads:  1634
-Writes: 2592
-Syncs:  545
-=== Delete /tmp/ConFs ===
+Reads:  3
+Writes: 228
+Syncs:  226

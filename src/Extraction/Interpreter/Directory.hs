@@ -243,5 +243,5 @@ modifyDirMap f = do
   dm <- readIORef dirMap
   let (newMap, ret) = f dm
   writeIORef dirMap newMap
-  --persistDirMap
+  persistDirMap
   return ret

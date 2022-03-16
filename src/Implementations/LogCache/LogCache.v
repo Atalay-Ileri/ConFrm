@@ -1041,7 +1041,9 @@ Theorem write_crashed_oracle:
   exec CachedDiskLang u o s (write al vl) (Crashed s') ->
   (cached_log_rep merged_disk s' /\ 
     (
-      (length o < c1 * 4 + 8) \/
+      (length o < c1 * 4 + 8 /\ 
+      (length o > 3 -> count (current_part hdr) + length (addr_list_to_blocks 
+      (map (Init.Nat.add data_start) al)) + length vl <= log_length)) \/
   
       (count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length /\
@@ -1055,29 +1057,84 @@ Theorem write_crashed_oracle:
     )
   ) \/
   ((
-    (cached_log_crash_rep (During_Commit merged_disk (upd_batch merged_disk al vl)) s' /\
-      (
+    ((exists txns,
+      log_crash_rep (During_Commit_Log_Write txns) (snd s') /\
+    merged_disk = total_mem_map fst (shift (plus data_start)
+    (list_upd_batch_set (snd (snd s')) (map addr_list txns) (map data_blocks txns))) /\
+    (forall a, a >= data_start -> snd ((snd (snd s')) a) = []) /\
+    (
         (length o >= c1 * 4 + 8 /\ 
-        length o <  c1 * 6 + 13) \/
+        length o <  c1 * 6 + 12 /\
+        count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl <= log_length) \/
     
         (length o > c2 * 4 + c3 + c1 * 4 + 23 /\
-        length o <= c2 * 4 + c3 + c1 * 6 + 28)
-      )
+        length o <= c2 * 4 + c3 + c1 * 6 + 27 /\
+        count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl > log_length)
+      )) \/
+ (exists old_txns new_txn old_hdr new_hdr,
+   let txns := old_txns ++ [new_txn] in
+    log_crash_rep (During_Commit_Header_Write old_txns txns) (snd s') /\
+    (snd (snd s')) hdr_block_num =
+    (Log.encode_header new_hdr, [Log.encode_header old_hdr]) /\
+    new_hdr <> old_hdr /\
+    (upd_batch merged_disk al vl) = total_mem_map fst (shift (plus data_start)
+     (list_upd_batch_set (snd (snd s')) (map addr_list txns)
+        (map data_blocks txns))) /\
+
+    merged_disk = total_mem_map fst (shift (plus data_start)
+     (list_upd_batch_set (snd (snd s')) (map addr_list old_txns)
+                         (map data_blocks old_txns))) /\
+    (forall a, a >= data_start -> snd ((snd (snd s')) a) = []) /\
+    addr_blocks new_txn = addr_list_to_blocks (map (Init.Nat.add data_start) al) /\ data_blocks new_txn = vl /\
+    (
+        (length o =  c1 * 6 + 12 /\
+        count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl <= log_length /\
+        (forall i : nat,
+          i < length (addr_list_to_blocks al) + length vl ->
+          fst (snd (snd s') (log_start + Log.count (Log.current_part hdr) + i)) =
+          seln (map (encrypt (Log.key (Log.record new_txn)))
+          (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) i value0 /\
+          length (snd (snd (snd s') (log_start + Log.count (Log.current_part hdr) + i))) = 1) /\
+          old_hdr = hdr) \/
+
+        (length o = c2 * 4 + c3 + c1 * 6 + 28 /\
+        count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl > log_length /\
+        (forall i : nat,
+          i < length (addr_list_to_blocks al) + length vl ->
+          fst (snd (snd s') (log_start + i)) =
+          seln (map (encrypt (Log.key (Log.record new_txn)))
+          (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))
+            i value0 /\ length (snd (snd (snd s') (log_start + i))) = 1) /\
+            old_txns = [])
+      ))
     ) \/
   
     (cached_log_crash_rep (After_Commit (upd_batch merged_disk al vl)) s' /\
      ((length o >=  c1 * 6 + 13 /\
-      length o <  c1 * 6 + length al + 16) \/
+      length o <  c1 * 6 + length al + 16 /\
+      count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl <= log_length) \/
       
       (length o >= c2 * 4 + c3 + c1 * 6 + 29 /\
-      length o < c2 * 4 + c3 + c1 * 6 + length al + 32))) \/
+      length o < c2 * 4 + c3 + c1 * 6 + length al + 32 /\
+      count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl > log_length))) \/
     
     (cached_log_crash_rep (During_Apply merged_disk) s' /\
     length o >= c2 * 4 + 10 /\
-    length o <  c2 * 4 + c3 + 16) \/
+    length o <  c2 * 4 + c3 + 16 /\
+    count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl > log_length) \/
     
     (cached_log_crash_rep (After_Apply merged_disk) s' /\ 
-    length o >= c2 * 4 + c3 + 16)
+    length o >= c2 * 4 + c3 + 16 /\
+    length o < c2 * 4 + c3 + 17 /\
+    count (current_part hdr) + length (addr_list_to_blocks 
+        (map (Init.Nat.add data_start) al)) + length vl > log_length)
    ) /\
   
    Forall (fun a => a < data_length) al /\
@@ -1118,9 +1175,9 @@ Proof.
             intros; simpl.
             unfold log_crash_rep, log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H16; eauto.
-            unfold txn_well_formed, record_is_valid in H16; logic_clean.
-            eapply Forall_forall in H21; eauto; lia.
+            eapply Forall_forall in H17; eauto.
+            unfold txn_well_formed, record_is_valid in H17; logic_clean.
+            eapply Forall_forall in H22; eauto; lia.
           }
           rewrite A.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1146,16 +1203,16 @@ Proof.
             rewrite H4; eauto.
           }
           {
-            rewrite map_length; lia.
+            repeat rewrite map_length; simpl; lia.
           }
         }
         {
           right; intuition eauto.
           left; unfold cached_log_crash_rep; simpl.
           intuition eauto.
-          right; do 2 eexists; intuition eauto.
+          right; do 4 eexists; intuition eauto.
           {
-            
+            clear H7 H12.
             assert (A: map addr_list (txns++[x1]) =
                        map (map (Init.Nat.add data_start))
                            (map (map (fun a => a - data_start))
@@ -1170,9 +1227,9 @@ Proof.
             intros; simpl.
             unfold log_crash_rep, log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H21; eauto.
-            unfold txn_well_formed, record_is_valid in H21; logic_clean.
-            eapply Forall_forall in H26; eauto; lia.
+            eapply Forall_forall in H25; eauto.
+            unfold txn_well_formed, record_is_valid in H25; logic_clean.
+            eapply Forall_forall in H30; eauto; lia.
           }
           assert (A0: map addr_list txns =
                       map (map (Init.Nat.add data_start))
@@ -1188,9 +1245,9 @@ Proof.
             intros; simpl.
             unfold log_crash_rep, log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H21; eauto.
-            unfold txn_well_formed, record_is_valid in H21; logic_clean.
-            eapply Forall_forall in H26; eauto; lia.
+            eapply Forall_forall in H25; eauto.
+            unfold txn_well_formed, record_is_valid in H25; logic_clean.
+            eapply Forall_forall in H30; eauto; lia.
           }
           rewrite A, A0.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1200,12 +1257,12 @@ Proof.
           rewrite list_upd_batch_set_app; simpl.
           rewrite total_mem_map_fst_upd_batch_set.
           unfold log_crash_rep in *; simpl in *; logic_clean.
-          unfold log_rep_inner, txns_valid in H14; logic_clean.
-          eapply forall_app_l in H17.
+          unfold log_rep_inner, txns_valid in H16; logic_clean.
+          eapply forall_app_l in H21.
           simpl in *.
-          inversion H17; subst.
-          unfold txn_well_formed in H20; logic_clean.
-          rewrite H22, H0, H5 in *.
+          inversion H21; subst.
+          unfold txn_well_formed in H24; logic_clean.
+          rewrite H26, H0, H5 in *.
           rewrite firstn_app2.
           replace (map (fun a : nat => a - data_start) (map (Init.Nat.add data_start) al)) with al; eauto.
 
@@ -1221,22 +1278,22 @@ Proof.
           
           apply shift_eq_after.
           intros; lia.
-          intros; apply H7; lia.
+          intros; apply H8; lia.
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x2 y); subst.
+            destruct (addr_dec x3 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x3) (data_start + y)); eauto; lia.
           }
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x2 y); subst.
+            destruct (addr_dec x3 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x3) (data_start + y)); eauto; lia.
           }
-          }
+        }
           {
-           
+           clear H7 H12.
            assert (A0: map addr_list txns =
                        map (map (Init.Nat.add data_start))
                            (map (map (fun a => a - data_start))
@@ -1251,9 +1308,9 @@ Proof.
             intros; simpl.
             unfold log_crash_rep, log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H21; eauto.
-            unfold txn_well_formed, record_is_valid in H21; logic_clean.
-            eapply Forall_forall in H26; eauto; lia.
+            eapply Forall_forall in H25; eauto.
+            unfold txn_well_formed, record_is_valid in H25; logic_clean.
+            eapply Forall_forall in H30; eauto; lia.
           }
           rewrite A0.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1263,25 +1320,35 @@ Proof.
 
           apply shift_eq_after.
           intros; lia.
-          intros; apply H7; lia.
+          intros; apply H8; lia.
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x2 y); subst.
+            destruct (addr_dec x3 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x3) (data_start + y)); eauto; lia.
           }
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x2 y); subst.
+            destruct (addr_dec x3 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x3) (data_start + y)); eauto; lia.
           }
           }
           {
-            rewrite H7; eauto.
+            rewrite H8; eauto.
           }
           {
-            rewrite map_length; lia.
+            clear H7 H12.
+            rewrite map_length; left.
+            repeat (split; eauto).
+            edestruct H11.
+            erewrite addr_list_to_blocks_length_eq; eauto.
+            rewrite map_length; eauto.
+            eauto.
+            edestruct H11.
+            erewrite addr_list_to_blocks_length_eq; eauto.
+            rewrite map_length; eauto.
+            eauto.
           }
         }
         {
@@ -1305,9 +1372,9 @@ Proof.
             unfold log_rep, log_rep_general, log_rep_explicit,
             log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H15; eauto.
-            unfold txn_well_formed, record_is_valid in H15; logic_clean.
-            eapply Forall_forall in H19; eauto; lia.
+            eapply Forall_forall in H16; eauto.
+            unfold txn_well_formed, record_is_valid in H16; logic_clean.
+            eapply Forall_forall in H20; eauto; lia.
           }
           rewrite A.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1327,11 +1394,11 @@ Proof.
           unfold log_rep, log_rep_general, log_rep_explicit in *;
           simpl in *; logic_clean.
           unfold log_rep_inner, txns_valid in *; logic_clean.
-          eapply forall_app_l in H13.
+          eapply forall_app_l in H14.
           simpl in *.
-          inversion H13; subst.
-          unfold txn_well_formed in H16; logic_clean.
-          rewrite H16, H0, H5 in *.
+          inversion H14; subst.
+          unfold txn_well_formed in H17; logic_clean.
+          rewrite H17, H0, H5 in *.
           rewrite firstn_app2; eauto.
           rewrite map_length; eauto.
           repeat rewrite map_length; eauto.
@@ -1367,7 +1434,6 @@ Proof.
           }
         }
       }
-      { unfold log_rep; eauto. }
       all: try rewrite H5, firstn_app2.
       all: try rewrite app_length;
       try rewrite map_length; try lia.
@@ -1414,9 +1480,9 @@ Proof.
             unfold log_rep, log_rep_general, log_rep_explicit,
             log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H15; eauto.
-            unfold txn_well_formed, record_is_valid in H15; logic_clean.
-            eapply Forall_forall in H19; eauto; lia.
+            eapply Forall_forall in H16; eauto.
+            unfold txn_well_formed, record_is_valid in H16; logic_clean.
+            eapply Forall_forall in H20; eauto; lia.
           }
           rewrite A.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1437,11 +1503,11 @@ Proof.
           unfold log_rep, log_rep_general, log_rep_explicit in *;
           simpl in *; logic_clean.
           unfold log_rep_inner, txns_valid in *; logic_clean.
-          eapply forall_app_l in H13.
+          eapply forall_app_l in H14.
           simpl in *.
-          inversion H13; subst.
-          unfold txn_well_formed in H16; logic_clean.
-          rewrite H16 in *.
+          inversion H14; subst.
+          unfold txn_well_formed in H17; logic_clean.
+          rewrite H17 in *.
           rewrite H6, H0 in *.
           rewrite firstn_app2; eauto.
           rewrite map_length; eauto.
@@ -1475,7 +1541,8 @@ Proof.
           }
           {
             rewrite app_length, map_length; simpl in *.
-            rewrite H10. lia.
+            rewrite H10. left; repeat split; try lia.
+            rewrite app_length in *; lia.
           }
         }
         {
@@ -1501,9 +1568,9 @@ Proof.
             unfold log_rep, log_rep_general, log_rep_explicit,
             log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H18; eauto.
-            unfold txn_well_formed, record_is_valid in H18; logic_clean.
-            eapply Forall_forall in H22; eauto; lia.
+            eapply Forall_forall in H19; eauto.
+            unfold txn_well_formed, record_is_valid in H19; logic_clean.
+            eapply Forall_forall in H23; eauto; lia.
           }
           rewrite A.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1523,11 +1590,11 @@ Proof.
           unfold log_rep, log_rep_general, log_rep_explicit in *;
           simpl in *; logic_clean.
           unfold log_rep_inner, txns_valid in *; logic_clean.
-          eapply forall_app_l in H16.
+          eapply forall_app_l in H17.
           simpl in *.
-          inversion H16; subst.
-          unfold txn_well_formed in H19; logic_clean.
-          rewrite H19, H6, H0 in *.
+          inversion H17; subst.
+          unfold txn_well_formed in H20; logic_clean.
+          rewrite H20, H6, H0 in *.
           rewrite firstn_app2; eauto.
           rewrite map_length; eauto.
           repeat rewrite map_length; eauto.
@@ -1574,6 +1641,7 @@ Proof.
             eapply Nat.le_trans.
             2: eapply Nat.add_le_mono_l in H4; eauto.
             simpl; eauto. lia.
+            rewrite app_length in *; lia.
           }
         }
       }
@@ -1698,6 +1766,9 @@ Proof.
                     repeat rewrite map_length.
                    setoid_rewrite H7.
                    lia.
+                 }
+                 {
+                   rewrite app_length in *; lia.
                  }
                }
                split_ors; cleanup.
@@ -1860,6 +1931,9 @@ Proof.
                   setoid_rewrite H2.
                   lia.
                  }
+                 {
+                  rewrite app_length in *; lia.
+                 }
                }
              }
           }
@@ -1888,12 +1962,23 @@ Proof.
                 setoid_rewrite H10.
                 simpl. lia.
                }
+               {
+                repeat rewrite app_length;
+                repeat rewrite map_length.
+                setoid_rewrite H7.
+                setoid_rewrite H10.
+                simpl. lia.
+               }
+               {
+                 rewrite app_length in *; try lia.
+               }
              }
           }
           repeat invert_exec.
           split_ors; cleanup; repeat invert_exec.
           { (** Second commit crashed **)
             simpl in *.
+            unfold log_rep in *; cleanup.
             destruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) al)).
             eapply commit_crashed_oracle in H2; eauto.
             split_ors; cleanup; 
@@ -1943,8 +2028,8 @@ Proof.
                 lia.
               }
               intros; lia.
-              intros; apply H0; lia.
-              rewrite H0; simpl; eauto.
+              intros; apply H2; lia.
+              rewrite H2; simpl; eauto.
               {
                 repeat rewrite app_length in *;
                 simpl in *; 
@@ -1960,9 +2045,11 @@ Proof.
             {
               right; intuition eauto.
               left; intuition eauto.
-              right; do 2 eexists; intuition eauto.
+              right; do 4 eexists; intuition eauto.
+              instantiate (2:= []).
+              simpl; eauto.
               simpl.
-              replace (addr_list x1) with (map (Init.Nat.add data_start) al).           
+              replace (addr_list x4) with (map (Init.Nat.add data_start) al).           
               rewrite shift_upd_batch_set_comm.
               rewrite shift_eq_after with (m1:= s2) (m2:= sync
          (upd_set (list_upd_batch_set s1 (map addr_list txns) (map data_blocks txns)) hdr_block_num
@@ -1977,19 +2064,19 @@ Proof.
                 lia.
               }
               intros; lia.
-              intros; apply H11; lia.
+              intros; apply H12; lia.
               {
                 unfold sumbool_agree; intros; intuition eauto.
-                destruct (addr_dec x4 y); subst.
+                destruct (addr_dec x6 y); subst.
                 destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-                destruct (addr_dec (data_start + x4) (data_start + y)); eauto; lia.
+                destruct (addr_dec (data_start + x6) (data_start + y)); eauto; lia.
               }
               {
                 unfold log_crash_rep in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H20; cleanup.
-                inversion H23; cleanup.
-                unfold txn_well_formed in H26; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H24; cleanup.
+                inversion H29; cleanup.
+                unfold txn_well_formed in H32; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
@@ -2007,9 +2094,9 @@ Proof.
                   lia.
                 }
                 intros; lia.
-                intros; apply H11; lia.
+                intros; apply H12; lia.
               }
-              rewrite H11; simpl; eauto.
+              rewrite H12; simpl; eauto.
               {
                 repeat rewrite app_length in *;
                 simpl in *; 
@@ -2017,8 +2104,23 @@ Proof.
                 simpl in *.
                 setoid_rewrite H7.
                 setoid_rewrite H10.
-                setoid_rewrite H12.
+                setoid_rewrite H13.
+                unfold log_rep_general, 
+                log_rep_explicit, log_rep_inner,
+                txns_valid,
+                header_part_is_valid in H8;
+                cleanup; simpl in *.
+                rewrite <- H22 in *; simpl in *.
+                repeat rewrite Nat.add_0_r in *.
                 right; intuition eauto; try lia.
+                edestruct H15.
+                erewrite addr_list_to_blocks_length_eq; eauto.
+                rewrite map_length; eauto.
+                eauto.
+                edestruct H15.
+                erewrite addr_list_to_blocks_length_eq; eauto.
+                rewrite map_length; eauto.
+                eauto.
               }
              }
             {
@@ -2026,7 +2128,7 @@ Proof.
               right; left; intuition eauto.
               eexists; intuition eauto.
               simpl.
-              replace (addr_list x1) with (map (Init.Nat.add data_start) al).
+              replace (addr_list x4) with (map (Init.Nat.add data_start) al).
               rewrite shift_upd_batch_set_comm.
               rewrite shift_eq_after with (m1:= s2) (m2:= sync
          (sync
@@ -2047,16 +2149,16 @@ Proof.
               intros; apply H11; lia.
               {
                 unfold sumbool_agree; intros; intuition eauto.
-                destruct (addr_dec x4 y); subst.
+                destruct (addr_dec x5 y); subst.
                 destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-                destruct (addr_dec (data_start + x4) (data_start + y)); eauto; lia.
+                destruct (addr_dec (data_start + x5) (data_start + y)); eauto; lia.
               }
               {
                 unfold log_rep, log_rep_general, log_rep_explicit in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H17; cleanup.
-                inversion H17; cleanup.
-                unfold txn_well_formed in H26; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H18; cleanup.
+                inversion H18; cleanup.
+                unfold txn_well_formed in H27; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
@@ -2072,7 +2174,7 @@ Proof.
                 right; intuition eauto; try lia.
               }
             }
-            all: try rewrite H9, firstn_app2.
+            all: try rewrite H, firstn_app2.
             all: try rewrite app_length;
             try rewrite map_length; try lia.
             {
@@ -2081,13 +2183,13 @@ Proof.
             }
             {
               apply Forall_forall; intros.
-              apply in_map_iff in H11; cleanup_no_match.
+              apply in_map_iff in H9; cleanup_no_match.
               eapply_fresh Forall_forall in f; eauto.
               pose proof data_fits_in_disk.
               split; try lia.
             }
             {
-              rewrite H9, app_length, map_length; lia.
+              rewrite H, app_length, map_length; lia.
             }
           }
           unfold log_rep in *; logic_clean.
@@ -2140,9 +2242,9 @@ Proof.
               {
                 unfold log_rep, log_rep_general, log_rep_explicit in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H17; cleanup.
-                inversion H17; cleanup.
-                unfold txn_well_formed in H26; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H18; cleanup.
+                inversion H18; cleanup.
+                unfold txn_well_formed in H27; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
@@ -2231,9 +2333,9 @@ Proof.
               {
                 unfold log_rep, log_rep_general, log_rep_explicit in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H19; cleanup.
-                inversion H19; cleanup.
-                unfold txn_well_formed in H28; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H20; cleanup.
+                inversion H20; cleanup.
+                unfold txn_well_formed in H29; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
@@ -2326,4 +2428,10 @@ Proof.
   unfold cached_log_rep, log_rep; intros; logic_clean.
   eapply write_crashed_oracle in H0; unfold log_header_rep; eauto.
   cleanup; intuition eauto.
+  right. intuition eauto. left.
+  unfold cached_log_crash_rep; intuition eauto.
+  left. cleanup; eauto.
+  right. intuition eauto. left.
+  unfold cached_log_crash_rep; intuition eauto.
+  right. cleanup; do 2 eexists; eauto.
 Qed.

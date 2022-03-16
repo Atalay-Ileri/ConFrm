@@ -1,5 +1,4 @@
-{-# LANGUAGE RankNTypes, MagicHash #-}
-
+{-# LANGUAGE RankNTypes, MagicHash, PackageImports #-}
 module Main where
 
 import qualified Data.ByteString as BS
@@ -31,6 +30,8 @@ import qualified Data.Text
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import qualified Helpers
 import qualified Data.ByteString.Char8 as BSC8
+import System.Posix.IO
+import "unix-bytestring" System.Posix.IO.ByteString
 
 -- Handle type for open files; we will use the inode number
 type HT = BaseTypes.Coq_addr
@@ -234,7 +235,7 @@ confsInit disk_fn = do
   _ <- writeIORef Interpreter.cache Data.Map.empty
   _ <- writeIORef Interpreter.cipherMap Data.Map.empty
   fileExists <- System.Directory.doesFileExist disk_fn
-  fs <- openBinaryFile disk_fn ReadWriteMode
+  fs <- openFd disk_fn ReadWrite (Just 0o666) defaultFileFlags
   writeIORef Interpreter.fsImage fs
   if fileExists then do
     putStrLn $ "Recovering file system"

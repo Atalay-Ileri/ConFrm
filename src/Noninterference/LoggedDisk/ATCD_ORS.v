@@ -828,10 +828,10 @@ Lemma oracle_refines_independent_from_reboot_function:
             do 2 eexists; intuition eauto;
             simpl; intuition eauto.
             do 2 eexists; intuition eauto.
-            specialize H5 with (1:= H).
+            edestruct H5; eauto.
 
-            repeat split_ors; cleanup; repeat unify_execs; cleanup.
-            left; eexists; intuition eauto.
+            repeat split_ors; cleanup; repeat unify_execs; cleanup;
+            left; eexists; intuition eauto;
             repeat split_ors; cleanup; repeat unify_execs; cleanup.
           }
           {
@@ -1092,11 +1092,19 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   eapply read_finished_oracle_eq in H1; eauto.
 }
 {
-  specialize H with (1:= H4).
-  specialize H0 with (1:= H5).
+  unfold refines, LogCache.cached_log_rep, Log.log_rep, Log.log_header_rep in *.
+  cleanup.
+  edestruct H; eauto;
+  edestruct H0; eauto;
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup);
-  eapply write_finished_oracle_eq in H1; eauto; cleanup; eauto.
+  eapply_fresh write_finished_oracle_eq in H1; eauto; cleanup; eauto.
+  repeat (split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup); eauto.
+  repeat (split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup); eauto.
+  repeat (split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup); eauto.
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1177,13 +1185,52 @@ n < a + m.
 intros; lia.
 Qed.
 
+Lemma recs_eqv_fold_left_add:
+  forall recs1 recs2 n,
+  Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) recs1 recs2 -> 
+Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) recs1 recs2 -> 
+  fold_left Nat.add (map
+    (fun txnr : Log.txn_record =>
+      Log.addr_count txnr * 2 +
+      Log.data_count txnr * 4 + 3)
+    recs1) n = 
+  fold_left Nat.add (map
+    (fun txnr : Log.txn_record =>
+      Log.addr_count txnr * 2 +
+      Log.data_count txnr * 4 + 3)
+    recs2) n.
+  Proof.
+    induction recs1; destruct recs2; simpl in *; intros;
+    try inversion H; try inversion H0; cleanup; eauto.
+  Qed.
+
+Lemma encode_header_extensional:
+forall hdr1 hdr2,
+Log.encode_header hdr1 = Log.encode_header hdr2 ->
+hdr1 = hdr2.
+Proof.
+  intros.
+  assert (Log.decode_header (Log.encode_header hdr1) = Log.decode_header (Log.encode_header hdr2)). {
+    rewrite H; eauto.
+  }
+  repeat rewrite Log.encode_decode_header in *; eauto.
+Qed.
+
+Definition no_accidental_overlap (selector: @total_mem addr addr_dec nat) 
+(s: @total_mem addr addr_dec (value * list value)) :=
+  forall i, 
+  i < log_length ->   
+  length (snd (s (log_start + i))) = 1 ->
+  selector (log_start + i) = 1 ->
+  fst (s (log_start + i)) <> hd value0 (snd (s (log_start + i))).
+
 Lemma LD_oracle_refines_operation_eq_crashed:
 forall (u0 : user) (T : Type) (o1 : operation (LoggedDiskOperation log_length data_length) T)
 (T' : Type) (o2 : operation (LoggedDiskOperation log_length data_length) T')
-x16 x17 x18 x19 x20 x21 x22 x23 s0 s3 s1' s2',
-token_refines T u0 s0 o1 x22 x21
+x16 x17 x18 x20 x21 x23 s0 s3 s1' s2' hdr1 hdr2 selector merged_disk1 merged_disk2,
+token_refines T u0 s0 o1 (fun s => (empty_mem, (fst (snd s), select_total_mem selector (snd (snd s))))) x21
 x17 ->
-token_refines T' u0 s3 o2 x19 x18
+token_refines T' u0 s3 o2 (fun s => (empty_mem, (fst (snd s), select_total_mem selector (snd (snd s))))) x18
 x23 ->
 exec (CachedDiskLang) u0 x21 s0
 (LoggedDiskCoreRefinement.(Simulation.Definitions.compile_core) o1) 
@@ -1192,12 +1239,26 @@ exec (CachedDiskLang) u0 x18 s3
 (LoggedDiskCoreRefinement.(Simulation.Definitions.compile_core) o2)
 (Crashed s2') ->
 LD_have_same_structure o1 o2 -> 
-(exists merged_disk, LogCache.cached_log_rep merged_disk s0) ->
-(exists merged_disk, LogCache.cached_log_rep merged_disk s3) ->
-x18 ++ x16 = x21 ++ x20 -> x17 = x23.
+(exists txns1,
+    fst s0 = Mem.list_upd_batch empty_mem (map Log.addr_list txns1) (map Log.data_blocks txns1) /\
+    Log.log_header_rep hdr1 txns1 (snd s0) /\
+    merged_disk1 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd s0)) (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+    (forall a, a >= data_start -> snd ((snd (snd s0)) a) = [])) ->
+(exists txns2, 
+    fst s3 = Mem.list_upd_batch empty_mem (map Log.addr_list txns2) (map Log.data_blocks txns2) /\
+    Log.log_header_rep hdr2 txns2 (snd s3) /\
+    merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd s3)) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+    (forall a, a >= data_start -> snd ((snd (snd s3)) a) = [])) ->
+Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
+Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+no_accidental_overlap selector (snd (snd s1')) ->
+no_accidental_overlap selector (snd (snd s2')) ->
+x18 ++ x16 = x21 ++ x20 -> 
+x17 = x23.
 Proof.
 intros;
-destruct o1, o2; simpl in *; cleanup; try tauto.
+destruct o1, o2; simpl in *; try tauto.
 {
   repeat split_ors; cleanup; repeat unify_execs_prefix; cleanup;
   repeat unify_execs; cleanup; eauto.
@@ -1208,184 +1269,446 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   clear Hx.
   setoid_rewrite app_length in H.
   setoid_rewrite app_length in H0.
-  setoid_rewrite H7 in H.
+  destruct H3.
+  setoid_rewrite H12 in H.
   setoid_rewrite addr_list_to_blocks_length_eq in H;
   try solve [do 2 rewrite map_length with (f:= (Nat.add data_start)); apply H3].
-  unfold LogCache.cached_log_rep, Log.log_rep, Log.log_header_rep  in  H4, H5.
-  logic_clean.
-  edestruct H; 
-  edestruct H0; eauto;
-  logic_clean; clear H H0.
-  repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup; eauto; try lia).
-  repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup; eauto; try lia).
-  repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup; eauto; try lia).
-
+  repeat match goal with
+  |[H: exists _, _ |- _] => destruct H
+  end.
+  specialize H with (1:= H4).
+  specialize H0 with (1:= H5).
+  eapply recs_eqv_fold_left_add with (n:= 0) in H7; eauto.
+  setoid_rewrite H7 in H.
+  setoid_rewrite H6 in H.
+  (* clear H6 H7. *)
+  remember (fold_left Nat.add
+  (map
+     (fun txnr : Log.txn_record =>
+      Log.addr_count txnr * 2 + Log.data_count txnr * 4 + 3)
+     (Log.records (Log.current_part hdr2))) 0) as c2.
+  (* clear Heqc2. *)
+  remember (length (addr_list_to_blocks (map (Nat.add data_start) l1))) as c1.
+  setoid_rewrite <- Heqc1 in H.
+  (* clear Heqc1. *)
   split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup; eauto; try lia.
-  
-  repeat (split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia).
-
-  exfalso; eapply le_lt_exfalso in H0;
-  eauto; eapply lt_lt_exfalso; eauto; lia.
-
-  exfalso; eapply le_lt_exfalso in H0;
-  eauto.
-  repeat rewrite <- PeanoNat.Nat.add_assoc.
-  do 2 apply lt_weaken.
-  eapply lt_lt_exfalso; lia.
-  remember (length (addr_list_to_blocks (map (Nat.add data_start) l1)) + length l2) as y.
-  setoid_rewrite <- Heqy in H14.
-  lia.
-
-  all: try solve [remember (length (addr_list_to_blocks (map (Nat.add data_start) l1)) + length l2) as y;
-  try setoid_rewrite <- Heqy in H14; try setoid_rewrite <- Heqy in H1;
-  lia].
-
-  admit.
-  admit.
-  (* Problem cases 
-    **** 
-     length x21 <
-     Log.count (Log.current_part x3) * 4 + 10 
-
-     length x21 >=
-     (length
-        (addr_list_to_blocks
-           (map (Nat.add data_start) l1)) + 
-      length l2) * 6 + 13
-
-    ****
-      length x21 <
-      Log.count (Log.current_part x4) * 4 +
-      fold_left Nat.add
-        (map
-           (fun txnr : Log.txn_record =>
-            Log.addr_count txnr * 2 +
-            Log.data_count txnr * 4 + 3)
-           (Log.records (Log.current_part x4))) 0 +
-      (length
-         (addr_list_to_blocks
-            (map (Nat.add data_start) l1)) + 
-       length l2) * 6 + length l2 + 32 
-
-      length x21 <
-      Log.count (Log.current_part x3) * 4 + 10
-    ****
-    length x21 >=
-      (length
-         (addr_list_to_blocks
-            (map (Nat.add data_start) l1)) + 
-       length l2) * 4 + 8
-    
-    length x21 <
-     Log.count
-       (Log.current_part x3) *
-     4 + 10
-  *)
-  remember (length (addr_list_to_blocks (map (Nat.add data_start) l1)) + length l2) as y.
-  setoid_rewrite <- Heqy in H1.
-  lia.
-  
-  2: eauto. eauto; lia.
-
-  instantiate (1:= (Nat.add data_start)).
-  nia.
-  lia.
-  eapply PeanoNat.Nat.add_lt_le_mono in H. 
-  eauto.
-  lia.
-    {
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.
-    
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.
-    
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.
-    
-    admit.
-    admit.
-
-    repeat (split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia).
-    admit.
-    admit.
-    
-    repeat (split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia).
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.
-
-    Set Nested Proofs Allowed.
-    
-    unfold LogCache.write; simpl; intros;
-  try solve [repeat invert_exec; simpl in *; cleanup;
-  simpl; eauto; try solve [intuition] ].
-  cleanup; repeat invert_exec.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
   {
-    repeat split_ors; cleanup; repeat invert_exec; simpl in *; cleanup.
+    unfold select_total_mem, select_for_addr in *; simpl in *.
+    do 2 cleanup;
+    match goal with
+    | [H: Log.encode_header _ = Log.encode_header _ |- _] =>
+    apply encode_header_extensional in H; congruence
+    end.
   }
-  }
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
   {
-    repeat invert_exec.
-    {
-    generalize dependent o2. 
-    generalize dependent o3. 
-    generalize dependent o4.
-    generalize dependent s.
-    generalize dependent s2.
-    induction p2; intros;
-    repeat invert_exec; simpl in *; cleanup; eauto.
-    split_ors; cleanup; eauto.
-    rewrite <- app_assoc in *.
-
-    exfalso.
-    generalize dependent x1.
-    generalize (x2 ++ o4).
-    generalize p2.
-    Lemma 
-    induction p0; intros;
-    repeat invert_exec; simpl in *; cleanup; eauto.
-    rewrite <- app_assoc in *; eauto.
-    eapply IHp0; eauto.
-
-
-    
-    destruct p2; repeat invert_exec; simpl in *; cleanup; eauto.
-    simpl in *; cleanup.
+    unfold select_total_mem, select_for_addr in *; simpl in *.
+    do 2 cleanup;
+    match goal with
+    | [H: Log.encode_header _ = Log.encode_header _ |- _] =>
+    apply encode_header_extensional in H; congruence
+    end.
   }
-  eapply O.(exec_deterministic_wrt_token) in H8; eauto; cleanup; eauto.
-  
-  repeat rewrite <- app_assoc in H2.
-  specialize IHp with (1:= H9)(2:= H19)(3:=H2); cleanup.
-  specialize H with (1:= H12)(2:= H22)(3:=H2); cleanup; eauto.
-Qed.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  {
+     assert (selector (log_start + Log.count (Log.current_part hdr2) + x5) = 1). {
+      unfold select_total_mem, select_for_addr in H30; simpl in *.
+      edestruct H32; eauto.
+      cleanup; eauto.
+      
+      exfalso; apply H30; eauto.
 
-    split_ors; cleanup; repeat unify_execs;
-    repeat unify_execs_prefix; cleanup; eauto; try lia.          
+      destruct_fresh (snd (snd (snd s1') (log_start + Log.count (Log.current_part hdr2) + x5)));
+      try setoid_rewrite D0 in H31; simpl in *; try lia.
+      destruct l3; simpl in *; try lia.
+      rewrite D0 in H30; simpl in *.
+      destruct n; simpl in *; eauto.
+
+      exfalso; apply H30; eauto.
+    }
+
+    edestruct H45; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+
+    rewrite <- PeanoNat.Nat.add_assoc in H30.
+    exfalso; eapply H10; eauto.
+    eapply PeanoNat.Nat.lt_le_trans.
+    2: apply H42.
+    rewrite <- PeanoNat.Nat.add_assoc.
+    apply Plus.plus_lt_compat_l.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+    eauto.
+
+    setoid_rewrite PeanoNat.Nat.add_assoc.
+    eauto.
+    destruct_fresh (snd
+    (snd (snd x6)
+       (log_start + Log.count (Log.current_part hdr2) +
+        x5))); 
+    setoid_rewrite D in H46;
+    simpl in *; try lia.
+    destruct l3; simpl in *; try lia.
+    setoid_rewrite D; simpl.
+    setoid_rewrite H31.
+    rewrite <- H44; eauto.
+    unfold select_total_mem, select_for_addr; simpl in *.
+    repeat rewrite <- PeanoNat.Nat.add_assoc.
+    rewrite PeanoNat.Nat.add_assoc.
+    rewrite H14.
+    setoid_rewrite D.
+    simpl; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
   }
-  repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup; eauto; try lia).
-  try apply H0 in H4; cleanup; try split_ors; cleanup; eauto;
-  try apply H7 in H5; cleanup; try split_ors; cleanup; eauto.
-  all: admit. (* Use oracle length thing *)
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  {
+     assert (selector (log_start + x5) = 1). {
+      unfold select_total_mem, select_for_addr in H30; simpl in *.
+      edestruct H32; eauto.
+      cleanup; eauto.
+      
+      exfalso; apply H30; eauto.
+
+      destruct_fresh (snd (snd (snd s1') (log_start + x5)));
+      setoid_rewrite D0 in H31; simpl in *; try lia.
+      destruct l3; simpl in *; try lia.
+      rewrite D0 in H30; simpl in *.
+      destruct n; simpl in *; eauto.
+      exfalso; apply H30; eauto.
+    }
+
+    edestruct H45; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+
+    exfalso; eapply H10; eauto.
+    eapply PeanoNat.Nat.lt_le_trans; eauto.
+    destruct_fresh (snd
+    (snd (snd x6)
+       (log_start + x5))); 
+    setoid_rewrite D in H46;
+    simpl in *; try lia.
+    destruct l3; simpl in *; try lia.
+    setoid_rewrite D; simpl.
+    setoid_rewrite H31.
+    rewrite <- H44; eauto.
+    unfold select_total_mem, select_for_addr; simpl in *.
+    rewrite H14.
+    setoid_rewrite D.
+    simpl; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+  }
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  {
+    unfold select_total_mem, select_for_addr in *; simpl in *.
+    do 2 cleanup;
+    match goal with
+    | [H: Log.encode_header _ = Log.encode_header _ |- _] =>
+    apply encode_header_extensional in H; congruence
+    end.
+  }
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  {
+     assert (selector (log_start + Log.count (Log.current_part hdr2) + x10) = 1). {
+      unfold select_total_mem, select_for_addr in H44; simpl in *.
+      edestruct H45; eauto.
+      cleanup; eauto.
+      
+      exfalso; apply H44; eauto.
+
+      destruct_fresh (snd (snd (snd x5) (log_start + Log.count (Log.current_part hdr2) + x10)));
+      try setoid_rewrite D0 in H31; simpl in *; try lia.
+      destruct l3; simpl in *; try lia.
+      rewrite D0 in H44; simpl in *.
+      destruct n; simpl in *; eauto.
+
+      exfalso; apply H44; eauto.
+    }
+
+    edestruct H32; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+
+    rewrite <- PeanoNat.Nat.add_assoc in H31.
+    exfalso; eapply H9; eauto.
+    eapply PeanoNat.Nat.lt_le_trans.
+    2: apply H42.
+    rewrite <- PeanoNat.Nat.add_assoc.
+    apply Plus.plus_lt_compat_l.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+    eauto.
+
+    setoid_rewrite PeanoNat.Nat.add_assoc.
+    eauto.
+    destruct_fresh (snd
+    (snd (snd s1')
+       (log_start + Log.count (Log.current_part hdr2) +
+        x10))); 
+    setoid_rewrite D in H46;
+    simpl in *; try lia.
+    destruct l3; simpl in *; try lia.
+    setoid_rewrite D; simpl.
+    setoid_rewrite H31.
+    rewrite <- H30; eauto.
+    unfold select_total_mem, select_for_addr; simpl in *.
+    repeat rewrite <- PeanoNat.Nat.add_assoc.
+    rewrite PeanoNat.Nat.add_assoc.
+    rewrite H14.
+    setoid_rewrite D.
+    simpl; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+  }
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  {
+    unfold select_total_mem, select_for_addr in *; simpl in *.
+    do 2 cleanup;
+    match goal with
+    | [H: Log.encode_header _ = Log.encode_header _ |- _] =>
+    apply encode_header_extensional in H; congruence
+    end.
+  }
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  split_ors; cleanup; repeat unify_execs;
+  repeat unify_execs_prefix; cleanup; eauto; try lia.
+  {
+    assert (selector (log_start + x10) = 1). {
+      unfold select_total_mem, select_for_addr in H44; simpl in *.
+      edestruct H45; eauto.
+      cleanup; eauto.
+      
+      exfalso; apply H44; eauto.
+
+      destruct_fresh (snd (snd (snd x5) (log_start + x10)));
+      setoid_rewrite D0 in H31; simpl in *; try lia.
+      destruct l3; simpl in *; try lia.
+      rewrite D0 in H44; simpl in *.
+      destruct n; simpl in *; eauto.
+      exfalso; apply H44; eauto.
+    }
+
+    edestruct H32; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+
+    exfalso; eapply H9; eauto.
+    eapply PeanoNat.Nat.lt_le_trans; eauto.
+    destruct_fresh (snd
+    (snd (snd s1')
+       (log_start + x10))); 
+    setoid_rewrite D in H46;
+    simpl in *; try lia.
+    destruct l3; simpl in *; try lia.
+    setoid_rewrite D; simpl.
+    setoid_rewrite H31.
+    rewrite <- H30; eauto.
+    unfold select_total_mem, select_for_addr; simpl in *.
+    rewrite H14.
+    setoid_rewrite D.
+    simpl; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    repeat rewrite map_length; eauto.
+  }
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1397,15 +1720,17 @@ Qed.
 }
 Unshelve.
 all: eauto.
-Admitted.
+Qed.
 
 Lemma TC_oracle_refines_operation_eq_crashed:
 forall (u0 : user) (T : Type) (o1 : operation TransactionCacheOperation T)
 (T' : Type) (o2 : operation TransactionCacheOperation T')
-x16 x17 x18 x19 x20 x21 x22 x23 s0 s3 s1' s2',
-TCD_CoreRefinement.(Simulation.Definitions.token_refines) u0 s0 o1 x22 x21
+x16 x17 x18 x20 x21 x23 s0 s3 s1' s2' hdr1 hdr2 selector merged_disk1 merged_disk2,
+TCD_CoreRefinement.(Simulation.Definitions.token_refines) u0 s0 o1 
+(fun s => ([], (empty_mem, (fst (snd (snd s)), select_total_mem selector (snd (snd (snd s))))))) x21
 x17 ->
-TCD_CoreRefinement.(Simulation.Definitions.token_refines) u0 s3 o2 x19 x18
+TCD_CoreRefinement.(Simulation.Definitions.token_refines) u0 s3 o2 
+(fun s => ([], (empty_mem, (fst (snd (snd s)), select_total_mem selector (snd (snd (snd s))))))) x18
 x23 ->
 exec (TCDLang) u0 x21 s0
 (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o1) 
@@ -1414,8 +1739,21 @@ exec (TCDLang) u0 x18 s3
 (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
 (Crashed s2') ->
 TC_have_same_structure o1 o2 -> 
-(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s0)) ->
-(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s3)) ->
+(exists txns1,
+    fst (snd s0) = Mem.list_upd_batch empty_mem (map Log.addr_list txns1) (map Log.data_blocks txns1) /\
+    Log.log_header_rep hdr1 txns1 (snd (snd s0)) /\
+    merged_disk1 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd s0))) (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+    (forall a, a >= data_start -> snd ((snd (snd (snd s0))) a) = [])) ->
+(exists txns2, 
+    fst (snd s3) = Mem.list_upd_batch empty_mem (map Log.addr_list txns2) (map Log.data_blocks txns2) /\
+    Log.log_header_rep hdr2 txns2 (snd (snd s3)) /\
+    merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd s3))) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+    (forall a, a >= data_start -> snd ((snd(snd (snd s3))) a) = [])) ->
+Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
+Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+no_accidental_overlap selector (snd (snd (snd s1'))) ->
+no_accidental_overlap selector (snd (snd (snd s2'))) ->
 x18 ++ x16 = x21 ++ x20 -> x17 = x23.
 Proof.
 intros;
@@ -1423,7 +1761,9 @@ destruct o1, o2; simpl in *; cleanup; try tauto;
 repeat invert_exec; cleanup; eauto.
 eapply HC_map_ext_eq in H;
 eapply HC_map_ext_eq in H1; cleanup.
-apply HC_map_ext_eq_prefix in H6; eauto; cleanup.
+apply HC_map_ext_eq_prefix in H11; eauto; cleanup.
+specialize (H19 []).
+specialize (H21 []).
 eapply LD_oracle_refines_operation_eq_crashed in H; eauto.
 cleanup; eauto.
 Unshelve.
@@ -1697,11 +2037,24 @@ Qed.
 
 
 Lemma ATCD_oracle_refines_impl_eq_crashed:
-forall u T p1 T' p2 s1 s2 s1' s2' s1a s2a o1 o2 o3 o4 oa1 oa2 selector, (* oa3 oa4, *)
+forall u T p1 T' p2 s1 s2 s1' s2' s1a s2a o1 o2 o3 o4 oa1 oa2 
+selector hdr1 hdr2 merged_disk1 merged_disk2, (* oa3 oa4, *)
 oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   T u s1 p1 (ATCD_reboot_f selector) o1 oa1 ->
 oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   T' u s2 p2 (ATCD_reboot_f selector) o2 oa2 ->
+
+  (* Change this *)
+  (exists txns1,
+      fst (snd (snd s1)) = Mem.list_upd_batch empty_mem (map Log.addr_list txns1) (map Log.data_blocks txns1) /\
+      Log.log_header_rep hdr1 txns1 (snd (snd (snd s1))) /\
+      merged_disk1 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s1)))) (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+      (forall a, a >= data_start -> snd ((snd (snd (snd (snd s1)))) a) = [])) ->
+  (exists txns2, 
+      fst (snd (snd s2)) = Mem.list_upd_batch empty_mem (map Log.addr_list txns2) (map Log.data_blocks txns2) /\
+      Log.log_header_rep hdr2 txns2 (snd (snd (snd s2))) /\
+      merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s2)))) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+      (forall a, a >= data_start -> snd ((snd(snd (snd (snd s2)))) a) = [])) ->
 
 @HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s1 s1a ->
 @HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s2 s2a ->
@@ -1725,22 +2078,44 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   x1 ++ x = x4 ++ x3 ->
   x1 = x4 /\ x0 = x6) ->
 
-  (forall u T (o1: operation TransactionCacheOperation T) T' (o2 : operation TransactionCacheOperation T') 
-  x x0 x1 x2 x3 x4 x5 x6 s1 s2 s1' s2',
-  TCD_CoreRefinement.(Simulation.Definitions.token_refines) u s1 o1 x5 x4 x0 ->
-  TCD_CoreRefinement.(Simulation.Definitions.token_refines) u s2 o2 x2 x1 x6 ->
-  exec TCDLang u x4 s1
-  (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o1)
+  (forall (u0 : user) (T : Type) (o1 : operation TransactionCacheOperation T)
+  (T' : Type) (o2 : operation TransactionCacheOperation T')
+  x16 x17 x18 x20 x21 x23 s0 s3 s1' s2' hdr1 hdr2 selector merged_disk1 merged_disk2,
+  TCD_CoreRefinement.(Simulation.Definitions.token_refines) u0 s0 o1 
+  (fun s => ([], (empty_mem, (fst (snd (snd s)), select_total_mem selector (snd (snd (snd s))))))) x21
+  x17 ->
+  TCD_CoreRefinement.(Simulation.Definitions.token_refines) u0 s3 o2 
+  (fun s => ([], (empty_mem, (fst (snd (snd s)), select_total_mem selector (snd (snd (snd s))))))) x18
+  x23 ->
+  exec (TCDLang) u0 x21 s0
+  (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o1) 
   (Crashed s1') ->
-  exec TCDLang u x1 s2
+  exec (TCDLang) u0 x18 s3
   (TCD_CoreRefinement.(Simulation.Definitions.compile_core) o2)
   (Crashed s2') ->
-  TC_have_same_structure o1 o2 ->
-(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s1)) ->
-(exists merged_disk, LogCache.cached_log_rep merged_disk (snd s2)) ->
-  x1 ++ x = x4 ++ x3 ->
-  x0 = x6) ->
+  TC_have_same_structure o1 o2 -> 
+  (exists txns1,
+      fst (snd s0) = Mem.list_upd_batch empty_mem (map Log.addr_list txns1) (map Log.data_blocks txns1) /\
+      Log.log_header_rep hdr1 txns1 (snd (snd s0)) /\
+      merged_disk1 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd s0))) (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+      (forall a, a >= data_start -> snd ((snd (snd (snd s0))) a) = [])) ->
+  (exists txns2, 
+      fst (snd s3) = Mem.list_upd_batch empty_mem (map Log.addr_list txns2) (map Log.data_blocks txns2) /\
+      Log.log_header_rep hdr2 txns2 (snd (snd s3)) /\
+      merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd s3))) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+      (forall a, a >= data_start -> snd ((snd(snd (snd s3))) a) = [])) ->
+  Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
+  Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+  Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+  no_accidental_overlap selector (snd (snd (snd s1'))) ->
+  no_accidental_overlap selector (snd (snd (snd s2'))) ->
+  x18 ++ x16 = x21 ++ x20 -> x17 = x23) ->
 
+  Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
+  Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+  Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+  no_accidental_overlap selector (snd (snd (snd (snd s1')))) ->
+  no_accidental_overlap selector (snd (snd (snd (snd s2')))) -> 
 o1 ++ o3 = o2 ++ o4 ->
 not_init p1 /\ not_init p2 ->
 oa1 = oa2.
@@ -1748,23 +2123,29 @@ Proof.
   induction p1; destruct p2; simpl; intros; try tauto; 
   cleanup_no_match; try tauto.
   {
-    clear H9 H10.
-    cleanup; try tauto;
+    clear H16 H17.
+    cleanup_no_match; try tauto;
     unfold HC_token_refines in *; cleanup;
-    simpl in *; cleanup; eauto.
+    simpl in *; cleanup_no_match; try tauto; eauto.
 
-    specialize (H10 tt).
-    specialize (H12 tt).
-    eapply_fresh HC_map_ext_eq_prefix in H8; eauto; cleanup_no_match.
-    eapply lift2_invert_exec_crashed in H3; cleanup.
-    eapply lift2_invert_exec_crashed in H4; cleanup.
-    eapply_fresh HC_map_ext_eq in H4; eauto; subst.
+    specialize (H17 tt).
+    specialize (H22 tt).
+    eapply_fresh HC_map_ext_eq_prefix in H15; eauto; cleanup_no_match.
+    eapply lift2_invert_exec_crashed in H5; cleanup.
+    eapply lift2_invert_exec_crashed in H6; cleanup.
+    eapply_fresh HC_map_ext_eq in H6; eauto; subst.
     eapply_fresh HC_map_ext_eq in H0; eauto; subst.
 
-    assert (x3 = x1). {
-      unfold HC_refines in *; simpl in *; cleanup.
-      unfold HC_refines in *; simpl in *; cleanup.
-      eapply H7; eauto.
+    assert (x5 = x3). {
+      eapply H9. 
+      5: eauto.
+      all: simpl in *; eauto.
+      destruct o5; simpl in *; 
+      cleanup; try tauto; eauto;
+      repeat (simpl in *; cleanup); eauto.
+      destruct o6; simpl in *; 
+      cleanup; try tauto; eauto;
+      repeat (simpl in *; cleanup); eauto.
     }
     cleanup; eauto.
   }
@@ -1779,142 +2160,165 @@ Proof.
   {
     repeat invert_exec.
     repeat rewrite <- app_assoc in *.
-    repeat split_ors; cleanup; repeat unify_execs_prefix;
+    repeat split_ors; cleanup; 
+    repeat unify_execs_prefix;
     cleanup; repeat unify_execs; cleanup.
     eapply IHp1; eauto.
 
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H17.
-    eapply H17; eauto.
-    rewrite <- app_assoc; eauto.
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H14.
-    eapply H14; eauto.
-    rewrite <- app_assoc; eauto.
-
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H21.
-    eapply H21; eauto.
-    rewrite <- app_assoc; eauto.
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto.
-    rewrite <- app_assoc; eauto.
+    all: try match goal with
+    | [H: exec _ _ ?x ?s2 ?p (Finished _ _),
+      H0: exec _ _ (?x ++ _) ?s2 ?p (Crashed _) |- _] =>
+    exfalso; eapply finished_not_crashed_oracle_prefix in H; [
+      eapply H; eauto | rewrite <- app_assoc; eauto ]
+    end.
 
     rewrite <- app_assoc in *.
-    eapply exec_finished_deterministic_prefix in H19; eauto; cleanup.
+    eapply exec_finished_deterministic_prefix in H30; eauto; cleanup.
     exfalso; eapply ATCD_oracle_refines_prefix_one_crashed.
     4: eauto.
     6: eauto.
     8: eauto.
     all: eauto.
 
-    exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto.
-    rewrite <- app_assoc; eauto.
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H5; eauto.
-    rewrite <- app_assoc; eauto.
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H1; eauto.
-    rewrite <- app_assoc; eauto.
-
     rewrite <- app_assoc in *.
-    eapply exec_finished_deterministic_prefix in H18; eauto; cleanup.
+    eapply exec_finished_deterministic_prefix in H28; eauto; cleanup.
     exfalso; eapply ATCD_oracle_refines_prefix_one_crashed.
-    4: apply H4.
-    3: apply H6.
+    4: apply H6.
+    3: apply H8.
     5: eapply ATC_have_same_structure_sym; eauto.
     all: eauto.
 
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto;
-    rewrite <- app_assoc; eauto.
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H1; eauto;
-    rewrite <- app_assoc; eauto.
-
-    exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto;
-    rewrite <- app_assoc; eauto.
-
-    eapply exec_finished_deterministic_prefix in H20; eauto; cleanup.
-    eapply exec_finished_deterministic_prefix in H25; eauto; cleanup.
+    eapply exec_finished_deterministic_prefix in H36; eauto; cleanup.
+    eapply exec_finished_deterministic_prefix in H31; eauto; cleanup.
     repeat unify_execs; cleanup.
     repeat rewrite <- app_assoc in *.
-    eapply_fresh ATCD_oracle_refines_impl_eq in H6.
+    eapply_fresh ATCD_oracle_refines_impl_eq in H33.
     7: eauto.
     all: eauto.
     cleanup.
 
-    eapply ATCD_exec_lift_finished in H6; eauto;
+    eapply ATCD_exec_lift_finished in H8; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
     try solve [apply not_init_read].
-    eapply ATCD_exec_lift_finished in H17; eauto;
+    eapply ATCD_exec_lift_finished in H25; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
     try solve [apply not_init_read].
     simpl in *; cleanup.
 
-    eapply H in H14.
-    6: eauto.
+    unfold HC_refines in H6, H7; simpl in *.
+    unfold HC_refines in H6, H7; simpl in *.
+    unfold refines, LogCache.cached_log_rep,
+    Log.log_rep in H6, H7; simpl in *.
+    cleanup.
+    eapply H in H16.
+    8: eauto.
+    9: eauto.
+    8: eauto.
     2: eauto.
     2: eauto.
     all: eauto.
     cleanup; eauto.
+    unfold HC_refines; simpl in *.
+    unfold HC_refines; simpl in *.
+    unfold refines, LogCache.cached_log_rep,
+    Log.log_rep; simpl in *.
+    intuition eauto.
+    eexists; intuition eauto.
+    unfold HC_refines; simpl in *.
+    unfold HC_refines; simpl in *.
+    unfold refines, LogCache.cached_log_rep,
+    Log.log_rep; simpl in *.
+    intuition eauto.
+    eexists; intuition eauto. 
+    all: admit. (* Need a preservation lemma. *)
   }
 Unshelve.
 all: eauto.
-Qed.
+Admitted.
 
 
 
 Lemma ATCD_ORS_transfer:
 forall (l_selector: list (@total_mem addr addr_dec nat)) 
-T (p1 p2: AD.(prog) T)  u u' ex,
+T (p1 p2: AD.(prog) T)  u u' ex l_o_imp l_o_abs l_o_abs' (s1 s2: state ATCDLang),
 
 ATC_Simulation.not_init p1 ->
 ATC_Simulation.not_init p2 ->
-
-(forall s1 s2, 
-(refines_related ATC_Refinement (AD_related_states u' ex)) s1 s2 ->
+(forall s1a s2a,
+(refines_related ATC_Refinement (AD_related_states u' ex)) s1a s2a ->
 ATC_have_same_structure (Simulation.Definitions.compile ATC_Refinement p1)
-(Simulation.Definitions.compile ATC_Refinement p2) u s1 s2) ->
+(Simulation.Definitions.compile ATC_Refinement p2) u s1a s2a) ->
 
-oracle_refines_same_from_related ATCD_Refinement u
+(exists hdr1 hdr2 merged_disk1 merged_disk2,
+(exists txns1,
+      fst (snd (snd s1)) = Mem.list_upd_batch empty_mem (map Log.addr_list txns1) (map Log.data_blocks txns1) /\
+      Log.log_header_rep hdr1 txns1 (snd (snd (snd s1))) /\
+      merged_disk1 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s1)))) (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+      (forall a, a >= data_start -> snd ((snd (snd (snd (snd s1)))) a) = [])) /\
+  (exists txns2, 
+      fst (snd (snd s2)) = Mem.list_upd_batch empty_mem (map Log.addr_list txns2) (map Log.data_blocks txns2) /\
+      Log.log_header_rep hdr2 txns2 (snd (snd (snd s2))) /\
+      merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s2)))) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+      (forall a, a >= data_start -> snd ((snd(snd (snd (snd s2)))) a) = [])) /\
+  Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) /\
+  Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) /\
+  Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2))) ->
+
+  (forall o_imp l_o_imp_rest selector l_selector_rest s1', 
+  l_o_imp = o_imp :: l_o_imp_rest ->
+  l_selector = selector :: l_selector_rest ->
+  exec ATCDLang u o_imp s1 (Simulation.Definitions.compile ATCD_Refinement 
+    (Simulation.Definitions.compile ATC_Refinement p1)) (Crashed s1') ->
+  no_accidental_overlap selector
+  (snd (snd (snd (snd s1'))))) ->
+
+  (forall o_imp l_o_imp_rest selector l_selector_rest s2', 
+  l_o_imp = o_imp :: l_o_imp_rest ->
+  l_selector = selector :: l_selector_rest ->
+  exec ATCDLang u o_imp s2 (Simulation.Definitions.compile ATCD_Refinement 
+    (Simulation.Definitions.compile ATC_Refinement p2)) (Crashed s2') ->
+  no_accidental_overlap selector
+  (snd (snd (snd (snd s2'))))) ->
+
+oracle_refines_same_from_related_explicit ATCD_Refinement u
 (Simulation.Definitions.compile ATC_Refinement p1)
 (Simulation.Definitions.compile ATC_Refinement p2)
 (Simulation.Definitions.compile ATC_Refinement File.recover)
-(ATCD_reboot_list l_selector) 
-(refines_related ATC_Refinement (AD_related_states u' ex)).
+(ATCD_reboot_list l_selector)
+(refines_related ATC_Refinement (AD_related_states u' ex))
+l_o_imp l_o_abs l_o_abs' s1 s2.
 Proof.
   unfold ATCD_reboot_list, TCD_reboot_list; induction l_selector; intros.
   {
-    unfold oracle_refines_same_from_related; intros.
+    unfold oracle_refines_same_from_related_explicit; intros.
     simpl in *.
     destruct l_o_imp; simpl in *; try tauto.
     cleanup; try tauto.
     simpl in *; repeat split_ors; cleanup; try tauto.
-    unfold refines_related at 1 in H2; cleanup; eauto.
+    unfold refines_related at 1 in H5; cleanup; eauto.
     simpl in *. 
-    eapply ATCD_oracle_refines_impl_eq in H10.
-    5: apply H5.
+    eapply ATCD_oracle_refines_impl_eq in H8.
+    6: apply H9.
     all: eauto.
-    3: apply TC_oracle_refines_operation_eq.
+    2: apply TC_oracle_refines_operation_eq.
     cleanup; eauto.
     all: shelve.
   }
   {
-    unfold oracle_refines_same_from_related; intros.
+    unfold oracle_refines_same_from_related_explicit; intros.
     simpl in *.
     destruct l_o_imp; simpl in *; try tauto.
     cleanup; try tauto.
-    unfold refines_related at 1 in H2; cleanup; eauto.
+    unfold refines_related at 1 in H5; cleanup; eauto.
     simpl in *; repeat split_ors; cleanup; try tauto.
     {
       simpl in *. 
-      eapply ATCD_oracle_refines_impl_eq in H12.
-      5: apply H5.
+      eapply ATCD_oracle_refines_impl_eq in H8.
+      6: apply H9.
       all: eauto.
-      3: apply TC_oracle_refines_operation_eq.
+      2: apply TC_oracle_refines_operation_eq.
       cleanup; eauto.
       all: shelve.
     }
@@ -1936,13 +2340,13 @@ Proof.
     }
     {
       simpl in *. 
-      eapply_fresh ATCD_oracle_refines_impl_eq_crashed in H11.
-      5: apply H5.
+      eapply_fresh ATCD_oracle_refines_impl_eq_crashed in H8.
+      8: apply H9.
       all: eauto.
-      3: apply TC_oracle_refines_operation_eq.
-      3: apply TC_oracle_refines_operation_eq_crashed; eauto.
-      eapply ATCD_ORS_recover in H10.
-      apply H10 in H12; 
+      2: apply TC_oracle_refines_operation_eq.
+      2: apply TC_oracle_refines_operation_eq_crashed; eauto.
+      eapply ATCD_ORS_recover in H21.
+      apply H21 in H23; 
       subst; eauto.
       all: shelve.
     }
@@ -1952,15 +2356,15 @@ Proof.
   all: try split.
   all: try solve [eapply not_init_compile; eauto].
   all: try solve [ 
-    apply H1 in H8; eauto; apply ATC_have_same_structure_sym; eauto].
+    apply H1 in H18; eauto; apply ATC_have_same_structure_sym; eauto].
   exact (fun _ => 0).
   exact (fun _ _ => True).
   {
     unfold refines_related_reboot in *; cleanup; simpl in *.
-    eapply ATCD_exec_lift_crashed in H6; eauto;
+    eapply ATCD_exec_lift_crashed in H8; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
-    eapply ATCD_exec_lift_crashed in H7; eauto;
+    eapply ATCD_exec_lift_crashed in H9; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
     cleanup.
@@ -2072,6 +2476,7 @@ ATC_Refinement.(Simulation.Definitions.refines) s2 s2a ->
 ATC_Simulation.not_init p1 ->
 ATC_Simulation.not_init p2 ->
 transaction_input_equiv p1 p2 s1 s2 -> 
+
 ATC_have_same_structure (ATC_Refinement.(Simulation.Definitions.compile) p1) (ATC_Refinement.(Simulation.Definitions.compile) p2) u s1 s2.
 Proof.
   induction p1; destruct p2; simpl in *; intros; try tauto.
@@ -2081,7 +2486,9 @@ Proof.
     eapply have_same_structure_Transaction_read; eauto.
     eapply have_same_structure_Transaction_write; eauto.
     all: cleanup; try tauto; simpl; intuition eauto.
-    exfalso; eapply H3; eauto.
+    unfold HC_refines in *; simpl in *.
+    unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *.
+    all: admit.
   }
   {
     intuition; cleanup.
@@ -2107,4 +2514,4 @@ Proof.
   }
   Unshelve.
   all: eauto.
-Qed.
+Admitted.

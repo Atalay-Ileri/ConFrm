@@ -524,14 +524,32 @@ Qed.
  
 
 Lemma crash_rep_header_write_to_reboot_rep' :
-  forall s old_txns new_txns selector,
-    log_crash_rep (During_Commit_Header_Write old_txns new_txns) s ->
+  forall s old_txns new_txns selector new_hdr old_hdr,
+    log_crash_rep (During_Commit_Header_Write 
+    old_txns new_txns) s ->
     
     non_colliding_selector selector s ->
-    
-    (exists hdr, log_reboot_rep_explicit_part hdr old_txns Current_Part (fst s, select_total_mem selector (snd s)) /\ selector hdr_block_num = 1) \/
-    (exists hdr, log_reboot_rep_explicit_part hdr old_txns Old_Part (fst s, select_total_mem selector (snd s)) /\ selector hdr_block_num <> 1) \/
-    (exists hdr, log_reboot_rep_explicit_part hdr new_txns Current_Part (fst s, select_total_mem selector (snd s)) /\ selector hdr_block_num <> 1).
+    (snd s) hdr_block_num =
+      (Log.encode_header new_hdr,
+      [Log.encode_header old_hdr]) ->
+      new_hdr <> old_hdr ->
+    (log_reboot_rep_explicit_part old_hdr old_txns 
+    Current_Part (fst s, select_total_mem selector (snd s)) /\ 
+    selector hdr_block_num = 1) \/
+    (log_reboot_rep_explicit_part new_hdr old_txns 
+    Old_Part (fst s, select_total_mem selector (snd s)) /\ 
+    selector hdr_block_num <> 1 /\
+    (exists i, i < count (current_part new_hdr) /\
+    i >= count (current_part old_hdr) /\
+    fst ((select_total_mem selector (snd s)) (log_start + i)) <> 
+    fst ((snd s) (log_start + i)))) \/
+    (log_reboot_rep_explicit_part new_hdr new_txns 
+    Current_Part (fst s, select_total_mem selector (snd s)) /\ 
+    selector hdr_block_num <> 1 /\
+    (forall i, i < count (current_part new_hdr)  ->
+    i >= count (current_part old_hdr) -> 
+    fst ((select_total_mem selector (snd s)) (log_start + i)) = 
+    fst ((snd s) (log_start + i)))).
 Proof. 
   unfold non_colliding_selector, log_crash_rep, log_header_rep,
   log_reboot_rep_explicit_part, log_rep_general, log_rep_explicit; intros; cleanup.
@@ -543,8 +561,528 @@ Proof.
   destruct (Nat.eq_dec (selector hdr_block_num) 1).
   {(** Selector rolled back to old header **)
     left.
-    eexists ?[hdr].
     split; eauto.
+    exists (select_for_addr selector hdr_block_num (encode_header new_hdr, [encode_header old_hdr]), nil).
+    exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
+    simpl; intuition eauto.
+    {
+      unfold select_total_mem, select_for_addr; simpl; cleanup.
+      rewrite encode_decode_header; eauto.
+      (* destruct_fresh (hdr_block_num =? hdr_block_num); simpl; intuition eauto. *)     
+    }
+    {
+      unfold select_total_mem in *; cleanup_no_match; simpl in *.
+      intuition eauto.
+    }
+    {    
+      repeat rewrite encode_decode_header in *; eauto.         
+
+      unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
+      intuition eauto.
+      {
+        match goal with
+        | [H: _ < length (map _ _) |- _] =>
+          rewrite map_length in H
+        end.
+        erewrite seln_map; eauto.
+        
+        match goal with
+        | [H: _ < length (select_list_shifted _ _ _) |- _] =>
+          rewrite select_list_shifted_length in H
+        end.
+        
+        match goal with
+        | [H: forall _, _ -> snd _ (_ + _) = seln _ _ _ |- _] =>
+          rewrite H
+        end.   
+        erewrite select_list_shifted_seln; eauto.
+        all: repeat constructor; eauto.
+        match goal with
+        | [H: length _ = log_length |- _] =>
+          setoid_rewrite <- H
+        end; eauto.
+      }
+      {        
+        match goal with
+        | [H: In _ (map _ _) |- _] =>
+          apply in_map_iff in H
+        end; cleanup_no_match; eauto.
+      }
+      {
+        rewrite map_length, select_list_shifted_length; eauto.
+        match goal with
+        | [H: length _ = log_length |- _] =>
+          setoid_rewrite <- H
+        end; eauto.
+      }
+    }
+    { 
+      rewrite map_length, select_list_shifted_length; eauto.
+    }
+    {
+      unfold select_for_addr.
+      cleanup; simpl; eauto. 
+      repeat rewrite encode_decode_header in *; eauto.         
+      match goal with
+      | [H: current_part _ = old_part _ |- _] =>
+        rewrite H
+      end; eauto.
+    }
+    {
+      unfold log_rep_inner in *; simpl in *.
+      unfold select_for_addr.
+      repeat rewrite encode_decode_header in *; eauto.      
+    }
+    {      
+      unfold log_rep_inner in *; simpl in *.
+      rewrite map_map, map_id; simpl.
+      unfold select_for_addr; cleanup; simpl.
+      repeat rewrite encode_decode_header in *; eauto.         
+
+      intuition eauto.
+      {
+        match goal with
+        | [H: current_part _ = old_part _ |- _] =>
+          rewrite H
+        end.
+        unfold header_part_is_valid in *; logic_clean; intuition eauto.
+        rewrite select_list_shifted_app.
+        rewrite firstn_app_l; eauto.
+        rewrite select_list_shifted_synced; eauto.
+        match goal with
+        | [H: hash (old_part _) = _ |- _] =>
+          rewrite map_app, firstn_app_l in H
+        end; eauto.
+        rewrite map_length; eauto.
+        unfold log_data_blocks_rep in *; cleanup; eauto.
+        eauto.
+        unfold log_data_blocks_rep in *; cleanup; eauto.
+        eauto.
+        rewrite select_list_shifted_length; eauto.
+        setoid_rewrite H14; eauto.
+
+        rewrite select_list_shifted_app.
+        rewrite firstn_app_l; eauto.
+        rewrite select_list_shifted_synced; eauto.
+        match goal with
+        | [H: hashes_in_hashmap _ _ (firstn (count (old_part _)) _) |- _] =>
+          rewrite map_app, firstn_app_l in H
+        end; eauto.
+        rewrite map_length; eauto.
+        unfold log_data_blocks_rep in *; cleanup; eauto.
+        unfold log_data_blocks_rep in *; cleanup; eauto.
+        rewrite select_list_shifted_length; eauto.
+        setoid_rewrite H14; eauto.            
+      }
+      {
+        match goal with
+        | [H: current_part _ = old_part _ |- _] =>
+          rewrite H
+        end.
+        clear H11 H15.
+        unfold txns_valid in *; cleanup; intuition eauto.
+        eapply Forall_impl; [|eauto].
+        
+        unfold txn_well_formed, record_is_valid; simpl; intros; cleanup; intuition eauto.
+        {
+          rewrite select_list_shifted_app, map_app.
+          repeat rewrite <- skipn_firstn_comm.
+          repeat rewrite firstn_app_l.
+          rewrite select_list_shifted_synced; eauto.
+
+          unfold log_data_blocks_rep in *; cleanup; eauto.
+          rewrite select_list_shifted_length; eauto.
+          setoid_rewrite H14; eauto.
+          eapply Nat.le_trans.
+          2: eauto.
+          lia.
+          rewrite map_length;
+          eapply Nat.le_trans.
+          2: eauto.
+          setoid_rewrite H14; eauto.
+          lia.
+        }
+        
+        {
+          rewrite select_list_shifted_app, map_app.
+          repeat rewrite <- skipn_firstn_comm.
+          repeat rewrite firstn_app_l.
+          rewrite select_list_shifted_synced; eauto.
+          
+          unfold log_data_blocks_rep in *; cleanup; eauto.
+          rewrite select_list_shifted_length; eauto.
+          eapply Nat.le_trans.
+          2: eauto.
+          setoid_rewrite H14; eauto.
+          lia.
+          rewrite map_length;
+          eapply Nat.le_trans.
+          2: eauto.
+          setoid_rewrite H14; eauto.
+          lia.
+        }
+      }
+    }
+    { congruence. }
+  }
+  {
+    repeat rewrite encode_decode_header in *; eauto.         
+    (** Selected the new header **)
+    destruct (hash_dec (hash (current_part new_hdr))
+                       (rolling_hash hash0
+                                     (firstn (count (current_part new_hdr))
+                                             (select_list_shifted log_start selector (x1++x2))))).
+    
+    {(** Selector selected all the new blocks. What a miracle! **)
+      assert (A: firstn (count (current_part new_hdr))
+                        (select_list_shifted log_start selector (x1 ++ x2)) =
+                 firstn (count (current_part new_hdr)) (map fst (x1 ++ x2))). {
+        
+        unfold log_rep_inner, header_part_is_valid in H11; simpl in *; logic_clean.
+        rewrite H1 in e.
+        rewrite firstn_map_comm in e.
+        apply H0 in e.
+        rewrite <- firstn_map_comm in e; eauto.
+        repeat rewrite firstn_length_l; eauto.
+        rewrite select_list_shifted_length.
+        setoid_rewrite H6; eauto.
+        setoid_rewrite H6; eauto.
+        rewrite firstn_length_l; eauto.
+        setoid_rewrite H6; eauto.
+
+        {
+          rewrite firstn_length_l; eauto.
+          intros.
+          unfold log_data_blocks_rep in H5; logic_clean.
+          rewrite H5.
+          repeat erewrite seln_nth_error; eauto.
+          rewrite seln_firstn; eauto.
+          lia.
+          setoid_rewrite H6.
+          eauto.
+        }
+        {
+          rewrite firstn_length_l; eauto.
+          intros.
+          unfold select_total_mem.
+          unfold log_data_blocks_rep in H5; logic_clean.
+          rewrite H5.
+          repeat erewrite seln_nth_error; eauto.
+          erewrite seln_map.
+          rewrite seln_firstn; eauto.
+          erewrite select_list_shifted_seln; eauto.
+          setoid_rewrite H6; lia.
+          repeat rewrite firstn_length_l; eauto.
+          rewrite select_list_shifted_length.
+          setoid_rewrite H6; eauto. 
+          lia.
+          rewrite select_list_shifted_length.
+          setoid_rewrite H6; eauto.
+        }
+      }
+      
+      rewrite A in *.
+      right; right.
+      split; eauto.
+      exists (select_for_addr selector hdr_block_num (encode_header new_hdr,
+      [encode_header old_hdr]), nil).
+      exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
+
+      rewrite select_for_addr_not_1_latest in *; eauto.
+        
+      
+      simpl; repeat rewrite encode_decode_header in *; eauto; 
+      intuition eauto.
+      {
+        unfold log_header_block_rep in *; cleanup_no_match; simpl in *.
+        unfold select_total_mem; simpl.
+        setoid_rewrite H3; eauto.
+        rewrite select_for_addr_not_1_latest in *; eauto.
+      }
+      {    
+        unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.             
+        intuition eauto.
+        {
+          rewrite map_length in H8.
+          erewrite seln_map; eauto.
+          rewrite select_list_shifted_length in H8.
+          rewrite H1.    
+          erewrite select_list_shifted_seln; eauto.
+          all: repeat constructor; eauto.
+          setoid_rewrite <- H6; eauto.
+        }
+        {
+          apply in_map_iff in H8; cleanup_no_match; eauto.
+        }
+        {
+          rewrite map_length, select_list_shifted_length; eauto.
+          setoid_rewrite <- H6; eauto.
+        }
+      }
+      {
+        rewrite map_length, select_list_shifted_length; eauto.
+      }
+      {
+        rewrite map_map, map_id.
+        unfold log_rep_inner in *; simpl in *.
+        intuition.
+        
+        {
+          unfold header_part_is_valid in *;
+          rewrite A; logic_clean; intuition eauto.
+        }
+        
+        {
+          clear H9 H16.
+          unfold txns_valid in *; logic_clean; intuition eauto.
+          eapply Forall_impl; [|eauto].
+          
+          unfold txn_well_formed, record_is_valid; simpl; intros; logic_clean; intuition eauto.
+          {
+            repeat rewrite <- skipn_firstn_comm.
+            replace (start (record a) + addr_count (record a)) with
+                (min (start (record a) + addr_count (record a))
+                     (count (current_part new_hdr))) by lia.
+            rewrite <- firstn_firstn, A.
+            rewrite firstn_firstn, min_l by lia.
+            rewrite skipn_firstn_comm; eauto.
+          }
+          
+          {
+            repeat rewrite <- skipn_firstn_comm.
+            replace (addr_count (record a) + start (record a) + data_count (record a)) with
+                (min (addr_count (record a) + start (record a) + data_count (record a))
+                     (count (current_part new_hdr))) by lia.
+            rewrite <- firstn_firstn, A.
+            rewrite firstn_firstn, min_l by lia.
+            rewrite skipn_firstn_comm; eauto.
+          }
+        }
+      }
+      { congruence. }
+      {
+       split; eauto.
+       intros.
+       unfold log_data_blocks_rep in *; cleanup.
+       rewrite H5; eauto.
+       setoid_rewrite <- seln_map at 2.
+       setoid_rewrite <- seln_firstn at 3; eauto.
+       rewrite <- A.
+       rewrite seln_firstn; eauto.
+       erewrite select_list_shifted_seln; eauto.
+       setoid_rewrite H6.
+       lia.
+       setoid_rewrite H6.
+       lia.
+       lia.
+      }
+    }
+    {(** Selector rolled back to old header **)
+      right; left.
+      split; eauto.
+      exists (select_for_addr selector hdr_block_num (encode_header new_hdr,
+      [encode_header old_hdr]), nil).
+      exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
+      repeat rewrite select_for_addr_not_1_latest; eauto.
+      simpl; repeat rewrite encode_decode_header in *; eauto;
+      intuition eauto.
+      {
+        unfold select_total_mem; simpl; cleanup.
+        rewrite select_for_addr_not_1_latest; eauto.
+      }
+      {    
+        unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
+        intuition eauto.
+        {
+          rewrite map_length in H8.
+          erewrite seln_map; eauto.
+          rewrite select_list_shifted_length in H8.
+          rewrite H1.    
+          erewrite select_list_shifted_seln; eauto.
+          all: repeat constructor; eauto.
+          setoid_rewrite <- H6; eauto.
+        }
+        {
+          apply in_map_iff in H8; cleanup_no_match; eauto.
+        }
+        {
+          rewrite map_length, select_list_shifted_length; eauto.
+          rewrite <- H6; eauto.
+        }
+      }
+      { 
+        rewrite map_length, select_list_shifted_length; eauto.
+      }
+      
+      {      
+        unfold log_rep_inner in *; simpl in *.
+        rewrite map_map, map_id; simpl.
+        
+        intuition eauto.
+        {
+          unfold header_part_is_valid in *; logic_clean; intuition eauto.
+          rewrite select_list_shifted_app.
+          rewrite firstn_app_l; eauto.
+          rewrite select_list_shifted_synced; eauto.
+          rewrite map_app, firstn_app_l in H11; eauto.
+          rewrite map_length; eauto.
+          setoid_rewrite H14; eauto.
+          unfold log_data_blocks_rep in *; cleanup; eauto.
+          rewrite select_list_shifted_length; eauto.
+          setoid_rewrite H14; eauto.
+          
+          rewrite select_list_shifted_app.
+          rewrite firstn_app_l; eauto.
+          rewrite select_list_shifted_synced; eauto.
+          rewrite map_app, firstn_app_l in H12; eauto.
+          rewrite map_length; eauto.
+          setoid_rewrite H14; eauto.
+          unfold log_data_blocks_rep in *; logic_clean; eauto.
+          rewrite select_list_shifted_length; eauto.
+          setoid_rewrite H14; eauto.
+        }
+
+
+        {
+          clear H13 H15.
+          unfold txns_valid in *; logic_clean; intuition eauto.
+          eapply Forall_impl; [|eauto].
+          
+          unfold txn_well_formed, record_is_valid; simpl; intros; logic_clean; intuition eauto.              
+          {
+            rewrite H16.
+            rewrite select_list_shifted_app, map_app.
+            repeat rewrite <- skipn_firstn_comm.
+            repeat rewrite firstn_app_l.
+            rewrite select_list_shifted_synced; eauto.
+            
+            unfold log_data_blocks_rep in *; logic_clean; eauto.
+            rewrite select_list_shifted_length; eauto.
+            eapply Nat.le_trans.
+            2: eauto.
+            setoid_rewrite H14; eauto.
+            lia.
+            
+            rewrite map_length;
+            eapply Nat.le_trans.
+            2: eauto.
+            setoid_rewrite H14; eauto.
+            lia.
+          }
+          
+          {
+            rewrite H17.
+            rewrite select_list_shifted_app, map_app.
+            repeat rewrite <- skipn_firstn_comm.
+            repeat rewrite firstn_app_l.
+            rewrite select_list_shifted_synced; eauto.
+            
+            unfold log_data_blocks_rep in *; logic_clean; eauto.
+            rewrite select_list_shifted_length; eauto.
+            eapply Nat.le_trans.
+            2: eauto.
+            setoid_rewrite H14; eauto.
+            lia.
+            rewrite map_length;
+            eapply Nat.le_trans.
+            2: eauto.
+            lia.
+          }
+        }
+      }
+      {
+        rewrite map_map, map_id in *; eauto.
+      }
+      {
+        split; eauto.
+        assert (A: (firstn (count (current_part new_hdr))
+        (select_list_shifted log_start selector (x1 ++ x2))) <>
+        (firstn (count (current_part new_hdr)) (map fst (x1 ++ x2)))). {
+          intros Hnot.
+          apply n0.
+          rewrite Hnot.
+          unfold log_rep_inner, header_part_is_valid in H11; cleanup; eauto.
+        }
+        Lemma seln_length_eq_ne_exists:
+        forall T (TEQ: EqDec T) (l1 l2: list T) def,
+        length l1 = length l2 ->
+        l1 <> l2 ->
+        exists i, i < length l1 /\
+        seln l1 i def <> seln l2 i def /\
+        (forall j, j < i -> seln l1 j def = seln l2 j def).
+        Proof.
+          induction l1; destruct l2; simpl in *; 
+          intros; eauto; try lia; try congruence.
+          destruct (TEQ a t); subst.
+          assert (l1 <> l2).
+          intros Hnot; congruence.
+          eapply IHl1 in H1; try lia.
+          cleanup.
+          exists (S x); intuition eauto.
+          lia.
+          destruct j; eauto.
+          eapply H3. lia.
+          exists 0; simpl; intuition eauto.
+          lia.
+          lia.
+        Qed.
+        eapply seln_length_eq_ne_exists in A; eauto.
+        rewrite firstn_length_l in A.
+        cleanup.
+        do 2 rewrite seln_firstn in H15.
+        erewrite seln_map, select_list_shifted_seln in H15.
+        unfold log_data_blocks_rep in *; cleanup.
+        destruct (lt_dec x (count (old_part new_hdr))).
+        {
+          exfalso; apply H15.
+          repeat rewrite seln_app.
+          rewrite select_for_addr_synced; eauto.
+          eapply e1.
+          apply in_seln.
+          all: lia.
+        }
+        exists x; intuition eauto.
+        lia.
+        erewrite e in H4; eauto.
+        lia.
+        all: try setoid_rewrite H6; try lia.
+        rewrite select_list_shifted_length.
+        try setoid_rewrite H6; try lia.
+        apply value_dec.
+        repeat rewrite firstn_length_l; eauto.
+        rewrite map_length.
+        setoid_rewrite H6; try lia.
+        rewrite select_list_shifted_length.
+        setoid_rewrite H6; try lia.
+      }
+    }
+  }
+  Unshelve.
+  all: repeat econstructor; eauto.
+  all: exact value0.
+Qed.
+
+Lemma crash_rep_header_write_to_reboot_rep :
+  forall s old_txns new_txns selector,
+    log_crash_rep (During_Commit_Header_Write old_txns new_txns) s ->
+    
+    non_colliding_selector selector s ->
+    
+    log_reboot_rep old_txns (fst s, select_total_mem selector (snd s)) \/
+    log_reboot_rep new_txns (fst s, select_total_mem selector (snd s)).
+Proof.
+  unfold non_colliding_selector, log_crash_rep, log_header_rep,
+  log_reboot_rep, log_rep_general, log_rep_explicit; intros; cleanup.
+
+  unfold log_header_block_rep in *; cleanup.
+  simpl in *.
+  cleanup.
+  
+  destruct (Nat.eq_dec (selector hdr_block_num) 1).
+  {(** Selector rolled back to old header **)
+    left.
+    eexists ?[hdr].
+    exists Current_Part.
     exists (select_for_addr selector hdr_block_num (x0,[x]), nil).
     exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
     simpl; intuition eauto.
@@ -630,7 +1168,11 @@ Proof.
         rewrite map_length; eauto.
         unfold log_data_blocks_rep in *; cleanup; eauto.
         eauto.
+        unfold log_data_blocks_rep in *; cleanup; eauto.
+        eauto.
+        
         rewrite select_list_shifted_length; eauto.
+        setoid_rewrite H12; eauto.
 
         rewrite select_list_shifted_app.
         rewrite firstn_app_l; eauto.
@@ -641,14 +1183,15 @@ Proof.
         end; eauto.
         rewrite map_length; eauto.
         unfold log_data_blocks_rep in *; cleanup; eauto.
-        rewrite select_list_shifted_length; eauto.            
+        unfold log_data_blocks_rep in *; cleanup; eauto.
+        rewrite select_list_shifted_length; eauto.
+        setoid_rewrite H12; eauto.        
       }
       {
         match goal with
         | [H: current_part _ = old_part _ |- _] =>
           rewrite H
         end.
-        clear H9 H12.
         unfold txns_valid in *; cleanup; intuition eauto.
         eapply Forall_impl; [|eauto].
         
@@ -658,11 +1201,13 @@ Proof.
           repeat rewrite <- skipn_firstn_comm.
           repeat rewrite firstn_app_l.
           rewrite select_list_shifted_synced; eauto.
+          unfold log_data_blocks_rep in *; cleanup; eauto.
 
           unfold log_data_blocks_rep in *; cleanup; eauto.
           rewrite select_list_shifted_length; eauto.
           eapply Nat.le_trans.
           2: eauto.
+          setoid_rewrite H12.
           lia.
           rewrite map_length;
           eapply Nat.le_trans.
@@ -680,6 +1225,7 @@ Proof.
           rewrite select_list_shifted_length; eauto.
           eapply Nat.le_trans.
           2: eauto.
+          setoid_rewrite H12.
           lia.
           rewrite map_length;
           eapply Nat.le_trans.
@@ -745,9 +1291,9 @@ Proof.
       }
       
       rewrite A in *.
-      right; right.
+      right.
       eexists ?[hdr].
-      split; eauto.
+      exists Current_Part.
       exists (select_for_addr selector hdr_block_num (x0,[x]), nil).
       exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
 
@@ -764,16 +1310,16 @@ Proof.
         unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.             
         intuition eauto.
         {
-          rewrite map_length in H15.
+          rewrite map_length in H6.
           erewrite seln_map; eauto.
-          rewrite select_list_shifted_length in H15.
+          rewrite select_list_shifted_length in H6.
           rewrite H3.    
           erewrite select_list_shifted_seln; eauto.
           all: repeat constructor; eauto.
           setoid_rewrite <- H4; eauto.
         }
         {
-          apply in_map_iff in H15; cleanup_no_match; eauto.
+          apply in_map_iff in H6; cleanup_no_match; eauto.
         }
         {
           rewrite map_length, select_list_shifted_length; eauto.
@@ -823,9 +1369,9 @@ Proof.
       { congruence. }
     }
     {(** Selector rolled back to old header **)
-      right; left.
+      left.
       eexists ?[hdr].
-      split; eauto.
+      exists Old_Part.
       exists (select_for_addr selector hdr_block_num (x0,[x]), nil).
       exists (map (fun v => (v, nil)) (select_list_shifted log_start selector (x1++x2))).
       repeat rewrite select_for_addr_not_1_latest; eauto.
@@ -838,16 +1384,16 @@ Proof.
         unfold log_data_blocks_rep, select_total_mem in *; cleanup_no_match; simpl in *.
         intuition eauto.
         {
-          rewrite map_length in H15.
+          rewrite map_length in H6.
           erewrite seln_map; eauto.
-          rewrite select_list_shifted_length in H15.
+          rewrite select_list_shifted_length in H6.
           rewrite H3.    
           erewrite select_list_shifted_seln; eauto.
           all: repeat constructor; eauto.
           setoid_rewrite <- H4; eauto.
         }
         {
-          apply in_map_iff in H15; cleanup_no_match; eauto.
+          apply in_map_iff in H6; cleanup_no_match; eauto.
         }
         {
           rewrite map_length, select_list_shifted_length; eauto.
@@ -871,26 +1417,29 @@ Proof.
           rewrite map_app, firstn_app_l in H9; eauto.
           rewrite map_length; eauto.
           unfold log_data_blocks_rep in *; cleanup; eauto.
+          unfold log_data_blocks_rep in *; cleanup; eauto.
           rewrite select_list_shifted_length; eauto.
-          
+          setoid_rewrite H12; eauto.
+
           rewrite select_list_shifted_app.
           rewrite firstn_app_l; eauto.
           rewrite select_list_shifted_synced; eauto.
           rewrite map_app, firstn_app_l in H10; eauto.
           rewrite map_length; eauto.
+          setoid_rewrite H12; eauto.
           unfold log_data_blocks_rep in *; logic_clean; eauto.
           rewrite select_list_shifted_length; eauto.
+          setoid_rewrite H12; eauto.
         }
 
 
         {
-          clear H11 H12.
           unfold txns_valid in *; logic_clean; intuition eauto.
           eapply Forall_impl; [|eauto].
           
           unfold txn_well_formed, record_is_valid; simpl; intros; logic_clean; intuition eauto.              
           {
-            rewrite H13.
+            rewrite H18.
             rewrite select_list_shifted_app, map_app.
             repeat rewrite <- skipn_firstn_comm.
             repeat rewrite firstn_app_l.
@@ -900,6 +1449,7 @@ Proof.
             rewrite select_list_shifted_length; eauto.
             eapply Nat.le_trans.
             2: eauto.
+            setoid_rewrite H12.
             lia.
             
             rewrite map_length;
@@ -909,7 +1459,7 @@ Proof.
           }
           
           {
-            rewrite H14.
+            rewrite H19.
             rewrite select_list_shifted_app, map_app.
             repeat rewrite <- skipn_firstn_comm.
             repeat rewrite firstn_app_l.
@@ -919,6 +1469,7 @@ Proof.
             rewrite select_list_shifted_length; eauto.
             eapply Nat.le_trans.
             2: eauto.
+            setoid_rewrite H12.
             lia.
             rewrite map_length;
             eapply Nat.le_trans.
@@ -936,23 +1487,6 @@ Proof.
   all: repeat econstructor; eauto.
 Qed.
 
-Lemma crash_rep_header_write_to_reboot_rep :
-  forall s old_txns new_txns selector,
-    log_crash_rep (During_Commit_Header_Write old_txns new_txns) s ->
-    
-    non_colliding_selector selector s ->
-    
-    log_reboot_rep old_txns (fst s, select_total_mem selector (snd s)) \/
-    log_reboot_rep new_txns (fst s, select_total_mem selector (snd s)).
-Proof. 
-  intros.
-  eapply crash_rep_header_write_to_reboot_rep' in H; eauto.
-  unfold log_reboot_rep_explicit_part, log_reboot_rep in *; 
-  repeat split_ors; cleanup; eauto.
-  left; do 4 eexists; intuition eauto.
-  left; do 4 eexists; intuition eauto.
-  right; do 4 eexists; intuition eauto.
-Qed.
 
 Lemma crash_rep_log_write_to_reboot_rep :
   forall s txns selector,

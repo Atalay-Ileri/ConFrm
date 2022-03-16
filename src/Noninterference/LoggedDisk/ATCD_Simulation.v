@@ -628,6 +628,108 @@ data_length u x2
       exact (fun _ => 0).
 Qed.
 
+Lemma oracle_refines_independent_from_reboot_function:
+      forall u (T : Type) (p : prog ATCLang T)
+    s s' r o o_abs grs,
+    Language.exec' u o s (Simulation.Definitions.compile ATCD_Refinement p)
+    (Finished s' r) ->
+    oracle_refines _ _ ATCDLang ATCLang
+    ATCD_CoreRefinement T u s p grs o o_abs ->
+    forall grs',
+    oracle_refines _ _ ATCDLang ATCLang
+    ATCD_CoreRefinement T u s p grs' o o_abs.
+    Proof.
+      induction p; simpl; eauto.
+      intros. 
+      {
+        destruct o; simpl in *; cleanup.
+        {
+          invert_exec'' H; repeat invert_exec;
+          eexists; intuition eauto.
+        }
+        {
+          eapply lift2_invert_exec in H; cleanup.
+          apply HC_map_ext_eq in H; eauto; subst.
+          specialize (H3 tt); simpl in *.
+          destruct o; simpl in *.
+          {
+            cleanup; invert_exec'' H1; 
+            repeat invert_exec;
+            eexists; intuition eauto;
+            do 2 eexists; intuition eauto;
+            simpl; intuition eauto. 
+            all: simpl; eauto.
+          }
+          {
+            eapply lift2_invert_exec in H1; cleanup.
+          apply HC_map_ext_eq in H; eauto; subst.
+          specialize (H5 []); simpl in *.
+          destruct o; simpl in *.
+          {
+            split_ors; cleanup; repeat unify_execs; cleanup.
+            eexists; intuition eauto;
+            do 2 eexists; intuition eauto;
+            simpl; intuition eauto.
+            do 2 eexists; intuition eauto.
+          }
+          {
+            repeat split_ors; cleanup; repeat unify_execs; cleanup.
+            eexists; intuition eauto;
+            do 2 eexists; intuition eauto;
+            simpl; intuition eauto.
+            do 2 eexists; intuition eauto.
+            edestruct H5; eauto.
+
+            repeat split_ors; cleanup; repeat unify_execs; cleanup;
+            left; eexists; intuition eauto;
+            repeat split_ors; cleanup; repeat unify_execs; cleanup.
+          }
+          {
+            repeat split_ors; cleanup; repeat unify_execs; cleanup.
+            eexists; intuition eauto;
+            do 2 eexists; intuition eauto;
+            simpl; intuition eauto.
+            do 2 eexists; intuition eauto.
+          } 
+          {
+            repeat split_ors; cleanup; repeat unify_execs; cleanup.
+            eexists; intuition eauto;
+            do 2 eexists; intuition eauto;
+            simpl; intuition eauto.
+            do 2 eexists; intuition eauto.
+          }
+        }
+      }
+    }
+    {
+      intros.
+      invert_exec'' H0.
+      split_ors; cleanup.
+      match goal with
+      | [H: exec _ _ (?o ++ _) ?s ?p _,
+        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
+        rewrite <- app_assoc; eauto
+      end.
+      match goal with
+      | [H: exec _ _ _ ?s ?p (Finished _ _),
+        H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+      eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
+      eauto; cleanup
+      end.
+      repeat match goal with
+      | [H: exec _ _ ?o ?s ?p _,
+        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+      eapply_fresh  exec_deterministic_wrt_oracle in H; try solve [apply H0];
+      eauto; cleanup
+      end.
+    
+      right.
+      do 7 eexists; intuition eauto.
+      Unshelve.
+      all: eauto.
+    }
+Qed.
 
 Lemma operation_simulation_finished:
 forall (u : user) (s_imp : Language.state' CachedDiskOperation)
@@ -646,7 +748,7 @@ eq_dep Type (operation (LoggedDiskOperation log_length data_length)) T
 exists s_abs' : LoggedDiskLayer.state',
 LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
   (Finished s_abs' x0) /\ refines x s_abs'.
-    Proof. (*
+Proof. 
       intros; destruct o.
       {
         edestruct Simulations.read_simulation with (l_selector:= nil: list (@total_mem addr addr_dec nat)); eauto.
@@ -656,7 +758,7 @@ LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
           simpl in *; eauto.
          }
          instantiate (1:= [ _ ]). 
-         simpl; eauto.
+         simpl recovery_oracles_refine_to; eauto.
          split; eauto.
          left; do 2 eexists; intuition eauto.
          cleanup; simpl in *.
@@ -672,23 +774,46 @@ LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
           simpl in *; eauto.
          }
          instantiate (1:= [ _ ]). 
-            simpl in *; eauto.
          split; eauto.
          left; do 2 eexists; intuition eauto.
          cleanup.
          eexists; intuition eauto.
-         apply H0 in H3.
-         repeat split_ors; cleanup; try unify_execs; cleanup.
-         unfold logged_disk_reboot_list  in *; simpl in *.
-         cleanup; simpl in *.
+         unfold refines, LogCache.cached_log_rep, Log.log_rep in *.
+         cleanup; edestruct H0; clear H0; eauto.
+         all: repeat (repeat split_ors; cleanup; try unify_execs; cleanup).
+         {
+           unfold logged_disk_reboot_list  in *; simpl in *.
+          intros; left; 
+          eexists; intuition eauto.
+          eexists; intuition eauto.
+          rewrite H4 in *; left; eauto.
+          cleanup.
+          rewrite total_mem_map_shift_comm in *.
+          rewrite total_mem_map_fst_list_upd_batch_set in *.
+          erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+         }
+         {
+           unfold logged_disk_reboot_list  in *; simpl in *.
+          intros; left; 
+          eexists; intuition eauto.
+          eexists; intuition eauto.
+          rewrite H4 in *. right; eauto.
+          cleanup.
+          rewrite total_mem_map_shift_comm in *.
+          rewrite total_mem_map_fst_list_upd_batch_set in *.
+          erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+         }
+         unfold logged_disk_reboot_list in *; simpl in H3.
          repeat invert_exec; simpl in *; cleanup.
-        (* invert_exec'' H12. *)
-         intros; left; 
-         eexists; intuition eauto.
-         repeat split_ors; cleanup; try unify_execs; cleanup.
-         cleanup; simpl in *.
-         repeat invert_exec; simpl in *; cleanup.
-        invert_exec'' H12.
+          invert_exec'' H12.
          eexists; split; eauto.
       }
       {
@@ -713,8 +838,6 @@ LoggedDiskLayer.exec' log_length data_length u x2 s_abs o
         eauto.
       }
     Qed. 
-*)
-    Admitted.
 
 Lemma operation_simulation_crashed:
 forall u s_imp s_abs T o x x2 x3 t,
@@ -731,7 +854,7 @@ exec (CachedDiskLang) u x3 s_imp
 data_length u x2
     s_abs o (Crashed s_abs') /\
   refines_reboot (empty_mem, (fst (snd x), select_total_mem t (snd (snd x)))) s_abs'.
-    Proof. (*
+    Proof.
       intros; destruct o; simpl in *.
       {
         intuition cleanup;
@@ -748,35 +871,108 @@ data_length u x2
       }
       {
         intuition cleanup.
-        apply H0 in H1.
-        repeat split_ors; cleanup;
-        repeat split_ors; cleanup; try unify_execs; cleanup.
+        unfold refines, LogCache.cached_log_rep, Log.log_rep in H1.
+         cleanup; edestruct H0; clear H0; eauto.
+         all: repeat (repeat split_ors; cleanup; try unify_execs; cleanup).
         {
           eexists; split; [repeat econstructor |]; eauto.
           unfold refines, refines_reboot in *; cleanup.
           split; try solve [simpl; eapply select_total_mem_synced]. 
-          repeat split_ors.
             eapply cached_log_rep_to_reboot_rep; eauto.
-            eapply cached_log_crash_rep_during_apply_to_reboot_rep; eauto.
-            eapply cached_log_crash_rep_after_apply_to_reboot_rep; eauto.
         }
-        {
-          unfold refines, refines_reboot in *; cleanup.
-          eexists; split; [repeat econstructor |]; eauto.
+        
+         all:
+          eexists; split; [repeat econstructor |]; eauto;
+          unfold refines, refines_reboot in *; cleanup;
           split; try solve [simpl; eapply select_total_mem_synced]. 
-          eapply cached_log_crash_rep_after_commit_to_reboot_rep; eauto.
-        }
-
+        all: try solve [eapply cached_log_rep_to_reboot_rep; eauto].
+        all: try solve [eapply cached_log_crash_rep_during_apply_to_reboot_rep; eauto].
+        all: try solve [eapply cached_log_crash_rep_after_apply_to_reboot_rep; eauto].
+        all: try solve [eapply cached_log_crash_rep_after_commit_to_reboot_rep; eauto].
+        all: try solve [eapply cached_log_crash_rep_during_recovery_to_reboot_rep; eauto].
+        all: try solve [eapply cached_log_crash_rep_after_commit_to_reboot_rep; eauto].
         {
-          unfold refines, refines_reboot in *; cleanup.
-          split_ors; cleanup.
-          eexists; split; [repeat econstructor |]; eauto.
-          split; try solve [simpl; eapply select_total_mem_synced].
-          eauto.
+          eapply RepImplications.crash_rep_log_write_to_reboot_rep in H.
+          unfold LogCache.cached_log_reboot_rep; eauto.
+          eexists; intuition eauto.
+          simpl; eauto.
+          rewrite H7.
+          unfold refines, LogCache.cached_log_rep in *; cleanup.
+              unfold Log.log_rep, Log.log_reboot_rep, Log.log_rep_general in *.
+              logic_clean.
+              repeat rewrite total_mem_map_shift_comm.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+                 destruct (list_list_in_EXM addr_dec (map Log.addr_list x4) (data_start + a)); 
+                 try logic_clean.
+                 eapply list_upd_batch_in; eauto.
+                 eexists; split; eauto.
+                 apply in_seln; eauto.
 
-          eexists; split; [repeat econstructor |]; eauto.
-          split; try solve [simpl; eapply select_total_mem_synced]; eauto.
+                 apply forall_forall2.
+                 apply Forall_forall; intros.
+                 rewrite <- combine_map in H14.
+                 apply in_map_iff in H14; logic_clean.
+                 unfold Log.log_rep_explicit, Log.log_rep_inner,
+                 Log.txns_valid in *; logic_clean.
+                 eapply Forall_forall in H23; eauto.
+                 unfold Log.txn_well_formed in H23; logic_clean; eauto.
+                 destruct x11; simpl in *.
+                 inversion H14; subst.
+                 rewrite H34, <- H38, firstn_length_l; eauto. 
+                 repeat rewrite map_length; eauto.
+                 
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 unfold total_mem_map, select_total_mem.
+                 rewrite select_for_addr_synced; simpl; eauto.
+                 eapply H8; eauto.
+                 lia.
         }
+        {
+          eapply RepImplications.crash_rep_log_write_to_reboot_rep in H.
+          unfold LogCache.cached_log_reboot_rep; eauto.
+          eexists; intuition eauto.
+          simpl; eauto.
+          rewrite H7.
+          unfold refines, LogCache.cached_log_rep in *; cleanup.
+              unfold Log.log_rep, Log.log_reboot_rep, Log.log_rep_general in *.
+              logic_clean.
+              repeat rewrite total_mem_map_shift_comm.
+                 repeat rewrite total_mem_map_fst_list_upd_batch_set.
+                 extensionality a.
+                 unfold shift; simpl.
+                 destruct (list_list_in_EXM addr_dec (map Log.addr_list x4) (data_start + a)); 
+                 try logic_clean.
+                 eapply list_upd_batch_in; eauto.
+                 eexists; split; eauto.
+                 apply in_seln; eauto.
+
+                 apply forall_forall2.
+                 apply Forall_forall; intros.
+                 rewrite <- combine_map in H14.
+                 apply in_map_iff in H14; logic_clean.
+                 unfold Log.log_rep_explicit, Log.log_rep_inner,
+                 Log.txns_valid in *; logic_clean.
+                 eapply Forall_forall in H23; eauto.
+                 unfold Log.txn_well_formed in H23; logic_clean; eauto.
+                 destruct x11; simpl in *.
+                 inversion H14; subst.
+                 rewrite H34, <- H38, firstn_length_l; eauto. 
+                 repeat rewrite map_length; eauto.
+                 
+                 repeat rewrite list_upd_batch_not_in; eauto.
+                 unfold total_mem_map, select_total_mem.
+                 rewrite select_for_addr_synced; simpl; eauto.
+                 eapply H8; eauto.
+                 lia.
+        }
+        all: try solve [
+          unfold LogCache.cached_log_reboot_rep_explicit_part , LogCache.cached_log_reboot_rep,
+          Log.log_reboot_rep, Log.log_reboot_rep_explicit_part in *;
+          setoid_rewrite H12; try setoid_rewrite H11; eauto;
+          logic_clean; eexists; intuition eauto;
+          do 4 eexists; eauto].
       }
       {
         intuition cleanup;
@@ -797,7 +993,6 @@ data_length u x2
     Unshelve.
     all: eauto.
   Qed.
-*) Admitted.
 
 Theorem ATCD_simulation:
 forall u l_selector T (p: ATCLang.(prog) T),
@@ -826,11 +1021,14 @@ SimulationForProgram ATCD_Refinement u
   token_refines T u s o 
   (fun s2: HorizontalComposition.state' (CacheOperation addr_dec value)
   CryptoDiskOperation => snd (snd (grs (s0, (s1, s2))))) orc t.
-  Proof. (*
+  Proof. 
     intros; destruct o; simpl in *;
     eexists; left; do 2 eexists; intuition eauto.
     eapply LogCache.read_finished in H; eauto; cleanup; eauto.
-    eapply LogCache.write_finished in H; eauto; cleanup; eauto.
+    eapply LogCache.write_finished in H.
+    2: unfold LogCache.cached_log_rep, Log.log_rep, Log.log_header_rep in *; 
+    cleanup; eexists; eauto.
+    eauto; cleanup; eauto.
     split_ors; cleanup; eauto.
     destruct r; eauto.
     eapply LogCache.recover_finished in H; eauto; cleanup; eauto.
@@ -839,7 +1037,6 @@ SimulationForProgram ATCD_Refinement u
     repeat rewrite map_length; eauto.
     eapply LogCache.init_finished in H; eauto; cleanup; eauto.
   Qed.
-*) Admitted.
 
 Lemma cached_log_rep_eq:
 forall s m1 m2,
@@ -869,66 +1066,683 @@ Qed.
   exists t, token_refines T u s o 
   (fun s0 => (empty_mem, (fst (snd s0), 
 select_total_mem selector (snd (snd s0))))) orc t.
-  Proof. (*
+  Proof. 
     intros; destruct o; simpl in *.
     {
       eapply_fresh LogCache.read_crashed in H; eauto; cleanup; eauto.
       eexists; right; eexists; intuition eauto.
     }
     { 
-      cleanup;
-      eapply_fresh LogCache.write_crashed in H; eauto; cleanup; eauto.
-      repeat split_ors; cleanup.
-      {
-        eexists; intros; right; intuition eauto.
-        eexists; left; intuition eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-      }
-      repeat split_ors; cleanup.
-      {
-        eapply_fresh cached_log_crash_rep_during_commit_to_reboot_rep in H2; eauto.
-        split_ors; cleanup.
-        eexists; intros; right; intuition eauto.
-        eexists; right; right; intuition eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-
-        eexists; intros; right; intuition eauto.
-        eexists; right; right; intuition eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-        right; intuition eauto.
-        erewrite addr_list_to_blocks_length_eq; eauto.
-        rewrite map_length; eauto.
-      }
-      {
-        eexists; intros; right; intuition eauto.
-        eexists; right; left; intuition eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-        erewrite addr_list_to_blocks_length_eq; eauto.
-        rewrite map_length; eauto.
-      }
-      {
-        eexists; intros; right; intuition eauto.
-        eexists; left; intuition eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-      }
-      {
-        eexists; intros; right; intuition eauto.
-        eexists; left; intuition eauto.
-        eapply cached_log_rep_eq in H1; eauto; cleanup; eauto.
-      }
-    }
-    {
       cleanup.
-      eexists; right; eexists; eauto.
-      repeat (split; eauto).
-      intros; 
-      eapply_fresh LogCache.recover_crashed in H; eauto; cleanup; eauto.
+      unfold LogCache.cached_log_rep, Log.log_rep in H1; cleanup.
+      eapply_fresh LogCache.write_crashed_oracle in H; eauto; cleanup; eauto.
+      split_ors; cleanup.
+      {
+        eexists; intros; right; 
+        repeat (split; eauto).
+        eexists; left;
+        repeat (split; eauto).
+        left; repeat (split; eauto).
+        cleanup.
+        unfold LogCache.cached_log_rep in *; cleanup.
+        eexists; repeat (split; eauto).
+        rewrite <- H10.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H7; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+        }
+        subst; eauto.
+      }
+      split_ors; cleanup.
+      {
+        split_ors; cleanup.
+        {
+        eexists; intros; right; 
+        repeat (split; eauto).
+        eexists; right;
+        repeat (split; eauto).
+        right; repeat (split; eauto).
+        left; repeat (split; eauto).
+        eexists; cleanup.
+        setoid_rewrite <- H10.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- e; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+        }
+        subst; eauto.
+      }
+      {
+        destruct H4; cleanup_no_match.
+        eapply_fresh RepImplications.crash_rep_header_write_to_reboot_rep' in H4; eauto.
+        destruct Hx; cleanup.
+        {
+          eexists; intros; right; 
+          repeat (split; eauto).
+          eexists; right;
+          repeat (split; eauto).
+          right; repeat (split; eauto).
+          right; repeat (split; eauto).
+          do 2 eexists; repeat (split; eauto).
+          cleanup.
+          setoid_rewrite <- H12.
+          setoid_rewrite <- H13.
+
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H1; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+
+        cleanup.
+        setoid_rewrite <- H13.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H1; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+
+        assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+        }
+        subst; eauto.
+        {
+          intuition eauto.
+        }
+        {
+          left.
+          do 2 eexists; repeat (split; eauto).
+          unfold LogCache.cached_log_reboot_rep_explicit_part.
+          eexists; repeat (split; eauto).
+          cleanup; simpl.
+
+          unfold Log.log_reboot_rep_explicit_part in *; cleanup.
+          setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+          rewrite shift_list_upd_batch_set_comm.
+          rewrite shift_select_total_mem_synced.
+          erewrite <- shift_list_upd_batch_set_comm.
+          erewrite <- map_addr_list_eq_map_map.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total. 
+          2: rewrite <- H1; eauto.
+          eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eauto.
+          apply sumbool_agree_addr_dec.
+          intros; eauto.
+          apply H14; lia.
+          apply sumbool_agree_addr_dec.
+          unfold select_total_mem, select_for_addr; simpl.
+          cleanup.
+          setoid_rewrite H10; simpl; eauto.
+        }
+        erewrite addr_list_to_blocks_length_eq; eauto.
+        rewrite map_length; eauto.
+      }
+      split_ors; cleanup.
+      {
+        eexists; intros; right; 
+        repeat (split; eauto).
+        eexists; right;
+        repeat (split; eauto).
+        right; repeat (split; eauto).
+        right; repeat (split; eauto).
+        do 2 eexists; repeat (split; eauto).
+        cleanup.
+        setoid_rewrite <- H12.
+        setoid_rewrite <- H13.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H1; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+
+        cleanup.
+        setoid_rewrite <- H13.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H1; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+
+        assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+        }
+        subst; eauto.
+        intuition eauto.
+        {
+          right; left.
+          do 2 eexists; repeat (split; eauto).
+          unfold LogCache.cached_log_reboot_rep_explicit_part.
+          eexists; repeat (split; eauto).
+          cleanup; simpl.
+
+          unfold Log.log_reboot_rep_explicit_part in *; cleanup.
+          setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+          rewrite shift_list_upd_batch_set_comm.
+          rewrite shift_select_total_mem_synced.
+          erewrite <- shift_list_upd_batch_set_comm.
+          erewrite <- map_addr_list_eq_map_map.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total. 
+          2: rewrite <- H1; eauto.
+          eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eauto.
+          apply sumbool_agree_addr_dec.
+          intros; eauto.
+          apply H14; lia.
+          apply sumbool_agree_addr_dec.
+          assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+          }
+          subst; eauto.
+          split_ors; cleanup.
+          {
+            left; intuition eauto.
+            assert (Ax: Log.current_part x1 = Log.old_part x4). {
+              unfold 
+               Log.log_crash_rep,
+               Log.log_reboot_rep_explicit_part,
+               Log.log_rep_explicit,
+               Log.log_rep_inner,
+               Log.header_part_is_valid  in *; simpl in *; cleanup.
+               repeat rewrite encode_decode_header in *.
+               assert (x8 = (fst x3)). {
+                  unfold Log.log_header_block_rep in *; logic_clean; subst.
+                  simpl in *.
+                  rewrite H31.
+                  rewrite select_for_addr_not_1_latest; eauto.
+               }
+               subst.
+               assert (Log.decode_header x7 = x1). {
+                  unfold Log.log_header_block_rep in *; logic_clean; subst.
+                  simpl in *.
+                  rewrite H31 in H10; inversion H10; eauto.
+                  rewrite Log.encode_decode_header; eauto.
+               }
+               subst.
+               eauto.  
+            }
+            rewrite Ax in *.
+            assert (A: x5 - Log.count (Log.old_part x4) <
+            length (addr_list_to_blocks l) + length (Log.data_blocks x2)). {
+              unfold 
+               Log.log_crash_rep,
+               Log.log_reboot_rep_explicit_part,
+               Log.log_rep_explicit,
+               Log.log_rep_inner,
+               Log.header_part_is_valid  in *; simpl in *; cleanup.
+               repeat rewrite encode_decode_header in *.  
+               assert (x8 = (fst x3)). {
+                  unfold Log.log_header_block_rep in *; logic_clean; subst.
+                  simpl in *.
+                  rewrite H31.
+                  rewrite select_for_addr_not_1_latest; eauto.
+               }
+               subst. 
+               cleanup.
+               unfold Log.txns_valid in *; cleanup.
+               rewrite <- H31 in *.
+               repeat rewrite map_app in *.  
+               rewrite fold_left_app in *.
+               simpl in *.
+               rewrite <- H35 in *.
+               apply forall_app_l in H33.
+               inversion H33; subst.
+               
+               unfold Log.txn_well_formed in H50; logic_clean.
+               rewrite H61 in *.
+               rewrite H62 in *.
+               rewrite <- H8 in *.
+               rewrite H15 in *.
+               
+               erewrite addr_list_to_blocks_length_eq in H19.
+               2: apply map_length. 
+               lia.
+              }
+            
+            
+            exists (x5 - Log.count (Log.old_part x4)).
+            intuition eauto.
+            {
+              replace (log_start + Log.count (Log.old_part x4) +
+              (x5 - Log.count (Log.old_part x4))) with
+              (log_start + x5) in H24 by lia.
+                 apply H21.
+                 unfold select_total_mem; simpl.
+                 rewrite H24.
+                 edestruct H27; eauto.
+                 replace (log_start + Log.count (Log.old_part x4) +
+              (x5 - Log.count (Log.old_part x4))) with
+              (log_start + x5) in H25 by lia.
+                 eauto.
+            }
+          }
+          {
+            right; intuition eauto.
+            assert (A: x5 < length (addr_list_to_blocks l) + length (Log.data_blocks x2)). {
+              unfold 
+              Log.log_crash_rep,
+              Log.log_reboot_rep_explicit_part,
+              Log.log_rep_explicit,
+              Log.log_rep_inner,
+              Log.header_part_is_valid  in *; simpl in *; cleanup.
+              repeat rewrite encode_decode_header in *.  
+              assert (x8 = (fst x)). {
+                 unfold Log.log_header_block_rep in *; logic_clean; subst.
+                 simpl in *.
+                 rewrite H31.
+                 rewrite select_for_addr_not_1_latest; eauto.
+              }
+              subst.
+              assert (Log.decode_header x7 = x3). {
+                 unfold Log.log_header_block_rep in *; logic_clean; subst.
+                 simpl in *.
+                 rewrite H31 in H10; inversion H10; subst.
+                 rewrite Log.encode_decode_header; eauto.
+              }
+              subst.
+              rewrite H4 in *.
+              cleanup.
+              unfold Log.txns_valid in *; cleanup.
+              rewrite <- H31 in *.
+              simpl in *.
+              inversion H33; subst.
+               
+               unfold Log.txn_well_formed in H50; logic_clean.
+               rewrite H61 in *.
+               rewrite H62 in *.
+               rewrite <- H8 in *.
+               rewrite H15 in *.
+               
+               erewrite addr_list_to_blocks_length_eq in H19.
+               2: apply map_length. 
+               lia.
+            }            
+            exists x5.
+            intuition eauto.
+            {
+              apply H21.
+              unfold select_total_mem; simpl.
+              rewrite H24.
+              edestruct H27; eauto.
+            }
+          }
+        }
+        erewrite addr_list_to_blocks_length_eq; eauto.
+        rewrite map_length; eauto.
+      }
+      {
+        eexists; intros; right; 
+        repeat (split; eauto).
+        eexists; right;
+        repeat (split; eauto).
+        right; repeat (split; eauto).
+        right; repeat (split; eauto).
+        do 2 eexists; repeat (split; eauto).
+        cleanup.
+        setoid_rewrite <- H12.
+        setoid_rewrite <- H13.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H1; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+
+        cleanup.
+        setoid_rewrite <- H13.
+
+        repeat rewrite total_mem_map_shift_comm in *.
+        repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+        erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+        eauto.
+        rewrite <- H1; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+        eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+        unfold Log.log_rep; eauto.
+
+        assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+        }
+        subst; eauto.
+        intuition eauto.
+        {
+          right; right.
+          do 2 eexists; repeat (split; eauto).
+          unfold LogCache.cached_log_reboot_rep_explicit_part.
+          eexists; repeat (split; eauto).
+          cleanup; simpl.
+
+          unfold Log.log_reboot_rep_explicit_part in *; cleanup.
+          setoid_rewrite map_addr_list_eq_map_map at 2; eauto.
+          rewrite shift_list_upd_batch_set_comm.
+          rewrite shift_select_total_mem_synced.
+          erewrite <- shift_list_upd_batch_set_comm.
+          erewrite <- map_addr_list_eq_map_map.
+          repeat rewrite total_mem_map_shift_comm in *.
+          repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+          setoid_rewrite <- H12.
+          setoid_rewrite <- H13.
+          erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; eauto. 
+          rewrite <- H1; eauto.
+
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+          unfold Log.log_rep; eauto.
+          eauto.
+          apply sumbool_agree_addr_dec.
+          intros; eauto.
+          apply H14; lia.
+          apply sumbool_agree_addr_dec.
+          unfold select_total_mem.
+          setoid_rewrite H10. 
+          rewrite select_for_addr_not_1_latest; eauto.
+          simpl.
+          assert (A: hdr = x1). {
+          unfold Log.log_header_rep, 
+          Log.log_rep_general,
+          Log.log_rep_explicit,
+          Log.log_header_block_rep in *; cleanup; eauto.
+          }
+          subst; eauto.
+          split_ors; cleanup.
+          {
+           left.
+           intuition eauto.
+           edestruct H25; eauto.
+           rewrite <- H23.
+           repeat rewrite <- PeanoNat.Nat.add_assoc.
+           erewrite <- H19; simpl; eauto; try lia.
+           {
+            unfold 
+            Log.log_crash_rep,
+            Log.log_reboot_rep_explicit_part,
+            Log.log_rep_explicit,
+            Log.log_rep_inner,
+            Log.header_part_is_valid  in *; simpl in *; cleanup.
+            repeat rewrite encode_decode_header in *.  
+            assert (x7 = (fst x3)). {
+               unfold Log.log_header_block_rep in *; logic_clean; subst.
+               simpl in *.
+               rewrite H31.
+               rewrite select_for_addr_not_1_latest; eauto.
+            }
+            subst.
+            assert (Log.decode_header x6 = x1). {
+               unfold Log.log_header_block_rep in *; logic_clean; subst.
+               simpl in *.
+               rewrite H31 in H10; inversion H10; subst.
+               rewrite Log.encode_decode_header; eauto.
+            }
+            subst.
+            rewrite H4 in *.
+            cleanup.
+            unfold Log.txns_valid in *; cleanup.
+            rewrite <- H32, <- H36 in *.
+            simpl in *.
+            repeat rewrite map_app; simpl. 
+            rewrite fold_left_app; simpl.
+            apply forall_app_l in H31.
+            inversion H31; subst.
+               
+            unfold Log.txn_well_formed in H51; logic_clean.
+            rewrite H62 in *.
+            rewrite H63 in *.
+            rewrite <- H8 in *.
+            rewrite H15 in *.
+               
+            erewrite addr_list_to_blocks_length_eq.
+            2: apply map_length. 
+            lia.
+           }
+           }
+           {
+           right.
+           intuition eauto.
+           edestruct H25; eauto.
+           rewrite <- H23.
+           erewrite <- H19; simpl; eauto; try lia.
+           {
+            unfold 
+            Log.log_crash_rep,
+            Log.log_reboot_rep_explicit_part,
+            Log.log_rep_explicit,
+            Log.log_rep_inner,
+            Log.header_part_is_valid  in *; simpl in *; cleanup.
+            repeat rewrite encode_decode_header in *.  
+            assert (x7 = (fst x)). {
+               unfold Log.log_header_block_rep in *; logic_clean; subst.
+               simpl in *.
+               rewrite H31.
+               rewrite select_for_addr_not_1_latest; eauto.
+            }
+            subst.
+            assert (Log.decode_header x6 = x3). {
+               unfold Log.log_header_block_rep in *; logic_clean; subst.
+               simpl in *.
+               rewrite H31 in H10; inversion H10; subst.
+               rewrite Log.encode_decode_header; eauto.
+            }
+            subst.
+            rewrite H4 in *.
+            cleanup.
+            unfold Log.txns_valid in *; cleanup.
+            rewrite <- H32, <- H36 in *.
+            simpl in *.
+            inversion H31; subst.
+               
+            unfold Log.txn_well_formed in H51; logic_clean.
+            rewrite H62 in *.
+            rewrite H63 in *.
+            rewrite <- H8 in *.
+            rewrite H15 in *.
+               
+            erewrite addr_list_to_blocks_length_eq.
+            2: apply map_length. 
+            lia.
+           }
+           {
+            unfold 
+            Log.log_crash_rep,
+            Log.log_reboot_rep_explicit_part,
+            Log.log_rep_explicit,
+            Log.log_rep_inner,
+            Log.header_part_is_valid  in *; simpl in *; cleanup.
+            repeat rewrite encode_decode_header in *.  
+            assert (x7 = (fst x)). {
+               unfold Log.log_header_block_rep in *; logic_clean; subst.
+               simpl in *.
+               rewrite H31.
+               rewrite select_for_addr_not_1_latest; eauto.
+            }
+            subst.
+            assert (Log.decode_header x6 = x3). {
+               unfold Log.log_header_block_rep in *; logic_clean; subst.
+               simpl in *.
+               rewrite H31 in H10; inversion H10; subst.
+               rewrite Log.encode_decode_header; eauto.
+            }
+            subst.
+            rewrite H4 in *.
+            cleanup.
+            unfold Log.txns_valid in *; cleanup.
+            rewrite <- H32, <- H36 in *.
+            simpl in *; lia.
+           }
+           }
+        }
+        erewrite addr_list_to_blocks_length_eq; eauto.
+        rewrite map_length; eauto.
+      }
     }
-    intuition eauto.
+  }
+  split_ors; cleanup.
+  {
+    eexists; intros; right; 
+    repeat (split; eauto).
+    eexists; right;
+    repeat (split; eauto).
+    cleanup;
+    left; repeat (split; eauto).
+    repeat rewrite <- H8 in H10.
+    repeat rewrite total_mem_map_shift_comm in *.
+    repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+    erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+    eauto.
+    rewrite <- H1; eauto.
+    eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+    unfold Log.log_rep; eauto.
+    eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+    unfold Log.log_rep; eauto.
+    erewrite addr_list_to_blocks_length_eq; eauto.
+    rewrite map_length; eauto.
+    assert (A: hdr = x1). {
+      unfold Log.log_header_rep, 
+      Log.log_rep_general,
+      Log.log_rep_explicit,
+      Log.log_header_block_rep in *; cleanup; eauto.
+    }
+    subst; eauto.
+    setoid_rewrite H8; eauto.
+  }
+  split_ors; cleanup.
+  {
+    eexists; intros; right; 
+    repeat (split; eauto).
+    eexists; left;
+    repeat (split; eauto).
+    right; repeat (split; eauto).
+    assert (A: hdr = x1). {
+      unfold Log.log_header_rep, 
+      Log.log_rep_general,
+      Log.log_rep_explicit,
+      Log.log_header_block_rep in *; cleanup; eauto.
+    }
+    subst.
+    
+    left; repeat (split; eauto).
+    cleanup.
+
+    repeat rewrite total_mem_map_shift_comm in *.
+    repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+    erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+    eauto.
+    rewrite <- H1; eauto.
+    eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+    unfold Log.log_rep; eauto.
+    eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+    unfold Log.log_rep; eauto.
+  }
+  {
+    eexists; intros; right; 
+    repeat (split; eauto).
+    eexists; left;
+    repeat (split; eauto).
+    right; repeat (split; eauto).
+    assert (A: hdr = x1). {
+      unfold Log.log_header_rep, 
+      Log.log_rep_general,
+      Log.log_rep_explicit,
+      Log.log_header_block_rep in *; cleanup; eauto.
+    }
+    subst.
+    
+    right; split; eauto.
+    cleanup.
+
+    repeat rewrite total_mem_map_shift_comm in *.
+    repeat rewrite total_mem_map_fst_list_upd_batch_set in *.
+    erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; 
+    eauto.
+    rewrite <- H1; eauto.
+    eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+    unfold Log.log_rep; eauto.
+    eapply LogCache.log_rep_forall2_txns_length_match; eauto.
+    unfold Log.log_rep; eauto.
+    split; eauto.
+    lia.
+  }
+}
+{
+  cleanup.
+  eexists; right; eexists; eauto.
+  repeat (split; eauto).
+  intros; 
+  eapply_fresh LogCache.recover_crashed in H; eauto; cleanup; eauto.
+}
+intuition eauto.
 Qed.
-*) Admitted.
 
 Lemma ATCD_oracle_refines_finished:
 forall T (p: ATCLang.(prog) T) u (o : oracle' ATCDCore)
@@ -1309,6 +2123,7 @@ Lemma ATCD_exec_lift_crashed:
     all: eauto.
   Qed.
 
+  
 Lemma ATCD_exec_lift_finished_recovery:
 forall u o_imp o_abs s_imp s_abs s_imp' r grs,
 exec ATCDLang u o_imp s_imp
