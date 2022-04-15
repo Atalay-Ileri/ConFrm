@@ -9,10 +9,10 @@ L + L1 refines L + L2 if L1 refines L2 *)
 Section HC_Refinement.
 
 Variable O O1 O2: Core.
-Variable L1 : Language O1.
-Variable L2 : Language O2.
-Variable HCL1 : Language (HorizontalComposition O O1).
-Variable HCL2 : Language (HorizontalComposition O O2).
+Variable L1 : Layer O1.
+Variable L2 : Layer O2.
+Variable HCL1 : Layer (HorizontalComposition O O1).
+Variable HCL2 : Layer (HorizontalComposition O O2).
 Variable RC: CoreRefinement L1 O2.
 
 Definition compile T (o: (HorizontalComposition O O2).(operation) T) : HCL1.(prog) T := 
@@ -72,12 +72,12 @@ end.
 *)
 
 Definition HC_transform_oracle := 
-map (fun o : Language.token' O1 =>
+map (fun o : LayerImplementation.token' O1 =>
 match o with
 | OpToken _ o3 =>
     OpToken (HorizontalComposition O O1) (Token2 O O1 o3)
-| Language.Crash _ => Language.Crash (HorizontalComposition O O1)
-| Language.Cont _ => Language.Cont (HorizontalComposition O O1)
+| LayerImplementation.Crash _ => LayerImplementation.Crash (HorizontalComposition O O1)
+| LayerImplementation.Cont _ => LayerImplementation.Cont (HorizontalComposition O O1)
 end).
 
 (* Problem Here is A single token in abstract turns into an oracle for implementation, it is like flattened *)
@@ -106,15 +106,15 @@ Lemma HC_oracle_transformation_id:
 forall o1 o2,
 HC_oracle_transformation
 (map
-    (fun o : Language.token' O1 =>
+    (fun o : LayerImplementation.token' O1 =>
     match o with
     | OpToken _ o1 =>
         OpToken (HorizontalComposition O O1)
           (Token2 O O1 o1)
-    | Language.Crash _ =>
-        Language.Crash (HorizontalComposition O O1)
-    | Language.Cont _ =>
-        Language.Cont (HorizontalComposition O O1)
+    | LayerImplementation.Crash _ =>
+        LayerImplementation.Crash (HorizontalComposition O O1)
+    | LayerImplementation.Cont _ =>
+        LayerImplementation.Cont (HorizontalComposition O O1)
     end) o1) o2 ->
     o1 = o2.
   Proof.
@@ -130,15 +130,15 @@ Lemma HC_oracle_transformation_id_crashed:
 forall o1 o2 o,
 HC_oracle_transformation
 (map
-    (fun o : Language.token' O1 =>
+    (fun o : LayerImplementation.token' O1 =>
     match o with
     | OpToken _ o1 =>
         OpToken (HorizontalComposition O O1)
           (Token2 O O1 o1)
-    | Language.Crash _ =>
-        Language.Crash (HorizontalComposition O O1)
-    | Language.Cont _ =>
-        Language.Cont (HorizontalComposition O O1)
+    | LayerImplementation.Crash _ =>
+        LayerImplementation.Crash (HorizontalComposition O O1)
+    | LayerImplementation.Cont _ =>
+        LayerImplementation.Cont (HorizontalComposition O O1)
     end) o1 ++ o) o2 ->
     exists o2' rest,
     o2 = o2'++rest /\
@@ -171,15 +171,15 @@ HC_oracle_transformation  x0 (x1 ++ x2) ->
 exists x x',
 x0 = x ++ x' /\
 x = map
-(fun o : Language.token' O1 =>
+(fun o : LayerImplementation.token' O1 =>
     match o with
     | OpToken _ o1 =>
         OpToken (HorizontalComposition O O1)
           (Token2 O O1 o1)
-    | Language.Crash _ =>
-        Language.Crash (HorizontalComposition O O1)
-    | Language.Cont _ =>
-        Language.Cont (HorizontalComposition O O1)
+    | LayerImplementation.Crash _ =>
+        LayerImplementation.Crash (HorizontalComposition O O1)
+    | LayerImplementation.Cont _ =>
+        LayerImplementation.Cont (HorizontalComposition O O1)
     end) x1 /\ 
   HC_oracle_transformation x' x2.
   Proof.
@@ -238,15 +238,15 @@ x = map
 
   Lemma HC_oracle_transformation_same:
     forall 
-      (o1 : list (Language.token' O1)),
+      (o1 : list (Layer.token' O1)),
     HC_oracle_transformation 
       (map
-          (fun o : Language.token' O1 =>
+          (fun o : LayerImplementation.token' O1 =>
           match o with
           | OpToken _ o3 =>
               OpToken (HorizontalComposition O O1) (Token2 O O1 o3)
-          | Language.Crash _ => Language.Crash (HorizontalComposition O O1)
-          | Language.Cont _ => Language.Cont (HorizontalComposition O O1)
+          | LayerImplementation.Crash _ => LayerImplementation.Crash (HorizontalComposition O O1)
+          | LayerImplementation.Cont _ => LayerImplementation.Cont (HorizontalComposition O O1)
           end) o1) o1.
     Proof.
       induction o1; simpl; intros; eauto.
@@ -259,15 +259,15 @@ forall T (p: L1.(prog) T) x0 u x3 s s' r,
 HC_oracle_transformation x0 x3 ->
 exec L1 u x3 s p (Finished s' r) ->
 x0 = map
-(fun o : Language.token' O1 =>
+(fun o : LayerImplementation.token' O1 =>
     match o with
     | OpToken _ o1 =>
         OpToken (HorizontalComposition O O1)
           (Token2 O O1 o1)
-    | Language.Crash _ =>
-        Language.Crash (HorizontalComposition O O1)
-    | Language.Cont _ =>
-        Language.Cont (HorizontalComposition O O1)
+    | LayerImplementation.Crash _ =>
+        LayerImplementation.Crash (HorizontalComposition O O1)
+    | LayerImplementation.Cont _ =>
+        LayerImplementation.Cont (HorizontalComposition O O1)
     end) x3.
   Proof.
     induction p; simpl; intros.

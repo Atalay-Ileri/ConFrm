@@ -59,6 +59,6 @@ Section ListLayer.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition ListLang := Build_Language ListOperation.
+  Definition ListLang := Build_Layer ListOperation.
   
 End ListLayer.

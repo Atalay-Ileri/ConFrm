@@ -2,8 +2,8 @@ Require Import Primitives Layer Simulation.Definitions Lia.
 
 Section RefinementLift.
   Variable C_imp C_abs: Core.
-  Variable L_imp: Language C_imp.
-  Variable L_abs: Language C_abs.
+  Variable L_imp: Layer C_imp.
+  Variable L_abs: Layer C_abs.
   Variable CoreRefinement : CoreRefinement L_imp C_abs.
 
   Fixpoint compile T (p2: prog L_abs T) : prog L_imp T.

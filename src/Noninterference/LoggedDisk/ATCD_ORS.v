@@ -1,15 +1,15 @@
 Require Import Eqdep Lia Lra Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference LoggedDiskRefinement.
-Require Import ATC_ORS HSS ATCDLayer ATCD_Simulation ATCD_AOE FinishedNotCrashed.
+Require Import ATC_ORS HSS ATCDLayer ATCD_Simulation ATCD_AOE. (* FinishedNotCrashed. *)
 Import FileDiskLayer.
 
 Ltac unify_execs_prefix :=
   match goal with 
-  | [ H: Language.exec' ?u ?o1 ?s ?p (Finished _ _),
-      H0: Language.exec' ?u ?o2 ?s ?p (Finished _ _),
+  | [ H: LayerImplementation.exec' ?u ?o1 ?s ?p (Finished _ _),
+      H0: LayerImplementation.exec' ?u ?o2 ?s ?p (Finished _ _),
       H1: ?o1 ++ _ = ?o2 ++ _ |- _] =>
       eapply exec_finished_deterministic_prefix in H; [|apply H0| apply H1]
-  | [ H: Language.exec' ?u ?o1 ?s ?p (Finished _ _),
+  | [ H: LayerImplementation.exec' ?u ?o1 ?s ?p (Finished _ _),
       H0: exec _ ?u ?o2 ?s ?p (Finished _ _),
       H1: ?o1 ++ _ = ?o2 ++ _ |- _] =>
       eapply exec_finished_deterministic_prefix in H; [|apply H0| apply H1]
@@ -17,19 +17,19 @@ Ltac unify_execs_prefix :=
       H0: exec _ ?u ?o2 ?s ?p (Finished _ _),
       H1: ?o1 ++ _ = ?o2 ++ _ |- _] =>
       eapply exec_finished_deterministic_prefix in H; [|apply H0| apply H1]
-  | [ H: Language.exec' ?u ?o1 ?s ?p (Finished _ _),
-      H0: Language.exec' ?u ?o2 ?s ?p (Crashed _),
+  | [ H: LayerImplementation.exec' ?u ?o1 ?s ?p (Finished _ _),
+      H0: LayerImplementation.exec' ?u ?o2 ?s ?p (Crashed _),
       H1: ?o1 ++ _ = ?o2 ++ _ |- _] =>
       exfalso; eapply finished_not_crashed_oracle_prefix; [apply H| apply H1 | apply H0]
-  | [ H: Language.exec' ?u ?o1 ?s ?p (Finished _ _),
-      H0: Language.exec' ?u (?o1 ++ _) ?s ?p (Crashed _) |- _] =>
+  | [ H: LayerImplementation.exec' ?u ?o1 ?s ?p (Finished _ _),
+      H0: LayerImplementation.exec' ?u (?o1 ++ _) ?s ?p (Crashed _) |- _] =>
       exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto;
       try solve [rewrite <- app_assoc; eauto]
-  | [ H: Language.exec' ?u ?o1 ?s ?p (Finished _ _),
+  | [ H: LayerImplementation.exec' ?u ?o1 ?s ?p (Finished _ _),
       H0: exec _ ?u (?o1 ++ _) ?s ?p (Crashed _) |- _] =>
       exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto;
       try solve [rewrite <- app_assoc; eauto]
-  | [ H: Language.exec' ?u ?o1 ?s ?p (Finished _ _),
+  | [ H: LayerImplementation.exec' ?u ?o1 ?s ?p (Finished _ _),
       H0: exec _ ?u ?o2 ?s ?p (Crashed _),
       H1: ?o1 ++ _ = ?o2 |- _] =>
       exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto;
@@ -42,8 +42,8 @@ Ltac unify_execs_prefix :=
   (forall l_selector, oracle_refines_same_from_related ATCD_Refinement u p1 p2 rec (ATCD_reboot_list l_selector) RS) ->
   
   (forall u o oa s1 s2 s1' s2' r1 r2 grs,
-  Language.exec' u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
-  Language.exec' u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+  LayerImplementation.exec' u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+  LayerImplementation.exec' u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
   refines_related ATCD_Refinement RS s1 s2 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s1 p1 grs o oa ->
   oracle_refines  _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s2 p2 grs o oa ->
@@ -52,8 +52,8 @@ Ltac unify_execs_prefix :=
   (forall l_selector, oracle_refines_same_from_related_reboot _ _ _ _ ATCD_Refinement u rec rec rec (ATCD_reboot_list l_selector) RSR) ->
   
   (forall u o1 o2 o3 o4 oa1 oa2 s1 s2 s1' s2' r1 r2 grs,
-  Language.exec' u o1 s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
-  Language.exec' u o2 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+  LayerImplementation.exec' u o1 s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+  LayerImplementation.exec' u o2 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s1 p1 grs o1 oa1 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s2 p2 grs o2 oa2 ->
   o1 ++ o3 = o2 ++ o4 ->
@@ -61,35 +61,35 @@ Ltac unify_execs_prefix :=
   o1 = o2) ->
   
   (forall T (p: prog ATCLang T) s s' r o o_abs grs, 
-  Language.exec' u o s (ATCD_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
+  LayerImplementation.exec' u o s (ATCD_Refinement.(Simulation.Definitions.compile) p) (Finished s' r) ->
   oracle_refines _ _ _ _ ATCD_CoreRefinement T u s p grs o o_abs ->
   forall grs', oracle_refines _ _ _ _ ATCD_CoreRefinement T u s p grs' o o_abs) ->
   
   (forall u o oa1 oa2 s1 s2 s1' s2' r1 r2 grs,
-  Language.exec' u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
-  Language.exec' u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+  LayerImplementation.exec' u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+  LayerImplementation.exec' u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
   refines_related ATCD_Refinement RS s1 s2 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement _ u s1 p1 grs o oa1 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement _ u s2 p2 grs o oa2 ->
   refines_related ATCD_Refinement P s1' s2') ->
 
   (forall u o1 o2 oa1 oa2 s1 s2 s1' s2' r1,
-  Language.exec' u o1 s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+  LayerImplementation.exec' u o1 s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
   refines_related ATCD_Refinement RS s1 s2 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s1 p1 (ATCD_reboot_f (hd (fun _ => 0) l_selector)) o1 oa1 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s2 p2 (ATCD_reboot_f (hd (fun _ => 0) l_selector)) (o1++o2) oa2 ->
-  ~Language.exec' u (o1 ++ o2) s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Crashed s2')) ->
+  ~LayerImplementation.exec' u (o1 ++ o2) s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Crashed s2')) ->
 
   (forall u o1 o2 oa1 oa2 s1 s2 s1' s2' r2,
-  Language.exec' u o1 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+  LayerImplementation.exec' u o1 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
   refines_related ATCD_Refinement RS s1 s2 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s1 p1 (ATCD_reboot_f (hd (fun _ => 0) l_selector)) (o1++o2) oa1 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement T u s2 p2 (ATCD_reboot_f (hd (fun _ => 0) l_selector)) o1 oa2 ->
-  ~Language.exec' u (o1 ++ o2) s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Crashed s1')) ->
+  ~LayerImplementation.exec' u (o1 ++ o2) s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Crashed s1')) ->
   
   (forall u o oa1 oa2 s1 s2 s1' s2',
-  Language.exec' u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) (Bind p1 p3)) (Crashed s1') ->
-  Language.exec' u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) (Bind p2 p4)) (Crashed s2') ->
+  LayerImplementation.exec' u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) (Bind p1 p3)) (Crashed s1') ->
+  LayerImplementation.exec' u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) (Bind p2 p4)) (Crashed s2') ->
   refines_related ATCD_Refinement RS s1 s2 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement _ u s1 (Bind p1 p3) (ATCD_reboot_f (hd (fun _ => 0) l_selector)) o oa1 ->
   oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement _ u s2 (Bind p2 p4) (ATCD_reboot_f (hd (fun _ => 0) l_selector)) o oa2 ->
@@ -118,20 +118,20 @@ Ltac unify_execs_prefix :=
         repeat split_ors; cleanup; repeat unify_execs; cleanup.
         match goal with
         | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
@@ -139,13 +139,13 @@ Ltac unify_execs_prefix :=
   
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
@@ -156,14 +156,14 @@ Ltac unify_execs_prefix :=
         end.
         repeat match goal with
         | [H: exec _ _ ?o ?s ?p _,
-          H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+          H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         eapply_fresh  exec_deterministic_wrt_oracle in H; try solve [apply H0];
         eauto; cleanup
         end.
   
         match goal with
-        | [H: Language.exec' _ ?o1 ?s1 _ (Finished _ _),
-          H0: Language.exec' _ ?o2 ?s2 _ (Finished _ _),
+        | [H: LayerImplementation.exec' _ ?o1 ?s1 _ (Finished _ _),
+          H0: LayerImplementation.exec' _ ?o2 ?s2 _ (Finished _ _),
           H1: ?o1 ++ _ = ?o2 ++ _,
           A2: oracle_refines _ _ _ _ _ _ _ _ _ _ ?o1 _, 
           A3: oracle_refines _ _ _ _ _ _ _ _ _ _ ?o2 _,
@@ -185,8 +185,8 @@ Ltac unify_execs_prefix :=
         }
         cleanup.
         match goal with
-        | [A: Language.exec' _ _ ?s1_imp _ (Finished _ _),
-          A0: Language.exec' _ _ ?s2_imp _ (Finished _ _),
+        | [A: LayerImplementation.exec' _ _ ?s1_imp _ (Finished _ _),
+          A0: LayerImplementation.exec' _ _ ?s2_imp _ (Finished _ _),
           A1: refines_related _ _ ?s1_imp ?s2_imp,
           A2: oracle_refines _ _ _ _ _ _ _ ?s1_imp _ _ _ _, 
           A3: oracle_refines _ _ _ _ _ _ _ ?s2_imp _ _ _ _ |- _] =>
@@ -236,20 +236,20 @@ Ltac unify_execs_prefix :=
         repeat split_ors; cleanup; repeat unify_execs; cleanup.
         match goal with
         | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
@@ -257,13 +257,13 @@ Ltac unify_execs_prefix :=
   
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
@@ -274,14 +274,14 @@ Ltac unify_execs_prefix :=
         end.
         repeat match goal with
         | [H: exec _ _ ?o ?s ?p _,
-          H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+          H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         eapply_fresh  exec_deterministic_wrt_oracle in H; try solve [apply H0];
         eauto; cleanup
         end.
   
         match goal with
-        | [H: Language.exec' _ ?o1 ?s1 _ (Finished _ _),
-          H0: Language.exec' _ ?o2 ?s2 _ (Finished _ _),
+        | [H: LayerImplementation.exec' _ ?o1 ?s1 _ (Finished _ _),
+          H0: LayerImplementation.exec' _ ?o2 ?s2 _ (Finished _ _),
           H1: ?o1 ++ _ = ?o2 ++ _,
           A2: oracle_refines _ _ _ _ _ _ _ _ _ _ ?o1 _, 
           A3: oracle_refines _ _ _ _ _ _ _ _ _ _ ?o2 _,
@@ -303,8 +303,8 @@ Ltac unify_execs_prefix :=
         }
         cleanup.
         match goal with
-        | [A: Language.exec' _ _ ?s1_imp _ (Finished _ _),
-          A0: Language.exec' _ _ ?s2_imp _ (Finished _ _),
+        | [A: LayerImplementation.exec' _ _ ?s1_imp _ (Finished _ _),
+          A0: LayerImplementation.exec' _ _ ?s2_imp _ (Finished _ _),
           A1: refines_related _ _ ?s1_imp ?s2_imp,
           A2: oracle_refines _ _ _ _ _ _ _ ?s1_imp _ _ _ _, 
           A3: oracle_refines _ _ _ _ _ _ _ ?s2_imp _ _ _ _ |- _] =>
@@ -344,20 +344,20 @@ Ltac unify_execs_prefix :=
         repeat split_ors; cleanup; repeat unify_execs; cleanup.
         match goal with
         | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
@@ -365,13 +365,13 @@ Ltac unify_execs_prefix :=
   
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
@@ -382,14 +382,14 @@ Ltac unify_execs_prefix :=
         end.
         repeat match goal with
         | [H: exec _ _ ?o ?s ?p _,
-          H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+          H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         eapply_fresh  exec_deterministic_wrt_oracle in H; try solve [apply H0];
         eauto; cleanup
         end.
   
         match goal with
-        | [H: Language.exec' _ ?o1 ?s1 _ (Finished _ _),
-          H0: Language.exec' _ ?o2 ?s2 _ (Finished _ _),
+        | [H: LayerImplementation.exec' _ ?o1 ?s1 _ (Finished _ _),
+          H0: LayerImplementation.exec' _ ?o2 ?s2 _ (Finished _ _),
           H1: ?o1 ++ _ = ?o2 ++ _,
           A2: oracle_refines _ _ _ _ _ _ _ _ _ _ ?o1 _, 
           A3: oracle_refines _ _ _ _ _ _ _ _ _ _ ?o2 _,
@@ -412,8 +412,8 @@ Ltac unify_execs_prefix :=
         }
         cleanup_no_match.
         match goal with
-        | [A: Language.exec' _ _ ?s1_imp _ (Finished _ _),
-          A0: Language.exec' _ _ ?s2_imp _ (Finished _ _),
+        | [A: LayerImplementation.exec' _ _ ?s1_imp _ (Finished _ _),
+          A0: LayerImplementation.exec' _ _ ?s2_imp _ (Finished _ _),
           A1: refines_related _ _ ?s1_imp ?s2_imp,
           A2: oracle_refines _ _ _ _ _ _ _ ?s1_imp _ _ _ _, 
           A3: oracle_refines _ _ _ _ _ _ _ ?s2_imp _ _ _ _ |- _] =>
@@ -436,13 +436,13 @@ Ltac unify_execs_prefix :=
         repeat split_ors; cleanup; repeat unify_execs; cleanup.
         match goal with
         | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
@@ -450,7 +450,7 @@ Ltac unify_execs_prefix :=
 
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
@@ -458,7 +458,7 @@ Ltac unify_execs_prefix :=
         exfalso; eauto.
 
         match goal with
-        | [H: Language.exec' _ (?o1 ++ _) ?s ?p _,
+        | [H: LayerImplementation.exec' _ (?o1 ++ _) ?s ?p _,
         H0: exec _ _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
@@ -469,7 +469,7 @@ Ltac unify_execs_prefix :=
         repeat split_ors; cleanup; repeat unify_execs; cleanup.
         match goal with
         | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
@@ -477,7 +477,7 @@ Ltac unify_execs_prefix :=
 
         match goal with
         | [H: exec _ _ _ ?s ?p (Finished _ _),
-          H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+          H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
         eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
         eauto; cleanup
         end.
@@ -486,14 +486,14 @@ Ltac unify_execs_prefix :=
 
         match goal with
         | [H: exec _ _ (?o1 ++ _) ?s ?p _,
-        H0: Language.exec' _ _ ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
         setoid_rewrite app_nil_r at 2; eauto
         end.
 
         match goal with
-        | [H: Language.exec' _ (?o1 ++ _) ?s ?p _,
+        | [H: LayerImplementation.exec' _ (?o1 ++ _) ?s ?p _,
         H0: exec _ _ _ ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto;
@@ -515,19 +515,19 @@ Ltac unify_execs_prefix :=
           intuition eauto.
         }
         match goal with
-        | [H: Language.exec' _ (?o ++ _) ?s ?p _,
+        | [H: LayerImplementation.exec' _ (?o ++ _) ?s ?p _,
           H0: exec _ _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
         match goal with
-        | [H: Language.exec' _ (?o ++ _) ?s ?p _,
+        | [H: LayerImplementation.exec' _ (?o ++ _) ?s ?p _,
           H0: exec _ _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
         end.
         match goal with
-        | [H: Language.exec' _ (?o ++ _) ?s ?p _,
+        | [H: LayerImplementation.exec' _ (?o ++ _) ?s ?p _,
           H0: exec _ _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
@@ -781,7 +781,7 @@ Qed.
 Lemma oracle_refines_independent_from_reboot_function:
       forall u (T : Type) (p : prog ATCLang T)
     s s' r o o_abs grs,
-    Language.exec' u o s (Simulation.Definitions.compile ATCD_Refinement p)
+    LayerImplementation.exec' u o s (Simulation.Definitions.compile ATCD_Refinement p)
     (Finished s' r) ->
     oracle_refines _ _ ATCDLang ATCLang
     ATCD_CoreRefinement T u s p grs o o_abs ->
@@ -857,19 +857,19 @@ Lemma oracle_refines_independent_from_reboot_function:
       split_ors; cleanup.
       match goal with
       | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
       end.
       match goal with
       | [H: exec _ _ _ ?s ?p (Finished _ _),
-        H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
       eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
       eauto; cleanup
       end.
       repeat match goal with
       | [H: exec _ _ ?o ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
       eapply_fresh  exec_deterministic_wrt_oracle in H; try solve [apply H0];
       eauto; cleanup
       end.
@@ -893,7 +893,7 @@ Qed.
     o
     (map
     (fun
-        o : Language.token'
+        o : LayerImplementation.token'
               (TransactionalDiskLayer.TDCore data_length) =>
       match o with
       | OpToken _ o1 =>
@@ -902,12 +902,12 @@ Qed.
               (TransactionalDiskLayer.TDCore data_length))
             (Token2 AuthenticationOperation
               (TransactionalDiskLayer.TDCore data_length) o1)
-      | Language.Crash _ =>
-          Language.Crash
+      | LayerImplementation.Crash _ =>
+          LayerImplementation.Crash
             (HorizontalComposition AuthenticationOperation
               (TransactionalDiskLayer.TDCore data_length))
-      | Language.Cont _ =>
-          Language.Cont
+      | LayerImplementation.Cont _ =>
+          LayerImplementation.Cont
             (HorizontalComposition AuthenticationOperation
               (TransactionalDiskLayer.TDCore data_length))
       end) x) ->

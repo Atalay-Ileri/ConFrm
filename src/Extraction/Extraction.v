@@ -23,9 +23,9 @@ Extract Constant value => "Data.ByteString.ByteString".
 Extract Constant block_size => "8 * 4096". (** 4KB blocks **)
 Extract Constant value0 => "Data.ByteString.pack (Data.List.replicate (div block_size 8) (0::Data.Word.Word8))".
 Extract Constant file_blocks_count => "4096". (** 4K data blocks *)
-Extract Constant log_length => "600". (** 500 log blocks *)
+Extract Constant log_length => "512". (** 512 log blocks *)
 Extract Constant inode_count => "4096". (** 4K inodes *)
-Extract Constant disk_size => "4 * 1024 * 1024 * 1024". (** 4 GB disk *)
+Extract Constant disk_size => "4 * 1024 * 1024 * 1024 + 1". (** 4 GB disk *)
 
 
 Extract Constant addr_list_to_blocks => 
@@ -67,9 +67,9 @@ Extract Inlined Constant lift_L1 => "".
 Extract Inlined Constant lift_L2 => "".
 
 Extraction Inline Core.operation.
-Extraction Inline Language.prog. 
+Extraction Inline LayerImplementation.prog. 
 
-Extract Inductive Language.prog' => "Prelude.IO" [ "" "Prelude.return" "(Prelude.>>=)" ].
+Extract Inductive LayerImplementation.prog' => "Prelude.IO" [ "" "Prelude.return" "(Prelude.>>=)" ].
 
 (** Using file as a disk *)
 

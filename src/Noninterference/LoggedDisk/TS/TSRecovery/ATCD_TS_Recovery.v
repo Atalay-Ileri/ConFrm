@@ -1,4 +1,0 @@
-Require Export ATCD_TS_BatchOperations_Recovery.
-Require Export ATCD_TS_Log_Recovery.
-Require Export ATCD_TS_LogCache_Recovery.
-Require Export ATCD_TS_Common_Recovery.

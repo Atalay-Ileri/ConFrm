@@ -35,9 +35,26 @@ Proof.
   unfold same_for_user_except, addrs_match_exactly; intros;
   intuition; cleanup; eauto.
 Qed.
+
+Lemma same_for_user_except_symmetry:
+   forall u ex x x0,
+   same_for_user_except u ex x x0 ->
+   same_for_user_except u ex x0 x.
+   Proof.
+       unfold same_for_user_except, 
+       addrs_match_exactly; intros.
+       cleanup.
+       split; intuition eauto.
+       eapply H; eauto.
+       apply H in H2; eauto.
+       symmetry; eapply H0; eauto.
+       symmetry; eapply H0; eauto.
+       symmetry; eapply H1; eauto.
+       symmetry; eapply H1; eauto.
+   Qed.
 (*
 Theorem Invariant_for_file_disk_read:
-  SelfSimulation FD (fun _ => True) (fun T p => match p with
+  RDNI FD (fun _ => True) (fun T p => match p with
                                              | Op _ o =>
                                                match o with
                                                | Read _ _ => True
@@ -107,7 +124,7 @@ Proof.
 Qed.
  *)
 
-Fixpoint horizontally_compose_valid_prog1 {O1 O2} (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2)) {T} (p1: prog L1 T) :=
+Fixpoint horizontally_compose_valid_prog1 {O1 O2} (L1: Layer O1) (L2: Layer O2) (LL: Layer (HorizontalComposition O1 O2)) {T} (p1: prog L1 T) :=
          match p1 with
          | @Op _ T' p => Op (HorizontalComposition O1 O2) (P1 p)
          | @Ret _ T' t => Ret t
@@ -117,7 +134,7 @@ Fixpoint horizontally_compose_valid_prog1 {O1 O2} (L1: Language O1) (L2: Languag
          end.
 
 (*
-Fixpoint horizontally_compose_valid_prog2 {O1 O2} (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2)) C T (p2: prog L2 T) :=
+Fixpoint horizontally_compose_valid_prog2 {O1 O2} (L1: Layer O1) (L2: Layer O2) (LL: Layer (HorizontalComposition O1 O2)) C T (p2: prog L2 T) :=
          match p2 with
          | @Op _ T' p => (Op (HorizontalComposition O1 O2) (P2 p))
          | @Ret _ T' t => (Ret t)
@@ -128,19 +145,19 @@ Fixpoint horizontally_compose_valid_prog2 {O1 O2} (L1: Language O1) (L2: Languag
 *)
 (*
 Lemma ss_hc_rev_p1:
-  forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
+  forall O1 O2 (L1: Layer O1) (L2: Layer O2) (LL: Layer (HorizontalComposition O1 O2))
     u R C V T l_grs1 l_grs2 (p1 p2: L1.(prog) T) rec,
-    @SelfSimulation _ LL u _ (horizontally_compose_valid_prog1 L1 L2 LL p1)
+    @RDNI _ LL u _ (horizontally_compose_valid_prog1 L1 L2 LL p1)
     (horizontally_compose_valid_prog1 L1 L2 LL p2)
     (horizontally_compose_valid_prog1 L1 L2 LL rec) R V  C l_grs2 ->
     forall s2,
-      SelfSimulation u p1 p2 rec
+      RDNI u p1 p2 rec
         (fun s1 => R (s1, s2))
         (fun s1 s1' =>  V (s1, s2) (s1', s2))
         C
         l_grs1.
 Proof.
-  unfold SelfSimulation;  
+  unfold RDNI;  
   induction l_grs1; intros; cleanup.
   - (* Op *)
     repeat invert_exec; simpl in *.
@@ -222,11 +239,11 @@ Qed.
  
 
 Lemma ss_hc_rev_p2:
-  forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
+  forall O1 O2 (L1: Layer O1) (L2: Layer O2) (LL: Layer (HorizontalComposition O1 O2))
     R C V,
-    SelfSimulation LL R C V ->
+    RDNI LL R C V ->
     forall s1,
-      SelfSimulation L2
+      RDNI L2
         (fun s2 => R (s1, s2))
         (horizontally_compose_valid_prog2 L1 L2 LL C)
         (fun s2 s2' =>  V (s1, s2) (s1, s2')).
@@ -316,16 +333,16 @@ Proof.
 Qed.
 
 Lemma ss_hc_rev:
-  forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
+  forall O1 O2 (L1: Layer O1) (L2: Layer O2) (LL: Layer (HorizontalComposition O1 O2))
     R C V,
-    SelfSimulation LL R C V ->
+    RDNI LL R C V ->
     (forall s2,
-      SelfSimulation L1
+      RDNI L1
         (fun s1 => R (s1, s2))
         (horizontally_compose_valid_prog1 L1 L2 LL C)
         (fun s1 s1' =>  V (s1, s2) (s1', s2))) /\
     (forall s1,
-      SelfSimulation L2
+      RDNI L2
         (fun s2 => R (s1, s2))
         (horizontally_compose_valid_prog2 L1 L2 LL C)
         (fun s2 s2' =>  V (s1, s2) (s1, s2'))).
@@ -336,13 +353,13 @@ Proof.
 Qed.
 
 Lemma ss_impl:
-  forall O (L: Language O)
+  forall O (L: Layer O)
     R1 (R2: state L -> Prop) C1 (C2: forall T, prog L T -> Prop) V1 (V2: state L -> state L -> Prop),
-    SelfSimulation L R1 C1 V1 ->
+    RDNI L R1 C1 V1 ->
     (forall s, R1 s <-> R2 s) ->
     (forall T p, C1 T p <-> C2 T p) ->
     (forall s s', V1 s s' <-> V2 s s') ->
-    SelfSimulation L R2 C2 V2.
+    RDNI L R2 C2 V2.
 Proof.
   intros; constructor; intros.
   edestruct H, self_simulation_correct.
@@ -359,11 +376,11 @@ Proof.
 Qed.
 
 Lemma ss_hc:
-  forall O1 O2 (L1: Language O1) (L2: Language O2) (LL: Language (HorizontalComposition O1 O2))
+  forall O1 O2 (L1: Layer O1) (L2: Layer O2) (LL: Layer (HorizontalComposition O1 O2))
   R1 R2 C1 C2 V1 V2,
-  SelfSimulation L1 R1 C1 V1 ->
-  SelfSimulation L2 R2 C2 V2 ->
-  SelfSimulation LL
+  RDNI L1 R1 C1 V1 ->
+  RDNI L2 R2 C2 V2 ->
+  RDNI LL
       (fun s => R1 (fst s) /\ R2 (snd s))
       (fix CH T p :=
          match p with
@@ -503,9 +520,9 @@ Definition FD_related_states u ex := same_for_user_except u ex.
 
 Theorem ss_FD_Recover:
   forall n u u' ex,
-    SelfSimulation u (FDOp.(Op) Recover) (FDOp.(Op) Recover) (FDOp.(Op) Recover)(fun _ => True) (FD_related_states u' ex) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) Recover) (FDOp.(Op) Recover) (FDOp.(Op) Recover)(fun _ => True) (FD_related_states u' ex) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; induction n; simpl; intros.
+  unfold RDNI; induction n; simpl; intros.
   {
     repeat invert_exec.
     simpl in *.
@@ -526,9 +543,9 @@ Qed.
 
 Theorem ss_FD_read:
   forall n inum off u u',
-    SelfSimulation u (FDOp.(Op) (Read inum off)) (FDOp.(Op) (Read inum off)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (Read inum off)) (FDOp.(Op) (Read inum off)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup.
@@ -618,11 +635,11 @@ Qed.
 
 Theorem ss_FD_write:
   forall n inum off v u u',
-    SelfSimulation u (FDOp.(Op) (Write inum off v)) 
+    RDNI u (FDOp.(Op) (Write inum off v)) 
     (FDOp.(Op) (Write inum off v)) (FDOp.(Op) Recover) (fun _ => True) 
     (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -877,9 +894,9 @@ Qed.
 
 Theorem ss_FD_extend:
   forall n inum v u u',
-    SelfSimulation u (FDOp.(Op) (Extend inum v)) (FDOp.(Op) (Extend inum v)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (Extend inum v)) (FDOp.(Op) (Extend inum v)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1131,9 +1148,9 @@ Qed.
 
 Theorem ss_FD_change_owner:
   forall n inum u u' u'',
-    SelfSimulation u (FDOp.(Op) (ChangeOwner inum u'')) (FDOp.(Op) (ChangeOwner inum u'')) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (ChangeOwner inum u'')) (FDOp.(Op) (ChangeOwner inum u'')) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1390,9 +1407,9 @@ Qed.
 
 Theorem ss_FD_create:
   forall n u u' u'',
-    SelfSimulation u (FDOp.(Op) (Create u'')) (FDOp.(Op) (Create u'')) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (Create u'')) (FDOp.(Op) (Create u'')) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1611,9 +1628,9 @@ Qed.
 
 Theorem ss_FD_delete:
   forall n inum u u',
-    SelfSimulation u (FDOp.(Op) (Delete inum)) (FDOp.(Op) (Delete inum)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (Delete inum)) (FDOp.(Op) (Delete inum)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -1859,9 +1876,9 @@ Qed.
 
 Theorem ss_FD_write_input:
   forall n inum off v1 v2 u u',
-    SelfSimulation u (FDOp.(Op) (Write inum off v1)) (FDOp.(Op) (Write inum off v2)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (Write inum off v1)) (FDOp.(Op) (Write inum off v2)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -2118,9 +2135,9 @@ Qed.
 
 Theorem ss_FD_extend_input:
   forall n inum v1 v2 u u',
-    SelfSimulation u (FDOp.(Op) (Extend inum v1)) (FDOp.(Op) (Extend inum v2)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) (Extend inum v1)) (FDOp.(Op) (Extend inum v2)) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' (Some inum)) (eq u') (repeat (fun s => s) n).
 Proof.
-  unfold SelfSimulation; intros.
+  unfold RDNI; intros.
   repeat invert_exec.
   {
     destruct n; simpl in *; cleanup; try congruence.
@@ -2377,7 +2394,7 @@ Definition not_change_owner {T} (o : FDOp.(operation) T) :=
 Theorem ss_FD_not_change_owner:
   forall T (o : FDOp.(operation) T) n u u',
     not_change_owner o ->
-    SelfSimulation u (FDOp.(Op) o) (FDOp.(Op) o) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
+    RDNI u (FDOp.(Op) o) (FDOp.(Op) o) (FDOp.(Op) Recover) (fun _ => True) (FD_related_states u' None) (eq u') (repeat (fun s => s) n).
 Proof.
   intros; destruct o; eauto.
   apply ss_FD_read.
@@ -2395,11 +2412,11 @@ Theorem two_user_exec:
     not_change_owner o1 ->
     not_change_owner o2 ->
     FD_related_states adversary None s1 s2 ->
-    recovery_exec FD user l_o1 s1 (repeat (fun s => s) n) (FDOp.(Op) o1) (FDOp.(Op) Recover) ret1 ->
-    recovery_exec FD adversary l_o2 (extract_state_r ret1) (repeat (fun s => s) m) (FDOp.(Op) o2) (FDOp.(Op) Recover) ret2 ->
+    exec_with_recovery FD user l_o1 s1 (repeat (fun s => s) n) (FDOp.(Op) o1) (FDOp.(Op) Recover) ret1 ->
+    exec_with_recovery FD adversary l_o2 (extract_state_r ret1) (repeat (fun s => s) m) (FDOp.(Op) o2) (FDOp.(Op) Recover) ret2 ->
     exists ret1' ret2',
-      recovery_exec FD user l_o1 s2 (repeat (fun s => s) n) (FDOp.(Op) o1) (FDOp.(Op) Recover) ret1' /\
-      recovery_exec FD adversary l_o2 (extract_state_r ret1') (repeat (fun s => s) m) (FDOp.(Op) o2) (FDOp.(Op) Recover)ret2' /\
+      exec_with_recovery FD user l_o1 s2 (repeat (fun s => s) n) (FDOp.(Op) o1) (FDOp.(Op) Recover) ret1' /\
+      exec_with_recovery FD adversary l_o2 (extract_state_r ret1') (repeat (fun s => s) m) (FDOp.(Op) o2) (FDOp.(Op) Recover)ret2' /\
       FD_related_states adversary None (extract_state_r ret2) (extract_state_r ret2') /\
       extract_ret_r ret2 = extract_ret_r ret2'.
 Proof.

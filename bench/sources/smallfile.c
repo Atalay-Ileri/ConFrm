@@ -10,7 +10,7 @@
 #include <sys/time.h>
 
 #define N 1000
-#define FILESIZE 100
+#define FILESIZE 500
 #define NAMESIZE 100
 
 static char name[NAMESIZE];
@@ -22,6 +22,12 @@ void printstats(int reset)
   int fd;
   int r;
 
+  
+  if (reset == 1) {
+  	sprintf(name, "%s/clear-stats", dir);
+	open(name, O_RDONLY);
+  } 
+  
   sprintf(name, "%s/stats", dir);
   if((fd = open(name, O_RDONLY)) < 0) {
     return;
@@ -34,7 +40,7 @@ void printstats(int reset)
     exit(1);
   }
 
-  if (!reset)
+  if (reset != 1)
     fprintf(stdout, "=== FS Stats ===\n%s========\n", buf);
 
   if ((r = close(fd)) < 0) {

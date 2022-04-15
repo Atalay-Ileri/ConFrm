@@ -79,7 +79,7 @@ Proof.
 
       eexists (_::_); 
       simpl; intuition eauto.
-      eapply recovery_oracles_refine_to_length in H0.
+      eapply recovery_oracles_refine_length in H0.
       rewrite H0; eauto.
       eauto.
       
@@ -118,7 +118,7 @@ Proof.
 
       eexists (_::_); 
       simpl; intuition eauto.
-      eapply recovery_oracles_refine_to_length in H2.
+      eapply recovery_oracles_refine_length in H2.
       rewrite H2; eauto.
       eauto.
       
@@ -145,7 +145,7 @@ Proof.
   (*
   Lemma compile_lift2_comm:
   forall u T (p: LoggedDiskLang.(prog) T) o s ret,
-  Language.exec' u o s
+  LayerImplementation.exec' u o s
   (RefinementLift.compile
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
@@ -156,7 +156,7 @@ Proof.
         TDCoreRefinement) T
       (lift_L2 AuthenticationOperation p)) ret ->
 
-      Language.exec' u o s
+      LayerImplementation.exec' u o s
       (lift_L2 AuthenticationOperation 
         (TDRefinement.(Simulation.Definitions.compile) p)) ret.
   Proof.
@@ -172,11 +172,11 @@ Proof.
 
   Lemma compile_lift2_comm_rev:
   forall u T (p: TD.(prog) T) o s ret,
-  Language.exec' u o s
+  LayerImplementation.exec' u o s
       (lift_L2 AuthenticationOperation 
         (TDRefinement.(Simulation.Definitions.compile) p)) ret ->
   
-  Language.exec' u o s
+  LayerImplementation.exec' u o s
   (RefinementLift.compile
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
@@ -312,7 +312,7 @@ Proof.
       eexists (_ :: _).
       simpl.
       intuition eauto.
-      eapply recovery_oracles_refine_to_length in H6; eauto.
+      eapply recovery_oracles_refine_length in H6; eauto.
       }
 Qed.
 

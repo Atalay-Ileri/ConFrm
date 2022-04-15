@@ -86,4 +86,4 @@ Definition encryption_map:= @mem value value_dec (key * value).
       exec'
       exec_deterministic_wrt_token'.
   
-  Definition CryptoLang := Build_Language CryptoOperation.
+  Definition CryptoLang := Build_Layer CryptoOperation.

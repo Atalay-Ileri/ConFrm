@@ -4,12 +4,14 @@ TEST=$2
 DEV=$3
 I=$4
 
-MK="mkfs"
-FSCQ="fscq"
-MKFS="$MK"
-FS="$FSP"
+MK="Mkfs"
+FSB="Fs"
+MKFS="$FSP$MK"
+FS="$FSP$FSB"
 TMP="/tmp/"
 DIR="$TMP$FS"
+
+FSCQBLOCKS=34310
 
 if [ $# -ne 4 ]; then
   echo "$0 fs-prefix test-name dev num-of-times"
@@ -23,6 +25,7 @@ echo "=== Unmount $DIR ==="
 if [[ $(findmnt $DIR) ]]; then fusermount -u $DIR; fi
 while [[ $(findmnt $DIR) ]]; do :; done
 
+dd if=/dev/zero of=$DEV bs=4096 count=$FSCQBLOCKS
 echo "=== $MKFS in $DEV ==="
 ./fs/$MKFS $DEV
 
@@ -31,7 +34,7 @@ rm -rf $DIR
 mkdir $DIR
 
 echo "=== Mount $FS at $DIR ==="
-./fs/$FS $DEV -f -o big_writes,atomic_o_trunc,nonempty,default_permissions $DIR &
+./fs/$FS $DEV -s -f -o nonempty,default_permissions $DIR &
 while ! [[ $(findmnt $DIR) ]]; do :; done
 
 echo "=== Starting Testing ==="

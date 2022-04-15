@@ -1,6 +1,6 @@
 Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference FileDiskRefinement.
-Require Import ATCLayer FileDisk.TransferProofs.
+Require Import ATCLayer FileDisk.TransferProofs BlockAllocatorExistence.
 
 Import FileDiskLayer.
     
@@ -86,7 +86,7 @@ simpl; intuition eauto.
 repeat invert_exec; try lia.
 unfold AD_related_states, refines_related in *; cleanup; simpl in *.
 unfold refines, File.files_rep in *; cleanup.
-erewrite InodeTS.inode_allocations_are_same; eauto.
+erewrite inode_allocations_are_same; eauto.
 destruct_fresh (nth_error (value_to_bits (fst (snd (snd s2)) Inode.InodeAllocatorParams.bitmap_addr)) inum);
 setoid_rewrite D.
 destruct b; simpl; intuition eauto.
@@ -113,7 +113,7 @@ simpl; intuition eauto.
 repeat invert_exec; try lia.
 unfold AD_related_states, refines_related in *; cleanup; simpl in *.
 unfold refines, File.files_rep, File.files_inner_rep  in *; cleanup.
-erewrite TSDelete.inode_allocations_are_same_2 in *; eauto.
+erewrite inode_allocations_are_same_2 in *; eauto.
 destruct_fresh (nth_error
 (value_to_bits
    (fst (snd (snd s2)) Inode.InodeAllocatorParams.bitmap_addr)) inum);
@@ -913,7 +913,7 @@ all: eauto.
 }
 {
 destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks).
-- repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
+- repeat erewrite used_blocks_are_allocated_2; eauto.
 all: eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
 intros; FileInnerSpecs.solve_bounds.
 - unfold Inode.inode_rep, Inode.inode_map_rep,
@@ -1036,7 +1036,7 @@ all: eauto.
 }
 {
 destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks).
-- repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
+- repeat erewrite used_blocks_are_allocated_2; eauto.
 all: eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
 intros; FileInnerSpecs.solve_bounds.
 - unfold Inode.inode_rep, Inode.inode_map_rep,
@@ -1159,7 +1159,7 @@ all: eauto.
 }
 {
 destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks).
-- repeat erewrite TSCommon.used_blocks_are_allocated_2; eauto.
+- repeat erewrite used_blocks_are_allocated_2; eauto.
 all: eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto;
 intros; FileInnerSpecs.solve_bounds.
 - unfold Inode.inode_rep, Inode.inode_map_rep,
@@ -1188,7 +1188,7 @@ unfold File.extend_inner. simpl; intros.
 simpl; intuition eauto.
 
 eapply have_same_structure_DiskAllocator_alloc; eauto.
-cleanup; eapply InodeTS.free_block_exists_iff; eauto.
+cleanup; eapply free_block_exists_iff; eauto.
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
 apply HC_map_ext_eq in H1; subst.
@@ -1266,7 +1266,7 @@ unfold File.extend_inner. simpl; intros.
 simpl; intuition eauto.
 
 eapply have_same_structure_DiskAllocator_alloc; eauto.
-cleanup; eapply InodeTS.free_block_exists_iff; eauto.
+cleanup; eapply free_block_exists_iff; eauto.
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
 apply HC_map_ext_eq in H1; subst.
@@ -1545,7 +1545,7 @@ intros; FileInnerSpecs.solve_bounds.
   eapply Forall_forall; intros.
   eapply in_seln_exists in H2; cleanup.
   simpl; rewrite <- H3.
-  eapply TSCommon.used_blocks_are_allocated_2; eauto.
+  eapply used_blocks_are_allocated_2; eauto.
   eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
   intros; FileInnerSpecs.solve_bounds.
 }
@@ -1554,7 +1554,7 @@ intros; FileInnerSpecs.solve_bounds.
   eapply Forall_forall; intros.
   eapply in_seln_exists in H2; cleanup.
   simpl; rewrite <- H3.
-  eapply TSCommon.used_blocks_are_allocated_2; eauto.
+  eapply used_blocks_are_allocated_2; eauto.
   eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
   intros; FileInnerSpecs.solve_bounds.
 }
@@ -1711,11 +1711,11 @@ have_same_structure
 (o : oracle' (TransactionalDiskLayer.TDCore data_length))
 (o' o1
  o2 : list
-        (Language.token' (TransactionalDiskLayer.TDCore data_length)))
-(s1 : Language.state' (TransactionalDiskLayer.TDCore data_length))
+        (Layer.token' (TransactionalDiskLayer.TDCore data_length)))
+(s1 : LayerImplementation.state' (TransactionalDiskLayer.TDCore data_length))
 (s2 : txn_state * (total_mem * total_mem))
 (s1'
- s2' : Language.state' (TransactionalDiskLayer.TDCore data_length))
+ s2' : LayerImplementation.state' (TransactionalDiskLayer.TDCore data_length))
 (r1 r2 : option T) (inum : nat),
 exec TD u o s1 (p1 inum) (Finished s1' r1) ->
 o ++ o1 = o' ++ o2 ->
@@ -1883,7 +1883,7 @@ Proof.
   unfold refines, File.files_rep in *; simpl in *; logic_clean.
   clear H2 H4.
   eapply have_same_structure_InodeAllocator_alloc; eauto.
-  eapply InodeTS.free_block_exists_iff_inode; eauto.
+  eapply free_block_exists_iff_inode; eauto.
   
   eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.

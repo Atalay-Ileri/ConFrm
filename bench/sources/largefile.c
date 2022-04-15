@@ -10,8 +10,8 @@
 
 /* Measure creating a large file and overwriting that file */
 
-#define WSIZE (16 * 4096)
-#define FILESIZE  2 * 1024 * 1024
+#define WSIZE (32 * 4096)
+#define FILESIZE  1 * 1024 * 1024
 #define NAMESIZE 100
 
 static char name[NAMESIZE];
@@ -23,6 +23,11 @@ void printstats(int reset)
 {
   int fd;
   int r;
+  
+  if (reset == 1) {
+  	sprintf(name, "%s/clear-stats", dir);
+	open(name, O_RDONLY);
+  } 
 
   sprintf(name, "%s/stats", dir);
   if((fd = open(name, O_RDONLY)) < 0) {

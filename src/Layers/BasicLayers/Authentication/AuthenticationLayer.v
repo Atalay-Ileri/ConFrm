@@ -50,4 +50,4 @@ Set Implicit Arguments.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition AuthenticationLang := Build_Language AuthenticationOperation.
+  Definition AuthenticationLang := Build_Layer AuthenticationOperation.

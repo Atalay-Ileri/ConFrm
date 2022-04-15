@@ -5,7 +5,7 @@ Import ListNotations.
 Set Implicit Arguments.
 
 Definition CryptoDiskOperation  :=  HorizontalComposition CryptoOperation (DiskOperation addr_dec value (fun a => a < disk_size)).
-Definition CryptoDiskLang := Build_Language CryptoDiskOperation.  
+Definition CryptoDiskLang := Build_Layer CryptoDiskOperation.  
 
 Notation "'|CP|' p" := (@lift_L1 CryptoOperation (DiskOperation addr_dec value (fun a => a < disk_size)) CryptoLang _ p) (at level 59).
 Notation "'|DP|' p" := (@lift_L2 CryptoOperation (DiskOperation addr_dec value (fun a => a < disk_size)) (DiskLang addr_dec value (fun a => a < disk_size)) _ p) (at level 59).
@@ -24,3 +24,5 @@ Definition non_colliding_selector selector (s: CryptoDiskLang.(state)) :=
           (select_total_mem selector (snd s)) (log_start + i) = seln (map (fun v => (v, [])) new_log_blocks) i (value0, [])) ->
     rolling_hash hash0 (map fst old_log_blocksets) = rolling_hash hash0 new_log_blocks ->
     map fst old_log_blocksets = new_log_blocks.
+
+    

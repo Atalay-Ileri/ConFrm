@@ -26,7 +26,7 @@ Lemma HC_exec_same_finished:
   forall u T (p: AD.(prog) T) 
   o o0 s_imp s_abs x x0,
   not_init p ->
-  Language.exec' u o s_imp
+  LayerImplementation.exec' u o s_imp
  (ATC_Refinement.(Simulation.Definitions.compile) p)
  (Finished x x0) ->
 
@@ -48,7 +48,7 @@ TransactionalDiskLayer.exec' data_length u x2
   s_abs o (Finished s_abs' x0) /\
 refines x s_abs') ->
  exists s_abs' : Recovery_Result,
-  recovery_exec AD u [o0] s_abs
+  exec_with_recovery AD u [o0] s_abs
     (authenticated_disk_reboot_list 0) p
     File.recover s_abs' /\
     ATC_Refinement.(Simulation.Definitions.refines) x
@@ -120,7 +120,7 @@ Lemma HC_exec_same_crashed:
   forall u T (p: AD.(prog) T) 
   o o0 s_imp s_abs x,
   not_init p ->
-  Language.exec' u o s_imp
+  LayerImplementation.exec' u o s_imp
  (ATC_Refinement.(Simulation.Definitions.compile) p)
  (Crashed x) ->
 
@@ -162,19 +162,19 @@ Lemma HC_exec_same_crashed:
     token_refines T u s_imp o2 x7 x4 x3 ->
     x5 ++ x6 =
      map
-       (fun o : Language.token' TransactionCacheOperation =>
+       (fun o : LayerImplementation.token' TransactionCacheOperation =>
         match o with
         | OpToken _ o1 =>
             OpToken
               (HorizontalComposition AuthenticationOperation
                  TransactionCacheOperation)
               (Token2 AuthenticationOperation TransactionCacheOperation o1)
-        | Language.Crash _ =>
-            Language.Crash
+        | LayerImplementation.Crash _ =>
+            LayerImplementation.Crash
               (HorizontalComposition AuthenticationOperation
                  TransactionCacheOperation)
-        | Language.Cont _ =>
-            Language.Cont
+        | LayerImplementation.Cont _ =>
+            LayerImplementation.Cont
               (HorizontalComposition AuthenticationOperation
                  TransactionCacheOperation)
         end) x2 ++ x1 ->
@@ -183,7 +183,7 @@ Lemma HC_exec_same_crashed:
     *)
 
  exists s_abs',
- Language.exec' u o0 s_abs p (Crashed s_abs') /\
+ LayerImplementation.exec' u o0 s_abs p (Crashed s_abs') /\
   refines_reboot (snd x) (snd s_abs').
 Proof.
   induction p; simpl; intros.
@@ -398,15 +398,15 @@ u _
   Qed.
 
 
-  Theorem HC_recovery_exec_same:
+  Theorem HC_exec_with_recovery_same:
       forall u T (p: AD.(prog) T) n 
       l_o_imp l_o_abs s_imp s_abs s_imp',
     not_init p ->
-      recovery_exec ATCLang u l_o_imp s_imp (ATC_reboot_list n)
+      exec_with_recovery ATCLang u l_o_imp s_imp (ATC_reboot_list n)
       (Simulation.Definitions.compile ATC_Refinement p)
       (Simulation.Definitions.compile ATC_Refinement File.recover) s_imp' ->
 
-      recovery_oracles_refine_to ATC_Refinement u
+      recovery_oracles_refine ATC_Refinement u
       s_imp p File.recover (ATC_reboot_list n) l_o_imp l_o_abs ->
 
       Simulation.Definitions.refines
@@ -436,7 +436,7 @@ u _
    refines_reboot x s_abs') ->
 
       exists s_abs' : Recovery_Result,
-      recovery_exec AD u l_o_abs s_abs
+      exec_with_recovery AD u l_o_abs s_abs
       (authenticated_disk_reboot_list n) p File.recover s_abs' /\
       Simulation.Definitions.refines ATC_Refinement (extract_state_r s_imp')
     (extract_state_r s_abs') /\ extract_ret_r s_imp' = extract_ret_r s_abs'.
@@ -477,10 +477,10 @@ Qed.
 
 
 Lemma operation_simulation_finished:
-      forall (u0 : user) (s_imp0 : Language.state' TransactionCacheOperation)
+      forall (u0 : user) (s_imp0 : LayerImplementation.state' TransactionCacheOperation)
       s_abs0 (T0 : Type)
       (o : operation Definitions.abs_op T0)
-      (x : Language.state' TransactionCacheOperation) 
+      (x : LayerImplementation.state' TransactionCacheOperation) 
       (x0 : T0) (x2 : TransactionalDiskLayer.token')
       (x3 : oracle' TransactionCacheOperation)
       (x4 : state Definitions.imp -> state Definitions.imp),
@@ -582,10 +582,10 @@ Lemma operation_simulation_finished:
     Qed.
 
 Lemma operation_simulation_crashed:
-    forall (u0 : user) (s_imp0 : Language.state' TransactionCacheOperation)
+    forall (u0 : user) (s_imp0 : LayerImplementation.state' TransactionCacheOperation)
   s_abs0 (T0 : Type)
   (o : operation Definitions.abs_op T0)
-  (x : Language.state' TransactionCacheOperation)
+  (x : LayerImplementation.state' TransactionCacheOperation)
   (x2 : TransactionalDiskLayer.token')
   (x3 : oracle' TransactionCacheOperation)
   (x4 : state Definitions.imp -> state Definitions.imp),
@@ -692,7 +692,7 @@ SimulationForProgram ATC_Refinement u
     unfold SimulationForProgram,
     SimulationForProgramGeneral; 
     intros.
-    eapply HC_recovery_exec_same; eauto.
+    eapply HC_exec_with_recovery_same; eauto.
     eapply operation_simulation_finished.
     eapply operation_simulation_crashed.
   Qed.
@@ -1093,7 +1093,7 @@ Qed.
 
 Lemma ATC_simulation_crash':
 forall u (o : oracle' ATCCore) (s : state ATCLang)
-  (s' : Language.state' ATCCore) T (p: FD.(prog) T),
+  (s' : LayerImplementation.state' ATCCore) T (p: FD.(prog) T),
 (exists s1 : state AD,
    Simulation.Definitions.refines ATC_Refinement s s1) ->
 exec ATCLang u o s
@@ -1146,7 +1146,7 @@ exists s1',
 
     Lemma ATC_simulation_crash:
 forall u (o : oracle' ATCCore) (s : state ATCLang)
-  (s' : Language.state' ATCCore) T (p: FD.(prog) T),
+  (s' : LayerImplementation.state' ATCCore) T (p: FD.(prog) T),
 (exists s1 : state AD,
    Simulation.Definitions.refines ATC_Refinement s s1) ->
 

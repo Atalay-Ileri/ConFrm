@@ -63,7 +63,7 @@ Section DiskLayer.
       exec'
       exec_deterministic_wrt_token'.
   
-  Definition DiskLang := Build_Language DiskOperation.
+  Definition DiskLang := Build_Layer DiskOperation.
 
 Notation "| p |" := (Op DiskOperation p)(at level 60).
 Notation "x <-| p1 ; p2" := (Bind (Op DiskOperation p1) (fun x => p2))(right associativity, at level 60). 

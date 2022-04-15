@@ -54,7 +54,7 @@ Lemma HC_exec_same_finished:
   forall u T (p: ATCLang.(prog) T) 
   o o0 s_imp s_abs x x0 t,
   not_init p ->
-  Language.exec' u o s_imp
+  LayerImplementation.exec' u o s_imp
  (ATCD_Refinement.(Simulation.Definitions.compile) p)
  (Finished x x0) ->
 
@@ -85,7 +85,7 @@ data_length
   s_abs o (Finished s_abs' x0) /\
 refines x s_abs') ->
  exists s_abs' : Recovery_Result,
-  recovery_exec ATCLang u [o0] s_abs
+  exec_with_recovery ATCLang u [o0] s_abs
     (ATC_reboot_list 0) p
     (ATC_Refinement.(Simulation.Definitions.compile) File.recover) s_abs' /\
     ATCD_Refinement.(Simulation.Definitions.refines) x
@@ -266,7 +266,7 @@ Lemma HC_exec_same_crashed:
   forall u T (p: ATCLang.(prog) T) 
   o o0 s_imp s_abs x t,
   not_init p ->
-  Language.exec' u o s_imp
+  LayerImplementation.exec' u o s_imp
  (ATCD_Refinement.(Simulation.Definitions.compile) p)
  (Crashed x) ->
 
@@ -312,7 +312,7 @@ data_length u x2
   refines x s_abs') ->
 
  exists s_abs',
- Language.exec' u o0 s_abs p (Crashed s_abs') /\
+ LayerImplementation.exec' u o0 s_abs p (Crashed s_abs') /\
   refines_reboot 
   (empty_mem, (fst (snd (snd (snd x))), select_total_mem t (snd (snd (snd (snd x)))))) (snd (snd s_abs')).
 Proof.
@@ -543,16 +543,16 @@ u _
   all: exact ATCDLang.
   Qed.
 
-  Theorem HC_recovery_exec_same:
+  Theorem HC_exec_with_recovery_same:
       forall u T (p: ATCLang.(prog) T) l_selector 
       l_o_imp l_o_abs s_imp s_abs s_imp',
     not_init p ->
-      recovery_exec ATCDLang u l_o_imp s_imp (ATCD_reboot_list l_selector)
+      exec_with_recovery ATCDLang u l_o_imp s_imp (ATCD_reboot_list l_selector)
       (Simulation.Definitions.compile ATCD_Refinement p)
       (Simulation.Definitions.compile ATCD_Refinement 
       (Simulation.Definitions.compile ATC_Refinement File.recover)) s_imp' ->
 
-      recovery_oracles_refine_to ATCD_Refinement u
+      recovery_oracles_refine ATCD_Refinement u
       s_imp p (Simulation.Definitions.compile ATC_Refinement File.recover) 
       (ATCD_reboot_list l_selector) l_o_imp l_o_abs ->
 
@@ -591,7 +591,7 @@ data_length u x2
     refines_reboot (empty_mem, (fst (snd x), select_total_mem t (snd (snd x)))) s_abs') ->
 
       exists s_abs' : Recovery_Result,
-      recovery_exec ATCLang u l_o_abs s_abs
+      exec_with_recovery ATCLang u l_o_abs s_abs
       (ATC_reboot_list (length l_selector)) p (Simulation.Definitions.compile ATC_Refinement File.recover) s_abs' /\
       Simulation.Definitions.refines ATCD_Refinement (extract_state_r s_imp')
     (extract_state_r s_abs') /\ extract_ret_r s_imp' = extract_ret_r s_abs'.
@@ -631,7 +631,7 @@ Qed.
 Lemma oracle_refines_independent_from_reboot_function:
       forall u (T : Type) (p : prog ATCLang T)
     s s' r o o_abs grs,
-    Language.exec' u o s (Simulation.Definitions.compile ATCD_Refinement p)
+    LayerImplementation.exec' u o s (Simulation.Definitions.compile ATCD_Refinement p)
     (Finished s' r) ->
     oracle_refines _ _ ATCDLang ATCLang
     ATCD_CoreRefinement T u s p grs o o_abs ->
@@ -707,19 +707,19 @@ Lemma oracle_refines_independent_from_reboot_function:
       split_ors; cleanup.
       match goal with
       | [H: exec _ _ (?o ++ _) ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
         exfalso; eapply finished_not_crashed_oracle_prefix in H; eauto;
         rewrite <- app_assoc; eauto
       end.
       match goal with
       | [H: exec _ _ _ ?s ?p (Finished _ _),
-        H0: Language.exec' _ _ ?s ?p (Finished _ _) |- _] =>
+        H0: LayerImplementation.exec' _ _ ?s ?p (Finished _ _) |- _] =>
       eapply exec_finished_deterministic_prefix in H; try solve [apply H0];
       eauto; cleanup
       end.
       repeat match goal with
       | [H: exec _ _ ?o ?s ?p _,
-        H0: Language.exec' _ ?o ?s ?p _ |- _] =>
+        H0: LayerImplementation.exec' _ ?o ?s ?p _ |- _] =>
       eapply_fresh  exec_deterministic_wrt_oracle in H; try solve [apply H0];
       eauto; cleanup
       end.
@@ -732,12 +732,12 @@ Lemma oracle_refines_independent_from_reboot_function:
 Qed.
 
 Lemma operation_simulation_finished:
-forall (u : user) (s_imp : Language.state' CachedDiskOperation)
+forall (u : user) (s_imp : LayerImplementation.state' CachedDiskOperation)
 (s_abs : state Definitions.abs) (T : Type)
 (o : operation Definitions.abs_core T)
-(x : Language.state' CachedDiskOperation) (x0 : T)
+(x : LayerImplementation.state' CachedDiskOperation) (x0 : T)
 (x2 : LoggedDiskLayer.token') (x3 : oracle' CachedDiskOperation)
-(x4 : Language.state' CachedDiskOperation -> state CachedDiskLang),
+(x4 : LayerImplementation.state' CachedDiskOperation -> state CachedDiskLang),
 exec CachedDiskLang u x3 s_imp (compile T o) (Finished x x0) ->
 token_refines T u s_imp o x4 x3 x2 ->
 refines s_imp s_abs ->
@@ -758,7 +758,7 @@ Proof.
           simpl in *; eauto.
          }
          instantiate (1:= [ _ ]). 
-         simpl recovery_oracles_refine_to; eauto.
+         simpl recovery_oracles_refine; eauto.
          split; eauto.
          left; do 2 eexists; intuition eauto.
          cleanup; simpl in *.
@@ -1005,7 +1005,7 @@ SimulationForProgram ATCD_Refinement u
     unfold SimulationForProgram,
     SimulationForProgramGeneral; 
     intros.
-    eapply HC_recovery_exec_same; eauto.
+    eapply HC_exec_with_recovery_same; eauto.
     eapply operation_simulation_finished.
     eapply operation_simulation_crashed.
   Qed.

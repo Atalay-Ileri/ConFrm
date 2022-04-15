@@ -107,6 +107,6 @@ Section TransactionalDisk.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition TDLang := Build_Language TDCore.
+  Definition TDLang := Build_Layer TDCore.
 
 End TransactionalDisk.

@@ -1,5 +1,5 @@
 Require Import Primitives Layer.Core.
-Require Language.
+Require LayerImplementation.
 Import ListNotations.
 
 Set Implicit Arguments.
@@ -57,9 +57,9 @@ Section HorizontalComposition.
       horizontal_composition_prog exec'
       exec_deterministic_wrt_token'.
 
-Import Language.
+Import LayerImplementation.
 
-Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' HorizontalComposition T :=
+Fixpoint lift_L1 {L1: Layer O1} {T} (p1 : L1.(prog) T) : prog' HorizontalComposition T :=
   match p1 with
   | Op _ o1 =>
     Op HorizontalComposition (P1 _ o1)
@@ -69,7 +69,7 @@ Fixpoint lift_L1 {L1: Language O1} {T} (p1 : L1.(prog) T) : prog' HorizontalComp
     Bind (@lift_L1 L1 _ px) (fun x => @lift_L1 L1 _ (py x))
   end.
 
-Fixpoint lift_L2 {L2: Language O2} {T} (p2 : L2.(prog) T) : prog' HorizontalComposition T :=
+Fixpoint lift_L2 {L2: Layer O2} {T} (p2 : L2.(prog) T) : prog' HorizontalComposition T :=
   match p2 with
   | Op _ o2 =>
     Op HorizontalComposition (P2 _ o2)

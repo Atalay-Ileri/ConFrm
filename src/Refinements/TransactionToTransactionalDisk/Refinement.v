@@ -19,9 +19,9 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
 
   Ltac unify_execs :=
     match goal with
-    |[H : recovery_exec ?u ?x ?y ?z ?a ?b ?c _,
-      H0 : recovery_exec ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
-     eapply recovery_exec_deterministic_wrt_reboot_state in H; [| apply H0]
+    |[H : exec_with_recovery ?u ?x ?y ?z ?a ?b ?c _,
+      H0 : exec_with_recovery ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
+     eapply exec_with_recovery_deterministic_wrt_reboot_state in H; [| apply H0]
     | [ H: exec ?u ?x ?y ?z ?a _,
         H0: exec ?u ?x ?y ?z ?a _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
@@ -29,14 +29,14 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
         H0: exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     | [ H: exec _ ?u ?x ?y ?z _,
-        H0: Language.exec' ?u ?x ?y ?z _ |- _ ] =>
+        H0: LayerImplementation.exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     end.
   
-  Lemma recovery_oracles_refine_to_length:
-    forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (ref: Refinement L_imp L_abs)
+  Lemma recovery_oracles_refine_length:
+    forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (ref: Refinement L_imp L_abs)
       l_o_imp l_o_abs T (u: user) s (p1: L_abs.(prog) T) rec l_rf u, 
-      recovery_oracles_refine_to ref u s p1 rec l_rf l_o_imp l_o_abs ->
+      recovery_oracles_refine ref u s p1 rec l_rf l_o_imp l_o_abs ->
       length l_o_imp = length l_o_abs.
   Proof.
     induction l_o_imp; simpl; intros; eauto.
@@ -70,7 +70,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -109,7 +109,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -152,7 +152,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh read_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -221,7 +221,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh write_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -262,7 +262,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
       eapply_fresh abort_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -305,7 +305,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       {
         exists ([OpToken (TDCore data_length) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto;
         simpl in *.
@@ -320,7 +320,7 @@ Definition TD_reboot_f := fun s: abs.(state) => (Empty, (snd (snd s), snd (snd s
       {
         exists ([OpToken (TDCore data_length) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto;
         simpl in *.
@@ -813,7 +813,7 @@ Qed.
 
 Lemma TC_to_TD_core_simulation_crashed:
 forall u (T : Type) (o0 : operation Definitions.abs_op T)
-(s_imp s_imp' : Language.state' TransactionCacheOperation)
+(s_imp s_imp' : LayerImplementation.state' TransactionCacheOperation)
 s_abs (o_imp : oracle' TransactionCacheOperation)
 t_abs,
 exec Definitions.imp u o_imp s_imp
@@ -908,7 +908,7 @@ Qed.
 Lemma TD_token_refines_finished :
       forall u (T : Type) (op : operation Definitions.abs_op T)
       (x : oracle' TransactionCacheOperation) (r0 : T)
-      (s0 s'0 : Language.state' TransactionCacheOperation),
+      (s0 s'0 : LayerImplementation.state' TransactionCacheOperation),
     exec Definitions.imp u x s0
       (compile_core Definitions.TDCoreRefinement op)
       (Finished s'0 r0) ->
@@ -972,7 +972,7 @@ Lemma TD_token_refines_finished :
       Lemma TD_token_refines_crashed :
       forall u (T : Type) (op : operation Definitions.abs_op T)
   (x : oracle' TransactionCacheOperation)
-  (s0 s'0 : Language.state' TransactionCacheOperation),
+  (s0 s'0 : LayerImplementation.state' TransactionCacheOperation),
 exec Definitions.imp u x s0
   (compile_core Definitions.TDCoreRefinement op) 
   (Crashed s'0) ->
@@ -1039,7 +1039,7 @@ exec Definitions.imp u x s0
 Lemma TD_token_refines :
       forall u (T : Type) (op : operation Definitions.abs_op T)
   (x : oracle' TransactionCacheOperation)
-  (s0 : Language.state' TransactionCacheOperation) ret,
+  (s0 : LayerImplementation.state' TransactionCacheOperation) ret,
 exec Definitions.imp u x s0
   (compile_core Definitions.TDCoreRefinement op) 
   ret ->

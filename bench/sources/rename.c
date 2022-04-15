@@ -22,7 +22,12 @@ void printstats(int reset)
 {
   int fd;
   int r;
-
+  
+if (reset == 1) {
+  	sprintf(oldname, "%s/clear-stats", dir);
+	open(oldname, O_RDONLY);
+  } 
+  
   sprintf(oldname, "%s/stats", dir);
   if((fd = open(oldname, O_RDONLY)) < 0) {
     return;
@@ -98,4 +103,5 @@ int main(int argc, char *argv[])
   printf("DATA: %d %ld\n", i, end-start);
 
   printstats(0);
+  
 }

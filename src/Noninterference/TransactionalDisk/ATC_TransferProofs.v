@@ -10,7 +10,7 @@ Set Nested Proofs Allowed.
 Opaque Inode.get_owner File.read_inner.
 Theorem ss_ATC_read:
   forall n inum off u u',
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Read inum off)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -20,7 +20,7 @@ Theorem ss_ATC_read:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_read.
       - eapply ATC_simulation.
         apply not_init_read.
@@ -40,13 +40,12 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_read. *) admit.
-Admitted.
+Qed.
 
 
 Theorem ss_ATC_write:
   forall n inum off u u' v,
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -56,7 +55,7 @@ Theorem ss_ATC_write:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_write.
       - eapply ATC_simulation.
         apply not_init_write.
@@ -76,12 +75,11 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_write. *) admit. 
-Admitted.
+Qed.
 
 Theorem ss_ATC_write_input:
   forall n inum off u u' v1 v2,
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v1)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Write inum off v2)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -91,7 +89,7 @@ Theorem ss_ATC_write_input:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_write_input.
       - eapply ATC_simulation.
         apply not_init_write.
@@ -111,13 +109,12 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_write. *) admit. 
-Admitted.
+Qed.
 
 
 Theorem ss_ATC_extend:
   forall n inum u u' v,
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -127,7 +124,7 @@ Theorem ss_ATC_extend:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_extend.
       - eapply ATC_simulation.
         apply not_init_extend.
@@ -147,12 +144,11 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_extend. *) admit. 
-Admitted.
+Qed.
 
 Theorem ss_ATC_extend_input:
   forall n inum u u' v1 v2,
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v1)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Extend inum v2)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -162,7 +158,7 @@ Theorem ss_ATC_extend_input:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_extend_input.
       - eapply ATC_simulation.
         apply not_init_extend.
@@ -182,13 +178,12 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_extend. *) admit. 
-Admitted.
+Qed.
 
 
 Theorem ss_ATC_change_owner:
   forall n inum u u' v,
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (ChangeOwner inum v)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (ChangeOwner inum v)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -198,7 +193,7 @@ Theorem ss_ATC_change_owner:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_change_owner.
       - eapply ATC_simulation.
         apply not_init_change_owner.
@@ -218,12 +213,11 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_change_owner. *) admit. 
-Admitted.
+Qed.
 
 Theorem ss_ATC_create:
   forall n u u' o,
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Create o)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Create o)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -233,7 +227,7 @@ Theorem ss_ATC_create:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_create.
       - eapply ATC_simulation.
         apply not_init_create.
@@ -253,15 +247,14 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_create. *) admit. 
-Admitted.
+Qed.
 
 
 
 
 Theorem ss_ATC_delete:
   forall n inum u u',
-    SelfSimulation u
+    RDNI_Weak u
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Delete inum)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) (Delete inum)))) 
     (ATC_Refinement.(Simulation.Definitions.compile) (FD.refinement.(Simulation.Definitions.compile) (FDOp.(Op) Recover))) 
@@ -271,7 +264,7 @@ Theorem ss_ATC_delete:
     (eq u') (ATC_reboot_list n).
 Proof.
     intros.
-    eapply SS_transfer.
+    eapply RDNIW_transfer.
       - apply ss_AD_delete.
       - eapply ATC_simulation.
         apply not_init_delete.
@@ -291,20 +284,9 @@ Proof.
       - unfold exec_compiled_preserves_validity, AD_valid_state, 
       refines_valid, FD_valid_state; 
       intros; simpl; eauto.
-      - (* apply ATC_TS_delete. *) admit. 
-Admitted.
-
-
-
-Lemma same_for_user_except_reflexive :
-forall u ex s,
-same_for_user_except u ex s s.
-Proof.
-  unfold same_for_user_except, addrs_match_exactly; intros;
-  intuition; cleanup; eauto.
 Qed.
 
-
+(*
 Lemma data_block_inbounds:
 forall inum off s fm im dm inode,
 Inode.inode_rep im s ->
@@ -355,7 +337,7 @@ Proof.
       2: eapply nth_In; eauto.
       instantiate (1:= 0) in H13.
       apply PeanoNat.Nat.le_succ_l in H13.
-      eapply TSCommon.lt_le_lt; eauto.
+      eapply lt_le_lt; eauto.
       rewrite nth_seln_eq; eauto.
       
 
@@ -377,28 +359,28 @@ Proof.
       apply Inode.InodeAllocatorParams.num_of_blocks_in_bounds.
 Qed.
 
-(*
-Theorem recovery_exec_termination_sensitive_bind:
-  forall O (L: Language O) 
+
+Theorem exec_with_recovery_termination_sensitive_bind:
+  forall O (L: Layer O) 
   T (p1 p2: L.(prog) T) 
   T' (p3 p4: T -> L.(prog) T') rec s1 s2 
   lob l_grs u s1',
   (forall s1' lo lgrs, 
-  recovery_exec L u lo s1 lgrs p1 rec s1' ->
+  exec_with_recovery L u lo s1 lgrs p1 rec s1' ->
    exists s2',
-   recovery_exec L u lo s2 lgrs p2 rec s2') ->
+   exec_with_recovery L u lo s2 lgrs p2 rec s2') ->
 
   (forall s1' s2' s1r t1 t2 lo lo' lgrs, 
-  recovery_exec L u lo s1 [] p1 rec (RFinished s1' t1) ->
-  recovery_exec L u lo s2 [] p2 rec (RFinished s2' t2) ->
+  exec_with_recovery L u lo s1 [] p1 rec (RFinished s1' t1) ->
+  exec_with_recovery L u lo s2 [] p2 rec (RFinished s2' t2) ->
     
-  recovery_exec L u lo' s1' lgrs (p3 t1) rec s1r ->
+  exec_with_recovery L u lo' s1' lgrs (p3 t1) rec s1r ->
   exists s2r,
-  recovery_exec L u lo' s2' lgrs (p4 t2) rec s2r) ->
+  exec_with_recovery L u lo' s2' lgrs (p4 t2) rec s2r) ->
 
-  recovery_exec L u lob s1 l_grs (Bind p1 p3) rec s1' ->
+  exec_with_recovery L u lob s1 l_grs (Bind p1 p3) rec s1' ->
    exists s2',
-   recovery_exec L u lob s2 l_grs (Bind p2 p4) rec s2'.
+   exec_with_recovery L u lob s2 l_grs (Bind p2 p4) rec s2'.
 Proof.
   intros; repeat invert_exec.
   {
@@ -439,8 +421,8 @@ Qed.
 
 Lemma abstract_oracles_exist_wrt_compositional:
 forall (C_imp C_abs: Core)
- (L_imp: Language C_imp)
- (L_abs: Language C_abs)
+ (L_imp: Layer C_imp)
+ (L_abs: Layer C_abs)
  (CoreRefinement : CoreRefinement L_imp C_abs)
 u l_grs T (p1: prog L_abs T) T' (p2: T -> prog L_abs T') rec, 
 let R := LiftRefinement L_abs CoreRefinement in
@@ -510,9 +492,9 @@ Qed.
 
 Lemma AOE_change_refinement:
   forall O O1 O2 
-  (L: Language O)
-  (L1: Language O1)
-  (L2: Language O2)
+  (L: Layer O)
+  (L1: Layer O1)
+  (L2: Layer O2)
   (CR1: CoreRefinement L1 O)
   (CR2: CoreRefinement L2 O)
   u T (p: L.(prog) T) rec l_grs1 l_grs2,
@@ -520,27 +502,27 @@ Lemma AOE_change_refinement:
   let R2 := LiftRefinement L CR2 in
   ( forall sa si2 l_oi2 si2',  
   Simulation.Definitions.refines (LiftRefinement L CR2) si2 sa ->
-recovery_exec L2 u l_oi2 si2 l_grs2
+exec_with_recovery L2 u l_oi2 si2 l_grs2
   (Simulation.Definitions.compile (LiftRefinement L CR2) p)
   (Simulation.Definitions.compile (LiftRefinement L CR2) rec) si2' ->
   exists si1 l_oi1 si1',
   Simulation.Definitions.refines (LiftRefinement L CR1) si1 sa /\
-  recovery_exec L1 u l_oi1 si1 l_grs1
+  exec_with_recovery L1 u l_oi1 si1 l_grs1
         (Simulation.Definitions.compile (LiftRefinement L CR1) p)
         (Simulation.Definitions.compile (LiftRefinement L CR1) rec) si1') ->
 
   (forall l_oi1 l_oi2 l_oa si1 si2 sa si1' si2',
     Simulation.Definitions.refines (LiftRefinement L CR2) si2 sa ->
   Simulation.Definitions.refines (LiftRefinement L CR1) si1 sa ->
-  recovery_exec L2 u l_oi2 si2 l_grs2
+  exec_with_recovery L2 u l_oi2 si2 l_grs2
           (Simulation.Definitions.compile (LiftRefinement L CR2) p) 
           (Simulation.Definitions.compile (LiftRefinement L CR2) rec) si2' ->  
-  recovery_exec L1 u l_oi1 si1 l_grs1
+  exec_with_recovery L1 u l_oi1 si1 l_grs1
     (Simulation.Definitions.compile (LiftRefinement L CR1) p)
     (Simulation.Definitions.compile (LiftRefinement L CR1) rec) si1' ->
-    recovery_oracles_refine_to (LiftRefinement L CR1) u si1 p rec l_grs1 l_oi1 l_oa ->
+    recovery_oracles_refine (LiftRefinement L CR1) u si1 p rec l_grs1 l_oi1 l_oa ->
     exists l_oa : list (oracle L),
-    recovery_oracles_refine_to (LiftRefinement L CR2) u si2 p rec l_grs2 l_oi2 l_oa) ->
+    recovery_oracles_refine (LiftRefinement L CR2) u si2 p rec l_grs2 l_oi2 l_oa) ->
   
   abstract_oracles_exist_wrt R1
     R1.(Simulation.Definitions.refines) u
@@ -570,13 +552,13 @@ Qed.
 
 Lemma get_owner_oracle_refines_exists:
      forall u (o0 : oracle' ATCCore) (s : state ATCLang)
- (s' : Language.state' ATCCore) (r : option user) inum,
+ (s' : LayerImplementation.state' ATCCore) (r : option user) inum,
 (exists s3 : state AD, Simulation.Definitions.refines ATC_Refinement s s3) ->
 exec ATCLang u o0 s
  (Simulation.Definitions.compile ATC_Refinement
     (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_owner inum)))
  (Finished s' r) ->
-exists oa : list (Language.token' AuthenticatedDiskLayer.ADOperation),
+exists oa : list (Layer.token' AuthenticatedDiskLayer.ADOperation),
  forall grs : state ATCLang -> state ATCLang,
  oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation ATCLang AD
    ATC_CoreRefinement (option user) u s
@@ -588,13 +570,13 @@ Qed.
 
 Lemma get_block_number_oracle_refines_exists:
      forall u (o0 : oracle' ATCCore) (s : state ATCLang)
- (s' : Language.state' ATCCore) r inum off,
+ (s' : LayerImplementation.state' ATCCore) r inum off,
 (exists s3 : state AD, Simulation.Definitions.refines ATC_Refinement s s3) ->
 exec ATCLang u o0 s
  (Simulation.Definitions.compile ATC_Refinement
     (@lift_L2 AuthenticationOperation _ TD _ (Inode.get_block_number inum off)))
  (Finished s' r) ->
-exists oa : list (Language.token' AuthenticatedDiskLayer.ADOperation),
+exists oa : list (Layer.token' AuthenticatedDiskLayer.ADOperation),
  forall grs : state ATCLang -> state ATCLang,
  oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation ATCLang AD
    ATC_CoreRefinement _ u s
@@ -606,13 +588,13 @@ Qed.
 
 Lemma read_inner_oracle_refines_exists:
 forall u (o0 : oracle' ATCCore) (s : state ATCLang)
-(s' : Language.state' ATCCore) r off inum,
+(s' : LayerImplementation.state' ATCCore) r off inum,
 (exists s3 : state AD, Simulation.Definitions.refines ATC_Refinement s s3) ->
 exec ATCLang u o0 s
 (Simulation.Definitions.compile ATC_Refinement
 (@lift_L2 AuthenticationOperation _ TD _ (File.read_inner off inum)))
 (Finished s' r) ->
-exists oa : list (Language.token' AuthenticatedDiskLayer.ADOperation),
+exists oa : list (Layer.token' AuthenticatedDiskLayer.ADOperation),
 forall grs : state ATCLang -> state ATCLang,
 oracle_refines ATCCore AuthenticatedDiskLayer.ADOperation ATCLang AD
 ATC_CoreRefinement _ u s

@@ -9,9 +9,9 @@ L1 refines L3 if L1 refines L2 and L2 refines L3*)
 Section VC_Refinement.
 
 Variable O1 O2 O3: Core.
-Variable L1 : Language O1.
-Variable L2 : Language O2.
-Variable L3 : Language O3.
+Variable L1 : Layer O1.
+Variable L2 : Layer O2.
+Variable L3 : Layer O3.
 Variable R1: Refinement L1 L2.
 Variable R2: Refinement L2 L3.
 

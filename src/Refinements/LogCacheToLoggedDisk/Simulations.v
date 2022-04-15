@@ -9,13 +9,13 @@ Local Notation "'imp'" := CachedDiskLang.
 Local Notation "'abs'" := (LoggedDiskLang log_length data_length).
 Local Notation "'refinement'" := LoggedDiskRefinement.
 
-  Lemma ext_or_take_out:
-    forall A P Q R,
-      (exists a: A, P a) \/ (exists a: A, Q a) \/ (exists a : A, R a)->
-      exists a: A, P a \/ Q a \/ R a.
-  Proof.
-    intros; intuition (cleanup; eauto).
-  Qed.
+Lemma ext_or_take_out:
+  forall A P Q R,
+    (exists a: A, P a) \/ (exists a: A, Q a) \/ (exists a : A, R a)->
+    exists a: A, P a \/ Q a \/ R a.
+Proof.
+  intros; intuition (cleanup; eauto).
+Qed.
 
   
   

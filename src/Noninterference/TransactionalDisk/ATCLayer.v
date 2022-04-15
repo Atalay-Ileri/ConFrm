@@ -8,7 +8,7 @@ Import ListNotations.
 Set Implicit Arguments.
 
 Definition ATCCore :=  HorizontalComposition AuthenticationOperation TransactionCacheOperation.
-Definition ATCLang := Build_Language ATCCore.
+Definition ATCLang := Build_Layer ATCCore.
 
 Import AuthenticatedDiskLayer.
 Import TransactionalDiskRefinement.

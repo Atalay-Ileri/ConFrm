@@ -93,6 +93,6 @@ Section LoggedDisk.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition LoggedDiskLang := Build_Language LoggedDiskOperation.
+  Definition LoggedDiskLang := Build_Layer LoggedDiskOperation.
 End LoggedDisk.
 

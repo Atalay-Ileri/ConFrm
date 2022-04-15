@@ -61,6 +61,6 @@ Section CacheLayer.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition CacheLang := Build_Language CacheOperation.
+  Definition CacheLang := Build_Layer CacheOperation.
 
 End CacheLayer.

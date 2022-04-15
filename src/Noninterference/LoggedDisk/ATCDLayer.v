@@ -8,7 +8,7 @@ Import ListNotations.
 Set Implicit Arguments.
 
 Definition TCDCore :=  HorizontalComposition (ListOperation (addr * value)) CachedDiskOperation.
-Definition TCDLang := Build_Language TCDCore.
+Definition TCDLang := Build_Layer TCDCore.
 
 Import TransactionCacheLayer.
 Import LoggedDiskRefinement.
@@ -31,7 +31,7 @@ Definition TCD_Refinement := HC_Refinement TCDLang TransactionCacheLang LoggedDi
 
 (* ATCD *)
 Definition ATCDCore :=  HorizontalComposition AuthenticationOperation TCDCore.
-Definition ATCDLang := Build_Language ATCDCore.
+Definition ATCDLang := Build_Layer ATCDCore.
 
 (* 
 Definition ATCD_valid_state := fun s => TCD_valid_state (fst s) (snd s).

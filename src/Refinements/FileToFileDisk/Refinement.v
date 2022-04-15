@@ -20,9 +20,9 @@ Section FDSimulation.
 
   Ltac unify_execs :=
     match goal with
-    |[H : recovery_exec ?u ?x ?y ?z ?a ?b ?c _,
-      H0 : recovery_exec ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
-     eapply recovery_exec_deterministic_wrt_reboot_state in H; [| apply H0]
+    |[H : exec_with_recovery ?u ?x ?y ?z ?a ?b ?c _,
+      H0 : exec_with_recovery ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
+     eapply exec_with_recovery_deterministic_wrt_reboot_state in H; [| apply H0]
     | [ H: exec ?u ?x ?y ?z ?a _,
         H0: exec ?u ?x ?y ?z ?a _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
@@ -30,14 +30,14 @@ Section FDSimulation.
         H0: exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     | [ H: exec _ ?u ?x ?y ?z _,
-        H0: Language.exec' ?u ?x ?y ?z _ |- _ ] =>
+        H0: LayerImplementation.exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     end.
   
-  Lemma recovery_oracles_refine_to_length:
-    forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (ref: Refinement L_imp L_abs)
+  Lemma recovery_oracles_refine_length:
+    forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (ref: Refinement L_imp L_abs)
       l_o_imp l_o_abs T (u: user) s (p1: L_abs.(prog) T) rec l_rf u, 
-      recovery_oracles_refine_to ref u s p1 rec l_rf l_o_imp l_o_abs ->
+      recovery_oracles_refine ref u s p1 rec l_rf l_o_imp l_o_abs ->
       length l_o_imp = length l_o_abs.
   Proof.
     induction l_o_imp; simpl; intros; eauto.
@@ -81,7 +81,7 @@ Section FDSimulation.
       exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto.
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -118,7 +118,7 @@ Section FDSimulation.
       exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh recover_crashed in H10; eauto; cleanup.
       repeat split; eauto.
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *.
@@ -161,7 +161,7 @@ Section FDSimulation.
       exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
       eapply_fresh read_crashed in H10; eauto; cleanup.
       repeat split; eauto; try (unify_execs; cleanup).
-      eapply recovery_oracles_refine_to_length in H0; eauto.
+      eapply recovery_oracles_refine_length in H0; eauto.
       right.
       eexists; repeat split; eauto;
       simpl in *; intros.      
@@ -242,7 +242,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto.
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto;
         simpl in *; intros.
@@ -260,7 +260,7 @@ Section FDSimulation.
           
           exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto.
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         exact (owner x1).
         right.
         eexists; repeat split; eauto;
@@ -273,7 +273,7 @@ Section FDSimulation.
         {
         exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto.
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         apply (owner x1).
     
         right.
@@ -361,7 +361,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto.
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto;
         simpl in *; intros;
@@ -374,7 +374,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         apply (owner x1).
     
         right.
@@ -466,7 +466,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
 
         eexists; repeat split; eauto;
@@ -480,7 +480,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         apply (owner x1).
     
         right.
@@ -580,7 +580,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto;
         simpl in *; intros;
@@ -596,7 +596,7 @@ Section FDSimulation.
           rewrite Mem.upd_nop in H4; [| unfold change_file_owner; destruct x1; simpl in *; eauto].
           exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
           repeat split; eauto; try (unify_execs; cleanup).
-          eapply recovery_oracles_refine_to_length in H0; eauto.
+          eapply recovery_oracles_refine_length in H0; eauto.
           exact (owner x1).
           right.
           eexists; repeat split; eauto;
@@ -609,7 +609,7 @@ Section FDSimulation.
         {
         exists ([OpToken (FDOperation inode_count) CrashAfter]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
     
         right.
         eexists; repeat split; eauto; intros.
@@ -705,7 +705,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) CrashBefore]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto; intros.
         eexists; repeat split; eauto;
@@ -717,7 +717,7 @@ Section FDSimulation.
       {
         exists ([OpToken (FDOperation inode_count) (CrashAfterCreate x1)]::x0); simpl.
         repeat split; eauto; try (unify_execs; cleanup).
-        eapply recovery_oracles_refine_to_length in H0; eauto.
+        eapply recovery_oracles_refine_length in H0; eauto.
     
         right.
         eexists; repeat split; eauto; intros.
@@ -759,7 +759,7 @@ Section FDSimulation.
       repeat invert_exec; cleanup.
       {
         rewrite <- H1; simpl.
-        exists [[Language.Cont (FDOperation inode_count) ]]; simpl; intuition.
+        exists [[LayerImplementation.Cont (FDOperation inode_count) ]]; simpl; intuition.
         left.
         eexists; repeat split; eauto; intros.
         eexists; repeat split; eauto; intros.
@@ -772,9 +772,9 @@ Section FDSimulation.
         simpl in *.
         eapply abstract_oracles_exist_wrt_recover in H10; eauto.
         cleanup.
-        exists ([Language.Crash (FDOperation inode_count)]::x0);
+        exists ([LayerImplementation.Crash (FDOperation inode_count)]::x0);
         simpl; intuition eauto.
-        apply recovery_oracles_refine_to_length in H0; eauto.
+        apply recovery_oracles_refine_length in H0; eauto.
         right.
         eexists; repeat split; eauto; intros.
         econstructor.
@@ -1579,7 +1579,7 @@ Theorem transfer_to_TransactionCache:
     valid_state_h
     valid_prog_h,
     
-    SelfSimulation
+    RDNI
       high
       valid_state_h
       valid_prog_h
@@ -1590,7 +1590,7 @@ Theorem transfer_to_TransactionCache:
     exec_compiled_preserves_validity refinement                           
     (refines_valid refinement valid_state_h) ->
     
-    SelfSimulation
+    RDNI
       low
       (refines_valid refinement valid_state_h)
       (compiles_to_valid refinement valid_prog_h)

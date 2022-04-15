@@ -2,7 +2,7 @@ Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLaye
 Require Import FileDiskNoninterference FileDiskRefinement.
 Require Import ATC_ORS ATCDLayer ATC_Simulation HSS ATC_TransferProofs.
 Require Import ATCD_Simulation ATCD_AOE.
-Require Import Not_Init ATCD_ORS ATCD_TS.
+Require Import Not_Init ATCD_ORS. (* ATCD_TS. *)
 
 Import FileDiskLayer.
 Set Nested Proofs Allowed.

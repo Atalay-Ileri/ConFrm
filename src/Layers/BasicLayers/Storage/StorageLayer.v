@@ -60,6 +60,6 @@ Section StorageLayer.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition StorageLang := Build_Language StorageOperation.
+  Definition StorageLang := Build_Layer StorageOperation.
   
 End StorageLayer.

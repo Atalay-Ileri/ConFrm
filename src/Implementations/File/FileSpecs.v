@@ -1601,7 +1601,7 @@ Ltac invert_exec_temp H :=
     | [H: Core.exec _ _ _ _ _ _ |- _] =>
     invert_exec'' H; cleanup;
     repeat (invert_exec; split_ors; cleanup); simpl; try lia
-    | [H: Language.exec' _ _ _ _ _ |- _] =>
+    | [H: LayerImplementation.exec' _ _ _ _ _ |- _] =>
     invert_exec'' H; cleanup;
     repeat (invert_exec; split_ors; cleanup); simpl; try lia
     end. 

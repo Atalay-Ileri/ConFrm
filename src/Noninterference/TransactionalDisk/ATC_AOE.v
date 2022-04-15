@@ -55,7 +55,7 @@ Proof.
 
       eexists (_::_); 
       simpl; intuition eauto.
-      eapply recovery_oracles_refine_to_length in H0.
+      eapply recovery_oracles_refine_length in H0.
       rewrite H0; eauto.
       eauto.
       
@@ -91,7 +91,7 @@ Proof.
 
       eexists (_::_); 
       simpl; intuition eauto.
-      eapply recovery_oracles_refine_to_length in H0.
+      eapply recovery_oracles_refine_length in H0.
       rewrite H0; eauto.
       eauto.
       
@@ -121,7 +121,7 @@ Proof.
 
   Lemma compile_lift2_comm:
   forall u T (p: TD.(prog) T) o s ret,
-  Language.exec' u o s
+  LayerImplementation.exec' u o s
   (RefinementLift.compile
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
@@ -132,7 +132,7 @@ Proof.
         TDCoreRefinement) T
       (lift_L2 AuthenticationOperation p)) ret ->
 
-      Language.exec' u o s
+      LayerImplementation.exec' u o s
       (lift_L2 AuthenticationOperation 
         (TDRefinement.(Simulation.Definitions.compile) p)) ret.
   Proof.
@@ -148,11 +148,11 @@ Proof.
 
   Lemma compile_lift2_comm_rev:
   forall u T (p: TD.(prog) T) o s ret,
-  Language.exec' u o s
+  LayerImplementation.exec' u o s
       (lift_L2 AuthenticationOperation 
         (TDRefinement.(Simulation.Definitions.compile) p)) ret ->
   
-  Language.exec' u o s
+  LayerImplementation.exec' u o s
   (RefinementLift.compile
       (HorizontalComposition AuthenticationOperation
         TransactionCacheOperation)
@@ -186,7 +186,7 @@ exists oa, forall grs, oracle_refines _ _
   ATC_CoreRefinement T u s
   (lift_L2 AuthenticationOperation p)
   grs (map
-       (fun o : Language.token' TransactionCacheOperation =>
+       (fun o : LayerImplementation.token' TransactionCacheOperation =>
         match o with
         | OpToken _ o1 =>
             OpToken
@@ -194,19 +194,19 @@ exists oa, forall grs, oracle_refines _ _
                  TransactionCacheOperation)
               (Token2 AuthenticationOperation
                  TransactionCacheOperation o1)
-        | Language.Crash _ =>
-            Language.Crash
+        | LayerImplementation.Crash _ =>
+            LayerImplementation.Crash
               (HorizontalComposition AuthenticationOperation
                  TransactionCacheOperation)
-        | Language.Cont _ =>
-            Language.Cont
+        | LayerImplementation.Cont _ =>
+            LayerImplementation.Cont
               (HorizontalComposition AuthenticationOperation
                  TransactionCacheOperation)
         end) o) oa) ->
 
         (forall o s s', 
 (exists s1, ATC_Refinement.(Simulation.Definitions.refines) s s1) ->
-Language.exec' u o s
+LayerImplementation.exec' u o s
         (RefinementLift.compile
            (HorizontalComposition AuthenticationOperation
               TransactionCacheOperation)
@@ -272,7 +272,7 @@ Proof.
       eexists (_ :: _).
       simpl.
       intuition eauto.
-      eapply recovery_oracles_refine_to_length in H3; eauto.
+      eapply recovery_oracles_refine_length in H3; eauto.
     }
     Unshelve.
     all: exact ATCLang.
@@ -342,7 +342,7 @@ Proof.
       eexists (_ :: _).
       simpl.
       intuition eauto.
-      eapply recovery_oracles_refine_to_length in H3; eauto.
+      eapply recovery_oracles_refine_length in H3; eauto.
       }
 Qed.
 

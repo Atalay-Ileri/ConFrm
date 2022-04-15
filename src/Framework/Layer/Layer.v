@@ -1,2 +1,4 @@
-Require Export  Layer.Core Layer.Language
-        Layer.HorizontalComposition Layer.Automation.
+Require Export  Layer.Core 
+Layer.HorizontalComposition 
+Layer.Automation 
+Layer.LayerImplementation.

@@ -1,0 +1,76 @@
+=== Unmount /tmp/NBFs ===
+=== NBMkfs in /dev/sdb3 ===
+Initializing file system
+Initialization OK, 263435 blocks
+Disk I/O stats:
+Reads:  0
+Writes: 2073
+Syncs:  7
+=== Recreate /tmp/NBFs ===
+=== Mount NBFs at /tmp/NBFs ===
+=== Starting Testing ===
+=== rename Bench ===
+DATA: 211 1000135
+=== FS Stats ===
+Reads:  0
+Writes: 2128
+Syncs: ========
+DATA: 214 1001402
+=== FS Stats ===
+Reads:  0
+Writes: 2162
+Syncs:  864
+========
+DATA: 147 1002043
+=== FS Stats ===
+Reads:  0
+Writes: 1488
+Syncs:  594
+========
+DATA: 223 1002536
+=== FS Stats ===
+Reads:  0
+Writes: 2252
+Syncs:  900
+========
+DATA: 230 1002086
+=== FS Stats ===
+Reads:  0
+Writes: 2322
+Syncs:  928
+========
+DATA: 222 1003124
+=== FS Stats ===
+Reads:  0
+Writes: 2238
+Syncs:  894
+========
+DATA: 229 1000805
+=== FS Stats ===
+Reads:  0
+Writes: 2312
+Syncs:  924
+========
+DATA: 222 1001995
+=== FS Stats ===
+Reads:  0
+Writes: 2242
+Syncs:  896
+========
+DATA: 230 1003839
+=== FS Stats ===
+Reads:  0
+Writes: 2322
+Syncs:  928
+========
+DATA: 235 1000995
+=== FS Stats ===
+Reads:  0
+Writes: 2372
+Syncs:  948
+========
+=== Finished Testing ===
+=== Unmount /tmp/NBFs ===
+Recovering file system
+Starting file system, 263435 blocks magic 3932
+=== Delete /tmp/NBFs ===

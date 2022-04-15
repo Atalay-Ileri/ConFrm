@@ -17,13 +17,13 @@ import qualified Data.ByteString as BS
 Haskell implemented directories all names should be unique
 -}
 dirMapAddr :: Int
-dirMapAddr = 0
+dirMapAddr = 128 * 1024
 
 -- This is a map from directory names to list of files/dirs under it.
 -- if it is a file, then second field contains its inode number, which should be used as the file descriptor
 dirMap :: IORef (Map String (Either [String] Coq_addr))
 {-# NOINLINE dirMap #-}
-dirMap = unsafePerformIO (newIORef empty)
+dirMap = unsafePerformIO (newIORef (insert "/" (Left []) empty))
 
 initializeDirMap :: IO ()
 initializeDirMap = do
@@ -34,20 +34,25 @@ recoverDirMap :: IO ()
 recoverDirMap = do
   dirBlock <- Interpreter.diskRead dirMapAddr
   let edm = (decode dirBlock)
-  --print "--Recovering dirMap"
-  --print edm
+  ---- print "--Recovering dirMap"
+  ---- print edm
   case edm of
-    Left e -> print e
-    Right dm -> writeIORef dirMap dm
+    Left e -> 
+      -- print e
+      return ()
+    Right dm -> 
+      writeIORef dirMap dm
+
 
 persistDirMap :: IO ()
 persistDirMap = do
   dm <- readIORef dirMap
-  --print "--Persisting dirMap"
-  --print dm
+  ---- print "--Persisting dirMap"
+  ---- print dm
   let dmBlock = Helpers.setToBlockSize (div block_size 8) (encode dm) 
   Interpreter.diskWrite dirMapAddr dmBlock
   Interpreter.diskSync
+  return()
 
 
 getInum :: String -> Map String (Either [String] Coq_addr) -> Maybe Coq_addr
@@ -84,39 +89,54 @@ isFile :: String -> Map String (Either [String] Coq_addr) -> Bool
 isFile d dm = isJust (getInum d dm)
 
 isValidPath :: [String] -> Map String (Either [String] Coq_addr) -> Bool
+isValidPath [] dm = True
 isValidPath [c] dm = isDir c dm || isFile c dm
 isValidPath (p : c : rest) dm = isSubdir p c dm && isValidPath (c:rest) dm
 
 isValidDirPath :: [String] -> Map String (Either [String] Coq_addr) -> Bool
+isValidDirPath [] dm = True
 isValidDirPath [c] dm = isDir c dm
 isValidDirPath (p : c : rest) dm = isSubdir p c dm && isValidDirPath (c:rest) dm
 
 isValidFilePath :: [String] -> Map String (Either [String] Coq_addr) -> Bool
+isValidFilePath [] dm = True
 isValidFilePath [c] dm = isFile c dm
 isValidFilePath (p : c : rest) dm = isSubdir p c dm && isValidFilePath (c:rest) dm
 
+-- for some reason library function is not working
+delete :: String -> [String] -> [String]
+delete s [] = []
+delete s (s':rest) = if s == s' then rest else s':(Directory.delete s rest)
 
 {- Modifiers -}
 rename_with_parent :: String -> String -> String -> String -> Map String (Either [String] Coq_addr) -> (Map String (Either [String] Coq_addr) , Errno)
 rename_with_parent sp sc dp dc dm =
-      case Data.Map.lookup sp dm of
-      Nothing -> (dm, eIO)
-      Just spd ->
-        case spd of
-        Right _ -> (dm, eIO)
-        Left sl -> 
-          case Data.Map.lookup dp dm of
-          Nothing -> (dm, eIO)
-          Just dpd ->
-            case dpd of
-            Right _ -> (dm, eIO)
-            Left dl -> 
-              case Data.Map.lookup sc dm of
-              Nothing -> (dm, eIO)
-              Just scf ->
+  if sp == dp && sc == dc then
+    (dm, eOK)
+  else
+    case Data.Map.lookup sp dm of
+    Nothing -> (dm, eIO)
+    Just spd ->
+      case spd of
+      Right _ -> (dm, eIO)
+      Left sl -> 
+        case Data.Map.lookup dp dm of
+        Nothing -> (dm, eIO)
+        Just dpd ->
+          case dpd of
+          Right _ -> (dm, eIO)
+          Left dl -> 
+            case Data.Map.lookup sc dm of
+            Nothing -> (dm, eIO)
+            Just scf ->
+              if sp == dp then
+                (Data.Map.insert dc scf 
+                (Data.Map.insert dp (Left (Directory.delete sc sl))
+                (Data.Map.delete sc dm)), eOK)
+              else
                 (Data.Map.insert dc scf 
                 (Data.Map.insert dp (Left (dc:dl)) 
-                (Data.Map.insert sp (Left (L.delete sc sl))
+                (Data.Map.insert sp (Left (Directory.delete sc sl))
                 (Data.Map.delete sc dm))), eOK)
 
 rename_single :: String -> String -> Map String (Either [String] Coq_addr) -> (Map String (Either [String] Coq_addr) , Errno)
@@ -153,7 +173,7 @@ removeDir [p, c] dm =
                 Left cl ->
                   if cl == [] then
                     (Data.Map.delete c 
-                    (Data.Map.insert p (Left (L.delete c pl)) dm), eOK)
+                    (Data.Map.insert p (Left (Directory.delete c pl)) dm), eOK)
                   else
                     (dm, eIO)
 removeDir (p : c : rest) dm = 
@@ -171,13 +191,19 @@ removeFile [p, c] dm =
         Right _ -> (dm, eIO)
         Left pl ->
             if (isFile c dm) then 
-              (Data.Map.delete c (Data.Map.insert p (Left (L.delete c pl)) dm), eOK)
+              (Data.Map.delete c (Data.Map.insert p (Left (Directory.delete c pl)) dm), eOK)
             else
               (dm, eIO)
 
 removeFile (p : c : rest) dm = 
   if (isSubdir p c dm) then
     removeFile (c:rest) dm
+  else
+    (dm, eIO)
+
+removeFile [c] dm = 
+  if (isFile c dm) then 
+    (Data.Map.delete c dm, eOK)
   else
     (dm, eIO)
 
@@ -241,7 +267,13 @@ onDirMap f = do
 modifyDirMap :: (Map String (Either [String] Coq_addr) -> (Map String (Either [String] Coq_addr) , a)) -> IO a
 modifyDirMap f = do 
   dm <- readIORef dirMap
+  -- print "**modifyDirMap**"
+  -- print "Old Map:"
+  -- print dm
   let (newMap, ret) = f dm
   writeIORef dirMap newMap
   persistDirMap
+  -- print "New Map:"
+  -- print newMap
+  -- print "***************"
   return ret

@@ -1,0 +1,92 @@
+DATA: 67684 1000002
+Initializing file system
+Initialization OK, 34310 blocks
+Disk I/O stats:
+Reads:  0
+Writes: 10
+Syncs:  6
+Script started, file is typescript
+DATA: 119 1000666
+=== FS Stats ===
+Reads:  0
+Writes: 1915
+Syncs:  ========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 119 1000264
+=== FS Stats ===
+Reads:  0
+Writes: 1915
+Syncs:  956
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 117 1009045
+=== FS Stats ===
+Reads:  0
+Writes: 1883
+Syncs:  940
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 112 1003917
+=== FS Stats ===
+Reads:  0
+Writes: 1803
+Syncs:  900
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 113 1002462
+=== FS Stats ===
+Reads:  0
+Writes: 1819
+Syncs:  908
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 112 1005176
+=== FS Stats ===
+Reads:  0
+Writes: 1803
+Syncs:  900
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 113 1004795
+=== FS Stats ===
+Reads:  0
+Writes: 1819
+Syncs:  908
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 112 1002588
+=== FS Stats ===
+Reads:  0
+Writes: 1803
+Syncs:  900
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 115 1001537
+=== FS Stats ===
+Reads:  0
+Writes: 1851
+Syncs:  924
+========
+Script done, file is typescript
+Script started, file is typescript
+DATA: 114 1002309
+=== FS Stats ===
+Reads:  0
+Writes: 1835
+Syncs:  916
+========
+Script done, file is typescript
+Recovering file system
+Starting file system, 34310 blocks
+Disk I/O stats:
+Reads:  0
+Writes: 0
+Syncs:  0

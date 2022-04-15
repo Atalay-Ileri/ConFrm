@@ -1,0 +1,117 @@
+=== Unmount /tmp/NBFs ===
+=== NBMkfs in /dev/sdb3 ===
+Initializing file system
+Initialization OK, 263435 blocks
+Disk I/O stats:
+Reads:  0
+Writes: 2073
+Syncs:  7
+=== Recreate /tmp/NBFs ===
+=== Mount NBFs at /tmp/NBFs ===
+=== Starting Testing ===
+=== largefile Bench ===
+makefile 1 MB 29164 usec throughput 35111.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 273
+Syncs:  ========
+writefile 1 MB 21343 usec throughput 47978.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 30690 usec throughput 33365.9 KB/s
+=== FS Stats ===
+Reads:  4
+Writes: 271
+Syncs:  ========
+writefile 1 MB 22421 usec throughput 45671.5 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 26695 usec throughput 38359.2 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 22751 usec throughput 45009.0 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 28698 usec throughput 35681.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 21661 usec throughput 47273.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 29941 usec throughput 34200.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 24782 usec throughput 41320.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 26698 usec throughput 38354.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 22731 usec throughput 45048.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 26082 usec throughput 39260.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 26088 usec throughput 39251.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 29715 usec throughput 34460.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 29297 usec throughput 34952.4 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 27115 usec throughput 37765.1 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 22481 usec throughput 45549.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+makefile 1 MB 35709 usec throughput 28676.2 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 271
+Syncs:  ========
+writefile 1 MB 22838 usec throughput 44837.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 272
+Syncs:  ========
+=== Finished Testing ===
+=== Unmount /tmp/NBFs ===
+=== Delete /tmp/NBFs ===
+Recovering file system
+Starting file system, 263435 blocks magic 3932

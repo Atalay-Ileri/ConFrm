@@ -1,0 +1,154 @@
+makefile 1 MB 6315 usec throughput 162153.6 KB/s
+writefile 1 MB 12516 usec throughput 81815.3 KB/s
+Initializing file system
+Initialization OK, 34310 blocks
+Disk I/O stats:
+Reads:  0
+Writes: 10
+Syncs:  6
+Script started, file is typescript
+makefile 1 MB 1339085 usec throughput 764.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 979913 usec throughput 1045.0 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1351462 usec throughput 757.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 971457 usec throughput 1054.1 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1299788 usec throughput 787.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 926143 usec throughput 1105.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1338847 usec throughput 764.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 933419 usec throughput 1097.0 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1335575 usec throughput 766.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1011198 usec throughput 1012.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1325144 usec throughput 772.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 928797 usec throughput 1102.5 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1310516 usec throughput 781.4 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 948408 usec throughput 1079.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1330498 usec throughput 769.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 973558 usec throughput 1051.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1332744 usec throughput 768.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 978451 usec throughput 1046.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Script started, file is typescript
+makefile 1 MB 1336593 usec throughput 766.1 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 967606 usec throughput 1058.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+Script done, file is typescript
+Recovering file system
+Starting file system, 34310 blocks
+Disk I/O stats:
+Reads:  0
+Writes: 7
+Syncs:  4

@@ -1,12 +1,13 @@
 Require Import Primitives Layer.Core
-        Layer.Language Layer.HorizontalComposition.
+        Layer.LayerImplementation 
+        Layer.HorizontalComposition.
 
 Ltac invert_exec'' H :=
   inversion H; subst; clear H; repeat sigT_eq.
 
   
 Lemma bind_sep:
-  forall O (L: Language O) T T' u o d (p1: prog L T) (p2: T -> prog L T') ret,
+  forall O (L: Layer O) T T' u o d (p1: prog L T) (p2: T -> prog L T') ret,
     exec L u o d (Bind p1 p2) ret ->
     match ret with
     | Finished d' r =>
@@ -31,7 +32,7 @@ Proof.
  Qed.
 
 Lemma lift1_invert_exec :
-    forall O1 O2 (L1: Language O1) (Lc: Language (HorizontalComposition O1 O2))
+    forall O1 O2 (L1: Layer O1) (Lc: Layer (HorizontalComposition O1 O2))
       T (p1: L1.(prog) T) (o: Lc.(oracle)) u s s' t,
       exec Lc u o s (lift_L1 O2 p1) (Finished s' t) ->
       exists o1,
@@ -40,10 +41,10 @@ Lemma lift1_invert_exec :
                    |OpToken _ o1 =>
                     OpToken (HorizontalComposition O1 O2)
                              (Token1 O1 O2 o1)
-                   |Language.Cont _ =>
-                    Language.Cont _
-                   |Language.Crash _ =>
-                    Language.Crash _
+                   |LayerImplementation.Cont _ =>
+                    LayerImplementation.Cont _
+                   |LayerImplementation.Crash _ =>
+                    LayerImplementation.Crash _
                    end) o1 /\
         snd s = snd s' /\
         exec L1 u o1 (fst s) p1 (Finished (fst s') t).
@@ -74,7 +75,7 @@ Lemma lift1_invert_exec :
 
     
 Lemma lift2_invert_exec :
-    forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+    forall O1 O2 (L2: Layer O2) (Lc: Layer (HorizontalComposition O1 O2))
       T (p2: L2.(prog) T) (o: Lc.(oracle)) u s s' t,
       exec Lc u o s (lift_L2 O1 p2) (Finished s' t) ->
       exists o2,
@@ -83,10 +84,10 @@ Lemma lift2_invert_exec :
                    |OpToken _ o1 =>
                     OpToken (HorizontalComposition O1 O2)
                              (Token2 O1 O2 o1)
-                   |Language.Cont _ =>
-                    Language.Cont _
-                   |Language.Crash _ =>
-                    Language.Crash _
+                   |LayerImplementation.Cont _ =>
+                    LayerImplementation.Cont _
+                   |LayerImplementation.Crash _ =>
+                    LayerImplementation.Crash _
                    end) o2 /\
         fst s = fst s' /\
         exec L2 u o2 (snd s) p2 (Finished (snd s') t).
@@ -117,7 +118,7 @@ Lemma lift2_invert_exec :
 
 
   Lemma lift2_exec_step :
-    forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+    forall O1 O2 (L2: Layer O2) (Lc: Layer (HorizontalComposition O1 O2))
       T (p2: L2.(prog) T) o u s s' t fs,
       exec L2 u o s p2 (Finished s' t) ->
       exec Lc u (map (fun o =>
@@ -125,10 +126,10 @@ Lemma lift2_invert_exec :
       |OpToken _ o1 =>
        OpToken (HorizontalComposition O1 O2)
                 (Token2 O1 O2 o1)
-      |Language.Cont _ =>
-       Language.Cont _
-      |Language.Crash _ =>
-       Language.Crash _
+      |LayerImplementation.Cont _ =>
+       LayerImplementation.Cont _
+      |LayerImplementation.Crash _ =>
+       LayerImplementation.Crash _
       end) o) (fs, s) (lift_L2 O1 p2) (Finished (fs, s') t).
        
   Proof.
@@ -152,7 +153,7 @@ Lemma lift2_invert_exec :
 
 
   Lemma lift2_exec_step_crashed :
-  forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+  forall O1 O2 (L2: Layer O2) (Lc: Layer (HorizontalComposition O1 O2))
     T (p2: L2.(prog) T) o u s s' fs,
     exec L2 u o s p2 (Crashed s') ->
     exec Lc u (map (fun o =>
@@ -160,10 +161,10 @@ Lemma lift2_invert_exec :
     |OpToken _ o1 =>
      OpToken (HorizontalComposition O1 O2)
               (Token2 O1 O2 o1)
-    |Language.Cont _ =>
-     Language.Cont _
-    |Language.Crash _ =>
-     Language.Crash _
+    |LayerImplementation.Cont _ =>
+     LayerImplementation.Cont _
+    |LayerImplementation.Crash _ =>
+     LayerImplementation.Crash _
     end) o) (fs, s) (lift_L2 O1 p2) (Crashed (fs, s')).
      
 Proof.
@@ -193,7 +194,7 @@ Qed.
 
 
 Lemma lift1_invert_exec_crashed :
-    forall O1 O2 (L1: Language O1) (Lc: Language (HorizontalComposition O1 O2))
+    forall O1 O2 (L1: Layer O1) (Lc: Layer (HorizontalComposition O1 O2))
       T (p1: L1.(prog) T) (o: Lc.(oracle)) u s s',
       exec Lc u o s (lift_L1 O2 p1) (Crashed s') ->
       exists o1,
@@ -202,10 +203,10 @@ Lemma lift1_invert_exec_crashed :
                    |OpToken _ o1 =>
                     OpToken (HorizontalComposition O1 O2)
                              (Token1 O1 O2 o1)
-                   |Language.Cont _ =>
-                    Language.Cont _
-                   |Language.Crash _ =>
-                    Language.Crash _
+                   |LayerImplementation.Cont _ =>
+                    LayerImplementation.Cont _
+                   |LayerImplementation.Crash _ =>
+                    LayerImplementation.Crash _
                    end) o1 /\
         snd s = snd s' /\
         exec L1 u o1 (fst s) p1 (Crashed (fst s')).
@@ -243,7 +244,7 @@ Lemma lift1_invert_exec_crashed :
 
     
 Lemma lift2_invert_exec_crashed :
-    forall O1 O2 (L2: Language O2) (Lc: Language (HorizontalComposition O1 O2))
+    forall O1 O2 (L2: Layer O2) (Lc: Layer (HorizontalComposition O1 O2))
       T (p2: L2.(prog) T) (o: Lc.(oracle)) u s s',
       exec Lc u o s (lift_L2 O1 p2) (Crashed s') ->
       exists o2,
@@ -252,10 +253,10 @@ Lemma lift2_invert_exec_crashed :
                    |OpToken _ o1 =>
                     OpToken (HorizontalComposition O1 O2)
                              (Token2 O1 O2 o1)
-                   |Language.Cont _ =>
-                    Language.Cont _
-                   |Language.Crash _ =>
-                    Language.Crash _
+                   |LayerImplementation.Cont _ =>
+                    LayerImplementation.Cont _
+                   |LayerImplementation.Crash _ =>
+                    LayerImplementation.Crash _
                    end) o2 /\
         fst s = fst s' /\
         exec L2 u o2 (snd s) p2 (Crashed (snd s')).
@@ -294,7 +295,7 @@ Lemma lift2_invert_exec_crashed :
 
   Ltac invert_exec' :=
     match goal with
-    |[H : recovery_exec _ _ _ _ _ _ _ _ |- _ ] =>
+    |[H : exec_with_recovery _ _ _ _ _ _ _ _ |- _ ] =>
      invert_exec'' H
     | [ H: exec _ _ _ _ ?p _ |- _ ] =>
       match p with
@@ -354,9 +355,9 @@ Lemma lift2_invert_exec_crashed :
 
   Ltac unify_execs :=
     match goal with
-    |[H : recovery_exec ?u ?x ?y ?z ?a ?b ?c _,
-      H0 : recovery_exec ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
-     eapply recovery_exec_deterministic_wrt_reboot_state in H; [| apply H0]
+    |[H : exec_with_recovery ?u ?x ?y ?z ?a ?b ?c _,
+      H0 : exec_with_recovery ?u ?x ?y ?z ?a ?b ?c _ |- _ ] =>
+     eapply exec_with_recovery_deterministic_wrt_reboot_state in H; [| apply H0]
     | [ H: exec ?u ?x ?y ?z ?a _,
         H0: exec ?u ?x ?y ?z ?a _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
@@ -364,12 +365,12 @@ Lemma lift2_invert_exec_crashed :
         H0: exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     | [ H: exec _ ?u ?x ?y ?z _,
-        H0: Language.exec' ?u ?x ?y ?z _ |- _ ] =>
+        H0: LayerImplementation.exec' ?u ?x ?y ?z _ |- _ ] =>
       eapply exec_deterministic_wrt_oracle in H; [| apply H0]
     end.
 
 Lemma bind_reorder:
-  forall O (L: Language O) T  
+  forall O (L: Layer O) T  
   (p1: prog L T) T' (p2: T -> prog L T') 
   T'' (p3: T' -> prog L T'') 
   u o s r,

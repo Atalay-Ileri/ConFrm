@@ -1,4 +1,4 @@
-{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE PackageImports, BangPatterns #-}
 module Interpreter where
 
 import Prelude
@@ -28,6 +28,8 @@ import GHC.Exts
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Marshal.Alloc
+import System.Clock
+import Text.Printf
 
 
 addrsPerBlock :: Int
@@ -40,6 +42,10 @@ cache = unsafePerformIO (newIORef empty)
 txnList :: IORef [(Coq_addr, Coq_value)]
 {-# NOINLINE txnList #-}
 txnList = unsafePerformIO (newIORef [])
+
+dirty :: IORef Bool
+{-# NOINLINE dirty #-}
+dirty = unsafePerformIO (newIORef False)
 
 -- Haskell doesn't allow us to access the key explicitly. 
 -- You get to initialize by giving a seed. 
@@ -107,31 +113,44 @@ clearStats = writeIORef stats (Stats 0 0 0)
 getStats :: IO DiskStats
 getStats = readIORef stats
 
+timeItNamed s m = do
+  start <- getTime Realtime
+  r <- m
+  end <- getTime Realtime
+  printf "%s: %d\n" s (nsec end - nsec start)
+  return r
 
 -- Disk Operations
 diskRead :: Coq_addr -> IO Coq_value
-diskRead a = --return BaseTypes.value0
-  do
+diskRead a = timeItNamed "Disk Read"--return BaseTypes.value0
+  (do
   bumpRead
   fs <-  readIORef fsImage
   PBS.fdSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
-  PBS.fdRead fs 4096
+  PBS.fdRead fs 4096)
 
 
 diskWrite :: Coq_addr -> Coq_value -> IO ()
-diskWrite a v = --return ()
-  do
+diskWrite a !v = timeItNamed "Disk Write" --return ()
+  (do
   bumpWrite
+  writeIORef dirty True
   fs <-  readIORef fsImage
   PBS.fdSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
   _ <- PBS.fdWrite fs v
-  return ()
+  return ())
 
 diskSync :: IO ()
-diskSync = do --return ()
-  bumpSync
-  fs <-  readIORef fsImage
-  fileSynchronise fs
+diskSync = timeItNamed "Disk Sync"
+  (do  --return ()
+  d <- readIORef dirty
+  if d then do
+    bumpSync
+    fs <-  readIORef fsImage
+    fileSynchronise fs
+    writeIORef dirty False
+  else
+    return ())
 
 diskClose :: IO DiskStats
 diskClose = do 

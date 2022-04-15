@@ -22,6 +22,11 @@ void printstats(int reset)
   int fd;
   int r;
 
+	if (reset == 1) {
+  	sprintf(name, "%s/clear-stats", dir);
+	open(name, O_RDONLY);
+  } 
+  
   sprintf(name, "%s/stats", dir);
   if((fd = open(name, O_RDONLY)) < 0) {
     return;

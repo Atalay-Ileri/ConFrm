@@ -23,7 +23,7 @@ import GHC.IO.Unsafe
 import System.Posix.User
 import qualified BaseTypes
 import qualified File
-import qualified Interpreter
+import Interpreter
 import Data.Serialize
 import Directory
 import qualified Data.Text
@@ -116,8 +116,8 @@ confsFSOps :: String -> IO FuseContext -> FuseOperations HT
 confsFSOps disk_fn getctx  = defaultFuseOps
   { fuseGetFileStat = confsGetFileStat getctx
   , fuseReadSymbolicLink = \ path -> do
-    print "--confsReadSymbolicLink--"
-    print path
+    -- print "--confsReadSymbolicLink--"
+    -- print path
     return (Left eIO)
   , fuseCreateDevice = confsCreateDevice
   , fuseCreateDirectory = confsCreateDirectory
@@ -149,13 +149,17 @@ confsFSOps disk_fn getctx  = defaultFuseOps
 confsDestroy :: IO ()
 confsDestroy = do
   stats <- Interpreter.diskClose
+  print "--- Disk Close Stats ---"
   Interpreter.printStats stats
+  print "--- --- ---  --- --- ---"
 
 confsReadDirectory :: IO FuseContext -> FilePath -> IO (Either Errno [(FilePath, FileStat)])  
 confsReadDirectory getctx path = do
+  -- print "--confsReadDirectory--"
+  -- print path
   let path_list = (splitDirectories path)
   r <- onDirMap (isValidDirPath path_list)
-  if r then do
+  r <- if r then do
     msd <- onDirMap (getSubdirs (last path_list))
     case msd of
       Just sd -> do
@@ -164,11 +168,14 @@ confsReadDirectory getctx path = do
       Nothing -> return (Left eIO)
   else
     return (Left eIO)
+  -- print "------------"
+  return r
 
 confsGetFileStat :: IO FuseContext -> FilePath -> IO (Either Errno FileStat)
 confsGetFileStat getctx path 
     | (last (splitDirectories path) == "stats") || 
-      (last (splitDirectories path) == "sync") = do
+      (last (splitDirectories path) == "sync") ||
+      (last (splitDirectories path) == "clear-stats") = do
         ctx <- getctx
         return (Right (fileStat ctx))
     | otherwise = do
@@ -176,7 +183,7 @@ confsGetFileStat getctx path
     -- print path
     let path_list = (splitDirectories path)
     r <- onDirMap (isValidDirPath path_list)
-    if r then do
+    r <- if r then do
       ctx <- getctx
       return (Right (dirStat ctx))
     else do
@@ -184,18 +191,21 @@ confsGetFileStat getctx path
       if r then do
         ctx <- getctx
         return (Right (fileStat ctx))
-      else
+      else do
+        -- print "File doesn't exists"
         return (Left eNOENT)
+    -- print "--------"
+    return r
 
 confsRename :: FilePath -> FilePath -> IO Errno
 confsRename src dst = do
-  --print "--confsRename--"
-  --print src
-  --print dst
+  -- print "--confsRename--"
+  -- print src
+  -- print dst
   let src_path_list = (splitDirectories src)
   let dst_path_list = (splitDirectories dst)
   r <- onDirMap (isValidPath src_path_list)
-  if r then do
+  r <- if r then do
     r <- onDirMap (isValidPath dst_path_list)
     if r then do
           r <- modifyDirMap (Directory.rename src_path_list dst_path_list)
@@ -205,18 +215,24 @@ confsRename src dst = do
       return eIO
   else
     return eIO
+  -- print (errnoToIOError "" r Nothing Nothing)
+  -- print "--------"
+  return r
 
 confsRemoveDirectory :: FilePath -> IO Errno
 confsRemoveDirectory path = do
-  --print "--confsRemoveDirectory--"
-  --print path
+  -- print "--confsRemoveDirectory--"
+  -- print path
   let path_list = (splitDirectories path)
-  modifyDirMap (removeDir path_list)
+  r <- modifyDirMap (removeDir path_list)
+  -- print (errnoToIOError path r Nothing Nothing)
+  -- print "----------"
+  return r
 
 confsGetFileSystemStats :: String -> IO (Either Errno FileSystemStats)
 confsGetFileSystemStats path = do
-  --print "--confsGetFileSystemStats--"
-  --print path
+  ---- print "--confsGetFileSystemStats--"
+  ---- print path
   return $ Right $ FileSystemStats
     { fsStatBlockSize = 4096
     , fsStatBlockCount = 2 * 8 * 4096
@@ -229,8 +245,8 @@ confsGetFileSystemStats path = do
 
 confsInit:: String -> IO ()
 confsInit disk_fn = do
-  -- print "--confsInit--"
-  -- print disk_fn
+  -- -- print "--confsInit--"
+  -- -- print disk_fn
   _ <- writeIORef Interpreter.txnList []
   _ <- writeIORef Interpreter.cache Data.Map.empty
   _ <- writeIORef Interpreter.cipherMap Data.Map.empty
@@ -251,46 +267,55 @@ confsCreateDevice path entryType _ _ = do
   -- print "--confsCreateDevice--"
   -- print path
   -- print entryType
-  case entryType of
+  r <- case entryType of
     RegularFile -> do
       let path_list = (splitDirectories path)
-      --print "Path List:"
-      --print path_list
+      ---- print "Path List:"
+      ---- print path_list
       r <- onDirMap (isValidDirPath (take (length path_list - 1) path_list))
       if r then do
         r <- onDirMap (Data.Map.notMember (last path_list))
         if r then do
           uid <- getEffectiveUserID
           minum <- File.create uid
-          case minum of
+          case minum of  
             Just inum -> modifyDirMap (addFile path_list inum)
             Nothing -> return eNOSPC
-        else
+        else do
+          -- print "File Exists"
           return eEXIST
-      else
+      else do
+        -- print "not Valid dir path"
         return eNOTDIR
     _ -> return eIO
+  -- print (errnoToIOError path r Nothing Nothing)
+  -- print "--------"
+  return r
 
 confsCreateDirectory :: FilePath -> FileMode -> IO Errno
 confsCreateDirectory path _ = do
-  --print "--confsCreateDirectory--"
-  --print path
+  ---- print "--confsCreateDirectory--"
+  ---- print path
   let path_list = (splitDirectories path)
   modifyDirMap (addDir path_list)
 
 confsOpenDirectory :: FilePath -> IO Errno
 confsOpenDirectory path 
   | (last (splitDirectories path) == "stats") || 
-    (last (splitDirectories path) == "sync") = return eOK
+    (last (splitDirectories path) == "sync") ||
+    (last (splitDirectories path) == "clear-stats") = return eOK
   | otherwise = do
-    --print "--confsOpenDirectory--"
-    --print path
+    -- print "--confsOpenDirectory--"
+    -- print path
     let path_list = (splitDirectories path)
     r <- onDirMap (isValidDirPath path_list)
-    if r then
+    r <- if r then
       return eOK
     else
       return eIO
+    -- print (errnoToIOError path r Nothing Nothing)
+    -- print "--------"
+    return r
   
 writeSubsets' :: [[(Integer, a)]] -> [[(Integer, a)]]
 writeSubsets' [] = [[]]
@@ -310,26 +335,36 @@ confsOpen :: FilePath -> OpenMode -> OpenFileFlags -> IO (Either Errno HT)
 confsOpen path _ _ 
   | (last (splitDirectories path) == "stats") || 
     (last (splitDirectories path) == "sync") = return $ Right 0
+  | (last (splitDirectories path) == "clear-stats") = do
+    Interpreter.clearStats
+    return $ Right 0
   | otherwise = do
-    --print "--confsOpen--"
-    --print path
+    -- print "--confsOpen--"
+    -- print path
     let path_list = (splitDirectories path)
     r <- onDirMap (isValidFilePath path_list)
-    if r then do
+    r <- if r then do
       minum <- onDirMap (getInum (last path_list))
       case minum of
-        Just inum -> return (Right inum)
-        Nothing -> return (Left eIO)
-    else
+        Just inum -> do
+          -- print "Valid file path"
+          return (Right inum)
+        Nothing -> do
+          -- print "File Doesn't exists"
+          return (Left eIO)
+    else do
+      -- print "not a valid file path"
       return (Left eIO)
+    -- print "--------"
+    return r
 
 confsUnlink :: FilePath -> IO Errno
 confsUnlink path = do
-  --print "--confsUnlink--"
-  --print path
+  -- print "--confsUnlink--"
+  -- print path
   let path_list = (splitDirectories path)
   r <- onDirMap (isValidFilePath path_list)
-  if r then do
+  r <- if r then do
     minum <- onDirMap (getInum (last path_list))
     case minum of
       Just inum -> do 
@@ -337,14 +372,22 @@ confsUnlink path = do
         case r of
           Just _ -> modifyDirMap (removeFile path_list)
           Nothing -> return eIO
-      Nothing -> return eIO
-  else
-    return eIO
+      Nothing -> 
+        return eIO
+  else do 
+    mdir <- onDirMap (isValidDirPath path_list)
+    if mdir then do
+      modifyDirMap (removeDir path_list)
+    else
+      return eIO
+  -- print (errnoToIOError path r Nothing Nothing)
+  -- print "--------"
+  return r
 
 confsChown :: FilePath -> UserID -> GroupID -> IO Errno
 confsChown path uid _  = do
-  --print "--confsChown--"
-  --print path
+  ---- print "--confsChown--"
+  ---- print path
   r <- onDirMap (isValidFilePath (splitDirectories path))
   if r then do
     minum <- onDirMap (getInum (takeFileName path))
@@ -377,17 +420,18 @@ confsRead path inum byteCount offset
   | last (splitDirectories path) == "stats" = do
     Interpreter.Stats r w s <- Interpreter.getStats
     Interpreter.clearStats
-    let bs = BSC8.pack ("Reads:  " ++ (show r) ++ "\n" ++ "Writes: " ++ (show w) ++ "\n" ++ "Syncs:  " ++ (show s) ++ "\n")
+    let bs = BSC8.pack ("Reads:  " ++ (show r) ++ " Writes: " ++ (show w) ++ " Syncs:  " ++ (show s))
     print bs
     return $ (Right bs)
+
   | otherwise = do
-    print "--confsRead--"
-    print path
+    -- print "--confsRead--"
+    -- print path
     pieces <- mapM read_piece $ compute_ranges offset byteCount
     return $ Right $ BS.concat pieces
     where
       read_piece (BR blk off count) = do
-        ok_buf <- File.read inum blk
+        ok_buf <- timeItNamed  "File Read:" (File.read inum blk)
         case ok_buf of
           Just buf ->
             return $ BS.take count $ BS.drop off $ buf
@@ -409,8 +453,8 @@ data WriteState =
 -- This should automatically extend if it passes file length
 confsWrite :: FilePath -> HT -> BS.ByteString -> FileOffset -> IO (Either Errno ByteCount)
 confsWrite path inum bs offset = do
-  --print "--confsWrite--"
-  --print path
+  ---- print "--confsWrite--"
+  ---- print path
   mlen <- File.get_file_size inum
   case mlen of
     Just len -> do

@@ -1,11 +1,12 @@
 Require Import Lia Primitives Layer.
 
-Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
+Record CoreRefinement {O_imp} (L_imp: Layer O_imp) (O_abs: Core) :=
   {
     compile_core : forall T, O_abs.(Core.operation) T -> L_imp.(prog) T;
     refines_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
     refines_reboot_core: L_imp.(state) -> O_abs.(Core.state) -> Prop;
-    token_refines: forall T, user -> L_imp.(state) -> O_abs.(Core.operation) T -> (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
+    token_refines: forall T, user -> L_imp.(state) -> O_abs.(Core.operation) T -> 
+      (L_imp.(state) -> L_imp.(state)) -> L_imp.(oracle) -> O_abs.(Core.token) -> Prop;
     exec_compiled_preserves_refinement_finished_core :
       forall T (p2: O_abs.(Core.operation) T) o1 s1 s1' r u,
         (exists s2, refines_core s1 s2) ->
@@ -13,7 +14,7 @@ Record CoreRefinement {O_imp} (L_imp: Language O_imp) (O_abs: Core) :=
         (exists s2', refines_core s1' s2');
   }.
 
-Record Refinement {O_imp O_abs} (L_imp: Language O_imp) (L_abs: Language O_abs) :=
+Record Refinement {O_imp O_abs} (L_imp: Layer O_imp) (L_abs: Layer O_abs) :=
   {
     compile : forall T, L_abs.(prog) T -> L_imp.(prog) T;
     refines: L_imp.(state) -> L_abs.(state) -> Prop;
@@ -42,11 +43,11 @@ Arguments exec_compiled_preserves_refinement_finished {_ _ _ _}.
 
 Section Relations.
   Variable O_imp O_abs: Core.
-  Variable L_imp: Language O_imp.
-  Variable L_abs: Language O_abs.
+  Variable L_imp: Layer O_imp.
+  Variable L_abs: Layer O_abs.
   Variable R : Refinement L_imp L_abs.
   
-  Fixpoint recovery_oracles_refine_to {T}
+  Fixpoint recovery_oracles_refine {T}
            (u: user) (s: L_imp.(state)) (p_abs: L_abs.(prog) T) (rec_abs: L_abs.(prog) unit)
            (l_get_reboot_state_imp: list (L_imp.(state) -> L_imp.(state)))
            (lo_imp: list L_imp.(oracle)) (lo_abs: list L_abs.(oracle)) {struct lo_imp} :=
@@ -62,8 +63,7 @@ Section Relations.
          match l_get_reboot_state_imp with
          | get_reboot_state_imp :: lgrsi =>
            R.(oracle_refines) u s p_abs get_reboot_state_imp o_imp o_abs /\
-           recovery_oracles_refine_to u (get_reboot_state_imp s') rec_abs rec_abs lgrsi loi loa
-           (*  /\ loi <> [] /\ loa <> [] *)
+           recovery_oracles_refine u (get_reboot_state_imp s') rec_abs rec_abs lgrsi loi loa
          | _ => False
          end))
     | _, _ => False
@@ -72,13 +72,13 @@ Section Relations.
 Definition abstract_oracles_exist_wrt Rel (u: user) {T} (p_abs: L_abs.(prog) T) rec_abs l_get_reboot_state :=
   forall l_oi si si',
     (exists sa: L_abs.(state), Rel si sa) -> 
-    L_imp.(recovery_exec) u l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
-    exists l_oa, recovery_oracles_refine_to u si p_abs rec_abs l_get_reboot_state l_oi l_oa.
+    L_imp.(exec_with_recovery) u l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
+    exists l_oa, recovery_oracles_refine u si p_abs rec_abs l_get_reboot_state l_oi l_oa.
 
 Definition abstract_oracles_exist_wrt_explicit Rel (u: user) {T} (p_abs: L_abs.(prog) T) rec_abs l_get_reboot_state l_oi si si' :=
     (exists sa: L_abs.(state), Rel si sa) -> 
-    L_imp.(recovery_exec) u l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
-    exists l_oa, recovery_oracles_refine_to u si p_abs rec_abs l_get_reboot_state l_oi l_oa.
+    L_imp.(exec_with_recovery) u l_oi si l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) si' ->
+    exists l_oa, recovery_oracles_refine u si p_abs rec_abs l_get_reboot_state l_oi l_oa.
     
 
 (** 
@@ -122,7 +122,7 @@ Definition refines_valid
 Definition exec_compiled_preserves_validity  {T} (u: user)(p_abs: L_abs.(prog) T) rec_abs l_get_reboot_state (valid_state: L_imp.(state) -> Prop) := 
     forall l_oi s ret,
       valid_state s ->
-      L_imp.(recovery_exec) u l_oi s l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) ret ->
+      L_imp.(exec_with_recovery) u l_oi s l_get_reboot_state (R.(compile) p_abs) (R.(compile) rec_abs) ret ->
       valid_state (extract_state_r ret).
 
 
@@ -133,8 +133,8 @@ Definition oracle_refines_same_from_related
            (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
   forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
     refines_related related_states_abs s1_imp s2_imp ->
-    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+    recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
 
 Definition oracle_refines_same_from_related_explicit
@@ -144,33 +144,9 @@ Definition oracle_refines_same_from_related_explicit
            (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) 
 l_o_imp l_o_abs l_o_abs' s1_imp s2_imp :=
     refines_related related_states_abs s1_imp s2_imp ->
-    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+    recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
-
-Definition oracle_refines_same_from_related_prefix
-            (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
-            rec_abs
-            l_get_reboot_state_imp
-           (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
-forall l_o_imp l_o_imp' l_o_abs l_o_abs' s1_imp s2_imp,
-refines_related related_states_abs s1_imp s2_imp ->
-recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp' l_o_abs' ->
-Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_imp l_o_imp'->
-Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_abs l_o_abs'.
-
-Definition oracle_refines_same_from_related_prefix_explicit
-        (u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
-        rec_abs
-        l_get_reboot_state_imp
-        (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) 
-l_o_imp l_o_imp' l_o_abs l_o_abs' s1_imp s2_imp :=
-refines_related related_states_abs s1_imp s2_imp ->
-recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp' l_o_abs' ->
-Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_imp l_o_imp'->
-Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_abs l_o_abs'.
 
 
 Definition oracle_refines_same_from_related_reboot
@@ -180,8 +156,8 @@ Definition oracle_refines_same_from_related_reboot
            (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
   forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
     refines_related_reboot related_states_abs s1_imp s2_imp ->
-    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+    recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 l_o_abs = l_o_abs'.
 
 Definition oracle_refines_same_from_related_test
@@ -192,12 +168,12 @@ Definition oracle_refines_same_from_related_test
            (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
   forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
     refines_related related_states_abs s1_imp s2_imp ->
-    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+    recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
 (forall s1_abs ret1,
 refines R s1_imp s1_abs -> 
-L_abs.(recovery_exec) u l_o_abs s1_abs l_get_reboot_state_abs p1_abs rec_abs ret1 ->
-L_abs.(recovery_exec) u l_o_abs' s1_abs l_get_reboot_state_abs p1_abs rec_abs ret1).
+L_abs.(exec_with_recovery) u l_o_abs s1_abs l_get_reboot_state_abs p1_abs rec_abs ret1 ->
+L_abs.(exec_with_recovery) u l_o_abs' s1_abs l_get_reboot_state_abs p1_abs rec_abs ret1).
 
 
 Definition oracle_refines_same_from_related_test2
@@ -207,46 +183,31 @@ Definition oracle_refines_same_from_related_test2
            (related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
   forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
     refines_related related_states_abs s1_imp s2_imp ->
-    recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
-    recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs.
+    recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs.
 
-Definition oracle_refines_same_from_related_test3
-(u: user) {T} (p1_abs p2_abs: L_abs.(prog) T)
-rec_abs
-l_get_reboot_state_imp
-l_get_reboot_state_abs
-(related_states_abs: L_abs.(state) -> L_abs.(state) -> Prop) :=
-forall l_o_imp l_o_abs l_o_abs' s1_imp s2_imp,
-refines_related related_states_abs s1_imp s2_imp ->
-recovery_oracles_refine_to u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
-recovery_oracles_refine_to u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
-(forall s1_abs ret1,
-refines R s1_imp s1_abs -> 
-L_abs.(recovery_exec) u l_o_abs s1_abs l_get_reboot_state_abs p1_abs rec_abs ret1 ->
-exists ret2, L_abs.(recovery_exec) u l_o_abs' s1_abs l_get_reboot_state_abs p1_abs rec_abs ret2).
-
-    (** Self Simulation **)
+    (** RDNI **)
 (**
   valid_state: This predicate restrict the statement to "well-formed" states.
   valid_op: This predicate restrict programs to valid ones
   R: This is the actual simulation relation
 **)
 
-Definition SelfSimulation (u: user) {T} (p1 p2: L_abs.(prog) T)
+Definition RDNI (u: user) {T} (p1 p2: L_abs.(prog) T)
        (rec: L_abs.(prog) unit)
        (valid_state: L_abs.(state) -> Prop)
        (R: L_abs.(state) -> L_abs.(state) -> Prop)
        (cond: user -> Prop)
        l_get_reboot_state :=
   forall lo s1 s1',
-    L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
+    L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state p1 rec s1' ->
     valid_state s1 ->
     forall s2,
     valid_state s2 ->
     R s1 s2 ->
     exists s2',
-      L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2' /\
+      L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2' /\
       R (extract_state_r s1') (extract_state_r s2') /\
       (cond u -> extract_ret_r s1' = extract_ret_r s2') /\
       valid_state (extract_state_r s1') /\
@@ -260,20 +221,20 @@ Definition Termination_Sensitive u {T} (p1 p2: L_abs.(prog) T)
   forall s1 s1' s2 lo,
     valid_state s1 ->
     valid_state s2 -> 
-    L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
+    L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state p1 rec s1' ->
     R s1 s2 ->
     exists s2', 
-      L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2'.
+      L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2'.
 
-Definition SelfSimulation_Weak u {T} (p1 p2: L_abs.(prog) T)
+Definition RDNI_Weak u {T} (p1 p2: L_abs.(prog) T)
            (rec: L_abs.(prog) unit)
            (valid_state: L_abs.(state) -> Prop)
            (R: L_abs.(state) -> L_abs.(state) -> Prop)
            (cond: user -> Prop)
            l_get_reboot_state :=
   forall lo s1 s1' s2 s2',
-    L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
-    L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2' ->
+    L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state p1 rec s1' ->
+    L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2' ->
     valid_state s1 ->
     valid_state s2 ->
     R s1 s2 ->
@@ -282,34 +243,46 @@ Definition SelfSimulation_Weak u {T} (p1 p2: L_abs.(prog) T)
     valid_state (extract_state_r s1') /\
     valid_state (extract_state_r s2').
 
-Lemma Self_Simulation_Weak_to_Self_Simulation:
+Lemma RDNI_Weak_to_RDNI:
   forall u T (p1 p2: L_abs.(prog) T) R
     valid_state rec cond l_get_reboot_state,
 
     Termination_Sensitive u p1 p2 rec valid_state R l_get_reboot_state ->
-    SelfSimulation_Weak u p1 p2 rec valid_state R cond l_get_reboot_state ->
+    RDNI_Weak u p1 p2 rec valid_state R cond l_get_reboot_state ->
     
-    SelfSimulation u p1 p2 rec valid_state R cond l_get_reboot_state.
+    RDNI u p1 p2 rec valid_state R cond l_get_reboot_state.
 Proof.
-  unfold Termination_Sensitive, SelfSimulation_Weak, SelfSimulation; intros.
+  unfold Termination_Sensitive, RDNI_Weak, RDNI; intros.
   edestruct H.
   3: eauto.
   all: eauto.
 Qed.
 
-Definition SelfSimulation_explicit (u: user) lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
+Theorem RDNI_to_RDNIW:
+forall u R V T (p1 p2: L_abs.(prog) T) rec cond l_grs,
+ RDNI u p1 p2 rec V R cond l_grs ->
+ RDNI_Weak u p1 p2 rec V R cond l_grs.
+ Proof.
+   unfold RDNI_Weak; intros.
+   edestruct H; eauto.
+   destruct H5.
+   eapply exec_with_recovery_deterministic_wrt_reboot_state in H1; eauto.
+   subst; eauto.
+Qed.
+
+Definition RDNI_explicit (u: user) lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
        (rec: L_abs.(prog) unit)
        (valid_state: L_abs.(state) -> Prop)
        (R: L_abs.(state) -> L_abs.(state) -> Prop)
        (cond: user -> Prop)
        l_get_reboot_state :=
   forall s1',
-    L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
+    L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state p1 rec s1' ->
     valid_state s1 ->
     valid_state s2 ->
     R s1 s2 ->
     exists s2',
-      L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2' /\
+      L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2' /\
       R (extract_state_r s1') (extract_state_r s2') /\
       (cond u -> extract_ret_r s1' = extract_ret_r s2') /\
       valid_state (extract_state_r s1') /\
@@ -323,20 +296,20 @@ Definition Termination_Sensitive_explicit u lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
 forall s1',
 valid_state s1 ->
 valid_state s2 -> 
-L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
+L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state p1 rec s1' ->
 R s1 s2 ->
 exists s2', 
- L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2'.
+ L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2'.
 
- Definition SelfSimulation_Weak_explicit u lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
+ Definition RDNI_Weak_explicit u lo s1 s2 {T} (p1 p2: L_abs.(prog) T)
            (rec: L_abs.(prog) unit)
            (valid_state: L_abs.(state) -> Prop)
            (R: L_abs.(state) -> L_abs.(state) -> Prop)
            (cond: user -> Prop)
            l_get_reboot_state :=
   forall s1' s2',
-    L_abs.(recovery_exec) u lo s1 l_get_reboot_state p1 rec s1' ->
-    L_abs.(recovery_exec) u lo s2 l_get_reboot_state p2 rec s2' ->
+    L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state p1 rec s1' ->
+    L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2' ->
     valid_state s1 ->
     valid_state s2 ->
     R s1 s2 ->
@@ -345,7 +318,7 @@ exists s2',
     valid_state (extract_state_r s1') /\
     valid_state (extract_state_r s2').
 
-Lemma SS_explicit_state_iff_SS:
+Lemma RDNI_explicit_state_iff_RDNI:
   forall u T (p1_abs p2_abs: L_abs.(prog) T)
       rec_abs
       l_get_reboot_state_abs
@@ -355,7 +328,7 @@ Lemma SS_explicit_state_iff_SS:
 
     (forall lo s1 s2,
     equivalent_states_abs s1 s2 ->
-    SelfSimulation_explicit
+    RDNI_explicit
       u lo s1 s2 
       p1_abs p2_abs
       rec_abs
@@ -364,7 +337,7 @@ Lemma SS_explicit_state_iff_SS:
       cond
       l_get_reboot_state_abs) <->
 
-    SelfSimulation
+    RDNI
       u
       p1_abs p2_abs
       rec_abs
@@ -373,20 +346,20 @@ Lemma SS_explicit_state_iff_SS:
       cond
       l_get_reboot_state_abs.
 Proof.
-  unfold SelfSimulation, SelfSimulation_explicit; intros.
+  unfold RDNI, RDNI_explicit; intros.
   intuition; try eapply H; eauto.
 Qed.
 
-Lemma Self_Simulation_Weak_explicit_to_Self_Simulation_explicit:
+Lemma RDNI_Weak_explicit_to_RDNI_explicit:
   forall u T (p1 p2: L_abs.(prog) T) R
     valid_state rec cond l_get_reboot_state lo s1 s2,
 
     Termination_Sensitive_explicit u lo s1 s2 p1 p2 rec valid_state R l_get_reboot_state ->
-    SelfSimulation_Weak_explicit u lo s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state ->
+    RDNI_Weak_explicit u lo s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state ->
     
-    SelfSimulation_explicit u lo s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state.
+    RDNI_explicit u lo s1 s2 p1 p2 rec valid_state R cond l_get_reboot_state.
 Proof.
-  unfold Termination_Sensitive_explicit, SelfSimulation_Weak_explicit, SelfSimulation_explicit; intros.
+  unfold Termination_Sensitive_explicit, RDNI_Weak_explicit, RDNI_explicit; intros.
   edestruct H.
   3: eauto.
   all: eauto.
@@ -400,15 +373,15 @@ Definition SimulationForProgramGeneral
            l_get_reboot_state_abs
            R_begin R_end :=
   forall l_o_imp l_o_abs s_imp s_abs,
-    recovery_oracles_refine_to u s_imp p_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
+    recovery_oracles_refine u s_imp p_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
     R_begin s_imp s_abs ->
 
     (forall s_imp',
-       L_imp.(recovery_exec) u l_o_imp s_imp
+       L_imp.(exec_with_recovery) u l_o_imp s_imp
         l_get_reboot_state_imp (R.(compile) p_abs)
         (R.(compile) rec_abs) s_imp' ->
        exists s_abs',
-         L_abs.(recovery_exec) u l_o_abs s_abs l_get_reboot_state_abs p_abs rec_abs s_abs' /\
+         L_abs.(exec_with_recovery) u l_o_abs s_abs l_get_reboot_state_abs p_abs rec_abs s_abs' /\
          R_end (extract_state_r s_imp') (extract_state_r s_abs') /\
          extract_ret_r s_imp' = extract_ret_r s_abs'
     ).
@@ -422,7 +395,7 @@ Definition Simulation rec_abs l_get_reboot_state_imp l_get_reboot_state_abs
     := forall u T (p_abs: L_abs.(prog) T),
          SimulationForProgram u T p_abs rec_abs l_get_reboot_state_imp l_get_reboot_state_abs.
 
-Lemma SS_explicit_state_and_inject:
+Lemma RDNI_explicit_state_and_inject:
          forall u T (p1_abs p2_abs: L_abs.(prog) T)
              rec_abs
              l_get_reboot_state_abs
@@ -432,7 +405,7 @@ Lemma SS_explicit_state_and_inject:
              cond lo s1 s2,
 
           ( equivalent_states_abs2 s1 s2 ->
-           SelfSimulation_explicit
+           RDNI_explicit
              u lo s1 s2 
              p1_abs p2_abs
              rec_abs
@@ -443,11 +416,11 @@ Lemma SS_explicit_state_and_inject:
 
             (forall lo s1' s2',
             equivalent_states_abs2 s1 s2 ->
-            L_abs.(recovery_exec) u lo s1 l_get_reboot_state_abs p1_abs rec_abs s1' ->
-            L_abs.(recovery_exec) u lo s2 l_get_reboot_state_abs p2_abs rec_abs s2' ->
+            L_abs.(exec_with_recovery) u lo s1 l_get_reboot_state_abs p1_abs rec_abs s1' ->
+            L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state_abs p2_abs rec_abs s2' ->
             equivalent_states_abs2 (extract_state_r s1') (extract_state_r s2')) ->
 
-           SelfSimulation_explicit
+           RDNI_explicit
              u lo s1 s2
              p1_abs p2_abs
              rec_abs
@@ -456,13 +429,13 @@ Lemma SS_explicit_state_and_inject:
              cond
              l_get_reboot_state_abs.
        Proof.
-         unfold SelfSimulation_explicit; intros.
+         unfold RDNI_explicit; intros.
          cleanup; edestruct H; eauto.
          cleanup.
          eexists; intuition eauto.
     Qed.
 
-    Lemma SS_explicit_state_and_extract:
+    Lemma RDNI_explicit_state_and_extract:
     forall u T (p1_abs p2_abs: L_abs.(prog) T)
         rec_abs
         l_get_reboot_state_abs
@@ -471,7 +444,7 @@ Lemma SS_explicit_state_and_inject:
         valid_state_abs
         cond lo s1 s2,
 
-        SelfSimulation_explicit
+        RDNI_explicit
         u lo s1 s2
         p1_abs p2_abs
         rec_abs
@@ -482,7 +455,7 @@ Lemma SS_explicit_state_and_inject:
 
         equivalent_states_abs2 s1 s2 ->
 
-      SelfSimulation_explicit
+      RDNI_explicit
         u lo s1 s2 
         p1_abs p2_abs
         rec_abs
@@ -491,7 +464,7 @@ Lemma SS_explicit_state_and_inject:
         cond
         l_get_reboot_state_abs.
   Proof.
-    unfold SelfSimulation_explicit; intros.
+    unfold RDNI_explicit; intros.
     cleanup; edestruct H; eauto.
     cleanup.
     eexists; intuition eauto.
@@ -500,34 +473,31 @@ Qed.
 
 End Relations.
 
-Arguments recovery_oracles_refine_to {_ _ _ _} _ {_}.
+Arguments recovery_oracles_refine {_ _ _ _} _ {_}.
 Arguments refines_related {_ _ _ _}.
 Arguments refines_valid {_ _ _ _}.
 Arguments exec_compiled_preserves_validity {_ _ _ _} _ {_}.
 Arguments abstract_oracles_exist_wrt {_ _ _ _} _ _ _ {_}.
 Arguments abstract_oracles_exist_wrt_explicit {_ _ _ _} _ _ _ {_}.
 Arguments oracle_refines_same_from_related {_ _ _ _} _ _ {_}.
-Arguments SelfSimulation {_ _} _ {_}.
-Arguments SelfSimulation_Weak {_ _} _ {_}.
+Arguments RDNI {_ _} _ {_}.
+Arguments RDNI_Weak {_ _} _ {_}.
 Arguments Termination_Sensitive {_ _} _ {_}.
 
-Arguments SelfSimulation_explicit {_ _} _ _ _ _ {_}.
-Arguments SelfSimulation_Weak_explicit {_ _} _ _ _ _ {_}.
+Arguments RDNI_explicit {_ _} _ _ _ _ {_}.
+Arguments RDNI_Weak_explicit {_ _} _ _ _ _ {_}.
 Arguments Termination_Sensitive_explicit {_ _} _ _ _ _ {_}.
 
 Arguments Simulation {_ _ _ _}.
 Arguments SimulationForProgram {_ _ _ _} _ _ {_}.
 
-Arguments oracle_refines_same_from_related_prefix {_ _ _ _} _ _ {_}.
 Arguments oracle_refines_same_from_related_explicit {_ _ _ _} _ _ {_}.
-Arguments oracle_refines_same_from_related_prefix_explicit {_ _ _ _} _ _ {_}.
-Arguments oracle_refines_same_from_related_test {_ _ _ _} _ _ {_}.
 Arguments oracle_refines_same_from_related_test2 {_ _ _ _} _ _ {_}.
-Arguments oracle_refines_same_from_related_test3 {_ _ _ _} _ _ {_}.
 
+(*
 Lemma ORS_prefix_explicit_to_ORS_explicit:
-forall O_imp O_abs (L_imp: Language O_imp) 
-(L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+forall O_imp O_abs (L_imp: Layer O_imp) 
+(L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
 u T (p1_abs p2_abs: L_abs.(prog) T)
   rec_abs
   l_get_reboot_state_imp
@@ -552,8 +522,8 @@ s1_imp s2_imp) ->
 
 (forall l_o_abs1 l_o_abs2 s1_abs s2_abs s1_abs' s2_abs',
 (equivalent_states_abs s1_abs s2_abs ->
-L_abs.(recovery_exec) u l_o_abs1 s1_abs l_get_reboot_state_abs p1_abs rec_abs s1_abs' ->
-L_abs.(recovery_exec) u l_o_abs2 s2_abs l_get_reboot_state_abs p2_abs rec_abs s2_abs' ->
+L_abs.(exec_with_recovery) u l_o_abs1 s1_abs l_get_reboot_state_abs p1_abs rec_abs s1_abs' ->
+L_abs.(exec_with_recovery) u l_o_abs2 s2_abs l_get_reboot_state_abs p2_abs rec_abs s2_abs' ->
 results_match_r s1_abs' s2_abs' ->
 Forall2 (fun o_abs1 o_abs2 => exists oa1 oa2, o_abs1 ++ oa1 = o_abs2 ++ oa2) l_o_abs1 l_o_abs2->
 l_o_abs1 = l_o_abs2)) ->
@@ -561,8 +531,8 @@ l_o_abs1 = l_o_abs2)) ->
 R.(refines) s1_imp s1_abs ->
 R.(refines) s2_imp s2_abs ->
 equivalent_states_abs s1_abs s2_abs ->
-L_abs.(recovery_exec) u l_o_abs1 s1_abs l_get_reboot_state_abs p1_abs rec_abs s1_abs' ->
-L_abs.(recovery_exec) u l_o_abs2 s2_abs l_get_reboot_state_abs p2_abs rec_abs s2_abs' ->
+L_abs.(exec_with_recovery) u l_o_abs1 s1_abs l_get_reboot_state_abs p1_abs rec_abs s1_abs' ->
+L_abs.(exec_with_recovery) u l_o_abs2 s2_abs l_get_reboot_state_abs p2_abs rec_abs s2_abs' ->
 results_match_r s1_abs' s2_abs' ->
 
 oracle_refines_same_from_related_explicit R u
@@ -584,9 +554,10 @@ Proof.
   Unshelve.
   constructor.
 Qed.
+*)
 
-Lemma SS_transfer_test2:
-  forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+Lemma RDNI_transfer_test2:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
     u T (p1_abs p2_abs: L_abs.(prog) T)
       rec_abs
       l_get_reboot_state_imp
@@ -595,7 +566,7 @@ Lemma SS_transfer_test2:
       valid_state_abs
       cond,
 
-    SelfSimulation
+    RDNI
       u p1_abs p2_abs
       rec_abs
       valid_state_abs
@@ -630,7 +601,7 @@ Lemma SS_transfer_test2:
     (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->
     
-    SelfSimulation
+    RDNI
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
@@ -641,15 +612,15 @@ Lemma SS_transfer_test2:
 Proof.
   intros.
   (** Convert to weak self_simulation **)
-  eapply Self_Simulation_Weak_to_Self_Simulation; eauto.
-  unfold SelfSimulation_Weak; simpl; intros.
+  eapply RDNI_Weak_to_RDNI; eauto.
+  unfold RDNI_Weak; simpl; intros.
 
   (** Construct abs oracles **)
   (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: abstract_oracles_exist_wrt _ _ _ ?p1 _ _,
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -658,8 +629,8 @@ Proof.
   end.
   
   match goal with
-  | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H1: oracle_refines_same_from_related_test2 _ _ _ _ _ _ _ |- _ ] =>
     eapply H1 in H0; eauto; cleanup
   end.
@@ -668,8 +639,8 @@ Proof.
   unfold refines_related in *; cleanup.
   
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: SimulationForProgram _ _ ?p1 _ _ _,
      H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -679,9 +650,9 @@ Proof.
 
   (** Use self_simulation to generate second abs execution from s2 **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p1_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ _ _ _,
-     H1: SelfSimulation _ _ _ _ _ _ _ _,
+  | [H: exec_with_recovery L_abs _ _ _ _ p1_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ _ _ _,
+     H1: RDNI _ _ _ _ _ _ _ _,
      H2: equivalent_states_abs _ _ |- _ ] =>
     eapply_fresh H1 in H;    
     specialize Hx with (3:= H2); edestruct Hx;
@@ -690,9 +661,9 @@ Proof.
   
   (** Show two executions are the same **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p2_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
-    eapply recovery_exec_deterministic_wrt_reboot_state in H;
+  | [H: exec_with_recovery L_abs _ _ _ _ p2_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
+    eapply exec_with_recovery_deterministic_wrt_reboot_state in H;
     eauto; cleanup
   end.
   
@@ -700,9 +671,9 @@ Proof.
 Qed.
 
 
-
+(*
 Lemma ORS_to_ORST:
-forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
 u T (p1_abs p2_abs: L_abs.(prog) T)
   rec_abs
   l_get_reboot_state_imp
@@ -715,9 +686,10 @@ Proof.
   eapply H in H0; eauto.
   subst; eauto.
 Qed.
+*)
 
-Lemma SS_transfer_test:
-  forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+Lemma RDNI_transfer:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
     u T (p1_abs p2_abs: L_abs.(prog) T)
       rec_abs
       l_get_reboot_state_imp
@@ -726,125 +698,7 @@ Lemma SS_transfer_test:
       valid_state_abs
       cond,
 
-    SelfSimulation
-      u p1_abs p2_abs
-      rec_abs
-      valid_state_abs
-      equivalent_states_abs
-      cond
-      l_get_reboot_state_abs ->
-    
-    SimulationForProgram R u p1_abs rec_abs 
-      l_get_reboot_state_imp
-      l_get_reboot_state_abs ->
-
-    SimulationForProgram R u p2_abs rec_abs 
-      l_get_reboot_state_imp
-      l_get_reboot_state_abs ->
-
-    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
-    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
-    
-    oracle_refines_same_from_related_test R u p1_abs p2_abs rec_abs l_get_reboot_state_imp l_get_reboot_state_abs equivalent_states_abs ->
-
-    exec_compiled_preserves_validity R
-    u p1_abs rec_abs l_get_reboot_state_imp
-    (refines_valid R valid_state_abs) ->
-
-    exec_compiled_preserves_validity R
-    u p2_abs rec_abs l_get_reboot_state_imp
-    (refines_valid R valid_state_abs) ->
-
-    Termination_Sensitive u (compile R p1_abs)
-    (compile R p2_abs) (compile R rec_abs)
-    (refines_valid R valid_state_abs)
-    (refines_related R equivalent_states_abs)
-    l_get_reboot_state_imp ->
-    
-    SelfSimulation
-      u (R.(compile) p1_abs)
-      (R.(compile) p2_abs)
-      (R.(compile) rec_abs)
-      (refines_valid R valid_state_abs)
-      (refines_related R equivalent_states_abs)
-      cond
-      l_get_reboot_state_imp.
-Proof.
-  intros.
-  (** Convert to weak self_simulation **)
-  eapply Self_Simulation_Weak_to_Self_Simulation; eauto.
-  unfold SelfSimulation_Weak; simpl; intros.
-
-  (** Construct abs oracles **)
-  (* unfold refines_valid, refines_related in *; cleanup. *)
-
-  match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
-     H1: abstract_oracles_exist_wrt _ _ _ ?p1 _ _,
-     H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
-    eapply_fresh H1 in H; eauto; cleanup;
-    eapply_fresh H2 in H0; eauto; cleanup;
-    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
-  end.
-  
-  match goal with
-  | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H1: oracle_refines_same_from_related_test _ _ _ _ _ _ _ _ |- _ ] =>
-    eapply_fresh H1 in H0; eauto; cleanup
-  end.
-
-
-  (** Construct abs executions **)
-  unfold refines_related in *; cleanup.
-  
-  match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
-     H1: SimulationForProgram _ _ ?p1 _ _ _,
-     H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
-    eapply_fresh H1 in H; eauto; cleanup;
-    eapply_fresh H2 in H0; eauto; cleanup
-  end.
-  simpl in *; cleanup.
-
-  eapply Hx in H17; eauto.
-  clear Hx.
-  (** Use self_simulation to generate second abs execution from s2 **)
-  match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p1_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ _ _ _,
-     H1: SelfSimulation _ _ _ _ _ _ _ _,
-     H2: equivalent_states_abs _ _ |- _ ] =>
-    eapply_fresh H1 in H;    
-    specialize Hx with (3:= H2); edestruct Hx;
-    eauto; cleanup
-  end.
-  
-  (** Show two executions are the same **)
-  match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p2_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
-    eapply recovery_exec_deterministic_wrt_reboot_state in H;
-    eauto; cleanup
-  end.
-  
-  repeat (split; eauto).
-Qed.
-
-
-Lemma SS_transfer:
-  forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
-    u T (p1_abs p2_abs: L_abs.(prog) T)
-      rec_abs
-      l_get_reboot_state_imp
-      l_get_reboot_state_abs
-      equivalent_states_abs
-      valid_state_abs
-      cond,
-
-    SelfSimulation
+    RDNI
       u p1_abs p2_abs
       rec_abs
       valid_state_abs
@@ -879,7 +733,7 @@ Lemma SS_transfer:
     (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->
     
-    SelfSimulation
+    RDNI
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
@@ -890,15 +744,15 @@ Lemma SS_transfer:
 Proof.
   intros.
   (** Convert to weak self_simulation **)
-  eapply Self_Simulation_Weak_to_Self_Simulation; eauto.
-  unfold SelfSimulation_Weak; simpl; intros.
+  eapply RDNI_Weak_to_RDNI; eauto.
+  unfold RDNI_Weak; simpl; intros.
 
   (** Construct abs oracles **)
   (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: abstract_oracles_exist_wrt _ _ _ ?p1 _ _,
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -907,8 +761,8 @@ Proof.
   end.
   
   match goal with
-  | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
@@ -917,8 +771,8 @@ Proof.
   unfold refines_related in *; cleanup.
   
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: SimulationForProgram _ _ ?p1 _ _ _,
      H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -928,9 +782,9 @@ Proof.
 
   (** Use self_simulation to generate second abs execution from s2 **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p1_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ _ _ _,
-     H1: SelfSimulation _ _ _ _ _ _ _ _,
+  | [H: exec_with_recovery L_abs _ _ _ _ p1_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ _ _ _,
+     H1: RDNI _ _ _ _ _ _ _ _,
      H2: equivalent_states_abs _ _ |- _ ] =>
     eapply_fresh H1 in H;    
     specialize Hx with (3:= H2); edestruct Hx;
@@ -939,17 +793,17 @@ Proof.
   
   (** Show two executions are the same **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p2_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
-    eapply recovery_exec_deterministic_wrt_reboot_state in H;
+  | [H: exec_with_recovery L_abs _ _ _ _ p2_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
+    eapply exec_with_recovery_deterministic_wrt_reboot_state in H;
     eauto; cleanup
   end.
   
   repeat (split; eauto).
 Qed.
 
-Lemma SS_compositional:
-  forall O (L: Language O) u 
+Lemma RDNI_compositional:
+  forall O (L: Layer O) u 
   T (p1 p2: L.(prog) T) T' (p3 p4: T -> L.(prog) T') 
       rec
       l_get_reboot_state3
@@ -957,7 +811,7 @@ Lemma SS_compositional:
       cond1 cond2,
 
     (forall l_get_reboot_state1,
-    SelfSimulation
+    RDNI
       u p1 p2
       rec
       valid_state
@@ -966,7 +820,7 @@ Lemma SS_compositional:
       l_get_reboot_state1) ->
 
     (forall l_get_reboot_state2 t t',
-    SelfSimulation
+    RDNI
       u (p3 t) (p4 t')
       rec
       valid_state
@@ -975,7 +829,7 @@ Lemma SS_compositional:
       l_get_reboot_state2) ->
 
       
-      SelfSimulation
+      RDNI
       u (Bind p1 p3) (Bind p2 p4)
       rec
       valid_state
@@ -984,7 +838,7 @@ Lemma SS_compositional:
       l_get_reboot_state3.
 Proof.
 
-  unfold SelfSimulation;
+  unfold RDNI;
   intros; simpl in *.
   repeat invert_exec.
   {
@@ -1055,8 +909,8 @@ Qed.
 
 
 
-Lemma SS_explicit_transfer:
-  forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+Lemma RDNI_explicit_transfer:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
     u T (p1_abs p2_abs: L_abs.(prog) T)
       rec_abs
       l_get_reboot_state_imp
@@ -1065,7 +919,7 @@ Lemma SS_explicit_transfer:
       valid_state_abs
       cond l_o s1_imp s2_imp,
 
-    SelfSimulation
+    RDNI
       u p1_abs p2_abs
       rec_abs
       valid_state_abs
@@ -1101,7 +955,7 @@ Lemma SS_explicit_transfer:
     (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->
     
-    SelfSimulation_explicit
+    RDNI_explicit
       u l_o s1_imp s2_imp
       (R.(compile) p1_abs)
       (R.(compile) p2_abs)
@@ -1114,8 +968,8 @@ Proof.
 
   intros.
   (** Convert to weak self_simulation **)
-  eapply Self_Simulation_Weak_explicit_to_Self_Simulation_explicit; eauto.
-  unfold SelfSimulation_Weak_explicit; simpl; intros.
+  eapply RDNI_Weak_explicit_to_RDNI_explicit; eauto.
+  unfold RDNI_Weak_explicit; simpl; intros.
 
   (** Construct abs oracles **)
   (* unfold refines_valid, refines_related in *; cleanup. *)
@@ -1123,8 +977,8 @@ Proof.
   specialize (H2 s1').
   specialize (H3 s2').
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: abstract_oracles_exist_wrt_explicit _ _ _ ?p1 _ _ _ _ _,
      H2: abstract_oracles_exist_wrt_explicit _ _ _ ?p2 _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -1133,8 +987,8 @@ Proof.
   end.
   
   match goal with
-  | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
@@ -1143,8 +997,8 @@ Proof.
   unfold refines_related in *; cleanup.
   
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: SimulationForProgram _ _ ?p1 _ _ _,
      H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -1154,9 +1008,9 @@ Proof.
 
   (** Use self_simulation to generate second abs execution from s2 **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p1_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ _ _ _,
-     H1: SelfSimulation _ _ _ _ _ _ _ _,
+  | [H: exec_with_recovery L_abs _ _ _ _ p1_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ _ _ _,
+     H1: RDNI _ _ _ _ _ _ _ _,
      H2: equivalent_states_abs _ _ |- _ ] =>
     eapply_fresh H1 in H;    
     specialize Hx with (3:= H2); edestruct Hx;
@@ -1165,9 +1019,9 @@ Proof.
   
   (** Show two executions are the same **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p2_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
-    eapply recovery_exec_deterministic_wrt_reboot_state in H;
+  | [H: exec_with_recovery L_abs _ _ _ _ p2_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
+    eapply exec_with_recovery_deterministic_wrt_reboot_state in H;
     eauto; cleanup
   end.
   
@@ -1175,8 +1029,8 @@ Proof.
 Qed.
 
 
-Lemma SS_explicit_transfer_2:
-  forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+Lemma RDNI_explicit_transfer_2:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
     u T (p1_abs p2_abs: L_abs.(prog) T)
       rec_abs
       l_get_reboot_state_imp
@@ -1185,7 +1039,7 @@ Lemma SS_explicit_transfer_2:
       valid_state_abs
       cond l_o s1_imp s2_imp,
 
-    SelfSimulation
+    RDNI
       u p1_abs p2_abs
       rec_abs
       valid_state_abs
@@ -1221,7 +1075,7 @@ Lemma SS_explicit_transfer_2:
     (refines_related R equivalent_states_abs)
     l_get_reboot_state_imp ->
     
-    SelfSimulation_explicit
+    RDNI_explicit
       u l_o s1_imp s2_imp
       (R.(compile) p1_abs)
       (R.(compile) p2_abs)
@@ -1234,8 +1088,8 @@ Proof.
 
   intros.
   (** Convert to weak self_simulation **)
-  eapply Self_Simulation_Weak_explicit_to_Self_Simulation_explicit; eauto.
-  unfold SelfSimulation_Weak_explicit; simpl; intros.
+  eapply RDNI_Weak_explicit_to_RDNI_explicit; eauto.
+  unfold RDNI_Weak_explicit; simpl; intros.
 
   (** Construct abs oracles **)
   (* unfold refines_valid, refines_related in *; cleanup. *)
@@ -1243,8 +1097,8 @@ Proof.
   specialize (H2 s1').
   specialize (H3 s2').
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: abstract_oracles_exist_wrt_explicit _ _ _ ?p1 _ _ _ _ _,
      H2: abstract_oracles_exist_wrt_explicit _ _ _ ?p2 _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -1253,8 +1107,8 @@ Proof.
   end.
   
   match goal with
-  | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H1: forall _ _, oracle_refines_same_from_related_explicit _ _ _ _ _ _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
@@ -1263,8 +1117,8 @@ Proof.
   unfold refines_related in *; cleanup.
   
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: SimulationForProgram _ _ ?p1 _ _ _,
      H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -1274,9 +1128,9 @@ Proof.
 
   (** Use self_simulation to generate second abs execution from s2 **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p1_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ _ _ _,
-     H1: SelfSimulation _ _ _ _ _ _ _ _,
+  | [H: exec_with_recovery L_abs _ _ _ _ p1_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ _ _ _,
+     H1: RDNI _ _ _ _ _ _ _ _,
      H2: equivalent_states_abs _ _ |- _ ] =>
     eapply_fresh H1 in H;    
     specialize Hx with (3:= H2); edestruct Hx;
@@ -1285,9 +1139,9 @@ Proof.
   
   (** Show two executions are the same **)
   match goal with
-  | [H: recovery_exec L_abs _ _ _ _ p2_abs _ _,
-     H0: recovery_exec L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
-    eapply recovery_exec_deterministic_wrt_reboot_state in H;
+  | [H: exec_with_recovery L_abs _ _ _ _ p2_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
+    eapply exec_with_recovery_deterministic_wrt_reboot_state in H;
     eauto; cleanup
   end.
   
@@ -1296,8 +1150,8 @@ Qed.
 
 
 (** If you don't care about termination, then you don't need Termination_Sensitive **)
-Lemma SSW_transfer:
-  forall O_imp O_abs (L_imp: Language O_imp) (L_abs: Language O_abs) (R: Refinement L_imp L_abs)
+Lemma RDNIW_transfer:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
     u T (p1_abs p2_abs: L_abs.(prog) T)
       rec_abs
       l_get_reboot_state_imp
@@ -1306,7 +1160,7 @@ Lemma SSW_transfer:
       valid_state_abs
       cond,
 
-    SelfSimulation_Weak
+    RDNI_Weak
       u p1_abs p2_abs
       rec_abs
       valid_state_abs
@@ -1335,7 +1189,7 @@ Lemma SSW_transfer:
     u p2_abs rec_abs l_get_reboot_state_imp
     (refines_valid R valid_state_abs) ->
     
-    SelfSimulation_Weak
+    RDNI_Weak
       u (R.(compile) p1_abs)
       (R.(compile) p2_abs)
       (R.(compile) rec_abs)
@@ -1347,14 +1201,14 @@ Proof.
 
   intros.
   (** Convert to weak self_simulation **)
-  unfold SelfSimulation_Weak; simpl; intros.
+  unfold RDNI_Weak; simpl; intros.
 
   (** Construct abs oracles **)
   (* unfold refines_valid, refines_related in *; cleanup. *)
 
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: abstract_oracles_exist_wrt _ _ _ ?p1 _ _,
      H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;
@@ -1363,8 +1217,8 @@ Proof.
   end.
   
   match goal with
-  | [H: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
-     H0: recovery_oracles_refine_to _ _ _ _ _ _ _ _,
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H1: oracle_refines_same_from_related _ _ _ _ _ _ _ |- _ ] =>
     eapply_fresh H1 in H0; eauto; cleanup
   end.
@@ -1373,8 +1227,8 @@ Proof.
   unfold refines_related in *; cleanup.
   
   match goal with
-  | [H: recovery_exec _ _ _ _ _ (compile _ ?p1) _ _,
-     H0: recovery_exec _ _ _ _ _ (compile _ ?p2) _ _,
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
      H1: SimulationForProgram _ _ ?p1 _ _ _,
      H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
     eapply_fresh H1 in H; eauto; cleanup;

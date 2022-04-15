@@ -225,6 +225,6 @@ Section FileDisk.
       exec'
       exec_deterministic_wrt_token'.
 
-  Definition FDLang := Build_Language FDOperation.
+  Definition FDLang := Build_Layer FDOperation.
 
 End FileDisk.

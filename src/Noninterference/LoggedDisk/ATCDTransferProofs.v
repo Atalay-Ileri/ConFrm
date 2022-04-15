@@ -2,14 +2,14 @@ Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLaye
 Require Import FileDiskNoninterference FileDiskRefinement.
 Require Import ATC_ORS ATCDLayer ATC_Simulation HSS ATC_TransferProofs.
 Require Import ATCD_Simulation ATCD_AOE.
-Require Import Not_Init ATCD_ORS ATCD_TS ATCD_TIE.
+Require Import Not_Init ATCD_ORS ATCD_TIE. (* ATCD_TS. *)
 
 Import FileDiskLayer.
 Set Nested Proofs Allowed.
 
 
 Lemma AOE_explicit_to_AOE:
-forall O1 O2 (L1: Language O1) (L2: Language O2) (Ref: Refinement L1 L2) 
+forall O1 O2 (L1: Layer O1) (L2: Layer O2) (Ref: Refinement L1 L2) 
 R u T (p: prog L2 T) rec l_grs,
 (forall l_o s1 s2,
 abstract_oracles_exist_wrt_explicit Ref R u p rec l_grs l_o s1 s2) ->
@@ -40,7 +40,7 @@ Theorem ss_ATCD_read:
         (Simulation.Definitions.compile FD.refinement (| Read inum off |))))
   (Simulation.Definitions.compile ATCD_Refinement
     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-  SelfSimulation_explicit u lo s1 s2
+  RDNI_explicit u lo s1 s2
     (ATCD_Refinement.(Simulation.Definitions.compile) 
     (ATC_Refinement.(Simulation.Definitions.compile) 
     (FD.refinement.(Simulation.Definitions.compile) 
@@ -59,7 +59,7 @@ Theorem ss_ATCD_read:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply SS_explicit_transfer.
+  eapply RDNI_explicit_transfer.
   - apply ss_ATC_read.
   - eapply ATCD_simulation.
     shelve.
@@ -83,7 +83,7 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply ATC_HRDNI_transfer; simpl; eauto.
     eapply have_same_structure_read; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_read].
     eapply TIE_auth_then_exec; eauto.
@@ -111,7 +111,7 @@ Theorem ss_ATCD_write:
         (Simulation.Definitions.compile FD.refinement (| Write inum off v |))))
   (Simulation.Definitions.compile ATCD_Refinement
     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-  SelfSimulation_explicit u lo s1 s2
+  RDNI_explicit u lo s1 s2
     (ATCD_Refinement.(Simulation.Definitions.compile) 
     (ATC_Refinement.(Simulation.Definitions.compile) 
     (FD.refinement.(Simulation.Definitions.compile) 
@@ -130,7 +130,7 @@ Theorem ss_ATCD_write:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply SS_explicit_transfer.
+  eapply RDNI_explicit_transfer.
   - apply ss_ATC_write.
   - eapply ATCD_simulation.
     shelve.
@@ -154,7 +154,7 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply ATC_HRDNI_transfer; simpl; eauto.
     eapply have_same_structure_write; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_write].
     eapply TIE_auth_then_exec; eauto.
@@ -183,7 +183,7 @@ Theorem ss_ATCD_create:
         (Simulation.Definitions.compile FD.refinement (| Create v |))))
   (Simulation.Definitions.compile ATCD_Refinement
     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-    SelfSimulation_explicit u lo s1 s2
+    RDNI_explicit u lo s1 s2
     (ATCD_Refinement.(Simulation.Definitions.compile) 
     (ATC_Refinement.(Simulation.Definitions.compile) 
     (FD.refinement.(Simulation.Definitions.compile) 
@@ -202,7 +202,7 @@ Theorem ss_ATCD_create:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply SS_explicit_transfer.
+  eapply RDNI_explicit_transfer.
   - apply ss_ATC_create.
   - eapply ATCD_simulation.
     shelve.
@@ -226,7 +226,7 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply ATC_HRDNI_transfer; simpl; eauto.
     eapply have_same_structure_create; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_create].
     intros; eapply TIE_create; eauto.
@@ -253,7 +253,7 @@ Theorem ss_ATCD_extend:
         (Simulation.Definitions.compile FD.refinement (| Extend inum v |))))
   (Simulation.Definitions.compile ATCD_Refinement
     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-    SelfSimulation_explicit u lo s1 s2
+    RDNI_explicit u lo s1 s2
     (ATCD_Refinement.(Simulation.Definitions.compile) 
     (ATC_Refinement.(Simulation.Definitions.compile) 
     (FD.refinement.(Simulation.Definitions.compile) 
@@ -272,7 +272,7 @@ Theorem ss_ATCD_extend:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply SS_explicit_transfer.
+  eapply RDNI_explicit_transfer.
   - apply ss_ATC_extend.
   - eapply ATCD_simulation.
     shelve.
@@ -296,7 +296,7 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply ATC_HRDNI_transfer; simpl; eauto.
     eapply have_same_structure_extend; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_extend].
     intros; eapply TIE_auth_then_exec; eauto.
@@ -324,7 +324,7 @@ Theorem ss_ATCD_change_owner:
         (Simulation.Definitions.compile FD.refinement (| ChangeOwner inum v |))))
   (Simulation.Definitions.compile ATCD_Refinement
     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-    SelfSimulation_explicit u lo s1 s2
+    RDNI_explicit u lo s1 s2
     (ATCD_Refinement.(Simulation.Definitions.compile) 
     (ATC_Refinement.(Simulation.Definitions.compile) 
     (FD.refinement.(Simulation.Definitions.compile) 
@@ -343,7 +343,7 @@ Theorem ss_ATCD_change_owner:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply SS_explicit_transfer.
+  eapply RDNI_explicit_transfer.
   - apply ss_ATC_change_owner.
   - eapply ATCD_simulation.
     shelve.
@@ -367,7 +367,7 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply ATC_HRDNI_transfer; simpl; eauto.
     eapply have_same_structure_change_owner; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_change_owner].
     intros; eapply TIE_auth_then_exec; eauto.
@@ -396,7 +396,7 @@ Theorem ss_ATCD_delete:
         (Simulation.Definitions.compile FD.refinement (| Delete inum |))))
   (Simulation.Definitions.compile ATCD_Refinement
     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-    SelfSimulation_explicit u lo s1 s2
+    RDNI_explicit u lo s1 s2
     (ATCD_Refinement.(Simulation.Definitions.compile) 
     (ATC_Refinement.(Simulation.Definitions.compile) 
     (FD.refinement.(Simulation.Definitions.compile) 
@@ -415,7 +415,7 @@ Theorem ss_ATCD_delete:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply SS_explicit_transfer.
+  eapply RDNI_explicit_transfer.
   - apply ss_ATC_delete.
   - eapply ATCD_simulation.
     shelve.
@@ -439,7 +439,7 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    eapply ATC_HRDNI_transfer; simpl; eauto.
     eapply have_same_structure_delete; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_delete].
     intros; eapply TIE_auth_then_exec; eauto.
