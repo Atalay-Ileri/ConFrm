@@ -65,17 +65,9 @@ def parse_file(filepath):
     print("")
 
 if __name__== "__main__":
-    print("=== dfscq/largefile ===")
-    parse_file("results/dfscq/largefile")
-
-    print("=== db_dfscq/largefile ===")
-    parse_file("results/db_dfscq/largefile")
-
-    print("=== fa_dfscq/largefile ===")
-    parse_file("results/fa_dfscq/largefile")
-
-    print("=== db_fa_dfscq/largefile ===")
-    parse_file("results/db_fa_dfscq/largefile")
-
-    print("=== sfscq/largefile ===")
-    parse_file("results/sfscq/largefile")
+    fs_names = ["ConFs", "Cfscq", "Sfscq"]
+    test_names = ["largefile"]
+    for test in test_names:
+        for fs in fs_names:
+            print("===", fs, test, "===")
+            parse_file("results/"+fs+"/"+test)

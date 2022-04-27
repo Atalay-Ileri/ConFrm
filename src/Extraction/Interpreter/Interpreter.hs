@@ -39,6 +39,10 @@ cache :: IORef (Map Coq_addr Coq_value)
 {-# NOINLINE cache #-}
 cache = unsafePerformIO (newIORef empty)
 
+bufferCache :: IORef (Map Coq_addr Coq_value)
+{-# NOINLINE bufferCache #-}
+bufferCache = unsafePerformIO (newIORef empty)
+
 txnList :: IORef [(Coq_addr, Coq_value)]
 {-# NOINLINE txnList #-}
 txnList = unsafePerformIO (newIORef [])
@@ -113,25 +117,68 @@ clearStats = writeIORef stats (Stats 0 0 0)
 getStats :: IO DiskStats
 getStats = readIORef stats
 
-timeItNamed s m = do
-  start <- getTime Realtime
-  r <- m
-  end <- getTime Realtime
-  printf "%s: %d\n" s (nsec end - nsec start)
-  return r
+opTimes :: Bool
+opTimes = False
+
+perSyscallStats :: Bool
+perSyscallStats = False
+
+syscallTimes :: Bool
+syscallTimes = False
+
+fsTimes :: Bool
+fsTimes = False
+
+internalTimes :: Bool
+internalTimes = False
+
+getSyscallOpStats :: String -> IO a -> IO a
+getSyscallOpStats name f =
+  if perSyscallStats then do
+    clearStats
+    ret <- f
+    Stats r w s <- getStats
+    clearStats
+    printf "--%s Disk Operation Counts--\nReads: %s\nWrites: %s\nSyncs: %s\n-----" name (show r) (show w) (show s)
+    return ret
+  else
+    f
+
+timeItNamed b s m = 
+  if b then do
+    start <- getTime Realtime
+    r <- m
+    end <- getTime Realtime
+    printf "%s: %d\n" s (nsec end - nsec start)
+    return r
+  else 
+    m
 
 -- Disk Operations
-diskRead :: Coq_addr -> IO Coq_value
-diskRead a = timeItNamed "Disk Read"--return BaseTypes.value0
+diskRead' :: Coq_addr -> IO Coq_value
+diskRead' a = timeItNamed opTimes "Disk Read"--return BaseTypes.value0
   (do
   bumpRead
   fs <-  readIORef fsImage
   PBS.fdSeek fs AbsoluteSeek (fromIntegral(4096 Prelude.* a))
   PBS.fdRead fs 4096)
 
+diskRead :: Coq_addr -> IO Coq_value
+diskRead a = diskRead' a
+{-
+  do 
+  c <- readIORef bufferCache
+  case Data.Map.lookup a c of
+    Just v -> 
+      return v
+    Nothing -> do
+      v <- diskRead' a
+      modifyIORef' bufferCache (insert a v)
+      return v
+-}
 
-diskWrite :: Coq_addr -> Coq_value -> IO ()
-diskWrite a !v = timeItNamed "Disk Write" --return ()
+diskWrite' :: Coq_addr -> Coq_value -> IO ()
+diskWrite' a v = timeItNamed opTimes "Disk Write" --return ()
   (do
   bumpWrite
   writeIORef dirty True
@@ -140,8 +187,13 @@ diskWrite a !v = timeItNamed "Disk Write" --return ()
   _ <- PBS.fdWrite fs v
   return ())
 
+diskWrite :: Coq_addr -> Coq_value -> IO ()
+diskWrite a !v = do
+  --modifyIORef' bufferCache (insert a v)
+  diskWrite' a v
+
 diskSync :: IO ()
-diskSync = timeItNamed "Disk Sync"
+diskSync = timeItNamed opTimes "Disk Sync"
   (do  --return ()
   d <- readIORef dirty
   if d then do
@@ -160,39 +212,44 @@ diskClose = do
 
 -- Cache Operations
 cacheRead :: Coq_addr -> IO (Maybe Coq_value)
-cacheRead a = do 
+cacheRead a = timeItNamed opTimes "Cache Read"
+  (do 
   c <- readIORef cache
-  return (Data.Map.lookup a c)
+  return (Data.Map.lookup a c))
 
 cacheWrite :: Coq_addr -> Coq_value -> IO ()
-cacheWrite a v = modifyIORef' cache (insert a v)
+cacheWrite a v = timeItNamed opTimes "Cache Write" (modifyIORef' cache (insert a v))
 
 cacheFlush :: IO ()
-cacheFlush = writeIORef cache empty
+cacheFlush = timeItNamed opTimes "Cache Flush" (writeIORef cache empty)
 
 -- List Operations
 listGet :: IO [(Coq_addr , Coq_value)]
-listGet = readIORef txnList
+listGet = timeItNamed opTimes "List Get" (readIORef txnList)
 
 listPut :: (Coq_addr , Coq_value) -> IO ()
-listPut av = modifyIORef' txnList ((:) av)
+listPut av = timeItNamed opTimes "List Put" (modifyIORef' txnList ((:) av))
 
 listDelete :: IO ()
-listDelete = writeIORef txnList []
+listDelete = timeItNamed opTimes "List Delete" (writeIORef txnList [])
 
 -- Crypto Operations
 cryptoHash :: Coq_hash -> Coq_value -> IO Coq_hash
-cryptoHash h v = return (toByteString (hash (BS.append h v) :: Digest MD5))
+cryptoHash h v = timeItNamed opTimes "Crypto Hash"
+  (return (toByteString (hash (BS.append h v) :: Digest MD5)))
 
 cryptoGetKey :: IO Coq_key
-cryptoGetKey = uniformByteStringM 32 globalStdGen
+cryptoGetKey = timeItNamed opTimes "Crypto GetKey"
+  (uniformByteStringM 32 globalStdGen)
 
 cryptoEncrypt :: Coq_key -> Coq_value -> IO Coq_value
-cryptoEncrypt k v = do 
+cryptoEncrypt k v = timeItNamed opTimes "Crypto Encrypt"
+  (do 
   cipher <- getCipher k;
-  return (encryptECB cipher v)
+  return (encryptECB cipher v))
 
 cryptoDecrypt :: Coq_key -> Coq_value -> IO Coq_value
-cryptoDecrypt k v = do 
-    cipher <- getCipher k;
-    return (decryptECB cipher v)
+cryptoDecrypt k v = timeItNamed opTimes "Crypto Decrypt"
+  (do 
+  cipher <- getCipher k;
+  return (decryptECB cipher v))

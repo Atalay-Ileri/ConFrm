@@ -105,7 +105,7 @@ end.
 Definition delete_inner inum :=
   mbl <- Inode.get_all_block_numbers inum;
   if mbl is Some block_numbers then
-    ok <- free_all_blocks block_numbers;
+    ok <- DiskAllocator.free_all block_numbers;
     if ok is Some tt then
       free inum
     else

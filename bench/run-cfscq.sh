@@ -1,7 +1,8 @@
 ITER=$1
+DEV=$2
 
-if [ $# -ne 1 ]; then
-  echo "$0 iteration-num"
+if [ $# -ne 2 ]; then
+  echo "$0 iteration-num dev-path"
   exit 1
 fi
 
@@ -12,10 +13,10 @@ mkdir results/Cfscq
 echo "=== Running Cfscq Tests ==="
 
 echo "== smallfile =="
-./run-cfscq-bench.sh Cfscq smallfile /dev/sdb3 $ITER > results/Cfscq/smallfile
+./run-cfscq-bench.sh Cfscq smallfile $DEV $ITER > results/Cfscq/smallfile
 echo "== largefile =="
-./run-cfscq-bench.sh Cfscq largefile /dev/sdb3 $ITER > results/Cfscq/largefile
+./run-cfscq-bench.sh Cfscq largefile $DEV $ITER > results/Cfscq/largefile
 echo "== createdelete =="
-./run-cfscq-bench.sh Cfscq createdelete /dev/sdb3 $ITER > results/Cfscq/createdelete
+./run-cfscq-bench.sh Cfscq createdelete $DEV $ITER > results/Cfscq/createdelete
 echo "== rename =="
-./run-cfscq-bench.sh Cfscq rename /dev/sdb3 $ITER > results/Cfscq/rename
+./run-cfscq-bench.sh Cfscq rename $DEV $ITER > results/Cfscq/rename

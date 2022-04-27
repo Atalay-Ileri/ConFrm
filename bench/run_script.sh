@@ -34,7 +34,7 @@ rm -rf $DIR
 mkdir $DIR
 
 echo "=== Mount $FS at $DIR ==="
-./fs/$FS $DEV -s -f -o nonempty,default_permissions $DIR &
+./fs/$FS $DEV -s -f -o nonempty,default_permissions,big_writes,atomic_o_trunc $DIR +RTS -p -po$FS_$TEST -RTS &
 while ! [[ $(findmnt $DIR) ]]; do :; done
 
 echo "=== Starting Testing ==="

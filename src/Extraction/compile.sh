@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 rm -rf -f ./extracted
 mkdir extracted
@@ -50,6 +50,6 @@ sed -ie '/^module/a import qualified Crypto.Hash.Algorithms' BaseTypes.hs
 sed -ie '/^module/a import Prelude' BaseTypes.hs
 
 # Compile Haskell files 
-ghc -O2 -threaded -rtsopts -dynamic ConFs.hs
-ghc -O2 -threaded -rtsopts -dynamic mkfs.hs
+ghc -prof -fprof-auto -rtsopts -O2 -threaded ConFs.hs
+ghc -prof -fprof-auto -rtsopts -O2 -threaded mkfs.hs
 

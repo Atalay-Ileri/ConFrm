@@ -63,6 +63,29 @@ Definition free a :=
   else
     Ret None.
 
+(** No duplicates in l_a *)
+Fixpoint free_bits_rec bits l_a:=
+  match l_a with
+  |[] => Some bits
+  |a::l_a' =>
+    if nth_error bits a is Some true then
+      match free_bits_rec bits l_a' with
+      |Some bits' => Some (updn bits' a false)
+      |None => None
+      end
+    else
+      None
+  end.
+
+(** Takes index instead of data address. **) 
+Definition free_all l_a :=
+  v <-| Read bitmap_addr;
+  let bits := value_to_bits v in
+  if free_bits_rec bits l_a is Some bits' then
+      | Write bitmap_addr (bits_to_value bits')|
+  else
+    Ret None.
+
 (** Takes index instead of data address. **) 
 Definition read a :=
   if lt_dec a num_of_blocks then
@@ -76,6 +99,7 @@ Definition read a :=
   else
     Ret None.
 
+    
 (** Takes index instead of data address. **) 
 Definition write a b :=
   if lt_dec a num_of_blocks then

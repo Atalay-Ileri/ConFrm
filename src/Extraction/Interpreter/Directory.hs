@@ -19,6 +19,7 @@ Haskell implemented directories all names should be unique
 dirMapAddr :: Int
 dirMapAddr = 128 * 1024
 
+
 -- This is a map from directory names to list of files/dirs under it.
 -- if it is a file, then second field contains its inode number, which should be used as the file descriptor
 dirMap :: IORef (Map String (Either [String] Coq_addr))
@@ -63,6 +64,15 @@ getInum fn dm =
       case e of
         Right i -> Just i
         Left sl -> Nothing
+
+getInumPath :: [String] -> Map String (Either [String] Coq_addr) -> Maybe Coq_addr
+getInumPath [] _ = Nothing
+getInumPath [fn] dm = getInum fn dm
+getInumPath (d:rest) dm =
+  if isValidFilePath (d:rest) dm then
+    getInumPath rest dm
+  else
+    Nothing
 
 getSubdirs :: String -> Map String (Either [String] Coq_addr) -> Maybe [String]
 getSubdirs fn dm =
@@ -260,20 +270,23 @@ addFile (p : c : rest) inum dm =
     (dm, eIO)
 
 onDirMap :: (Map String (Either [String] Coq_addr) -> a) -> IO a
-onDirMap f = do
+onDirMap f = Interpreter.timeItNamed Interpreter.opTimes "Directory Read"
+  (do
   dm <- readIORef dirMap
-  return (f dm)
+  return (f dm))
 
 modifyDirMap :: (Map String (Either [String] Coq_addr) -> (Map String (Either [String] Coq_addr) , a)) -> IO a
 modifyDirMap f = do 
-  dm <- readIORef dirMap
-  -- print "**modifyDirMap**"
-  -- print "Old Map:"
-  -- print dm
-  let (newMap, ret) = f dm
-  writeIORef dirMap newMap
+  r <- (Interpreter.timeItNamed Interpreter.opTimes "Directory Modify" (do 
+    dm <- readIORef dirMap
+    -- print "**modifyDirMap**"
+    -- print "Old Map:"
+    -- print dm
+    let (newMap, ret) = f dm
+    writeIORef dirMap newMap
+    return ret))
   persistDirMap
   -- print "New Map:"
   -- print newMap
   -- print "***************"
-  return ret
+  return r

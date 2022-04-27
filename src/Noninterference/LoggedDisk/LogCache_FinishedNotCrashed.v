@@ -325,8 +325,9 @@ log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
 
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
-Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
 
 o1 ++ o3 = o2 ++ o4 ->
 o1 = o2.
@@ -339,14 +340,14 @@ Proof.
   try eapply_fresh log_read_header_finished_oracle_eq in H; eauto;
   subst; eauto; cleanup.
   {
-      eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H10; eauto. 
+      eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H9; eauto. 
       cleanup.
-      eapply_fresh log_check_hash_finished_oracle_eq in H11; eauto. 
+      eapply_fresh log_check_hash_finished_oracle_eq in H10; eauto. 
       cleanup; eauto.
       eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto.
-      eapply BatchOperations.read_consecutive_finished in H8; eauto; cleanup. 
-      eapply BatchOperations.read_consecutive_finished in H10; eauto; cleanup.
+      eapply BatchOperations.read_consecutive_finished in H7; eauto; cleanup. 
+      eapply BatchOperations.read_consecutive_finished in H9; eauto; cleanup.
       eauto.
       eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto.
@@ -358,10 +359,10 @@ Proof.
       eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto.
       cleanup.
-      eapply BatchOperations.read_consecutive_finished in H8; eauto; cleanup. 
-      eapply BatchOperations.read_consecutive_finished in H10; eauto; cleanup.
-      eapply BatchOperations.hash_all_finished in H9; eauto; cleanup. 
-      eapply BatchOperations.hash_all_finished in H11; eauto; cleanup.
+      eapply BatchOperations.read_consecutive_finished in H7; eauto; cleanup. 
+      eapply BatchOperations.read_consecutive_finished in H9; eauto; cleanup.
+      eapply BatchOperations.hash_all_finished in H8; eauto; cleanup. 
+      eapply BatchOperations.hash_all_finished in H10; eauto; cleanup.
 
       exfalso.
       unfold log_reboot_rep_explicit_part , log_rep_general, 
@@ -376,21 +377,21 @@ Proof.
         cleanup.
         rewrite firstn_length_l; eauto.
         rewrite map_length.
-        setoid_rewrite H33; eauto.
+        setoid_rewrite H32; eauto.
         rewrite firstn_length_l; eauto.
         intros.
         rewrite seln_firstn.
         erewrite seln_map.
-        edestruct H10; eauto.
+        edestruct H9; eauto.
         rewrite <- H3; eauto.
         cleanup.
         unfold log_data_blocks_rep in *; cleanup.
         rewrite <- e1; eauto.
         lia.
-        setoid_rewrite H33; eauto. lia.
+        setoid_rewrite H32; eauto. lia.
         eauto.
         rewrite map_length.
-        setoid_rewrite H33; eauto.
+        setoid_rewrite H32; eauto.
         lia.
       }
       assert(firstn (count (current_part
@@ -399,7 +400,7 @@ Proof.
         cleanup.
         rewrite firstn_length_l; eauto.
         rewrite map_length.
-        setoid_rewrite H25; eauto.
+        setoid_rewrite H24; eauto.
         rewrite firstn_length_l; eauto.
         intros.
         rewrite seln_firstn.
@@ -409,25 +410,25 @@ Proof.
         unfold log_data_blocks_rep in *; cleanup.
         rewrite <- e; eauto.
         lia.
-        setoid_rewrite H25; eauto. lia.
+        setoid_rewrite H24; eauto. lia.
         eauto.
         rewrite map_length.
-        setoid_rewrite H25; eauto.
+        setoid_rewrite H24; eauto.
       }
       subst.
       unfold log_rep_inner, header_part_is_valid in *; logic_clean.
       destruct vp; eauto.
-      apply H11; eauto.
+      apply H10; eauto.
   }
   {
       unfold check_hash in *; repeat invert_exec; try congruence.
       eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto.
       cleanup.
-      eapply BatchOperations.read_consecutive_finished in H8; eauto; cleanup. 
-      eapply BatchOperations.read_consecutive_finished in H11; eauto; cleanup.
-      eapply BatchOperations.hash_all_finished in H9; eauto; cleanup. 
-      eapply BatchOperations.hash_all_finished in H12; eauto; cleanup.
+      eapply BatchOperations.read_consecutive_finished in H7; eauto; cleanup. 
+      eapply BatchOperations.read_consecutive_finished in H10; eauto; cleanup.
+      eapply BatchOperations.hash_all_finished in H8; eauto; cleanup. 
+      eapply BatchOperations.hash_all_finished in H11; eauto; cleanup.
 
       exfalso.
       unfold log_reboot_rep_explicit_part , log_rep_general, 
@@ -439,21 +440,21 @@ Proof.
         cleanup.
         rewrite firstn_length_l; eauto.
         rewrite map_length.
-        setoid_rewrite H33; eauto.
+        setoid_rewrite H32; eauto.
         rewrite firstn_length_l; eauto.
         intros.
         rewrite seln_firstn.
         erewrite seln_map.
-        edestruct H11; eauto.
+        edestruct H10; eauto.
         rewrite <- H3; eauto.
         cleanup.
         unfold log_data_blocks_rep in *; cleanup.
         rewrite <- e1; eauto.
         lia.
-        setoid_rewrite H33; eauto. lia.
+        setoid_rewrite H32; eauto. lia.
         eauto.
         rewrite map_length.
-        setoid_rewrite H33; eauto.
+        setoid_rewrite H32; eauto.
         lia.
       }
       assert(firstn (count (current_part
@@ -462,7 +463,7 @@ Proof.
         cleanup.
         rewrite firstn_length_l; eauto.
         rewrite map_length.
-        setoid_rewrite H25; eauto.
+        setoid_rewrite H24; eauto.
         rewrite firstn_length_l; eauto.
         intros.
         rewrite seln_firstn.
@@ -472,34 +473,34 @@ Proof.
         unfold log_data_blocks_rep in *; cleanup.
         rewrite <- e; eauto.
         lia.
-        setoid_rewrite H25; eauto. lia.
+        setoid_rewrite H24; eauto. lia.
         eauto.
         rewrite map_length.
-        setoid_rewrite H25; eauto.
+        setoid_rewrite H24; eauto.
       }
       subst.
       unfold log_rep_inner, header_part_is_valid in *; logic_clean.
       destruct vp; eauto.
-      apply H30; eauto.
+      apply H29; eauto.
       rewrite <- H3; eauto.
   }
   {
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H11.
-    2: apply H8. 
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H10.
+    2: apply H7. 
     all: eauto. 
     cleanup.
 
-    eapply_fresh log_check_hash_finished_oracle_eq in H12; eauto. 
+    eapply_fresh log_check_hash_finished_oracle_eq in H11; eauto. 
     cleanup; eauto.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H13; eauto.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H12; eauto.
     cleanup; eauto.
     eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto. 
       cleanup; eauto.
       eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto. 
-      eapply BatchOperations.read_consecutive_finished in H8; eauto; cleanup. 
-      eapply BatchOperations.read_consecutive_finished in H11; eauto; cleanup.
+      eapply BatchOperations.read_consecutive_finished in H7; eauto; cleanup. 
+      eapply BatchOperations.read_consecutive_finished in H10; eauto; cleanup.
       eauto.
       eapply read_header_finished in H; eauto.
       eapply read_header_finished in H0; eauto.
@@ -558,7 +559,7 @@ length
               (skipn
                  (start
                  txn_rec1)
-                 l1))))) = data_count txn_rec1 ->
+                 l1))))) >= data_count txn_rec1 ->
 length
 (blocks_to_addr_list
   (firstn
@@ -575,7 +576,7 @@ length
             (skipn
               (start
               txn_rec2)
-              l2))))) = data_count txn_rec2 ->
+              l2))))) >= data_count txn_rec2 ->
 addr_count txn_rec1 = addr_count txn_rec2 ->
 data_count txn_rec1 = data_count txn_rec2 ->
 start txn_rec1 = start txn_rec2 -> 
@@ -595,8 +596,7 @@ Proof.
     eapply Specs.decrypt_txn_finished in H0; eauto.
     cleanup; simpl.
     repeat rewrite firstn_length_l; eauto.
-    lia.
-    lia.
+
     rewrite skipn_length.
     rewrite map_length.
     repeat rewrite firstn_length_l.
@@ -667,7 +667,7 @@ length
               (skipn
                  (start
                  txn_rec1)
-                 l1))))) = data_count txn_rec1 /\
+                 l1))))) >= data_count txn_rec1 /\
 length
 (blocks_to_addr_list
   (firstn
@@ -684,7 +684,7 @@ length
             (skipn
               (start
               txn_rec2)
-              l2))))) = data_count txn_rec2 /\
+              l2))))) >= data_count txn_rec2 /\
 addr_count txn_rec1 = addr_count txn_rec2 /\
 data_count txn_rec1 = data_count txn_rec2 /\
 start txn_rec1 = start txn_rec2) 
@@ -764,7 +764,7 @@ length
               (skipn
                  (start
                  txn_rec1)
-                 l1))))) = data_count txn_rec1 /\
+                 l1))))) >= data_count txn_rec1 /\
 length
 (blocks_to_addr_list
   (firstn
@@ -781,7 +781,7 @@ length
             (skipn
               (start
               txn_rec2)
-              l2))))) = data_count txn_rec2 /\
+              l2))))) >= data_count txn_rec2 /\
 addr_count txn_rec1 = addr_count txn_rec2 /\
 data_count txn_rec1 = data_count txn_rec2 /\
 start txn_rec1 = start txn_rec2) 
@@ -802,6 +802,17 @@ Proof.
   rewrite <- H3 in *; eauto.
 Qed.
 
+Lemma blocks_to_addr_list_length_eq:
+  forall l1 l2 : list value,
+  length l1 = length l2 ->
+  length (blocks_to_addr_list l1) = length (blocks_to_addr_list l2).
+  Proof.
+    intros.
+    pose proof blocks_to_addr_list_length_le_preserve l1 l2.
+    pose proof blocks_to_addr_list_length_le_preserve l2 l1.
+    apply Nat.le_antisymm; lia.
+  Qed.
+
 Lemma log_apply_log_finished_oracle_eq:
 forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 r2 hdr1 hdr2 txns1 txns2,
 exec CryptoDiskLang u o1 s1
@@ -814,8 +825,9 @@ log_header_rep hdr2 txns2 s2 ->
 
 count (current_part hdr1) = count (current_part hdr2) ->
 count (old_part hdr1) = count (old_part hdr2) ->
-Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => data_count rec1 = data_count rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
 
 o1 ++ o3 = o2 ++ o4 ->
 o1 = o2.
@@ -831,7 +843,7 @@ Proof.
   2: apply H.
   all: eauto.
   cleanup.
-  eapply log_flush_txns_finished_oracle_eq in H9; eauto.
+  eapply log_flush_txns_finished_oracle_eq in H8; eauto.
   cleanup; eauto.
   unfold log_header_rep, log_rep_general in *; cleanup.
   eapply read_encrypted_log_finished in H; eauto.
@@ -840,69 +852,104 @@ Proof.
   all: intros; try congruence.
   eapply_fresh forall2_length in H5.
   eapply forall2_forall in H5.
-  eapply forall2_forall in H6.
   eapply forall_forall2.
   eapply Forall_forall; intros.
   apply in_combine_swap in H.
   eapply Forall_forall in H5; eauto.
-  eapply Forall_forall in H6; eauto.
   simpl in *.
   unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-  rewrite <- H23, <- H31 in *.
+  rewrite <- H24, <- H32 in *.
   setoid_rewrite <- combine_map' in H.
   apply in_map_iff in H.
   cleanup.
-  eapply in_seln_exists in H33; cleanup.
-  erewrite seln_combine in H0.
+  eapply in_seln_exists in H34; cleanup.
+  erewrite seln_combine in H1.
   destruct x, x2; simpl in *;
-  inversion H0; subst.
+  inversion H1; subst.
   {
    intuition; eauto.
    {
-     eapply Forall_forall in H24.
+     eapply Forall_forall in H25.
      2: eapply in_seln.
      unfold txn_well_formed, record_is_valid in *;
     simpl in *; logic_clean.
     rewrite firstn_length_l.
-    rewrite <- H34; eauto.
+    rewrite <- H35; eauto.
     rewrite map_length.
-    setoid_rewrite H19; eauto.
+    setoid_rewrite H20; eauto.
     rewrite combine_length in H; lia.
    }
    {
-     eapply Forall_forall in H32.
-     2: eapply in_seln.
-     unfold txn_well_formed, record_is_valid in *;
+    eapply Forall_forall in H25.
+    2: eapply in_seln.
+    unfold txn_well_formed, record_is_valid in *;
     simpl in *; logic_clean.
+    rewrite H35 in *.
+    eapply Nat.le_trans; eauto.
+    eapply blocks_to_addr_list_length_le_preserve.
     rewrite firstn_length_l.
-    rewrite <- H5, <- H6, <- H3, <- H33; eauto.
+    lia.
     rewrite map_length.
-    setoid_rewrite H27; eauto.
+    rewrite firstn_length_l.
+    lia.
+    rewrite skipn_length.
+    rewrite firstn_length_l.
+    lia.
+    rewrite map_length.
+    setoid_rewrite H20; eauto.
     rewrite combine_length in H; lia.
    }
    {
-     eapply Forall_forall in H24.
-     2: eapply in_seln.
-     unfold txn_well_formed, record_is_valid in *;
+     rewrite <- H0, <- H5 in *.
+    eapply Forall_forall in H33.
+    2: eapply in_seln.
+    unfold txn_well_formed, record_is_valid in *;
     simpl in *; logic_clean.
-    admit.
-    instantiate (1:= x6).
-    rewrite combine_length in H; lia.
-   }
-   {
-     eapply Forall_forall in H32.
-     2: eapply in_seln.
-     unfold txn_well_formed, record_is_valid in *;
-    simpl in *; logic_clean.
-    admit.
-    instantiate (1:= x6).
+    rewrite H34 in *.
+    eapply Nat.le_trans; eauto.
+    eapply blocks_to_addr_list_length_le_preserve.
+    rewrite firstn_length_l.
+    lia.
+    rewrite map_length.
+    rewrite firstn_length_l.
+    lia.
+    rewrite skipn_length.
+    rewrite firstn_length_l.
+    lia.
+    rewrite map_length.
+    setoid_rewrite H28; eauto.
     rewrite combine_length in H; lia.
    }
   }
-  rewrite <- H23, <- H31 in *; eauto.
+  rewrite <- H24, <- H32 in *; eauto.
   repeat rewrite map_length in *; eauto.
   eauto.
-Admitted.
+  {
+    unfold log_header_rep, log_rep_general in *; cleanup.
+    eapply read_encrypted_log_finished in H; eauto.
+    eapply read_encrypted_log_finished in H0; eauto.
+    cleanup; simpl.
+    all: intros; try congruence.
+    unfold log_rep_explicit in *; logic_clean.
+    repeat rewrite firstn_length_l; eauto.
+    rewrite map_length, <- H3; eauto.
+    setoid_rewrite H23; eauto.
+    rewrite map_length; eauto.
+    setoid_rewrite H17; eauto.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    logic_clean; do 2 eexists; intuition eauto.
+    congruence.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    logic_clean; do 2 eexists; intuition eauto.
+    congruence.
+  }
+  Unshelve.
+  all: repeat constructor; exact key0.
+Qed.
 
 
 Lemma log_recover_finished_oracle_eq:
@@ -917,10 +964,12 @@ log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
 
 count (current_part hdr1) = count (current_part hdr2) ->
 count (old_part hdr1) = count (old_part hdr2) ->
-Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => data_count rec1 = data_count rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2) (records (old_part hdr1)) (records (old_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => data_count rec1 = data_count rec2) (records (old_part hdr1)) (records (old_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (records (old_part hdr1)) (records (old_part hdr2)) -> 
 
 o1 ++ o3 = o2 ++ o4 ->
 o1 = o2.
@@ -935,128 +984,65 @@ Proof.
   eapply_fresh log_read_encrypted_log_finished_oracle_eq in H0; 
   only 2: apply H; eauto.
   cleanup.
-  eapply log_write_header_finished_oracle_eq in H14; eauto.
+  eapply log_write_header_finished_oracle_eq in H12; eauto.
   cleanup.
   simpl in *; cleanup.
-  eapply log_decrypt_txns_finished_oracle_eq in H16; eauto.
+  eapply log_decrypt_txns_finished_oracle_eq in H10. 
+  3: eauto.
+  all: eauto.
   cleanup; eauto.
   {
     unfold log_reboot_rep_explicit_part, log_rep_general in *; cleanup.
-  eapply read_encrypted_log_finished in H; eauto.
-  eapply read_encrypted_log_finished in H0; eauto.
-  cleanup_no_match; simpl.
-  all: intros; try congruence.
-  eapply_fresh forall2_length in H5.
-  eapply_fresh forall2_length in H7.
-  destruct vp; simpl in *.
-  {
-    eapply forall2_forall in H5.
-    eapply forall2_forall in H6.
-    eapply forall_forall2.
-    eapply Forall_forall; intros.
-    apply in_combine_swap in H.
-    eapply Forall_forall in H5; eauto.
-    eapply Forall_forall in H6; eauto.
-    simpl in *.
-    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-    rewrite <- H32, <- H40 in *.
-    setoid_rewrite <- combine_map' in H.
-    apply in_map_iff in H.
-    cleanup_no_match.
-    eapply in_seln_exists in H42; cleanup_no_match.
-    erewrite seln_combine in H0.
-    destruct x, x2; simpl in *;
-    inversion H0; subst.
-    repeat rewrite firstn_length_l. 
-    lia.
+    eapply read_encrypted_log_finished in H; eauto.
+    eapply read_encrypted_log_finished in H0; eauto.
+    cleanup_no_match; simpl.
+    all: intros; try congruence.
+    eapply_fresh forall2_length in H5.
+    eapply_fresh forall2_length in H6.
+    destruct vp; simpl in *.
     {
-      rewrite skipn_length, firstn_length_l.
-      rewrite <- H5, <- H6.
-      eapply Forall_forall in H41.
-      2: eapply in_seln with (n:= x10).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H42, <- H3 in *; eauto.
-      lia.
-      rewrite combine_length in H; lia.
-      rewrite map_length.
-      setoid_rewrite H36; eauto.
+      eapply forall2_forall in H5.
+      eapply forall_forall2.
+      eapply Forall_forall; intros.
+      eapply Forall_forall in H5; eauto.
+      eauto.
     }
-    
     {
-      rewrite skipn_length, firstn_length_l.
-      eapply Forall_forall in H33.
-      2: eapply in_seln with (n:= x10).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H43 in *; eauto.
-      lia.
-      rewrite combine_length in H; lia.
-      rewrite map_length.
-      setoid_rewrite H28; eauto.
+      eapply forall2_forall in H6.
+      eapply forall_forall2.
+      eapply Forall_forall; intros.
+      eapply Forall_forall in H6; eauto.
+      eauto.
     }
-    rewrite <- H32, <- H40 in *; eauto.
-    repeat rewrite map_length in *; eauto.
-    eauto.
-  }
-
-  {
-    eapply forall2_forall in H7.
-    eapply forall2_forall in H8.
-    eapply forall_forall2.
-    eapply Forall_forall; intros.
-    apply in_combine_swap in H.
-    eapply Forall_forall in H7; eauto.
-    eapply Forall_forall in H8; eauto.
-    simpl in *.
-    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-    rewrite <- H32, <- H40 in *.
-    setoid_rewrite <- combine_map' in H.
-    apply in_map_iff in H.
-    cleanup_no_match.
-    eapply in_seln_exists in H42; cleanup_no_match.
-    erewrite seln_combine in H0.
-    destruct x, x2; simpl in *;
-    inversion H0; subst.
-    repeat rewrite firstn_length_l. 
-    lia.
-    {
-      rewrite skipn_length, firstn_length_l.
-      rewrite <- H7, <- H8.
-      eapply Forall_forall in H41.
-      2: eapply in_seln with (n:= x10).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H42, <- H3 in *; eauto.
-      lia.
-      rewrite combine_length in H; lia.
-      rewrite map_length.
-      setoid_rewrite H36; eauto.
-    }
-    
-    {
-      rewrite skipn_length, firstn_length_l.
-      eapply Forall_forall in H33.
-      2: eapply in_seln with (n:= x10).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H43 in *; eauto.
-      lia.
-      rewrite combine_length in H; lia.
-      rewrite map_length.
-      setoid_rewrite H28; eauto.
-    }
-    rewrite <- H32, <- H40 in *; eauto.
-    repeat rewrite map_length in *; eauto.
-    eauto.
-  }
-  {
     rewrite <- H3 in *; eauto.
   }
+  {
+    unfold log_reboot_rep_explicit_part, log_rep_general in *; cleanup.
+    eapply read_encrypted_log_finished in H; eauto.
+    eapply read_encrypted_log_finished in H0; eauto.
+    cleanup_no_match; simpl.
+    all: intros; try congruence.
+    eapply_fresh forall2_length in H5.
+    eapply_fresh forall2_length in H6.
+    destruct vp; simpl in *.
+    {
+      unfold log_rep_explicit in *; logic_clean.
+      repeat rewrite firstn_length_l; eauto.
+      rewrite map_length, <- H3; eauto.
+      setoid_rewrite H25; eauto.
+      rewrite map_length; eauto.
+      setoid_rewrite H31; eauto.
+    }
+    {
+      unfold log_rep_explicit in *; logic_clean.
+      repeat rewrite firstn_length_l; eauto.
+      rewrite map_length, <- H4; eauto.
+      setoid_rewrite H25; eauto.
+      rewrite map_length; eauto.
+      setoid_rewrite H31; eauto.
+    }
+    rewrite <- H3 in *; eauto.
   }
-  Unshelve.
-  all: repeat econstructor.
-  all: exact key0.
 Qed.
 
 Lemma log_init_finished_oracle_eq:
@@ -1164,10 +1150,12 @@ log_reboot_rep_explicit_part  hdr2 txns2 vp (snd s2) ->
 
 count (current_part hdr1) = count (current_part hdr2) ->
 count (old_part hdr1) = count (old_part hdr2) ->
-Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => data_count rec1 = data_count rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2) (records (old_part hdr1)) (records (old_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => data_count rec1 = data_count rec2) (records (old_part hdr1)) (records (old_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (records (current_part hdr1)) (records (current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (records (old_part hdr1)) (records (old_part hdr2)) -> 
 
 o1 ++ o3 = o2 ++ o4 ->
 o1 = o2.
@@ -1176,122 +1164,112 @@ Proof.
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto.
   repeat rewrite <- app_assoc in *.
-  eapply_fresh map_ext_eq_prefix in H19; cleanup.
-  eapply_fresh log_recover_finished_oracle_eq in H14; 
-  only 2: apply H18; eauto.
+  eapply_fresh map_ext_eq_prefix in H17; cleanup.
+  eapply_fresh log_recover_finished_oracle_eq in H12; 
+  only 2: apply H16; eauto.
   cleanup.
-  eapply write_lists_to_cache_finished_oracle_eq in H16; eauto.
+  eapply write_lists_to_cache_finished_oracle_eq in H10. 
+  3: eauto.
+  all: eauto.
   cleanup; eauto.
-  eapply Specs.recover_finished in H14; eauto.
-  eapply Specs.recover_finished in H18; eauto.
+  eapply Specs.recover_finished in H12; eauto.
+  eapply Specs.recover_finished in H16; eauto.
   cleanup; eauto.
   2: unfold log_reboot_rep, log_reboot_rep_explicit_part in *; eauto.
   2: unfold log_reboot_rep, log_reboot_rep_explicit_part in *; eauto.
   eapply_fresh forall2_length in H5.
-  eapply_fresh forall2_length in H7.
+  eapply_fresh forall2_length in H6.
   destruct vp; simpl in *.
   {
     eapply forall2_forall in H5.
-    eapply forall2_forall in H6.
     eapply forall_forall2.
     eapply Forall_forall; intros.
-    apply in_combine_swap in H22.
-    setoid_rewrite <- combine_map' in H22.
-    setoid_rewrite <- combine_map' in H22.
-    apply in_map_iff in H22.
+    setoid_rewrite <- combine_map' in H20.
+    setoid_rewrite <- combine_map' in H20.
+    apply in_map_iff in H20.
     cleanup.
     repeat cleanup_pairs.
-    destruct p.
     unfold log_reboot_rep_explicit_part, log_rep_explicit, 
     log_rep_inner, txns_valid in *; logic_clean.
-    apply in_combine_combine_same in H23; simpl in *; logic_clean.
+    apply in_combine_combine_same in H21; simpl in *; logic_clean.
     subst.
-    rewrite <- H20, <- H31 in *.
+    rewrite <- H18, <- H29 in *.
     eapply Forall_forall in H5; eauto.
     2: setoid_rewrite <- combine_map';
       apply in_map; eauto.
+    simpl in *.
+
+    eapply in_seln_exists in H21; cleanup_no_match.
+    erewrite seln_combine in H0.
+    simpl in *;
+    inversion H0; subst.
+    eapply Forall_forall in H30.
+    2: eapply in_seln with (n:= x7).
+    unfold txn_well_formed, record_is_valid in *;
+    simpl in *; logic_clean.
+    rewrite H33, <- H37 in *; eauto.
+    eapply Forall_forall in H20.
+    2: eapply in_seln with (n:= x7).
+    unfold txn_well_formed, record_is_valid in *;
+    simpl in *; logic_clean.
+    rewrite H44, <- H48 in *; eauto.
+    repeat rewrite firstn_length_l; eauto.
+    rewrite H11, H12; eauto.
+    rewrite combine_length in H; lia.
+    rewrite combine_length in H; lia.
+    rewrite <- H18, <- H29 in *.
+    repeat rewrite map_length in Hx; eauto.
+    repeat rewrite combine_length; 
+    repeat rewrite map_length.
+    unfold log_reboot_rep_explicit_part, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H27, <- H36 in *.
+    repeat rewrite map_length in Hx; eauto.
+  }
+  {
+    eapply forall2_forall in H6.
+    eapply forall_forall2.
+    eapply Forall_forall; intros.
+    setoid_rewrite <- combine_map' in H20.
+    setoid_rewrite <- combine_map' in H20.
+    apply in_map_iff in H20.
+    cleanup.
+    repeat cleanup_pairs.
+    unfold log_reboot_rep_explicit_part, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    apply in_combine_combine_same in H21; simpl in *; logic_clean.
+    subst.
+    rewrite <- H18, <- H29 in *.
     eapply Forall_forall in H6; eauto.
     2: setoid_rewrite <- combine_map';
       apply in_map; eauto.
     simpl in *.
 
-    eapply in_seln_exists in H23; cleanup_no_match.
+    eapply in_seln_exists in H21; cleanup_no_match.
     erewrite seln_combine in H0.
     simpl in *;
     inversion H0; subst.
-    eapply Forall_forall in H32.
-    2: eapply in_seln with (n:= x6).
+    eapply Forall_forall in H30.
+    2: eapply in_seln with (n:= x7).
     unfold txn_well_formed, record_is_valid in *;
     simpl in *; logic_clean.
-    rewrite H34, <- H38 in *; eauto.
-    eapply Forall_forall in H22.
-    2: eapply in_seln with (n:= x6).
+    rewrite H33, <- H37 in *; eauto.
+    eapply Forall_forall in H20.
+    2: eapply in_seln with (n:= x7).
     unfold txn_well_formed, record_is_valid in *;
     simpl in *; logic_clean.
-    rewrite H45, <- H49 in *; eauto.
+    rewrite H44, <- H48 in *; eauto.
     repeat rewrite firstn_length_l; eauto.
-    rewrite H14, H23; eauto.
+    rewrite H11, H12; eauto.
     rewrite combine_length in H; lia.
     rewrite combine_length in H; lia.
-    rewrite <- H20, <- H31 in *.
-    repeat rewrite map_length in Hx; eauto.
-    repeat rewrite combine_length; 
-    repeat rewrite map_length.
-    unfold log_reboot_rep_explicit_part, log_rep_explicit, 
-    log_rep_inner, txns_valid in *; logic_clean.
-    rewrite <- H29, <- H38 in *.
-    repeat rewrite map_length in Hx; eauto.
-  }
-  {
-    eapply forall2_forall in H7.
-    eapply forall2_forall in H8.
-    eapply forall_forall2.
-    eapply Forall_forall; intros.
-    apply in_combine_swap in H22.
-    setoid_rewrite <- combine_map' in H22.
-    setoid_rewrite <- combine_map' in H22.
-    apply in_map_iff in H22.
-    cleanup.
-    repeat cleanup_pairs.
-    destruct p.
-    unfold log_reboot_rep_explicit_part, log_rep_explicit, 
-    log_rep_inner, txns_valid in *; logic_clean.
-    apply in_combine_combine_same in H23; simpl in *; logic_clean.
-    subst.
-    rewrite <- H20, <- H31 in *.
-    eapply Forall_forall in H7; eauto.
-    2: setoid_rewrite <- combine_map';
-      apply in_map; eauto.
-    eapply Forall_forall in H8; eauto.
-    2: setoid_rewrite <- combine_map';
-      apply in_map; eauto.
-    simpl in *.
-
-    eapply in_seln_exists in H23; cleanup_no_match.
-    erewrite seln_combine in H0.
-    simpl in *;
-    inversion H0; subst.
-    eapply Forall_forall in H32.
-    2: eapply in_seln with (n:= x6).
-    unfold txn_well_formed, record_is_valid in *;
-    simpl in *; logic_clean.
-    rewrite H34, <- H38 in *; eauto.
-    eapply Forall_forall in H22.
-    2: eapply in_seln with (n:= x6).
-    unfold txn_well_formed, record_is_valid in *;
-    simpl in *; logic_clean.
-    rewrite H45, <- H49 in *; eauto.
-    repeat rewrite firstn_length_l; eauto.
-    rewrite H14, H23; eauto.
-    rewrite combine_length in H; lia.
-    rewrite combine_length in H; lia.
-    rewrite <- H20, <- H31 in *.
+    rewrite <- H18, <- H29 in *.
     repeat rewrite map_length in Hx0; eauto.
     repeat rewrite combine_length; 
     repeat rewrite map_length.
     unfold log_reboot_rep_explicit_part, log_rep_explicit, 
     log_rep_inner, txns_valid in *; logic_clean.
-    rewrite <- H29, <- H38 in *.
+    rewrite <- H27, <- H36 in *.
     repeat rewrite map_length in Hx0; eauto.
   }
   repeat constructor.
@@ -1560,8 +1538,9 @@ log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
 
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
-Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
 
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CryptoDiskLang u o2 s2
@@ -1581,7 +1560,7 @@ Proof.
     repeat rewrite <- app_assoc in *.
     eapply_fresh log_read_header_finished_oracle_eq in H; eauto; cleanup.
     eapply read_header_finished in H; eauto.
-    eapply read_header_finished in H10; eauto.
+    eapply read_header_finished in H9; eauto.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
@@ -1592,10 +1571,82 @@ Proof.
     all: eauto.
 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H8; eauto; cleanup.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H7; eauto; cleanup.
+    unfold log_reboot_rep_explicit_part  in *; cleanup.
+    eapply read_consecutive_log_finished in H12; eauto.
+    eapply read_consecutive_log_finished in H7; eauto.
+    cleanup.
+    try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup;
+    eauto.
+    eapply log_check_hash_finished_not_crashed.
+    eauto.
+    3:eauto.
+    all: eauto.
+    repeat rewrite firstn_length_l; eauto.
+    unfold log_rep_explicit in *; cleanup.
+    rewrite map_length; 
+    setoid_rewrite H11; lia.
+    unfold log_rep_explicit in *; cleanup.
+    rewrite map_length; 
+    setoid_rewrite H17; lia.
+
+    repeat rewrite <- app_assoc in *.
+    eapply_fresh log_check_hash_finished_oracle_eq in H8; eauto; cleanup; eauto.
+    try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup;
+    eauto.
+    repeat rewrite firstn_length_l; eauto.
+    unfold log_rep_explicit in *; cleanup.
+    rewrite map_length; 
+    setoid_rewrite H18; lia.
+    unfold log_rep_explicit in *; cleanup.
+    rewrite map_length; 
+    setoid_rewrite H12; lia.
+
+
+    unfold check_hash in *.
+    repeat invert_exec; simpl in *; cleanup;
+    try congruence.
+    clear H10.
+
+    eapply BatchOperations.hash_all_finished in H8.
+    eapply BatchOperations.hash_all_finished in H7.
+    cleanup.
+    unfold log_rep_explicit,
+    log_rep_inner,
+    header_part_is_valid in *; logic_clean.
+    destruct vp; try congruence.
+    apply H6; eauto.
+    unfold log_rep_explicit in *; logic_clean; eauto.
+    unfold log_rep_explicit in *; logic_clean; eauto.
+  }
+  {
+    repeat rewrite <- app_assoc in *.
+    try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup;
+    eauto.
+    eapply log_read_header_finished_not_crashed; eauto.
+
+    repeat rewrite <- app_assoc in *.
+    eapply_fresh log_read_header_finished_oracle_eq in H; eauto; cleanup.
+    eapply read_header_finished in H; eauto.
+    eapply read_header_finished in H10; eauto.
+    try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup;
+    eauto.
+    cleanup.
+    eapply BatchOperations_read_consecutive_finished_not_crashed.
+    4: eauto.
+    3:eauto.
+    all: eauto.
+    rewrite <- H2 in *; eauto.
+
+    repeat rewrite <- app_assoc in *.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H7; eauto; cleanup.
     unfold log_reboot_rep_explicit_part  in *; cleanup.
     eapply read_consecutive_log_finished in H13; eauto.
-    eapply read_consecutive_log_finished in H8; eauto.
+    eapply read_consecutive_log_finished in H7; eauto.
     cleanup.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
@@ -1611,87 +1662,13 @@ Proof.
     unfold log_rep_explicit in *; cleanup.
     rewrite map_length; 
     setoid_rewrite H18; lia.
-    cleanup; eauto.
-
-    repeat rewrite <- app_assoc in *.
-    eapply_fresh log_check_hash_finished_oracle_eq in H9; eauto; cleanup; eauto.
-    try split_ors; cleanup;
-    repeat invert_exec; simpl in *; cleanup;
-    eauto.
-    repeat rewrite firstn_length_l; eauto.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H19; lia.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H13; lia.
-    cleanup; eauto.
-
-
-    unfold check_hash in *.
-    repeat invert_exec; simpl in *; cleanup;
-    try congruence.
-    clear H11.
-
-    eapply BatchOperations.hash_all_finished in H9.
-    eapply BatchOperations.hash_all_finished in H8.
-    cleanup.
-    unfold log_rep_explicit,
-    log_rep_inner,
-    header_part_is_valid in *; logic_clean.
-    destruct vp; try congruence.
-    apply H7; eauto.
-    unfold log_rep_explicit in *; logic_clean; eauto.
-    unfold log_rep_explicit in *; logic_clean; eauto.
-  }
-  {
-    repeat rewrite <- app_assoc in *.
-    try split_ors; cleanup;
-    repeat invert_exec; simpl in *; cleanup;
-    eauto.
-    eapply log_read_header_finished_not_crashed; eauto.
-
-    repeat rewrite <- app_assoc in *.
-    eapply_fresh log_read_header_finished_oracle_eq in H; eauto; cleanup.
-    eapply read_header_finished in H; eauto.
-    eapply read_header_finished in H11; eauto.
-    try split_ors; cleanup;
-    repeat invert_exec; simpl in *; cleanup;
-    eauto.
-    cleanup.
-    eapply BatchOperations_read_consecutive_finished_not_crashed.
-    4: eauto.
-    3:eauto.
-    all: eauto.
-    rewrite <- H2 in *; eauto.
-
-    repeat rewrite <- app_assoc in *.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H8; eauto; cleanup.
-    unfold log_reboot_rep_explicit_part  in *; cleanup.
-    eapply read_consecutive_log_finished in H14; eauto.
-    eapply read_consecutive_log_finished in H8; eauto.
-    cleanup.
-    try split_ors; cleanup;
-    repeat invert_exec; simpl in *; cleanup;
-    eauto.
-    eapply log_check_hash_finished_not_crashed.
-    eauto.
-    3:eauto.
-    all: eauto.
-    repeat rewrite firstn_length_l; eauto.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H13; lia.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H19; lia.
 
     unfold check_hash in *.
     repeat invert_exec; simpl in *; cleanup;
     try congruence.
 
-    eapply BatchOperations.hash_all_finished in H9.
     eapply BatchOperations.hash_all_finished in H8.
+    eapply BatchOperations.hash_all_finished in H7.
     cleanup.
     unfold log_rep_explicit,
     log_rep_inner,
@@ -1700,7 +1677,7 @@ Proof.
     apply H1; eauto.
 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh log_check_hash_finished_oracle_eq in H9; eauto; cleanup; eauto.
+    eapply_fresh log_check_hash_finished_oracle_eq in H8; eauto; cleanup; eauto.
     repeat invert_exec; simpl in *; cleanup;
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
@@ -1711,16 +1688,16 @@ Proof.
     all: eauto.
     rewrite <- H3 in *; eauto.
     repeat rewrite <- app_assoc in *.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H10; eauto; cleanup.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H9; eauto; cleanup.
     simpl in *; cleanup.
 
     repeat rewrite firstn_length_l; eauto.
     unfold log_rep_explicit in *; cleanup.
     rewrite map_length; 
-    setoid_rewrite H20; lia.
+    setoid_rewrite H19; lia.
     unfold log_rep_explicit in *; cleanup.
     rewrite map_length; 
-    setoid_rewrite H14; lia.
+    setoid_rewrite H13; lia.
 
     unfold log_rep_explicit in *; logic_clean; eauto.
     unfold log_rep_explicit in *; logic_clean; eauto. 
@@ -1752,6 +1729,8 @@ o1 ++ o3 = o2 ++ o4 ->
 addr_count rec1 = addr_count rec2 ->
 data_count rec1 = data_count rec2 ->
 start rec1 = start rec2 ->
+start rec1 + addr_count rec1 + data_count rec1 <= length l1 ->
+start rec2 + addr_count rec2 + data_count rec2 <= length l2 ->
 ~exec CryptoDiskLang u o2 s2
 (decrypt_txn rec2 l2) (Crashed s2').
 Proof.
@@ -1766,58 +1745,45 @@ Proof.
   4: eauto.
   eauto.
   all: eauto.
-  {
-    
-  }
+  repeat rewrite firstn_length_l; eauto.
+  rewrite skipn_length; lia.
+  rewrite skipn_length; lia.
 
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_decrypt_all_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
+  repeat rewrite firstn_length_l; eauto.
+  rewrite skipn_length; lia.
+  rewrite skipn_length; lia.
 Qed.
 
 Lemma log_decrypt_txns_finished_not_crashed:
 forall u recs1 recs2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (decrypt_txns recs1 l1) (Finished s1' r1) ->
+
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) recs1 recs2 -> 
+Forall (fun rec1 => start rec1 + addr_count rec1 + data_count rec1 <= length l1) recs1 ->
+Forall (fun rec2 => start rec2 + addr_count rec2 + data_count rec2 <= length l2) recs2 ->
+
+length l1 = length l2 ->
 o1 ++ o3 = o2 ++ o4 ->
-length recs1 = length recs2 ->
-Forall2
-  (fun
-     txn_rec1
-      txn_rec2 : txn_record
-   =>
-   length
-     (firstn
-        (addr_count
-           txn_rec1 +
-         data_count
-           txn_rec1)
-        (skipn
-           (start
-              txn_rec1)
-           l1)) =
-   length
-     (firstn
-        (addr_count
-           txn_rec2 +
-         data_count
-           txn_rec2)
-        (skipn
-           (start
-              txn_rec2)
-           l2)))
-  recs1 recs2 ->
 ~exec CryptoDiskLang u o2 s2
 (decrypt_txns recs2 l2) (Crashed s2').
 Proof.
   unfold not; 
-  induction recs1; destruct recs2; simpl; intros; try lia.
+  induction recs1; destruct recs2; simpl; intros;
+  eapply_fresh forall2_length in H0; simpl in *; try lia.
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto;
   repeat (try split_ors; cleanup;
   repeat invert_exec; simpl in *; cleanup;
   eauto).
 
+  inversion H0; clear H0; subst; eauto.
+  inversion H1; clear H1; subst; eauto.
   inversion H2; clear H2; subst; eauto.
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto;
@@ -1830,20 +1796,19 @@ Proof.
   4: eauto.
   eauto.
   all: eauto.
+  lia.
 
   repeat rewrite <- app_assoc in *.
   eapply log_decrypt_txn_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  eapply IHrecs1.
-  4: eauto.
-  eauto.
-  all: eauto.
+  eapply IHrecs1; eauto.
+  rewrite <- H3 in *; eauto.
 
   repeat rewrite <- app_assoc in *.
   eapply log_decrypt_txn_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply log_decrypt_txns_finished_oracle_eq in H5. 
+  eapply log_decrypt_txns_finished_oracle_eq in H3. 
   4: eauto.
   all: eauto. 
   cleanup; simpl in *; cleanup.
@@ -1860,35 +1825,12 @@ log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
 
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
-Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
-Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
-length txns1 = length txns2 ->
-(* Forall2
-  (fun
-     txn_rec1
-      txn_rec2 : txn_record
-   =>
-   length
-     (firstn
-        (addr_count
-           txn_rec1 +
-         data_count
-           txn_rec1)
-        (skipn
-           (start
-              txn_rec1)
-           l1)) =
-   length
-     (firstn
-        (addr_count
-           txn_rec2 +
-         data_count
-           txn_rec2)
-        (skipn
-           (start
-              txn_rec2)
-           l2)))
-  (map record txns1) (map record txns2) -> *)
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (Log.records (old_part hdr1)) (Log.records (old_part hdr2)) -> 
 
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CryptoDiskLang u o2 s2
@@ -1903,10 +1845,9 @@ Proof.
 
   repeat rewrite <- app_assoc in *.
   eapply log_read_encrypted_log_finished_not_crashed in H; eauto.
-  
 
   repeat rewrite <- app_assoc in *.
-  eapply log_read_encrypted_log_finished_oracle_eq in H13.
+  eapply log_read_encrypted_log_finished_oracle_eq in H12.
   7: eauto. 
   3: eauto.
   all: eauto.
@@ -1914,49 +1855,85 @@ Proof.
   eapply log_write_header_finished_not_crashed; eauto.
   
   repeat rewrite <- app_assoc in *.
-  eapply log_read_encrypted_log_finished_oracle_eq in H13.
+  eapply log_read_encrypted_log_finished_oracle_eq in H12.
   7: eauto. 
   3: eauto.
   all: eauto.
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply log_write_header_finished_oracle_eq in H9; eauto. 
+  eapply log_write_header_finished_oracle_eq in H8; eauto. 
   cleanup; simpl in *; cleanup.
 
   repeat rewrite <- app_assoc in *.
-  eapply_fresh log_read_encrypted_log_finished_oracle_eq in H13.
+  eapply_fresh log_read_encrypted_log_finished_oracle_eq in H12.
   7: eauto. 
   3: eauto.
   all: eauto.
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply log_write_header_finished_oracle_eq in H9; eauto. 
+  eapply log_write_header_finished_oracle_eq in H8; eauto. 
   cleanup; simpl in *; cleanup.
   eapply log_decrypt_txns_finished_not_crashed. 
-  5: eauto.
+  7: eauto.
   all: eauto.
   {
     unfold log_reboot_rep_explicit_part in *; logic_clean.
     eapply read_encrypted_log_finished in H; eauto.
-    eapply read_encrypted_log_finished in H13; eauto.
+    eapply read_encrypted_log_finished in H12; eauto.
     cleanup_no_match.
     repeat cleanup_pairs.
-    unfold log_rep_explicit, log_rep_inner,
-    txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
-    rewrite <- H19, <- H32.
-    repeat rewrite map_length; eauto.
+    destruct vp; eauto.
   }
   {
     unfold log_reboot_rep_explicit_part in *; logic_clean.
     eapply read_encrypted_log_finished in H; eauto.
-    eapply read_encrypted_log_finished in H13; eauto.
+    eapply read_encrypted_log_finished in H12; eauto.
     cleanup_no_match.
     repeat cleanup_pairs.
     unfold log_rep_explicit, log_rep_inner,
     txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
-    rewrite <- H19, <- H32.
+    rewrite <- H31.
+    apply Forall_forall; intros.
+    apply in_map_iff in H37; logic_clean; subst.
+    eapply Forall_forall in H32; eauto.
+    unfold txn_well_formed, record_is_valid in *; logic_clean.
+    rewrite firstn_length_l; eauto.
+    rewrite map_length.
+    setoid_rewrite H27; eauto.
   }
-Admitted.
+  {
+    unfold log_reboot_rep_explicit_part in *; logic_clean.
+    eapply read_encrypted_log_finished in H; eauto.
+    eapply read_encrypted_log_finished in H12; eauto.
+    cleanup_no_match.
+    repeat cleanup_pairs.
+    unfold log_rep_explicit, log_rep_inner,
+    txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
+    rewrite <- H18.
+    apply Forall_forall; intros.
+    apply in_map_iff in H37; logic_clean; subst.
+    eapply Forall_forall in H19; eauto.
+    unfold txn_well_formed, record_is_valid in *; logic_clean.
+    rewrite firstn_length_l; eauto.
+    rewrite map_length.
+    setoid_rewrite H11; eauto.
+  }
+  {
+    unfold log_reboot_rep_explicit_part in *; logic_clean.
+    eapply read_encrypted_log_finished in H; eauto.
+    eapply read_encrypted_log_finished in H12; eauto.
+    cleanup_no_match.
+    repeat cleanup_pairs.
+    unfold log_rep_explicit, log_rep_inner,
+    txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
+    repeat rewrite firstn_length_l; eauto.
+    destruct vp; eauto.
+    rewrite map_length.
+    setoid_rewrite H11; eauto.
+    rewrite map_length.
+    setoid_rewrite H27; eauto.
+  }
+Qed.
 
 
 Lemma log_init_finished_not_crashed:
@@ -2023,26 +2000,28 @@ forall u a1 a2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CachedDiskLang u o1 s1
 (LogCache.write_lists_to_cache a1)  (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-length a1 = length a2 ->
+Forall2 (fun l1 l2 => length (fst l1) = length (fst l2)) a1 a2 ->
 ~exec CachedDiskLang u o2 s2
 (LogCache.write_lists_to_cache a2) (Crashed s2').
 Proof.
   unfold not; induction a1; destruct a2; 
-  simpl; intros; try lia;
+  simpl; intros;
+  eapply_fresh forall2_length in H1; simpl in *;  try lia;
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto;
   repeat (try split_ors; cleanup;
   repeat invert_exec; simpl in *; cleanup;
   eauto).
 
+  inversion H1; clear H1; cleanup.
   repeat rewrite <- app_assoc in *.
   eapply write_batch_to_cache_finished_not_crashed; eauto.
 
+  inversion H1; clear H1; cleanup.
   repeat rewrite <- app_assoc in *.
   eapply write_batch_to_cache_finished_oracle_eq in H; eauto.
   cleanup; eauto.
-  shelve.
-Admitted.
+Qed.
 
 Lemma read_finished_not_crashed:
 forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2,
@@ -2062,9 +2041,22 @@ Qed.
 
 Opaque Log.recover.
 Lemma recover_finished_not_crashed:
-forall u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 hdr1 hdr2 txns1 txns2 vp,
 exec CachedDiskLang u o1 s1
 recover (Finished s1' r1) ->
+
+log_reboot_rep_explicit_part  hdr1 txns1 vp (snd s1) ->
+log_reboot_rep_explicit_part  hdr2 txns2 vp (snd s2) ->
+
+Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
+Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
+data_count rec1 = data_count rec2 /\
+start rec1 = start rec2) (Log.records (old_part hdr1)) (Log.records (old_part hdr2)) -> 
+
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CachedDiskLang u o2 s2
 recover (Crashed s2').
@@ -2077,14 +2069,14 @@ Proof.
   eauto).
 
   repeat rewrite <- app_assoc in *.
-  eapply map_ext_eq_prefix in H2.
+  eapply map_ext_eq_prefix in H8.
   cleanup.
   eapply log_recover_finished_not_crashed; eauto.
   solve [repeat constructor].
   intros; cleanup; intuition congruence.
 
   repeat rewrite <- app_assoc in *.
-  eapply_fresh map_ext_eq_prefix in H2.
+  eapply_fresh map_ext_eq_prefix in H8.
   cleanup.
   eapply log_recover_finished_oracle_eq in H6; eauto.
   cleanup.
@@ -2092,10 +2084,113 @@ Proof.
   4: eauto.
   eauto.
   all: eauto.
-  shelve.
+  {
+    eapply Specs.recover_finished in H12; eauto.
+    2: unfold log_reboot_rep; eauto.
+    eapply Specs.recover_finished in H14; eauto.
+    2: unfold log_reboot_rep; eauto.
+    cleanup.
+    eapply_fresh forall2_length in H4.
+    eapply_fresh forall2_length in H5.
+    destruct vp; simpl in *.
+    {
+      eapply forall2_forall in H4.
+      eapply forall_forall2.
+      eapply Forall_forall; intros.
+      setoid_rewrite <- combine_map' in H14.
+      setoid_rewrite <- combine_map' in H14.
+      apply in_map_iff in H14.
+      cleanup.
+      repeat cleanup_pairs.
+      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
+      log_rep_inner, txns_valid in *; logic_clean.
+      apply in_combine_combine_same in H16; simpl in *; logic_clean.
+      subst.
+      rewrite <- H20, <- H29 in *.
+      eapply Forall_forall in H4; eauto.
+      2: setoid_rewrite <- combine_map';
+        apply in_map; eauto.
+      simpl in *.
+
+      eapply in_seln_exists in H16; cleanup_no_match.
+      erewrite seln_combine in H0.
+      simpl in *;
+      inversion H0; subst.
+      eapply Forall_forall in H30.
+      2: eapply in_seln with (n:= x5).
+      unfold txn_well_formed, record_is_valid in *;
+      simpl in *; logic_clean.
+      rewrite H33, <- H37 in *; eauto.
+      eapply Forall_forall in H21.
+      2: eapply in_seln with (n:= x5).
+      unfold txn_well_formed, record_is_valid in *;
+      simpl in *; logic_clean.
+      rewrite H44, <- H48 in *; eauto.
+      repeat rewrite firstn_length_l; eauto.
+      rewrite H14, H16; eauto.
+      rewrite combine_length in H; lia.
+      rewrite combine_length in H; lia.
+      rewrite <- H20, <- H29 in *.
+      repeat rewrite map_length in Hx; eauto.
+      repeat rewrite combine_length; 
+      repeat rewrite map_length.
+      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
+      log_rep_inner, txns_valid in *; logic_clean.
+      rewrite <- H23, <- H32 in *.
+      repeat rewrite map_length in Hx; eauto.
+    }
+    {
+      eapply forall2_forall in H5.
+      eapply forall_forall2.
+      eapply Forall_forall; intros.
+      setoid_rewrite <- combine_map' in H14.
+      setoid_rewrite <- combine_map' in H14.
+      apply in_map_iff in H14.
+      cleanup.
+      repeat cleanup_pairs.
+      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
+      log_rep_inner, txns_valid in *; logic_clean.
+      apply in_combine_combine_same in H16; simpl in *; logic_clean.
+      subst.
+      rewrite <- H20, <- H29 in *.
+      eapply Forall_forall in H5; eauto.
+      2: setoid_rewrite <- combine_map';
+        apply in_map; eauto.
+      simpl in *.
+
+      eapply in_seln_exists in H16; cleanup_no_match.
+      erewrite seln_combine in H0.
+      simpl in *;
+      inversion H0; subst.
+      eapply Forall_forall in H30.
+      2: eapply in_seln with (n:= x5).
+      unfold txn_well_formed, record_is_valid in *;
+      simpl in *; logic_clean.
+      rewrite H33, <- H37 in *; eauto.
+      eapply Forall_forall in H21.
+      2: eapply in_seln with (n:= x5).
+      unfold txn_well_formed, record_is_valid in *;
+      simpl in *; logic_clean.
+      rewrite H44, <- H48 in *; eauto.
+      repeat rewrite firstn_length_l; eauto.
+      rewrite H14, H16; eauto.
+      rewrite combine_length in H; lia.
+      rewrite combine_length in H; lia.
+      rewrite <- H20, <- H29 in *.
+      repeat rewrite map_length in Hx0; eauto.
+      repeat rewrite combine_length; 
+      repeat rewrite map_length.
+      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
+      log_rep_inner, txns_valid in *; logic_clean.
+      rewrite <- H23, <- H32 in *.
+      repeat rewrite map_length in Hx0; eauto.
+    }
+  }
   solve [repeat constructor].
   intros; cleanup; intuition congruence.
-Admitted.
+  Unshelve.
+  all: repeat constructor; exact key0.
+Qed.
 
 Opaque Log.init.
 Lemma init_finished_not_crashed:

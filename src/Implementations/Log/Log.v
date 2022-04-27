@@ -49,9 +49,10 @@ Axiom decode_encode_header : forall v, encode_header (decode_header v) = v.
 
 
 (* Programs *)
-Definition read_header :=
+Definition read_header : prog CryptoDiskLang header:= 
   hd <- |DO| Read hdr_block_num;
   Ret (decode_header hd).
+
 
 Definition write_header hdr :=
   |DO| Write hdr_block_num (encode_header hdr).

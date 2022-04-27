@@ -27,8 +27,8 @@ Extract Constant log_length => "512". (** 512 log blocks *)
 Extract Constant inode_count => "4096". (** 4K inodes *)
 Extract Constant disk_size => "4 * 1024 * 1024 * 1024 + 1". (** 4 GB disk *)
 
-
 Extract Constant addr_list_to_blocks => 
+
 "Helpers.intListToByteStringList (div block_size Helpers.intSize)".
 
 Extract Constant blocks_to_addr_list => 
@@ -49,15 +49,15 @@ Extract Constant bits_to_value =>
 (** These need to be defined as well **)
 Extract Constant Log.encode_header => "(Helpers.setToBlockSize (Prelude.div BaseTypes.block_size 8) Prelude.. Data.Serialize.encode)".
 Extract Constant Log.decode_header =>
-"\x -> case Data.Serialize.decode x of 
+"\x -> case Data.Serialize.decode x of {
 Prelude.Left _ -> header0; 
-Prelude.Right h -> h".
+Prelude.Right h -> h }".
 
 Extract Constant Inode.encode_inode => "(Helpers.setToBlockSize (Prelude.div BaseTypes.block_size 8) Prelude.. Data.Serialize.encode)".
 Extract Constant Inode.decode_inode =>
-"\x -> case Data.Serialize.decode x of 
+"\x -> case Data.Serialize.decode x of {
 Prelude.Left _ -> Build_Inode 0 []; 
-Prelude.Right h -> h".
+Prelude.Right h -> h }".
 
 
 (** Eliminate Horizontal Composition **) 

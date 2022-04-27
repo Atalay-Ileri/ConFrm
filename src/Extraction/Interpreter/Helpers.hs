@@ -6,7 +6,6 @@ import qualified Data.Word
 import qualified Data.Char
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Serialize as BIN
 import qualified Data.List.Split as L
 import qualified Data.Text as T
@@ -17,6 +16,7 @@ intSize = Data.Bits.finiteBitSize (1::Int)
 
 toBits :: Data.Word.Word8 -> [Bool]
 toBits x = [Data.Bits.testBit x i | i <- [0.. Data.Bits.finiteBitSize x - 1] ]
+--toBits x = replicate (Data.Bits.finiteBitSize x) False
 
 toByte :: [Bool] -> Data.Word.Word8
 toByte list = toByteRec list 0 0
