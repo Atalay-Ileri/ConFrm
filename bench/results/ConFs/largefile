@@ -6,48 +6,69 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === largefile Bench ===
-makefile 1 MB 3463572 usec throughput 295.6 KB/s
+makefile 1 MB 681473 usec throughput 1502.6 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 695204 usec throughput 1472.9 KB/s
+writefile 1 MB 582393 usec throughput 1758.3 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 3144016 usec throughput 325.7 KB/s
+makefile 1 MB 710692 usec throughput 1440.8 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 714891 usec throughput 1432.4 KB/s
+writefile 1 MB 516720 usec throughput 1981.7 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 3179707 usec throughput 322.0 KB/s
+makefile 1 MB 732494 usec throughput 1398.0 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 753904 usec throughput 1358.3 KB/s
+writefile 1 MB 557043 usec throughput 1838.3 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 3193031 usec throughput 320.7 KB/s
+makefile 1 MB 742415 usec throughput 1379.3 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 755722 usec throughput 1355.0 KB/s
+writefile 1 MB 548174 usec throughput 1868.0 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 3192309 usec throughput 320.8 KB/s
+makefile 1 MB 727682 usec throughput 1407.2 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 746455 usec throughput 1371.8 KB/s
+writefile 1 MB 581790 usec throughput 1760.1 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 3199948 usec throughput 320.0 KB/s
+makefile 1 MB 697920 usec throughput 1467.2 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 737142 usec throughput 1389.1 KB/s
+writefile 1 MB 551462 usec throughput 1856.9 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 3124263 usec throughput 327.8 KB/s
+makefile 1 MB 717524 usec throughput 1427.1 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 741601 usec throughput 1380.8 KB/s
+writefile 1 MB 545932 usec throughput 1875.7 KB/s
 === FS Stats ===
 ========
+makefile 1 MB 726587 usec throughput 1409.3 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 565333 usec throughput 1811.3 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 701973 usec throughput 1458.7 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 580786 usec throughput 1763.1 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 694897 usec throughput 1473.6 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 571505 usec throughput 1791.8 KB/s
+=== FS Stats ===
+========
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+=== Delete /tmp/ConFs ===
 Starting file system.
 Recovering file system
 Initializing Done
@@ -73,9 +94,17 @@ Initializing Done
 "Reads:  894 Writes: 1390 Syncs:  299"
 "Reads:  792 Writes: 776 Syncs:  264"
 "Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  299"
+"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  299"
+"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  299"
+"Reads:  792 Writes: 776 Syncs:  264"
 "--- Disk Close Stats ---"
 Disk I/O stats:
-Reads:  201
-Writes: 327
-Syncs:  68
+Reads:  3
+Writes: 5
+Syncs:  2
 "--- --- ---  --- --- ---"

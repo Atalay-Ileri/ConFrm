@@ -6,34 +6,34 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === smallfile Bench ===
-DATA: 28 1004513
+DATA: 116 1004074
 === FS Stats ===
 ========
-DATA: 29 1028245
+DATA: 113 1012768
 === FS Stats ===
 ========
-DATA: 27 1024448
+DATA: 116 1001739
 === FS Stats ===
 ========
-DATA: 28 1021841
+DATA: 115 1002440
 === FS Stats ===
 ========
-DATA: 29 1001386
+DATA: 115 1001290
 === FS Stats ===
 ========
-DATA: 28 1007218
+DATA: 115 1002542
 === FS Stats ===
 ========
-DATA: 30 1034066
+DATA: 112 1000105
 === FS Stats ===
 ========
-DATA: 31 1020459
+DATA: 113 1006373
 === FS Stats ===
 ========
-DATA: 31 1021238
+DATA: 111 1003116
 === FS Stats ===
 ========
-DATA: 30 1011067
+DATA: 112 1002725
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -42,25 +42,25 @@ Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  263 Writes: 319 Syncs:  116"
+"Reads:  1055 Writes: 1287 Syncs:  468"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  270 Writes: 330 Syncs:  120"
+"Reads:  1026 Writes: 1254 Syncs:  456"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  252 Writes: 308 Syncs:  112"
+"Reads:  1053 Writes: 1287 Syncs:  468"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  261 Writes: 319 Syncs:  116"
+"Reads:  1044 Writes: 1276 Syncs:  464"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  270 Writes: 330 Syncs:  120"
+"Reads:  1044 Writes: 1276 Syncs:  464"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  261 Writes: 319 Syncs:  116"
+"Reads:  1044 Writes: 1276 Syncs:  464"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  279 Writes: 341 Syncs:  124"
+"Reads:  1017 Writes: 1243 Syncs:  452"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  288 Writes: 352 Syncs:  128"
+"Reads:  1026 Writes: 1254 Syncs:  456"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  288 Writes: 352 Syncs:  128"
+"Reads:  1008 Writes: 1232 Syncs:  448"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  279 Writes: 341 Syncs:  124"
+"Reads:  1017 Writes: 1243 Syncs:  452"
 "--- Disk Close Stats ---"
 Disk I/O stats:
 Reads:  0

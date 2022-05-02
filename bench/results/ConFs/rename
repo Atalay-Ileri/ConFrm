@@ -1,0 +1,70 @@
+=== Unmount /tmp/ConFs ===
+=== ConMkfs in /dev/sda3 ===
+"--MKFS--"
+"/dev/sda3"
+=== Recreate /tmp/ConFs ===
+=== Mount ConFs at /tmp/ConFs ===
+=== Starting Testing ===
+=== rename Bench ===
+DATA: 115 1005896
+=== FS Stats ===
+========
+DATA: 111 1005285
+=== FS Stats ===
+========
+DATA: 111 1002429
+=== FS Stats ===
+========
+DATA: 112 1001251
+=== FS Stats ===
+========
+DATA: 114 1008428
+=== FS Stats ===
+========
+DATA: 113 1000029
+=== FS Stats ===
+========
+DATA: 111 1006008
+=== FS Stats ===
+========
+DATA: 110 1000197
+=== FS Stats ===
+========
+DATA: 115 1007213
+=== FS Stats ===
+========
+DATA: 110 1008725
+=== FS Stats ===
+========
+=== Finished Testing ===
+=== Unmount /tmp/ConFs ===
+Starting file system.
+Recovering file system
+Initializing Done
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  694 Writes: 1155 Syncs:  577"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  669 Writes: 1115 Syncs:  557"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  669 Writes: 1115 Syncs:  557"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  675 Writes: 1125 Syncs:  562"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  687 Writes: 1145 Syncs:  572"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  681 Writes: 1135 Syncs:  567"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  669 Writes: 1115 Syncs:  557"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  663 Writes: 1105 Syncs:  552"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  693 Writes: 1155 Syncs:  577"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  663 Writes: 1105 Syncs:  552"
+"--- Disk Close Stats ---"
+Disk I/O stats:
+Reads:  0
+Writes: 0
+Syncs:  0
+"--- --- ---  --- --- ---"
+=== Delete /tmp/ConFs ===

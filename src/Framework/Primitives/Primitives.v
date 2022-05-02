@@ -73,7 +73,7 @@ Definition apply_mem {A AEQ V} (m: @mem A AEQ V) (tm: @total_mem A AEQ V):=
       repeat rewrite app_length in *; simpl in *.
       rewrite Mem.upd_batch_app in *; simpl in *; try lia.
       apply forall_app_l in H7; inversion H7; cleanup.
-      apply equal_f with (x0:= x2) in H0.
+      apply equal_f with (x:= x2) in H0.
       rewrite Mem.upd_eq in *; eauto; cleanup.
     }
   Qed.
@@ -402,7 +402,7 @@ Definition apply_mem {A AEQ V} (m: @mem A AEQ V) (tm: @total_mem A AEQ V):=
           simpl in *.
           assert_fresh (v = snd x). {
             do 2 rewrite Mem.upd_batch_upd in H; eauto.
-            apply equal_f with (x2:= fst x) in H.                
+            apply equal_f with (x:= fst x) in H.                
             do 2 rewrite Mem.upd_eq in *; eauto; congruence.
             intros Hx.
             apply NoDup_app_r in H10; inversion H10; eauto.

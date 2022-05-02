@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports, BangPatterns #-}
 module Directory where
 
 import Prelude
@@ -6,7 +7,7 @@ import Data.IORef
 import BaseTypes
 import GHC.IO.Unsafe
 import qualified Interpreter
-import Data.Serialize
+import Data.Persist
 import Foreign.C.Error
 import Data.Maybe
 import qualified Data.List as L
@@ -50,7 +51,7 @@ persistDirMap = do
   dm <- readIORef dirMap
   ---- print "--Persisting dirMap"
   ---- print dm
-  let dmBlock = Helpers.setToBlockSize (div block_size 8) (encode dm) 
+  let dmBlock = Helpers.setToBlockSize (div Interpreter.block_size 8) (encode dm) 
   Interpreter.diskWrite dirMapAddr dmBlock
   Interpreter.diskSync
   return()

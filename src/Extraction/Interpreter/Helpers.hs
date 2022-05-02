@@ -1,39 +1,72 @@
 module Helpers where
 
 import Prelude
-import qualified Data.Bits
-import qualified Data.Word
+import qualified Data.Bits as B
+import qualified Data.Word as W
 import qualified Data.Char
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import qualified Data.Serialize as BIN
+import qualified Data.Persist as BIN
 import qualified Data.List.Split as L
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 
 intSize :: Int
-intSize = Data.Bits.finiteBitSize (1::Int)
+intSize = B.finiteBitSize (1::Int)
 
-toBits :: Data.Word.Word8 -> [Bool]
-toBits x = [Data.Bits.testBit x i | i <- [0.. Data.Bits.finiteBitSize x - 1] ]
---toBits x = replicate (Data.Bits.finiteBitSize x) False
+maxWord8 :: W.Word8
+maxWord8 = B.complement B.zeroBits
 
-toByte :: [Bool] -> Data.Word.Word8
-toByte list = toByteRec list 0 0
+changeBitWord8 :: Int -> Bool -> W.Word8 -> W.Word8
+changeBitWord8 a b w = 
+  if b then
+    B.setBit w a
+  else
+    B.clearBit w a
 
-toByteRec :: [Bool] -> Int -> Data.Word.Word8 -> Data.Word.Word8
-toByteRec list 8 result = result
-toByteRec list i result 
-    | head list == True = toByteRec (tail list) (i + 1) (result Data.Bits..|. (2^i :: Data.Word.Word8))
-    | otherwise = toByteRec (tail list) (i + 1) result
+changeBit :: Int -> Bool -> BS.ByteString -> BS.ByteString
+changeBit a b bs =
+  let bs_index = div a 8 in
+  let word_index = mod a 8 in
+    if bs_index < BS.length bs then
+      BS.append (BS.take bs_index bs) (BS.cons (changeBitWord8 word_index b (BS.index bs bs_index)) (BS.drop (bs_index + 1) bs)) 
+    else 
+      bs
 
-byteStringToBoolList :: BS.ByteString -> [Bool]
-byteStringToBoolList bs =
-  concatMap toBits (BS.unpack bs)
+setBit :: Int -> BS.ByteString -> BS.ByteString
+setBit a bs = changeBit a True bs
 
-boolListToByteString :: [Bool] -> BS.ByteString 
-boolListToByteString  bl =
-  BS.pack (map toByte (L.chunksOf 8 bl))
+unsetBit :: Int -> BS.ByteString -> BS.ByteString
+unsetBit a bs = changeBit a False bs
+
+testBit :: Int -> BS.ByteString -> Bool
+testBit a bs =
+  let bs_index = div a 8 in
+  let word_index = mod a 8 in
+    if bs_index < BS.length bs then
+      B.testBit (BS.index bs bs_index) word_index
+    else 
+      False
+
+getFirstZeroIndexWord8Rec :: Int -> W.Word8 -> Int
+getFirstZeroIndexWord8Rec 8 w = 8
+getFirstZeroIndexWord8Rec n w =
+  if B.testBit w n then
+    getFirstZeroIndexWord8Rec (n + 1) w
+  else
+    n
+
+getFirstZeroIndexWord8 :: W.Word8 -> Int
+getFirstZeroIndexWord8 w = getFirstZeroIndexWord8Rec 0 w
+
+getFirstZeroIndex :: BS.ByteString -> Int
+getFirstZeroIndex bs =
+  let mIndex = BS.findIndex (\w -> w /= maxWord8) bs in
+    case mIndex of
+      Nothing -> BS.length bs * 8
+      Just i -> 
+        let wIndex = getFirstZeroIndexWord8 (BS.index bs i) in
+          8 * i + wIndex
 
 
 toByteString :: BA.ByteArrayAccess a => a -> BS.ByteString
@@ -61,7 +94,7 @@ intListToByteStringList intsPerBlock list = map (BS.drop 8 . BIN.encode) $ (L.ch
 
 decodeChunk :: BS.ByteString -> [Int]
 decodeChunk bytes | BS.null bytes = []
-                  | otherwise = let (n, rest) = BS.splitAt (fromIntegral $ Data.Bits.finiteBitSize (1 :: Int) `div` 8) bytes
+                  | otherwise = let (n, rest) = BS.splitAt intSize bytes
                         in (case BIN.decode n of
                           Left _ -> 0
                           Right i -> i) : decodeChunk rest

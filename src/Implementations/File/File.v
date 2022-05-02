@@ -105,7 +105,7 @@ end.
 Definition delete_inner inum :=
   mbl <- Inode.get_all_block_numbers inum;
   if mbl is Some block_numbers then
-    ok <- DiskAllocator.free_all block_numbers;
+    ok <- free_all_blocks block_numbers;
     if ok is Some tt then
       free inum
     else
@@ -149,9 +149,9 @@ Definition recover := |ADDO| Recover.
 
 Definition init :=
 |ADDO| Init [(Inode.InodeAllocatorParams.bitmap_addr,
-              bits_to_value zero_bitlist);
+              bits_to_value zero_bitmap);
             (DiskAllocatorParams.bitmap_addr,
-             bits_to_value zero_bitlist)].
+             bits_to_value zero_bitmap)].
 
 Definition update_file f off v := Build_File f.(BaseTypes.owner) (updn f.(blocks) off v).
 Definition extend_file f v := Build_File f.(BaseTypes.owner) (f.(blocks) ++ [v]).

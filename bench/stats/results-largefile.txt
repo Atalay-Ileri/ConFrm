@@ -1,0 +1,35 @@
+=== ConFs largefile ===
+Makefile Throughput:
+Mean
+1.40271484375
+Median
+1.4003417968749998
+Std Dev
+0.03606686866783598
+
+Writefile Throughput:
+Mean
+1.7876171874999998
+Median
+1.78203125
+Std Dev
+0.06451717343254132
+
+=== Cfscq largefile ===
+Makefile Throughput:
+Mean
+0.56142578125
+Median
+0.56142578125
+Std Dev
+0.0
+
+Writefile Throughput:
+Mean
+0.741572265625
+Median
+0.73720703125
+Std Dev
+0.010100135130025504
+
+=== Sfscq largefile ===

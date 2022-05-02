@@ -14,7 +14,7 @@ Axiom value : Type.
 Axiom value0 : value.
 Axiom value_eq_dec: EqDec value.
 
-Axiom block_size: nat. (** in bits **)
+Axiom block_size: addr. (** in bits **)
 
 Axiom disk_size: addr. (** In blocks **)
 
@@ -61,53 +61,79 @@ Proof.
 Qed.
 
 
-Fixpoint get_first_zero_index l :=
-  match l with
-  | nil => 0
-  | cons hd tl =>
-    match hd with
-    | false => 0
-    | true => S (get_first_zero_index tl)
-    end
-  end.
+Axiom bitmap: Type.
+Definition bitmap_size := block_size.
+Opaque bitmap_size.
 
+(* sets i'th bit to 1*)
+Axiom set_bit : nat -> bitmap -> bitmap.
 
-Definition zero_bitlist := (repeat false block_size).
+(* sets i'th bit to 0*)
+Axiom unset_bit : nat -> bitmap -> bitmap.
 
-Axiom value_to_bits: value -> list bool.
-Axiom bits_to_value: list bool -> value.
+(* Returns true if bit is 1 *)
+Axiom test_bit : nat -> bitmap -> bool.
+
+Axiom test_bit_oob: 
+forall bm i, 
+i >= bitmap_size -> test_bit i bm = false.
+
+Axiom set_test_eq :
+forall bm i,
+i < bitmap_size ->
+test_bit i (set_bit i bm) = true.
+
+Axiom unset_test_eq :
+forall bm i,
+i < bitmap_size ->
+test_bit i (unset_bit i bm) = false.
+
+Axiom set_test_ne :
+forall bm i j,
+i <> j ->
+test_bit i (set_bit j bm) = test_bit i bm.
+
+Axiom unset_test_ne :
+forall bm i j,
+i <> j ->
+test_bit i (unset_bit j bm) = test_bit i bm.
+
+Axiom unset_bit_comm:
+forall a a' bm,
+unset_bit a (unset_bit a' bm) = unset_bit a' (unset_bit a bm).
+
+Axiom set_unset_eq :
+forall bm i,
+i < bitmap_size ->
+unset_bit i (set_bit i bm) = unset_bit i bm.
+
+Axiom unset_set_eq :
+forall bm i,
+i < bitmap_size ->
+set_bit i (unset_bit i bm) = set_bit i bm.
+
+Axiom zero_bitmap: bitmap.
+
+Axiom zero_bitmap_empty:
+forall i,
+i < bitmap_size ->
+test_bit i (zero_bitmap) = false.
+
+Axiom get_first_zero_index : bitmap -> nat.
+Axiom get_first_zero_in_size: forall bm, get_first_zero_index bm <= bitmap_size.
+Axiom get_first_zero_index_correct: 
+forall bm, 
+(get_first_zero_index bm < bitmap_size ->
+test_bit (get_first_zero_index bm) bm = false) /\
+(forall i, i < get_first_zero_index bm ->
+test_bit i bm = true).
+
+Axiom value_to_bits: value -> bitmap.
+Axiom bits_to_value: bitmap -> value.
 Axiom value_to_bits_to_value : forall v, bits_to_value (value_to_bits v) = v.
-Axiom bits_to_value_to_bits : forall l, 
-length l <= block_size ->
-exists l', value_to_bits (bits_to_value l) = l ++ l'.
+Axiom bits_to_value_to_bits : forall bm, value_to_bits (bits_to_value bm) = bm.
 
-Axiom bits_to_value_to_bits_exact : forall l, 
-length l = block_size ->
-value_to_bits (bits_to_value l) = l.
-
-Axiom value_to_bits_length : forall v, length (value_to_bits v) = block_size.
-Axiom value_to_bits_value0 : value_to_bits value0 = zero_bitlist.
-
-Lemma get_first_zero_index_false:
-  forall l_b,
-    nth (get_first_zero_index l_b) l_b false = false.
-Proof.
-  induction l_b; simpl; intros; eauto.
-  destruct a; eauto.
-Qed.
-
-Lemma get_first_zero_index_firstn:
-  forall l_b n,
-    get_first_zero_index (firstn n l_b) < n ->
-    get_first_zero_index (firstn n l_b) = get_first_zero_index l_b.
-Proof.
-  induction l_b; simpl; intros; eauto.
-  rewrite firstn_nil; simpl; eauto.
-  destruct a, n; simpl in *; eauto.
-  lia.
-  rewrite IHl_b; eauto; lia.
-Qed.
-
+Axiom value_to_bits_value0 : value_to_bits value0 = zero_bitmap.
 
 
 (** Crypto **)

@@ -36,7 +36,7 @@ import System.Posix.IO
 type HT = BaseTypes.Coq_addr
 
 blocksize :: Int
-blocksize = BaseTypes.block_size `div` 8
+blocksize = block_size `div` 8
 
 verboseFuse :: Bool
 verboseFuse = False

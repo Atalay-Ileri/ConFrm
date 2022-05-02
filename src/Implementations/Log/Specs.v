@@ -422,9 +422,9 @@ Proof.
   {
     eapply decrypt_all_crashed_oracle in H; cleanup; eauto.
     repeat rewrite map_map; eauto.
-    setoid_rewrite map_ext at 1; eauto.
-    rewrite map_id; eauto.
-    setoid_rewrite map_ext at 2; eauto.
+    setoid_rewrite map_ext with (g:= fun x => x) at 1; eauto.
+    erewrite map_id; eauto.
+    setoid_rewrite map_ext with (g:= fun x => x) at 1; eauto.
     rewrite map_id; eauto.
     eexists; intuition eauto.
     lia.
@@ -434,9 +434,9 @@ Proof.
   {
     eapply decrypt_all_finished_oracle in H0; cleanup; eauto.
     repeat rewrite map_map; eauto.
-    setoid_rewrite map_ext at 1; eauto.
+    setoid_rewrite map_ext with (g:= fun x => x) at 1; eauto.
     rewrite map_id; eauto.
-    setoid_rewrite map_ext at 2; eauto.
+    setoid_rewrite map_ext with (g:= fun x => x) at 1; eauto.
     rewrite map_id; eauto.
     exists (addr_count txn_record + data_count txn_record).
     rewrite firstn_oob; try lia.
@@ -2263,7 +2263,6 @@ Proof.
       rewrite D; simpl; eauto.
       intuition eauto.
       {
-        setoid_rewrite H5.
         setoid_rewrite H11.
         simpl.
         rewrite D; simpl; eauto.
@@ -2456,6 +2455,9 @@ Proof.
     repeat rewrite app_length.
     setoid_rewrite H6.
     cleanup; repeat cleanup_pairs; intuition eauto; try lia.
+    intros; congruence.
+  }
+  (*
     {
       right; left; intuition eauto.
       remember (count (current_part hdr)) as y.
@@ -2495,6 +2497,7 @@ Proof.
     }
     intros; congruence.
   }
+  *)
 Qed.
 
 Theorem apply_log_crashed:

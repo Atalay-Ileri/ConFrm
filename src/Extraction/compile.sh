@@ -9,24 +9,24 @@ cd extracted
 # Write imports to proper files
 
 sed -ie '/^module/a import qualified Helpers' Log.hs
-sed -ie '/^module/a import Data.Serialize' Log.hs
+sed -ie '/^module/a import Data.Persist' Log.hs
 sed -ie '/^module/a import GHC.Generics (Generic)' Log.hs
 sed -i '2s/^/{-# LANGUAGE DeriveGeneric #-}\n/' Log.hs
 
-sed -ie '/^   Build_txn_record BaseTypes.Coq_key/a \ \ \ deriving (Generic)\ninstance Serialize Coq_txn_record' Log.hs
-sed -ie '/^   Build_header_part BaseTypes.Coq_hash/a \ \ \ deriving (Generic)\ninstance Serialize Coq_header_part' Log.hs
-sed -ie '/^   Build_header Coq_header_part/a \ \ \ deriving (Generic)\ninstance Serialize Coq_header' Log.hs
+sed -ie '/^   Build_txn_record BaseTypes.Coq_key/a \ \ \ deriving (Generic)\ninstance Persist Coq_txn_record' Log.hs
+sed -ie '/^   Build_header_part BaseTypes.Coq_hash/a \ \ \ deriving (Generic)\ninstance Persist Coq_header_part' Log.hs
+sed -ie '/^   Build_header Coq_header_part/a \ \ \ deriving (Generic)\ninstance Persist Coq_header' Log.hs
 
 sed -ie '/^module/a import qualified LogCache' Transaction.hs
 
 sed -ie '/^module/a import qualified Helpers' Inode.hs
 sed -ie '/^module/a import qualified Transaction' Inode.hs
 sed -ie '/^module/a import System.Posix.Types' Inode.hs
-sed -ie '/^module/a import Data.Serialize' Inode.hs
+sed -ie '/^module/a import Data.Persist' Inode.hs
 sed -ie '/^module/a import GHC.Generics (Generic)' Inode.hs
 sed -i '2s/^/{-# LANGUAGE DeriveGeneric #-}\n/' Inode.hs
-sed -ie '/^   Build_Inode BaseTypes.Coq_user/a \ \ \ deriving (Generic)\n\ninstance Serialize System.Posix.Types.CUid where\n' Inode.hs
-sed -ie '/^instance Serialize System.Posix.Types.CUid/a \ \ \ put (CUid c) = do\n\ \ \ \ \ put c\n\n\ \ \ get = do\n\ \ \ \ \ c <- get\n\ \ \ \ \ Prelude.return (CUid c)\n\ninstance Serialize Inode' Inode.hs
+sed -ie '/^   Build_Inode BaseTypes.Coq_user/a \ \ \ deriving (Generic)\n\ninstance Persist System.Posix.Types.CUid where\n' Inode.hs
+sed -ie '/^instance Persist System.Posix.Types.CUid/a \ \ \ put (CUid c) = do\n\ \ \ \ \ put c\n\n\ \ \ get = do\n\ \ \ \ \ c <- get\n\ \ \ \ \ Prelude.return (CUid c)\n\ninstance Persist Inode' Inode.hs
 
 sed -ie '/^module/a import qualified Transaction' File.hs
 sed -ie '/^module/a import qualified System.Posix.User' File.hs

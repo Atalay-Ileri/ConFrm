@@ -18,7 +18,7 @@ Qed.
 Module Type BlockAllocatorParameters.
   Parameter bitmap_addr: addr.
   Parameter num_of_blocks: nat.
-  Parameter num_of_blocks_in_bounds: num_of_blocks <= block_size.
+  Parameter num_of_blocks_in_bounds: num_of_blocks <= bitmap_size.
   Parameter blocks_fit_in_disk: bitmap_addr + num_of_blocks < data_length.
 End BlockAllocatorParameters.
   
@@ -35,13 +35,13 @@ by adding (S bitmap_addr)  **)
 Definition alloc (v': value) :=
   v <-| Read bitmap_addr;
   let bits := value_to_bits v in
-  let index := get_first_zero_index (firstn num_of_blocks bits) in
+  let index := get_first_zero_index bits in
   
   if lt_dec index num_of_blocks then
     r <-| Write (bitmap_addr + S index) v';
     if r is Some tt then
       r <-| Write bitmap_addr
-        (bits_to_value (updn bits index true));
+        (bits_to_value (set_bit index bits));
       if r is Some tt then
         Ret (Some index)
       else
@@ -56,8 +56,8 @@ Definition free a :=
   if lt_dec a num_of_blocks then
   v <-| Read bitmap_addr;
   let bits := value_to_bits v in
-  if nth_error bits a is Some true then
-      | Write bitmap_addr (bits_to_value (updn bits a false))|
+  if test_bit a bits then
+      | Write bitmap_addr (bits_to_value (unset_bit a bits))|
     else
       Ret None
   else
@@ -68,9 +68,9 @@ Fixpoint free_bits_rec bits l_a:=
   match l_a with
   |[] => Some bits
   |a::l_a' =>
-    if nth_error bits a is Some true then
+    if test_bit a bits then
       match free_bits_rec bits l_a' with
-      |Some bits' => Some (updn bits' a false)
+      |Some bits' => Some (unset_bit a bits')
       |None => None
       end
     else
@@ -91,7 +91,7 @@ Definition read a :=
   if lt_dec a num_of_blocks then
   v <-| Read bitmap_addr;
   let bits := value_to_bits v in
-  if nth_error bits a is Some true then
+  if test_bit a bits then
       v <-| Read (bitmap_addr + S a);
       Ret (Some v)
     else
@@ -105,7 +105,7 @@ Definition write a b :=
   if lt_dec a num_of_blocks then
   v <-| Read bitmap_addr;
   let bits := value_to_bits v in
-  if nth_error bits a is Some true then
+  if test_bit a bits then
       | Write (bitmap_addr + S a) b|
     else
       Ret None
@@ -115,13 +115,13 @@ Definition write a b :=
 
 (*** Rep Invariants ***)
 Fixpoint valid_bits' (dh: disk value) values bits n (d: @total_mem addr addr_dec value) :=
-  match values, bits with
-  | v::values', b::bits' =>
+  match values with
+  | v::values' =>
     d (bitmap_addr + S n) = v /\
-    ((b = false /\ dh n = None) \/
-    (b = true /\  dh n = Some v)) /\
-    valid_bits' dh values' bits' (S n) d
-   | _, _ =>
+    ((test_bit n bits = false /\ dh n = None) \/
+    (test_bit n bits = true /\  dh n = Some v)) /\
+    valid_bits' dh values' bits (S n) d
+   | _ =>
      True
   end.
       
@@ -140,14 +140,13 @@ Definition block_allocator_rep (dh: disk value) (d: @total_mem addr addr_dec val
 Lemma valid_bits'_split:
   forall dh d a l1 l2 n,
     a < length l1 ->
-    length l1 <= length l2 ->
+    length l1 <= num_of_blocks ->
     valid_bits' dh l1 l2 n d ->
-    valid_bits' dh (firstn a l1) (firstn a l2) n d /\ valid_bits' dh (skipn a l1) (skipn a l2) (n + a) d.
+    valid_bits' dh (firstn a l1) l2 n d /\ valid_bits' dh (skipn a l1) l2 (n + a) d.
 Proof.
   induction a; simpl; intros; eauto.
   rewrite Nat.add_0_r; eauto.
   destruct l1; simpl in *; try lia.
-  destruct l2; simpl in *; try lia.
   cleanup.
   edestruct (IHa l1 l2 (S n)); eauto; try lia.   
   repeat split; eauto.
@@ -157,14 +156,13 @@ Qed.
 Lemma valid_bits'_merge:
   forall dh d a l1 l2 n,
     a < length l1 ->
-    length l1 <= length l2 ->
-    valid_bits' dh (firstn a l1) (firstn a l2) n d /\ valid_bits' dh (skipn a l1) (skipn a l2) (n + a) d ->
+    length l1 <= num_of_blocks ->
+    valid_bits' dh (firstn a l1) l2 n d /\ valid_bits' dh (skipn a l1) l2 (n + a) d ->
     valid_bits' dh l1 l2 n d.
 Proof.
   induction a; simpl; intros; eauto.
   rewrite Nat.add_0_r in *; cleanup; eauto.
   destruct l1; simpl in *; try lia.
-  destruct l2; simpl in *; try lia.
   cleanup.
   rewrite <- Nat.add_succ_comm in *.
   repeat split; eauto.
@@ -175,11 +173,11 @@ Qed.
 Lemma valid_bits_extract :
   forall dh values bits n d,
     n < length values ->
-    length values <= length bits ->
+    length values <= num_of_blocks ->
     valid_bits dh values bits d ->
     d (bitmap_addr + S n) = seln values n value0 /\
-    ((seln bits n false = false /\ dh n = None) \/
-    (seln bits n false = true /\  dh n = Some (seln values n value0))).
+    ((test_bit n bits = false /\ dh n = None) \/
+    (test_bit n bits = true /\  dh n = Some (seln values n value0))).
 Proof.
   intros.
   eapply valid_bits'_split in H1; eauto; simpl in *.
@@ -187,23 +185,12 @@ Proof.
   - apply length_zero_iff_nil in D.
     rewrite skipn_length in D.
     lia.
-  - destruct_fresh (skipn n bits).
-    apply length_zero_iff_nil in D0.
-    rewrite skipn_length in D0.
-    lia.
-    simpl in *.
+  - simpl in *.
     cleanup.
     rewrite <- Nat.add_0_r with (n:= n).
     rewrite <- skipn_seln.
     rewrite Nat.add_0_r with (n:= n).
     rewrite D; simpl; eauto.
-    split; eauto.
-    setoid_rewrite <- (firstn_skipn n).
-    repeat rewrite seln_app2.
-    repeat rewrite D0.
-    repeat rewrite firstn_length_l by lia.
-    repeat rewrite Nat.sub_diag; simpl; eauto.
-    rewrite firstn_length_l; lia.
 Qed.
 
 Lemma valid_bits'_inbound_same:
@@ -223,13 +210,16 @@ Proof.
 Qed.
 
 Lemma valid_bits'_zeroes:
-  forall s count count2 n,
-  count <= count2 ->
-    valid_bits' empty_mem (map s (seq (bitmap_addr + S n) count)) (repeat false count2) n s.
+  forall s count n,
+  count <= num_of_blocks ->
+    valid_bits' empty_mem (map s (seq (bitmap_addr + S n) count)) zero_bitmap n s.
 Proof.
   induction count; simpl; intros; eauto.
-  destruct count2; try lia; simpl.
   intuition eauto.
+  left; intuition; eauto.
+  destruct (Compare_dec.lt_dec n bitmap_size). 
+  apply zero_bitmap_empty; eauto.
+  apply test_bit_oob; lia.
   rewrite <- Nat.add_succ_r; eauto.
   eapply IHcount; lia.
 Qed.
@@ -241,7 +231,7 @@ i < n ->
 valid_bits' (Mem.upd dh i v) values bl n s.
 Proof.
   induction values; simpl; intros; eauto.
-  destruct bl; simpl in *; try lia; cleanup.
+  simpl in *; try lia; cleanup.
   rewrite Mem.upd_ne; try lia.
   repeat (split; eauto).
 Qed.
@@ -253,12 +243,25 @@ i <= n ->
 valid_bits' dh values bl n (upd s (bitmap_addr + i) v).
 Proof.
   induction values; simpl; intros; eauto.
-  destruct bl; simpl in *; try lia; cleanup.
+  simpl in *; try lia; cleanup.
   rewrite upd_ne; try lia.
   repeat (split; eauto).
 Qed.
 
+Lemma valid_bits'_bitmap_set_before:
+forall values bl dh s i n,
+valid_bits' dh values bl n s ->
+i < n ->
+valid_bits' dh values (set_bit i bl) n (upd s bitmap_addr (bits_to_value (set_bit i bl))).
+Proof.
+  induction values; simpl; intros; eauto.
+  simpl in *; try lia; cleanup.
+  rewrite upd_ne; try lia.
+  repeat (split; eauto).
+  repeat rewrite set_test_ne; eauto; lia.
+Qed.
 
+(*
 Lemma valid_bits'_bitlist_upd_after:
   forall values bl1 bl2 dh s n i,
   valid_bits' dh values bl1 n s ->
@@ -343,49 +346,56 @@ Lemma valid_bits'_bitlist_upd_after:
     try congruence.
     simpl in *; eauto.
   Qed.
-
+  *)
   Lemma valid_bits'_upd_values_empty:
-  forall values bl1 dh s n i v,
+  forall values bl1 i dh s n v,
   valid_bits' dh values bl1 n s ->
-  seln bl1 i false = false -> 
+  test_bit (n + i) bl1 = false -> 
   valid_bits' dh (updn values i v) bl1 n (upd s (bitmap_addr + S n + i) v).
   Proof.
     induction values; simpl; intros; eauto.
-    destruct bl1; simpl in *; try lia; cleanup.
+    simpl in *; try lia; cleanup.
     destruct i; simpl; eauto.
 
     {
     split_ors; cleanup; try congruence.
     simpl.
-    repeat rewrite Nat.add_0_r.
+    repeat rewrite Nat.add_0_r in *.
     repeat rewrite upd_eq; eauto. 
     repeat (split; eauto).
     eapply valid_bits'_state_upd_before; eauto.
+    simpl.
+    repeat rewrite Nat.add_0_r in *.
+    congruence.
     }
 
     simpl.
     repeat rewrite upd_ne; eauto; try lia. 
     repeat (split; eauto).
-    replace (bitmap_addr + S n + S n0) 
-    with (bitmap_addr + S (S n) + n0) by lia.
-    eauto. 
+    replace (bitmap_addr + S n + S i) 
+    with (bitmap_addr + S (S n) + i) by lia.
+    eapply IHvalues; eauto.
+    rewrite Nat.add_succ_comm; eauto. 
   Qed.
 
 
   Lemma valid_bits'_upd_values_allocated:
   forall values bl1 dh s n i v,
   valid_bits' dh values bl1 n s ->
-  seln bl1 i false = true -> 
+  test_bit (n + i) bl1 = true -> 
   valid_bits' (Mem.upd dh (n + i) v) (updn values i v) bl1 n (upd s (bitmap_addr + S n + i) v).
   Proof.
     induction values; simpl; intros; eauto.
-    destruct bl1; simpl in *; try lia; cleanup;
+    destruct i; simpl in *; try lia; cleanup;
     try congruence.
 
     {
       split_ors; cleanup; try congruence.
       simpl.
-      repeat rewrite Nat.add_0_r.
+      repeat rewrite Nat.add_0_r in *.
+      congruence.
+      simpl.
+      repeat rewrite Nat.add_0_r in *.
       repeat rewrite upd_eq; 
       repeat rewrite Mem.upd_eq;eauto. 
       repeat (split; eauto).
@@ -399,9 +409,10 @@ Lemma valid_bits'_bitlist_upd_after:
       repeat rewrite Mem.upd_ne; eauto; try lia. 
       repeat (split; eauto).
       rewrite <- Nat.add_succ_comm.
-      replace (bitmap_addr + S n + S n0) 
-      with (bitmap_addr + S (S n) + n0) by lia.
-      eauto.
+      replace (bitmap_addr + S n + S i) 
+      with (bitmap_addr + S (S n) + i) by lia.
+      eapply IHvalues; eauto.
+      rewrite Nat.add_succ_comm; eauto. 
     } 
   Qed.
 
@@ -411,12 +422,10 @@ Lemma valid_bits'_bitlist_upd_after:
   valid_bits' dh values bl1 n (upd s bitmap_addr (bits_to_value bl1)).
   Proof.
     induction values; simpl; intros; eauto.
-    destruct bl1; simpl in *; try lia; cleanup.
+    simpl in *; try lia; cleanup.
     split.
     rewrite upd_ne; eauto; lia.
     repeat (split; eauto).
-    eapply valid_bits'_bitlist_upd_after with (i:= 1); eauto.
-    lia.
   Qed.
 
   Lemma valid_bits'_delete_before:
@@ -426,80 +435,113 @@ Lemma valid_bits'_bitlist_upd_after:
   valid_bits' (delete dh i) values bl1 n s.
   Proof.
     induction values; simpl; intros; eauto.
-    destruct bl1; simpl in *; try lia; cleanup.
+    simpl in *; try lia; cleanup.
     repeat rewrite delete_ne; try lia.
     repeat (split; eauto).
+  Qed. 
+
+  Lemma valid_bits'_delete_before_set:
+  forall values bl1 dh s n i,
+  valid_bits' dh values bl1 n s ->
+  i < n ->
+  valid_bits' (delete dh i) values (set_bit i bl1) n (upd s bitmap_addr
+  (bits_to_value (set_bit i bl1))).
+  Proof.
+    induction values; simpl; intros; eauto.
+    simpl in *; try lia; cleanup.
+    repeat rewrite delete_ne; try lia.
+    repeat rewrite upd_ne; try lia.
+    repeat (split; eauto).
+    rewrite set_test_ne; try lia.
+    eauto.
+  Qed. 
+
+  Lemma valid_bits'_delete_before_unset:
+  forall values bl1 dh s n i,
+  valid_bits' dh values bl1 n s ->
+  i < n ->
+  valid_bits' (delete dh i) values (unset_bit i bl1) n (upd s bitmap_addr
+  (bits_to_value (unset_bit i bl1))).
+  Proof.
+    induction values; simpl; intros; eauto.
+    simpl in *; try lia; cleanup.
+    repeat rewrite delete_ne; try lia.
+    repeat rewrite upd_ne; try lia.
+    repeat (split; eauto).
+    rewrite unset_test_ne; try lia.
+    eauto.
   Qed. 
 
   Lemma valid_bits'_delete:
   forall values bl1 dh s n i,
   valid_bits' dh values bl1 n s ->
-  valid_bits' (delete dh (n + i)) values (updn bl1 i false) n 
-    (upd s bitmap_addr (bits_to_value (updn bl1 i false))).
+  valid_bits' (delete dh (n + i)) values (unset_bit (n + i) bl1) n 
+    (upd s bitmap_addr (bits_to_value (unset_bit (n + i) bl1))).
   Proof.
     induction values; simpl; intros; eauto.
-    destruct bl1; simpl in *; try lia; cleanup.
-    destruct i; simpl in *.
-    {
-      simpl.
-      rewrite Nat.add_0_r.
-      repeat rewrite delete_eq; eauto.
-      rewrite upd_ne; eauto; try lia.
-      repeat (split; eauto).
-      eapply valid_bits'_bitlist_upd_after with (i:= 1); 
-      eauto; try lia.
-      apply valid_bits'_delete_before; eauto.
-    }
-    
+    simpl in *; try lia; cleanup.
+
     rewrite upd_ne; eauto; try lia.
-    repeat rewrite delete_ne; try lia.
+    destruct i.
+    {
+      repeat rewrite Nat.add_0_r in *.
+    repeat rewrite delete_eq; try lia.
+    destruct (Compare_dec.lt_dec n bitmap_size). 
+    repeat rewrite unset_test_eq; eauto.
     repeat (split; eauto).
-    eapply valid_bits'_bitlist_upd_after_2 with (i:= 1); 
-    eauto; try lia.
-    rewrite <- Nat.add_succ_comm; eauto.
+    apply valid_bits'_delete_before_unset; eauto.
+    rewrite test_bit_oob; try lia.
+    repeat (split; eauto).
+    apply valid_bits'_delete_before_unset; eauto.
+    }
+    {
+      repeat rewrite delete_ne; try lia.
+    rewrite unset_test_ne; try lia.
+    repeat (split; eauto).
+    repeat rewrite <- Nat.add_succ_comm.
+    eapply IHvalues; eauto.
+    }
   Qed.
 
 Lemma valid_bits'_upd:
 forall values bl dh s i v n,
 valid_bits' dh values bl n s ->
-length bl <= block_size ->
-length values <= length bl ->
-valid_bits' (Mem.upd dh (n + i) v) (updn values i v) (updn bl i true) n
-(upd (upd s (bitmap_addr + S n + i) v) bitmap_addr (bits_to_value (updn bl i true))).
+length values <= num_of_blocks ->
+n + i < bitmap_size ->
+valid_bits' (Mem.upd dh (n + i) v) (updn values i v) (set_bit (n + i) bl) n
+(upd (upd s (bitmap_addr + S n + i) v) bitmap_addr (bits_to_value (set_bit (n + i) bl))).
 Proof.
   induction values; simpl; intros; eauto.
-  destruct bl; simpl in *; try lia; cleanup.
+  simpl in *; try lia; cleanup.
   destruct i; simpl in *.
   {
-    repeat rewrite Nat.add_0_r.
+    repeat rewrite Nat.add_0_r in *.
     split; [rewrite upd_ne; try lia; apply upd_eq; eauto |].
     split; 
-    [right; split; eauto;
-    rewrite Mem.upd_eq; eauto |].
+    [right; split; eauto |].
+    apply set_test_eq; eauto.
+    apply Mem.upd_eq; eauto.
+    eapply valid_bits'_bitmap_set_before; eauto.
     eapply valid_bits'_upd_before; eauto.
-    eapply valid_bits'_bitlist_upd_after with (i:= 1); eauto; try lia.
-    apply valid_bits'_state_upd_before; eauto.
+    eapply valid_bits'_state_upd_before; eauto.
   }
   {
     split; [repeat rewrite upd_ne; try lia; eauto |].
     split; 
-    [ repeat rewrite Mem.upd_ne; eauto; try lia |].
-    rewrite <- Nat.add_succ_comm.
-    rewrite <- Nat.add_succ_comm.
-    rewrite <- Nat.add_succ_r.
-    eapply valid_bits'_bitlist_upd_after_2 with (i:= 1); 
-    eauto; try lia.
-    eapply IHvalues; eauto; try lia.
+    [ repeat rewrite Mem.upd_ne; repeat rewrite set_test_ne; eauto; try lia |].
+    do 2 rewrite <- Nat.add_succ_comm.
+    repeat rewrite <- Nat.add_succ_r.
+    apply IHvalues; eauto; try lia.
   }
 Qed.
 
 Lemma valid_bits_upd:
 forall values bl dh s i v,
 valid_bits dh values bl s ->
-length bl <= block_size ->
-length values <= length bl ->
-valid_bits (Mem.upd dh i v) (updn values i v) (updn bl i true) 
-(upd (upd s (bitmap_addr + S i) v) bitmap_addr (bits_to_value (updn bl i true))).
+length values <= num_of_blocks ->
+i < bitmap_size -> 
+valid_bits (Mem.upd dh i v) (updn values i v) (set_bit i bl) 
+(upd (upd s (bitmap_addr + S i) v) bitmap_addr (bits_to_value (set_bit i bl))).
 Proof.
   unfold valid_bits; intros.
   eapply valid_bits'_upd in H; eauto.
@@ -507,7 +549,7 @@ Proof.
   replace (bitmap_addr + S i)  with (bitmap_addr + 1 + i) by lia.
   eauto.
 Qed.
-
+(*
 Lemma get_first_zero_index_lt_true:
 forall l_b i, 
 i < get_first_zero_index l_b -> 
@@ -519,7 +561,7 @@ Proof.
   destruct i; eauto.
   eapply IHl_b; lia.
 Qed.
-
+*)
 Lemma block_allocator_rep_eq:
   forall dh1 dh2 s,
     block_allocator_rep dh1 s ->
@@ -531,9 +573,7 @@ Proof.
   destruct (le_dec num_of_blocks x); eauto.
   rewrite H6, H3; eauto.
   eapply (valid_bits_extract _ _ _ x) in H4; try lia; cleanup.
-  2: rewrite value_to_bits_length;  pose proof num_of_blocks_in_bounds; lia.
   eapply (valid_bits_extract _ _ _ x) in H1; try lia; cleanup.
-  2: rewrite value_to_bits_length;  pose proof num_of_blocks_in_bounds; lia.
   repeat split_ors; cleanup; eauto; try congruence.
 Qed.
 
@@ -555,8 +595,7 @@ Qed.
 Lemma block_allocator_rep_upd:
 forall x4 t0 a v1,
 block_allocator_rep x4 t0 ->
-nth_error (value_to_bits (t0 bitmap_addr)) a =
-Some true ->
+test_bit a (value_to_bits (t0 bitmap_addr)) = true ->
 a < num_of_blocks ->
 block_allocator_rep (Mem.upd x4 a v1)
 (upd t0 (bitmap_addr + S a) v1).
@@ -566,24 +605,14 @@ Proof.
   exists (t0 bitmap_addr), (updn x0 a v1).
   intuition eauto.
   rewrite upd_ne; eauto; lia.
-  erewrite <- seln_eq_updn_eq with (l:= (value_to_bits (t0 bitmap_addr))).
-  erewrite <- upd_nop.
-  eapply valid_bits_upd.
+  setoid_rewrite <- Nat.add_0_l in H0.
+  eapply valid_bits'_upd_values_allocated in H0.
+  simpl in *; eauto.
+  replace (bitmap_addr + S a) with (bitmap_addr + 1 + a) by lia.
   eauto.
-  rewrite value_to_bits_length; eauto.
-  rewrite value_to_bits_length; eauto.
-  pose proof num_of_blocks_in_bounds; lia.
-  erewrite seln_eq_updn_eq.
-  rewrite value_to_bits_to_value.
-  rewrite upd_ne; eauto; lia.
-  eapply nth_error_nth in H0.
-  rewrite nth_seln_eq; eauto.
-  eapply nth_error_nth in H0.
-  rewrite nth_seln_eq; eauto.
+  simpl; eauto.
   rewrite updn_length; eauto.
   rewrite Mem.upd_ne; eauto; lia.
-  Unshelve.
-  all: constructor.
 Qed.
 
 Lemma block_allocator_rep_upd_noop:
@@ -606,23 +635,33 @@ Lemma block_allocator_rep_delete :
   block_allocator_rep bm s ->
   block_allocator_rep (Mem.delete bm a) 
   (upd s bitmap_addr 
-  (bits_to_value (updn (value_to_bits (s bitmap_addr)) a false))).
+  (bits_to_value (unset_bit a (value_to_bits (s bitmap_addr))))).
   Proof.
     intros.
     unfold block_allocator_rep in *; cleanup.
     simpl; do 2 eexists; intuition eauto.
     {
       rewrite upd_eq; eauto.
-      rewrite bits_to_value_to_bits_exact.
+      rewrite bits_to_value_to_bits.
       unfold valid_bits in *.
       eapply valid_bits'_delete in H0; simpl in *; eauto.
-      rewrite updn_length, value_to_bits_length; eauto. 
     }
     destruct (PeanoNat.Nat.eq_dec a i); subst.
     rewrite delete_eq; eauto.
     rewrite delete_ne; eauto; lia.
   Qed.
    
+
+  Lemma repeated_apply_unset_bit_comm:
+  forall l a bm,
+  unset_bit a (repeated_apply (fun l a => unset_bit a l) bm l) =
+  repeated_apply (fun l a => unset_bit a l) (unset_bit a bm) l.
+  Proof.
+    induction l; simpl; intros; eauto.
+    rewrite <- IHl.
+    rewrite unset_bit_comm; eauto.
+  Qed.
+
 
 
   Lemma block_allocator_rep_delete_list :
@@ -631,7 +670,7 @@ Lemma block_allocator_rep_delete :
     NoDup l_a ->
   block_allocator_rep (repeated_apply (@Mem.delete addr value addr_dec) bm l_a) 
   (upd s bitmap_addr 
-  (bits_to_value (repeated_apply (fun l a => updn l a false) (value_to_bits (s bitmap_addr)) l_a))).
+  (bits_to_value (repeated_apply (fun l a => unset_bit a l) (value_to_bits (s bitmap_addr)) l_a))).
   Proof.
     induction l_a; simpl; intros; eauto.
     {
@@ -640,13 +679,12 @@ Lemma block_allocator_rep_delete :
     }
     {
       inversion H0; clear H0; cleanup.
-      rewrite repeated_apply_delete_comm, repeated_apply_updn_comm; eauto.
+      rewrite repeated_apply_delete_comm, repeated_apply_unset_bit_comm; eauto.
       eapply block_allocator_rep_delete with (a:= a) in H.
       eapply IHl_a in H; eauto.
       rewrite upd_eq in H; eauto.
       rewrite upd_repeat in H; eauto.
-      rewrite bits_to_value_to_bits_exact in H; eauto.
-      rewrite updn_length, value_to_bits_length; eauto.
+      rewrite bits_to_value_to_bits in H; eauto.
     }
   Qed.
 
@@ -683,32 +721,27 @@ Proof.
        split; eauto.
        unfold block_allocator_rep in *; cleanup.
        eapply_fresh valid_bits_extract in H0; eauto; try lia.
-       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (value_to_bits (fst (snd x1) bitmap_addr))))) in Hx.
+       instantiate (1:= (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr)))) in Hx.
        logic_clean.      
        {
-         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
          rewrite nth_seln_eq in *.
-         setoid_rewrite get_first_zero_index_false in H5; eauto.
+         edestruct get_first_zero_index_correct.
+         erewrite H6 in H5; eauto.
          split_ors; cleanup; try congruence.
          left; eexists; intuition eauto.
-         rewrite get_first_zero_index_firstn; eauto.
          eapply valid_bits_extract with (n:= i) in H0; try lia.
          cleanup.
          split_ors; cleanup.
-         rewrite get_first_zero_index_firstn in H5; eauto.
-         rewrite nth_seln_eq in H8.
-         eapply get_first_zero_index_lt_true in H5; eauto.
-         congruence.
-         rewrite value_to_bits_length; lia.
-           
+         rewrite H7 in H12; eauto; congruence.
+
          eexists; 
          exists (updn x0 (get_first_zero_index
-         (firstn num_of_blocks (value_to_bits (fst (snd x1) bitmap_addr)))) v).
+         (value_to_bits (fst (snd x1) bitmap_addr))) v).
          intuition eauto.
         
          {
           rewrite upd_eq; eauto.
-          rewrite bits_to_value_to_bits_exact.
+          rewrite bits_to_value_to_bits.
           eapply valid_bits_upd; eauto.
           all: try rewrite updn_length;
           repeat rewrite value_to_bits_length; lia. 
@@ -718,10 +751,10 @@ Proof.
           }
          clear D.
          rewrite Mem.upd_ne; eauto.  
+         lia.
          lia.         
        }
        rewrite H3; eauto.
-       rewrite value_to_bits_length; lia.
        {
          split; eauto.
          intros.
@@ -733,16 +766,15 @@ Proof.
        split; eauto.
        unfold block_allocator_rep in *; cleanup.
        eapply_fresh valid_bits_extract in H0; eauto; try lia.
-       instantiate (1:= (get_first_zero_index (firstn num_of_blocks (value_to_bits (fst (snd x1) bitmap_addr))))) in Hx.
+       instantiate (1:= (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr)))) in Hx.
        logic_clean.      
        {
-         setoid_rewrite get_first_zero_index_firstn in H5; eauto.
          rewrite nth_seln_eq in *.
-         setoid_rewrite get_first_zero_index_false in H5; eauto.
+         edestruct get_first_zero_index_correct.
+         erewrite H6 in H5; eauto.
          split_ors; cleanup; try congruence.
          right; eexists; intuition eauto.
          
-         rewrite get_first_zero_index_firstn; eauto.
          eexists; 
          exists (updn x0 (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr))) v).
          do 2 eexists; intuition eauto.
@@ -754,15 +786,15 @@ Proof.
           with (bitmap_addr + 1 +
           (get_first_zero_index (value_to_bits (fst (snd x1) bitmap_addr)))) by lia.
           eapply valid_bits'_upd_values_empty; eauto.
-          rewrite nth_seln_eq.
-          apply get_first_zero_index_false.
+          simpl; apply H6; eauto.
+          lia.
          }
          {
             rewrite updn_length; eauto.
          }
+         lia.
        }
        rewrite H3; eauto.
-       rewrite value_to_bits_length; lia.
        {
          split; eauto.
          intros.
@@ -793,10 +825,9 @@ Proof.
     simpl; do 2 eexists; intuition eauto.
     {
       rewrite upd_eq; eauto.
-      rewrite bits_to_value_to_bits_exact.
+      rewrite bits_to_value_to_bits.
       unfold valid_bits in *.
       eapply valid_bits'_delete in H0; simpl in *; eauto.
-      rewrite updn_length, value_to_bits_length; eauto. 
     }
     rewrite delete_ne; eauto; lia.
   }
@@ -822,28 +853,15 @@ Proof.
     unfold block_allocator_rep in *; cleanup.
     eapply (valid_bits_extract _ _ _ a) in H0; try lia.
     cleanup.
-    eapply nth_error_nth in D0.
-    rewrite <- nth_seln_eq in D0.
     split_ors; cleanup; eauto.
-    rewrite e in D0; congruence.
-    rewrite value_to_bits_length; eauto.
-    pose proof num_of_blocks_in_bounds; lia.
+    congruence.
   }
   {
     unfold block_allocator_rep in *; cleanup.    
     eapply (valid_bits_extract _ _ _ a) in H0; try lia.
     cleanup.
-    eapply nth_error_nth in D0.
-    rewrite <- nth_seln_eq in D0.
     split_ors; cleanup; eauto.
-    rewrite e in D0; congruence.
-    rewrite value_to_bits_length; eauto.
-    pose proof num_of_blocks_in_bounds; lia.
-  }
-  {
-    apply nth_error_None in D0.
-    rewrite value_to_bits_length in D0.
-    pose proof num_of_blocks_in_bounds; lia.
+    congruence.
   }
   {
     unfold block_allocator_rep in *; cleanup.
@@ -876,7 +894,7 @@ Proof.
       eapply valid_bits'_upd_values_allocated in H0; simpl in *.
       replace (bitmap_addr + S a)
       with (bitmap_addr + 1 + a) by lia; eauto.
-      rewrite nth_seln_eq; apply nth_error_nth; eauto.
+      eauto.
     }
     rewrite updn_length; eauto.
      rewrite Mem.upd_ne; eauto; lia.
@@ -1073,10 +1091,6 @@ cleanup; repeat invert_exec;
 repeat (try split_ors; cleanup; repeat invert_exec;
 try solve [simpl in *; cleanup]).
 Qed.
-
-
-
-
 
 End BlockAllocator.
 

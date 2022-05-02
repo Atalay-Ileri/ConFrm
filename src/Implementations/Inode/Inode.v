@@ -108,7 +108,7 @@ Definition get_owner inum :=
     Ret None.
 
 
-(*** Lemmas ***)
+(*** Lemmas **)
 Theorem inode_rep_eq:
   forall im1 im2 d,
     inode_rep im1 d ->
@@ -1193,7 +1193,6 @@ Unshelve.
 all: eauto.
 all: repeat econstructor; eauto.
 Qed. 
-
 
 Global Opaque alloc free extend change_owner get_block_number get_all_block_numbers get_owner.
 

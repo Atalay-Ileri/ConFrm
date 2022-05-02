@@ -24,12 +24,11 @@ Proof.
         do 2 eexists; intuition eauto.
         rewrite upd_ne.
         rewrite upd_eq; eauto.
-        rewrite bits_to_value_to_bits_exact.
+        rewrite bits_to_value_to_bits.
         simpl.  
         unfold valid_bits; simpl. 
         apply valid_bits'_zeroes.
         pose proof InodeAllocatorParams.num_of_blocks_in_bounds; eauto.
-        unfold zero_bitlist; rewrite repeat_length; eauto.
         unfold InodeAllocatorParams.bitmap_addr, DiskAllocatorParams.bitmap_addr.
         pose proof inodes_before_data; lia.
         rewrite map_length, seq_length; eauto.
@@ -43,12 +42,11 @@ Proof.
         unfold DiskAllocator.block_allocator_rep.
         do 2 eexists; intuition eauto.
         rewrite upd_eq; eauto.
-        rewrite bits_to_value_to_bits_exact.
+        rewrite bits_to_value_to_bits.
         simpl.  
         unfold DiskAllocator.valid_bits; simpl. 
         apply DiskAllocator.valid_bits'_zeroes.
         pose proof DiskAllocatorParams.num_of_blocks_in_bounds; eauto.
-        unfold zero_bitlist; rewrite repeat_length; eauto.
         rewrite map_length, seq_length; eauto.
       }
       {
@@ -177,7 +175,6 @@ Proof.
         destruct (lt_dec (seln (block_numbers x) off 0)
                          DiskAllocatorParams.num_of_blocks); eauto.
       }
-      rewrite value_to_bits_length.
       pose proof DiskAllocatorParams.num_of_blocks_in_bounds.
       unfold DiskAllocatorParams.num_of_blocks in *;
       lia.
@@ -1714,25 +1711,24 @@ Proof.
                     2 : rewrite H10; eauto.
                     cleanup.
                     eapply H6 in H9; eauto.
-                    eapply nth_error_nth with (d:= false) in D3; eauto.
-                    rewrite <- nth_seln_eq in D3.
                     split_ors; cleanup; try congruence.
 
                     edestruct H13.
                     eapply seln_nth_error; eauto.
                     cleanup.
                     rewrite H19 in H17; congruence.
-                    rewrite value_to_bits_length.
                     unfold DiskAllocatorParams.num_of_blocks in *.
                     pose DiskAllocatorParams.num_of_blocks_in_bounds; lia.
                   }
+                  (*
                   {
                     eapply nth_error_None in D3.
                     rewrite value_to_bits_length in D3;
                     unfold DiskAllocatorParams.num_of_blocks in *;
                     pose DiskAllocatorParams.num_of_blocks_in_bounds; lia.
                   }
-                }
+                  *)
+                } 
                 {
                   hide H17.
                   unfold get_block_number, Inode.get_inode, InodeAllocator.read in *; 
@@ -1849,6 +1845,7 @@ Proof.
                   all: simpl in *;
                       (unfold files_rep, files_crash_rep, files_inner_rep in *; cleanup;
                       repeat cleanup_pairs; left; split; eauto).
+                      split; try lia; intuition congruence.
                       split; try lia; intuition congruence.
                   }
                 }
@@ -2069,7 +2066,7 @@ Proof.
             }
           }
       }
-      } 
+    } 
       {
         simpl in *; cleanup.
         right.

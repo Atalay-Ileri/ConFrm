@@ -13,6 +13,6 @@ mv ../../fscq/fscq15/src/mkfs ./fs/CfscqMkfs
 ./compile-sources.sh
 ./run-confs.sh 10 $1
 #./run-sfscq.sh 10 $1
-#./run-cfscq.sh 10 $1
+./run-cfscq.sh 10 $1
 
 ./get-stats.sh

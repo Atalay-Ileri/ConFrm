@@ -4790,7 +4790,7 @@ Example nodupapp_5 : forall (a : list nat) b c d e,
 Proof.
   intros.
   nodupapp.
-  Grab Existential Variables.
+  Unshelve.
   exact eq_nat_dec.
 Qed.
 
@@ -4800,7 +4800,7 @@ Example nodupapp_3_5 : forall (a : list nat) b c d e,
 Proof.
   intros.
   nodupapp.
-  Grab Existential Variables.
+Unshelve.
   exact eq_nat_dec.
 Qed.
 
@@ -5042,6 +5042,7 @@ Unshelve.
   all: eauto.
 Qed.
 
+(*
 Lemma NoDup_seln_index_of_multiple: forall T V f (fn : T -> V) (l : list T) a d,
   NoDup l ->
   In a l ->
@@ -5062,10 +5063,11 @@ Proof.
   match goal with H: forall x y, _, H' : f ?a ?b = false |- _ =>
     specialize (H a b) end.
   match goal with H: _ |- _ => rewrite H in * end.
-  intuition congruence.
+  intuition (try congruence).
 Unshelve.
   all: eauto.
 Qed.
+*)
 
 Lemma in_sort_by_index': forall S T f t (l : list (S * T)) x s0 t0,
   NoDup (map snd l) ->
@@ -5083,6 +5085,7 @@ Proof.
   eapply IHt; auto.
 Qed.
 
+(*
 Lemma in_sort_by_index: forall S T f t (l : list (S * T)) (x : S * T) s0 t0,
   NoDup t -> NoDup l ->
   (forall x, In x t -> exists y, In (y, x) l) ->
@@ -5115,6 +5118,7 @@ Proof.
   right.
   eapply IHt; eauto.
 Qed.
+
 
 Lemma filter_elements_permutation: forall T (l : list (T * _)) a t0,
   NoDup (map snd l) ->
@@ -5152,7 +5156,7 @@ Proof.
 Unshelve.
   all: eauto.
 Qed.
-
+*)
 Lemma partition_permutation_app: forall T f (l : list T),
   let p := partition f l in
   Permutation l (fst p ++ snd p).
@@ -5178,11 +5182,12 @@ Proof.
   pose proof (split_combine s).
   destruct (split s) eqn:Hs; cbn.
   subst s.
-  match goal with H: _ |- _ => rewrite <- H end.
+  erewrite <- H2.
   f_equal.
   eapply f_equal with (f := snd) in Hs; cbn in Hs.
   subst.
-  eapply sort_by_index_spec; auto.
+  simpl.
+  erewrite sort_by_index_spec; auto.
   intros.
   rewrite List.combine_split; auto.
 Qed.

@@ -1,4 +1,4 @@
-Require Import List Omega.
+Require Import List Lia.
 Require Import Primitives.BaseTypes Mem.
 
 Lemma get_all_existing_length_le:
@@ -7,7 +7,7 @@ Lemma get_all_existing_length_le:
 Proof.
   induction al; intros; simpl in *; eauto.
   destruct (m a); simpl in *; eauto.
-  omega.
+  lia.
 Qed.
 
 Lemma firstn_rolling_hash_list_comm:

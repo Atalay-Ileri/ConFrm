@@ -1,0 +1,104 @@
+=== ConFs smallfile ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 619 Mean: 6.54 Total: 4050.41
+Fs Delete Count: 555 Mean: 10.88 Total: 6037.82
+Fs Rename Count: 0 Mean: nan Total: 0.0
+Fs Create Count: 623 Mean: 6.64 Total: 4138.38
+Fs Append Count: 0 Mean: nan Total: 0.0
+Fs Lookup Count: 0 Mean: nan Total: 0.0
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 0 Mean: nan Total: 0.0
+Fs Readdir Count: 0 Mean: nan Total: 0.0
+
+=== Cfscq smallfile ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 0 Mean: nan Total: 0.0
+Fs Delete Count: 843 Mean: 4.21 Total: 3548.21
+Fs Rename Count: 0 Mean: nan Total: 0.0
+Fs Create Count: 920 Mean: 4.81 Total: 4421.43
+Fs Append Count: 921 Mean: 4.46 Total: 4109.55
+Fs Lookup Count: 1834 Mean: 0.14 Total: 253.47
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 10 Mean: 5.65 Total: 56.49
+Fs Readdir Count: 28 Mean: 0.04 Total: 0.99
+
+=== ConFs largefile ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 2870 Mean: 1.49 Total: 4281.25
+Fs Extend Count: 2541 Mean: 6.79 Total: 17244.78
+Fs Delete Count: 10 Mean: 14.53 Total: 145.26
+Fs Rename Count: 0 Mean: nan Total: 0.0
+Fs Create Count: 10 Mean: 5.86 Total: 58.59
+Fs Append Count: 0 Mean: nan Total: 0.0
+Fs Lookup Count: 0 Mean: nan Total: 0.0
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 0 Mean: nan Total: 0.0
+Fs Readdir Count: 0 Mean: nan Total: 0.0
+
+=== Cfscq largefile ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 0 Mean: nan Total: 0.0
+Fs Delete Count: 19 Mean: 3.94 Total: 74.78
+Fs Rename Count: 0 Mean: nan Total: 0.0
+Fs Create Count: 10 Mean: 9.51 Total: 95.07
+Fs Append Count: 5407 Mean: 4.41 Total: 23851.87
+Fs Lookup Count: 87 Mean: 0.05 Total: 4.72
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 10 Mean: 4.25 Total: 42.54
+Fs Readdir Count: 19 Mean: 0.04 Total: 0.79
+
+=== ConFs createdelete ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 0 Mean: nan Total: 0.0
+Fs Delete Count: 468 Mean: 12.31 Total: 5763.05
+Fs Rename Count: 0 Mean: nan Total: 0.0
+Fs Create Count: 474 Mean: 6.31 Total: 2992.33
+Fs Append Count: 0 Mean: nan Total: 0.0
+Fs Lookup Count: 0 Mean: nan Total: 0.0
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 0 Mean: nan Total: 0.0
+Fs Readdir Count: 0 Mean: nan Total: 0.0
+
+=== Cfscq createdelete ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 0 Mean: nan Total: 0.0
+Fs Delete Count: 1022 Mean: 4.01 Total: 4102.93
+Fs Rename Count: 96 Mean: 3.83 Total: 368.12
+Fs Create Count: 1010 Mean: 4.23 Total: 4272.88
+Fs Append Count: 0 Mean: nan Total: 0.0
+Fs Lookup Count: 2093 Mean: 0.08 Total: 166.2
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 10 Mean: 3.81 Total: 38.1
+Fs Readdir Count: 19 Mean: 0.02 Total: 0.46
+
+=== ConFs rename ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 0 Mean: nan Total: 0.0
+Fs Delete Count: 454 Mean: 12.67 Total: 5751.14
+Fs Rename Count: 446 Mean: 0.89 Total: 395.59
+Fs Create Count: 454 Mean: 6.05 Total: 2746.92
+Fs Append Count: 0 Mean: nan Total: 0.0
+Fs Lookup Count: 0 Mean: nan Total: 0.0
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 0 Mean: nan Total: 0.0
+Fs Readdir Count: 0 Mean: nan Total: 0.0
+
+=== Cfscq rename ===
+Fs Read Count: 0 Mean: nan Total: 0.0
+Fs Write Count: 0 Mean: nan Total: 0.0
+Fs Extend Count: 0 Mean: nan Total: 0.0
+Fs Delete Count: 17 Mean: 3.91 Total: 66.43
+Fs Rename Count: 1033 Mean: 4.34 Total: 4482.7
+Fs Create Count: 1039 Mean: 4.15 Total: 4313.43
+Fs Append Count: 0 Mean: nan Total: 0.0
+Fs Lookup Count: 1127 Mean: 0.1 Total: 108.13
+Fs Resize Count: 0 Mean: nan Total: 0.0
+Fs Mkdir Count: 10 Mean: 3.64 Total: 36.35
+Fs Readdir Count: 28 Mean: 0.02 Total: 0.5
+

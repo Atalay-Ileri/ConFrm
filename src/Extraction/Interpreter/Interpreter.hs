@@ -31,6 +31,8 @@ import Foreign.Marshal.Alloc
 import System.Clock
 import Text.Printf
 
+block_size :: Int
+block_size = 8 * 4096
 
 addrsPerBlock :: Int
 addrsPerBlock = div block_size intSize 
