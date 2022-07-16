@@ -6,34 +6,34 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === rename Bench ===
-DATA: 115 1005896
+DATA: 97 1004124
 === FS Stats ===
 ========
-DATA: 111 1005285
+DATA: 98 1007367
 === FS Stats ===
 ========
-DATA: 111 1002429
+DATA: 97 1005267
 === FS Stats ===
 ========
-DATA: 112 1001251
+DATA: 98 1000979
 === FS Stats ===
 ========
-DATA: 114 1008428
+DATA: 99 1004834
 === FS Stats ===
 ========
-DATA: 113 1000029
+DATA: 97 1006392
 === FS Stats ===
 ========
-DATA: 111 1006008
+DATA: 98 1005259
 === FS Stats ===
 ========
-DATA: 110 1000197
+DATA: 99 1006373
 === FS Stats ===
 ========
-DATA: 115 1007213
+DATA: 99 1006611
 === FS Stats ===
 ========
-DATA: 110 1008725
+DATA: 98 1004928
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -42,25 +42,25 @@ Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  694 Writes: 1155 Syncs:  577"
+"Reads:  586 Writes: 975 Syncs:  682"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  669 Writes: 1115 Syncs:  557"
+"Reads:  591 Writes: 985 Syncs:  689"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  669 Writes: 1115 Syncs:  557"
+"Reads:  585 Writes: 975 Syncs:  682"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  675 Writes: 1125 Syncs:  562"
+"Reads:  591 Writes: 985 Syncs:  689"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  687 Writes: 1145 Syncs:  572"
+"Reads:  597 Writes: 995 Syncs:  696"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  681 Writes: 1135 Syncs:  567"
+"Reads:  585 Writes: 975 Syncs:  682"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  669 Writes: 1115 Syncs:  557"
+"Reads:  591 Writes: 985 Syncs:  689"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  663 Writes: 1105 Syncs:  552"
+"Reads:  597 Writes: 995 Syncs:  696"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  693 Writes: 1155 Syncs:  577"
+"Reads:  597 Writes: 995 Syncs:  696"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  663 Writes: 1105 Syncs:  552"
+"Reads:  591 Writes: 985 Syncs:  689"
 "--- Disk Close Stats ---"
 Disk I/O stats:
 Reads:  0

@@ -6,34 +6,34 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === createdelete Bench ===
-DATA: 134 1006672
+DATA: 114 1006206
 === FS Stats ===
 ========
-DATA: 121 1003336
+DATA: 113 1004474
 === FS Stats ===
 ========
-DATA: 130 1004426
+DATA: 111 1006420
 === FS Stats ===
 ========
-DATA: 128 1003543
+DATA: 112 1003217
 === FS Stats ===
 ========
-DATA: 130 1004207
+DATA: 111 1001169
 === FS Stats ===
 ========
-DATA: 130 1000903
+DATA: 110 1001231
 === FS Stats ===
 ========
-DATA: 133 1001825
+DATA: 111 1002497
 === FS Stats ===
 ========
-DATA: 130 1002159
+DATA: 114 1017810
 === FS Stats ===
 ========
-DATA: 130 1010189
+DATA: 112 1001211
 === FS Stats ===
 ========
-DATA: 133 1004543
+DATA: 110 1000955
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -42,25 +42,25 @@ Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  811 Writes: 1215 Syncs:  540"
+"Reads:  691 Writes: 1035 Syncs:  690"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  732 Writes: 1098 Syncs:  488"
+"Reads:  684 Writes: 1026 Syncs:  684"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  786 Writes: 1179 Syncs:  524"
+"Reads:  672 Writes: 1008 Syncs:  672"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  774 Writes: 1161 Syncs:  516"
+"Reads:  678 Writes: 1017 Syncs:  678"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  786 Writes: 1179 Syncs:  524"
+"Reads:  672 Writes: 1008 Syncs:  672"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  786 Writes: 1179 Syncs:  524"
+"Reads:  666 Writes: 999 Syncs:  666"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  804 Writes: 1206 Syncs:  536"
+"Reads:  672 Writes: 1008 Syncs:  672"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  786 Writes: 1179 Syncs:  524"
+"Reads:  690 Writes: 1035 Syncs:  690"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  786 Writes: 1179 Syncs:  524"
+"Reads:  678 Writes: 1017 Syncs:  678"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  804 Writes: 1206 Syncs:  536"
+"Reads:  666 Writes: 999 Syncs:  666"
 "--- Disk Close Stats ---"
 Disk I/O stats:
 Reads:  0

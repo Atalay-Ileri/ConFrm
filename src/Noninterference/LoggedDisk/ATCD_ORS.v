@@ -1,6 +1,6 @@
 Require Import Eqdep Lia Lra Framework FSParameters FileDiskLayer. (* LoggedDiskLayer TransactionCacheLayer TransactionalDiskLayer. *)
 Require Import FileDiskNoninterference LoggedDiskRefinement.
-Require Import ATC_ORS HSS ATCDLayer ATCD_Simulation ATCD_AOE. (* FinishedNotCrashed. *)
+Require Import ATC_ORS HSS ATCDLayer ATCD_Simulation ATCD_AOE  LogCache_FinishedNotCrashed.
 Import FileDiskLayer.
 
 Ltac unify_execs_prefix :=
@@ -1089,7 +1089,7 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
 {
   repeat split_ors; cleanup; repeat unify_execs_prefix; cleanup;
   repeat unify_execs; cleanup.
-  eapply read_finished_oracle_eq in H1; eauto.
+  eapply LogCache_FinishedNotCrashed.read_finished_oracle_eq in H1; eauto.
 }
 {
   unfold refines, LogCache.cached_log_rep, Log.log_rep, Log.log_header_rep in *.
@@ -1098,13 +1098,15 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   edestruct H0; eauto;
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup);
-  eapply_fresh write_finished_oracle_eq in H1; eauto; cleanup; eauto.
+  eapply_fresh write_finished_oracle_eq in H1; try eapply H2; 
+  eauto; cleanup; eauto;
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup); eauto.
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup); eauto.
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup); eauto.
+
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1152,6 +1154,7 @@ Unshelve.
 all: exact [].
 Qed.
 
+(**
 Lemma exec_crashed_oracle_length_prefix:
     forall l l1 l0 l2 u o1 o2 o3 o4 s1 s2 s3 s4,
         exec CachedDiskLang u o1 s1 (LogCache.write l1 l2) (Crashed s3) ->
@@ -1159,8 +1162,9 @@ Lemma exec_crashed_oracle_length_prefix:
         o1 ++ o3 = o2 ++ o4 ->
         length o1 = length o2.
   Proof. Admitted.
+*)
 
-  Set Nested Proofs Allowed.
+Set Nested Proofs Allowed.
   Lemma le_lt_exfalso:
   forall c n m,
     n < m ->

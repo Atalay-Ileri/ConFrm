@@ -6,34 +6,34 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === smallfile Bench ===
-DATA: 116 1004074
+DATA: 107 1006264
 === FS Stats ===
 ========
-DATA: 113 1012768
+DATA: 108 1001711
 === FS Stats ===
 ========
-DATA: 116 1001739
+DATA: 104 1003779
 === FS Stats ===
 ========
-DATA: 115 1002440
+DATA: 105 1007614
 === FS Stats ===
 ========
-DATA: 115 1001290
+DATA: 106 1000947
 === FS Stats ===
 ========
-DATA: 115 1002542
+DATA: 107 1007212
 === FS Stats ===
 ========
-DATA: 112 1000105
+DATA: 105 1003051
 === FS Stats ===
 ========
-DATA: 113 1006373
+DATA: 105 1000072
 === FS Stats ===
 ========
-DATA: 111 1003116
+DATA: 103 1008431
 === FS Stats ===
 ========
-DATA: 112 1002725
+DATA: 107 1004669
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -42,25 +42,25 @@ Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1055 Writes: 1287 Syncs:  468"
+"Reads:  974 Writes: 1188 Syncs:  648"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1026 Writes: 1254 Syncs:  456"
+"Reads:  981 Writes: 1199 Syncs:  654"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1053 Writes: 1287 Syncs:  468"
+"Reads:  945 Writes: 1155 Syncs:  630"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1044 Writes: 1276 Syncs:  464"
+"Reads:  954 Writes: 1166 Syncs:  636"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1044 Writes: 1276 Syncs:  464"
+"Reads:  963 Writes: 1177 Syncs:  642"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1044 Writes: 1276 Syncs:  464"
+"Reads:  972 Writes: 1188 Syncs:  648"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1017 Writes: 1243 Syncs:  452"
+"Reads:  954 Writes: 1166 Syncs:  636"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1026 Writes: 1254 Syncs:  456"
+"Reads:  954 Writes: 1166 Syncs:  636"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1008 Writes: 1232 Syncs:  448"
+"Reads:  936 Writes: 1144 Syncs:  624"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  1017 Writes: 1243 Syncs:  452"
+"Reads:  972 Writes: 1188 Syncs:  648"
 "--- Disk Close Stats ---"
 Disk I/O stats:
 Reads:  0

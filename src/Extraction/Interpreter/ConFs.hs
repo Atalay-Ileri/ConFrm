@@ -154,8 +154,6 @@ confsDestroy = do
 
 confsReadDirectory :: IO FuseContext -> FilePath -> IO (Either Errno [(FilePath, FileStat)])  
 confsReadDirectory getctx path = do
-  -- print "--confsReadDirectory--"
-  -- print path
   let path_list = (splitDirectories path)
   r <- onDirMap (isValidDirPath path_list)
   r <- if r then do
@@ -167,7 +165,6 @@ confsReadDirectory getctx path = do
       Nothing -> return (Left eIO)
   else
     return (Left eIO)
-  -- print "------------"
   return r
 
 confsGetFileStat :: IO FuseContext -> FilePath -> IO (Either Errno FileStat)
@@ -178,8 +175,6 @@ confsGetFileStat getctx path
         ctx <- getctx
         return (Right (fileStat ctx))
     | otherwise = do
-    -- print "--confsGetFileStat--"
-    -- print path
     let path_list = (splitDirectories path)
     r <- onDirMap (isValidDirPath path_list)
     r <- if r then do
@@ -191,17 +186,11 @@ confsGetFileStat getctx path
         ctx <- getctx
         return (Right (fileStat ctx))
       else do
-        -- print "File doesn't exists"
         return (Left eNOENT)
-    -- print "--------"
     return r
 
 confsRename :: FilePath -> FilePath -> IO Errno
-confsRename src dst = getSyscallOpStats "Rename" $ timeItNamed syscallTimes "Syscall Rename"
-  (do
-  -- print "--confsRename--"
-  -- print src
-  -- print dst
+confsRename src dst = do
   let src_path_list = (splitDirectories src)
   let dst_path_list = (splitDirectories dst)
   r <- onDirMap (isValidPath src_path_list)
@@ -209,12 +198,15 @@ confsRename src dst = getSyscallOpStats "Rename" $ timeItNamed syscallTimes "Sys
     r <- onDirMap (isValidDirPath (take (length dst_path_list - 1) dst_path_list))
     if r then do
       rinum <- onDirMap (getInumPath dst_path_list)
-      r <- timeItNamed fsTimes "Fs Rename" (modifyDirMap (Directory.rename src_path_list dst_path_list))
+      r <- modifyDirMap (Directory.rename src_path_list dst_path_list)
       persistDirMap
+      --Interpreter.diskSync
       case r of
         eOK -> 
           case rinum of
-            Just i -> timeItNamed fsTimes "Fs Delete" (File.delete i)
+            Just i -> do 
+              --Interpreter.diskSync
+              File.delete i
             Nothing -> return Nothing
         _ -> return Nothing
       return r
@@ -222,25 +214,17 @@ confsRename src dst = getSyscallOpStats "Rename" $ timeItNamed syscallTimes "Sys
       return eIO
   else
     return eIO
-  -- print (errnoToIOError "" r Nothing Nothing)
-  -- print "--------"
   
-  return r)
+  return r
 
 confsRemoveDirectory :: FilePath -> IO Errno
 confsRemoveDirectory path = do
-  -- print "--confsRemoveDirectory--"
-  -- print path
   let path_list = (splitDirectories path)
   r <- modifyDirMap (removeDir path_list)
-  -- print (errnoToIOError path r Nothing Nothing)
-  -- print "----------"
   return r
 
 confsGetFileSystemStats :: String -> IO (Either Errno FileSystemStats)
 confsGetFileSystemStats path = do
-  ---- print "--confsGetFileSystemStats--"
-  ---- print path
   return $ Right $ FileSystemStats
     { fsStatBlockSize = 4096
     , fsStatBlockCount = 2 * 8 * 4096
@@ -253,8 +237,6 @@ confsGetFileSystemStats path = do
 
 confsInit:: String -> IO ()
 confsInit disk_fn = do
-  -- -- print "--confsInit--"
-  -- -- print disk_fn
   _ <- writeIORef Interpreter.txnList []
   _ <- writeIORef Interpreter.cache Data.Map.empty
   _ <- writeIORef Interpreter.cipherMap Data.Map.empty
@@ -273,40 +255,30 @@ confsInit disk_fn = do
   putStrLn $ "Initializing Done"
 
 confsCreateDevice :: FilePath -> EntryType -> FileMode -> DeviceID -> IO Errno
-confsCreateDevice path entryType _ _ = timeItNamed syscallTimes "Syscall Create"
-  (do
-  -- print "--confsCreateDevice--"
-  -- print path
-  -- print entryType
+confsCreateDevice path entryType _ _ = do
   r <- case entryType of
     RegularFile -> do
       let path_list = (splitDirectories path)
-      ---- print "Path List:"
-      ---- print path_list
       r <- onDirMap (isValidDirPath (take (length path_list - 1) path_list))
       if r then do
         r <- onDirMap (Data.Map.notMember (last path_list))
         if r then do 
             uid <- getEffectiveUserID
-            minum <- getSyscallOpStats "Create" $ timeItNamed fsTimes "Fs Create" (File.create uid)
+            minum <- File.create uid
             case minum of  
-              Just inum -> modifyDirMap (addFile path_list inum)
+              Just inum -> do
+                --Interpreter.diskSync
+                modifyDirMap (addFile path_list inum)
               Nothing -> return eNOSPC
         else do
-          -- print "File Exists"
           return eEXIST
       else do
-        -- print "not Valid dir path"
         return eNOTDIR
     _ -> return eIO
-  -- print (errnoToIOError path r Nothing Nothing)
-  -- print "--------"
-  return r)
+  return r
 
 confsCreateDirectory :: FilePath -> FileMode -> IO Errno
 confsCreateDirectory path _ = do
-  ---- print "--confsCreateDirectory--"
-  ---- print path
   let path_list = (splitDirectories path)
   modifyDirMap (addDir path_list)
 
@@ -316,16 +288,12 @@ confsOpenDirectory path
     (last (splitDirectories path) == "sync") ||
     (last (splitDirectories path) == "clear-stats") = return eOK
   | otherwise = do
-    -- print "--confsOpenDirectory--"
-    -- print path
     let path_list = (splitDirectories path)
     r <- onDirMap (isValidDirPath path_list)
     r <- if r then
       return eOK
     else
       return eIO
-    -- print (errnoToIOError path r Nothing Nothing)
-    -- print "--------"
     return r
   
 writeSubsets' :: [[(Integer, a)]] -> [[(Integer, a)]]
@@ -350,39 +318,32 @@ confsOpen path _ _
     Interpreter.clearStats
     return $ Right 0
   | otherwise = do
-    -- print "--confsOpen--"
-    -- print path
     let path_list = (splitDirectories path)
     r <- onDirMap (isValidFilePath path_list)
     r <- if r then do
       minum <- onDirMap (getInum (last path_list))
       case minum of
         Just inum -> do
-          -- print "Valid file path"
           return (Right inum)
         Nothing -> do
-          -- print "File Doesn't exists"
           return (Left eIO)
     else do
-      -- print "not a valid file path"
       return (Left eIO)
-    -- print "--------"
     return r
 
 confsUnlink :: FilePath -> IO Errno
-confsUnlink path = timeItNamed syscallTimes "Syscall Delete"
-  (do
-  -- print "--confsUnlink--"
-  -- print path
+confsUnlink path = do
   let path_list = (splitDirectories path)
   r <- onDirMap (isValidFilePath path_list)
   r <- if r then do
     minum <- onDirMap (getInum (last path_list))
     case minum of
       Just inum -> do 
-        r <- getSyscallOpStats "Delete" $ timeItNamed fsTimes "Fs Delete" (File.delete inum)
+        r <- File.delete inum
         case r of
-          Just _ -> modifyDirMap (removeFile path_list)
+          Just _ -> do 
+            --Interpreter.diskSync
+            modifyDirMap (removeFile path_list)
           Nothing -> return eIO
       Nothing -> 
         return eIO
@@ -392,27 +353,24 @@ confsUnlink path = timeItNamed syscallTimes "Syscall Delete"
       modifyDirMap (removeDir path_list)
     else
       return eIO
-  -- print (errnoToIOError path r Nothing Nothing)
-  -- print "--------"
-  return r)
+  return r
 
 confsChown :: FilePath -> UserID -> GroupID -> IO Errno
-confsChown path uid _  = timeItNamed syscallTimes "Syscall Chown" 
-  (do
-  ---- print "--confsChown--"
-  ---- print path
+confsChown path uid _  = do
   r <- onDirMap (isValidFilePath (splitDirectories path))
   if r then do
     minum <- onDirMap (getInum (takeFileName path))
     case minum of
       Just inum -> do 
-        r <- getSyscallOpStats "Chown" $ timeItNamed fsTimes "Fs Chown" (File.change_owner inum (fromIntegral (toInteger uid)))
+        r <- File.change_owner inum (fromIntegral (toInteger uid))
         case r of
-          Just _ -> return eOK
+          Just _ -> do 
+            --Interpreter.diskSync
+            return eOK
           Nothing -> return eIO
       Nothing -> return eIO
   else
-    return eIO)
+    return eIO
 
 data BlockRange =
   BR !Int !Int !Int   -- blocknumber, offset-in-block, count-from-offset
@@ -438,17 +396,15 @@ confsRead path inum byteCount offset
     print bs
     return $ (Right bs)
 
-  | otherwise = timeItNamed syscallTimes "Syscall Read"
-    (do
-    -- print "--confsRead--"
-    -- print path
+  | otherwise = do
     pieces <- mapM read_piece $ compute_ranges offset byteCount
-    return $ Right $ BS.concat pieces)
+    return $ Right $ BS.concat pieces
     where
       read_piece (BR blk off count) = do
-        ok_buf <- getSyscallOpStats "Read" $ timeItNamed fsTimes "Fs Read" (File.read inum blk)
+        ok_buf <- File.read inum blk
         case ok_buf of
-          Just buf ->
+          Just buf -> do
+            --Interpreter.diskSync
             return $ BS.take count $ BS.drop off $ buf
           Nothing ->
             error "Read ERROR"
@@ -467,45 +423,44 @@ data WriteState =
 
 -- This should automatically extend if it passes file length
 confsWrite :: FilePath -> HT -> BS.ByteString -> FileOffset -> IO (Either Errno ByteCount)
-confsWrite path inum !bs offset = timeItNamed syscallTimes "Syscall Write"
-  (do
-  ---- print "--confsWrite--"
-  ---- print path
-  mlen <- timeItNamed fsTimes "Fs GetSize" (File.get_file_size inum)
+confsWrite path inum !bs offset = do
+  mlen <- File.get_file_size inum
   case mlen of
     Just len -> do
       r <- foldM (write_piece inum len) (WriteOK 0) (compute_range_pieces offset bs)
       case r of
-        WriteOK c -> return (Right c)
-        WriteErr c ->
+        WriteOK c -> do
+          --Interpreter.diskSync
+          return (Right c)
+        WriteErr c -> do
+          --Interpreter.diskSync
           if c == 0 then
             return (Left eIO)
           else
             return (Right c)
     Nothing -> do
       return (Left eIO)
-  )
   where
     write_piece _ _ (WriteErr c) (BR blk off cnt, piece_bs) = return (WriteErr c)
     write_piece inum init_len (WriteOK c) (BR blk off cnt, piece_bs) = do
       if blk < init_len then
         if cnt == blocksize then do
-          r <- getSyscallOpStats "Write" $ timeItNamed fsTimes "Fs Write" (File.write inum (fromIntegral blk) piece_bs)
+          r <- File.write inum (fromIntegral blk) piece_bs
           case r of
             Just _ -> return (WriteOK (c + (fromIntegral cnt)))
             Nothing -> return (WriteErr c)
         else do
-          mob <- getSyscallOpStats "Read" $ timeItNamed fsTimes "Fs Read" (File.read inum (fromIntegral blk))
+          mob <- File.read inum (fromIntegral blk)
           case mob of
             Just old_block -> do
               let new_block = BS.append (BS.take (fromIntegral off) old_block) (BS.append piece_bs (BS.drop ((fromIntegral off) + (fromIntegral cnt)) old_block))
-              r <- getSyscallOpStats "Write" $ timeItNamed fsTimes "Fs Write" (File.write inum (fromIntegral blk) new_block)
+              r <- File.write inum (fromIntegral blk) new_block
               case r of
                 Just _ -> return (WriteOK (c + (fromIntegral cnt)))
                 Nothing -> return (WriteErr c)
             Nothing -> return (WriteErr c)
       else do
-        r <- getSyscallOpStats "Extend" $ timeItNamed fsTimes "Fs Extend" (File.extend inum (BS.append piece_bs (BS.replicate (blocksize - BS.length piece_bs) 0)))
+        r <- File.extend inum (BS.append piece_bs (BS.replicate (blocksize - BS.length piece_bs) 0))
         case r of
           Just _ -> return (WriteOK (c + (fromIntegral cnt)))
           Nothing -> return (WriteErr c)

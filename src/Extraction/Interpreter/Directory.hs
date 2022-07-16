@@ -49,8 +49,6 @@ recoverDirMap = do
 persistDirMap :: IO ()
 persistDirMap = do
   dm <- readIORef dirMap
-  ---- print "--Persisting dirMap"
-  ---- print dm
   let dmBlock = Helpers.setToBlockSize (div Interpreter.block_size 8) (encode dm) 
   Interpreter.diskWrite dirMapAddr dmBlock
   Interpreter.diskSync

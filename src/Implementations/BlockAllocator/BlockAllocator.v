@@ -133,7 +133,7 @@ Definition block_allocator_rep (dh: disk value) (d: @total_mem addr addr_dec val
      d bitmap_addr = bitmap /\
      valid_bits dh values bits d /\
      length values = num_of_blocks /\
-     (forall i, i >= num_of_blocks -> dh i = None).
+     (forall i, i >= num_of_blocks -> dh i = None /\ test_bit i bits = false).
 
 
 (*** Lemmas ***)
@@ -571,7 +571,7 @@ Proof.
   unfold block_allocator_rep; intros; extensionality x.
   cleanup.
   destruct (le_dec num_of_blocks x); eauto.
-  rewrite H6, H3; eauto.
+  edestruct H6; edestruct H3; eauto; congruence.
   eapply (valid_bits_extract _ _ _ x) in H4; try lia; cleanup.
   eapply (valid_bits_extract _ _ _ x) in H1; try lia; cleanup.
   repeat split_ors; cleanup; eauto; try congruence.
@@ -590,6 +590,9 @@ Proof.
   eapply valid_bits'_inbound_same; eauto.
   rewrite Nat.add_0_r.
   rewrite H2; eauto.
+  edestruct H3; eauto.
+  rewrite H0; eauto; try lia.
+  edestruct H3; eauto.
 Qed.
 
 Lemma block_allocator_rep_upd:
@@ -612,7 +615,9 @@ Proof.
   eauto.
   simpl; eauto.
   rewrite updn_length; eauto.
-  rewrite Mem.upd_ne; eauto; lia.
+  rewrite Mem.upd_ne; eauto; try lia.
+  edestruct H4; eauto.
+  edestruct H4; eauto.
 Qed.
 
 Lemma block_allocator_rep_upd_noop:
@@ -648,9 +653,20 @@ Lemma block_allocator_rep_delete :
     }
     destruct (PeanoNat.Nat.eq_dec a i); subst.
     rewrite delete_eq; eauto.
-    rewrite delete_ne; eauto; lia.
+    rewrite delete_ne; eauto; try lia.
+    edestruct H2; eauto.
+    edestruct H2; eauto.
+    rewrite upd_eq; eauto.
+    rewrite bits_to_value_to_bits.
+    destruct (lt_dec a bitmap_size).
+    destruct (Nat.eq_dec i a); subst.
+    apply unset_test_eq; eauto.
+    rewrite unset_test_ne; eauto.
+    destruct (Nat.eq_dec i a); subst.
+    rewrite test_bit_oob; eauto.
+    lia.
+    rewrite unset_test_ne; eauto.
   Qed.
-   
 
   Lemma repeated_apply_unset_bit_comm:
   forall l a bm,
@@ -750,8 +766,15 @@ Proof.
             rewrite updn_length; eauto.
           }
          clear D.
-         rewrite Mem.upd_ne; eauto.  
+         rewrite Mem.upd_ne; eauto.
+          edestruct H4; eauto.
          lia.
+         rewrite upd_eq.
+         rewrite bits_to_value_to_bits.
+         rewrite set_test_ne; eauto.
+         edestruct H4; eauto.
+         lia.
+         eauto.
          lia.         
        }
        rewrite H3; eauto.
@@ -792,6 +815,10 @@ Proof.
          {
             rewrite updn_length; eauto.
          }
+         edestruct H4; eauto.
+         rewrite upd_ne.
+         edestruct H4; eauto.
+         lia.
          lia.
        }
        rewrite H3; eauto.
@@ -829,7 +856,14 @@ Proof.
       unfold valid_bits in *.
       eapply valid_bits'_delete in H0; simpl in *; eauto.
     }
-    rewrite delete_ne; eauto; lia.
+    rewrite delete_ne; eauto; try lia.
+    edestruct H2; eauto.
+    erewrite upd_eq; eauto.
+    rewrite bits_to_value_to_bits; eauto.
+    destruct (PeanoNat.Nat.eq_dec a i); subst.
+    lia.
+    rewrite unset_test_ne; eauto.
+    edestruct H2; eauto.
   }
   all: simpl; rewrite upd_ne; eauto; lia.
 Qed.
@@ -897,7 +931,11 @@ Proof.
       eauto.
     }
     rewrite updn_length; eauto.
-     rewrite Mem.upd_ne; eauto; lia.
+       rewrite Mem.upd_ne; eauto; try lia.
+    edestruct H2; eauto.
+    rewrite upd_ne; eauto.
+    edestruct H2; eauto.
+    lia.
   }  
   all: simpl; rewrite upd_ne; eauto; lia.
 Qed.

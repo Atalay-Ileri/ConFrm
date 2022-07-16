@@ -690,9 +690,6 @@ Ltac unify_execs_prefix :=
         rewrite <- app_assoc; eauto
         end.
       }
-      {
-        eapply H7; eauto.
-      } 
     }
     Unshelve.
     all: eauto.
@@ -892,7 +889,7 @@ Ltac unify_execs_prefix :=
     (HorizontalComposition AuthenticationOperation
     TransactionCacheOperation))
     (o_abs : list
-    (Layer.token'
+    (LayerImplementation.token'
       (HorizontalComposition AuthenticationOperation
          (TransactionalDiskLayer.TDCore data_length))))
     (grs : state ATCLang -> state ATCLang),
@@ -1059,11 +1056,11 @@ Ltac unify_execs_prefix :=
           Lemma TD_oracle_refines_operation_eq:
           forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
           (T' : Type) (o2 : operation Definitions.abs_op T')
-          (x16 : list (Layer.token' TransactionCacheOperation))
+          (x16 : list (LayerImplementation.token' TransactionCacheOperation))
           (x17 : TransactionalDiskLayer.token')
           (x18 : oracle' TransactionCacheOperation)
           (x19 : state Definitions.imp -> state Definitions.imp)
-          (x20 : list (Layer.token' TransactionCacheOperation))
+          (x20 : list (LayerImplementation.token' TransactionCacheOperation))
           (x21 : oracle' TransactionCacheOperation)
           (x22 : state Definitions.imp -> state Definitions.imp)
           (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
@@ -1170,11 +1167,11 @@ Ltac unify_execs_prefix :=
         Lemma TD_oracle_refines_operation_eq_crashed:
           forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
           (T' : Type) (o2 : operation Definitions.abs_op T')
-          (x16 : list (Layer.token' TransactionCacheOperation))
+          (x16 : list (LayerImplementation.token' TransactionCacheOperation))
           (x17 : TransactionalDiskLayer.token')
           (x18 : oracle' TransactionCacheOperation)
           (x19 : state Definitions.imp -> state Definitions.imp)
-          (x20 : list (Layer.token' TransactionCacheOperation))
+          (x20 : list (LayerImplementation.token' TransactionCacheOperation))
           (x21 : oracle' TransactionCacheOperation)
           (x22 : state Definitions.imp -> state Definitions.imp)
           (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
@@ -1403,11 +1400,11 @@ Ltac unify_execs_prefix :=
     
         (forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
         (T' : Type) (o2 : operation Definitions.abs_op T')
-        (x16 : list (Layer.token' TransactionCacheOperation))
+        (x16 : list (LayerImplementation.token' TransactionCacheOperation))
         (x17 : TransactionalDiskLayer.token')
         (x18 : oracle' TransactionCacheOperation)
         (x19 : state Definitions.imp -> state Definitions.imp)
-        (x20 : list (Layer.token' TransactionCacheOperation))
+        (x20 : list (LayerImplementation.token' TransactionCacheOperation))
         (x21 : oracle' TransactionCacheOperation)
         (x22 : state Definitions.imp -> state Definitions.imp)
         (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
@@ -1655,11 +1652,11 @@ Ltac unify_execs_prefix :=
         
           (forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
           (T' : Type) (o2 : operation Definitions.abs_op T')
-          (x16 : list (Layer.token' TransactionCacheOperation))
+          (x16 : list (LayerImplementation.token' TransactionCacheOperation))
           (x17 : TransactionalDiskLayer.token')
           (x18 : oracle' TransactionCacheOperation)
           (x19 : state Definitions.imp -> state Definitions.imp)
-          (x20 : list (Layer.token' TransactionCacheOperation))
+          (x20 : list (LayerImplementation.token' TransactionCacheOperation))
           (x21 : oracle' TransactionCacheOperation)
           (x22 : state Definitions.imp -> state Definitions.imp)
           (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)
@@ -1680,11 +1677,11 @@ Ltac unify_execs_prefix :=
         
         (forall (u0 : user) (T : Type) (o1 : operation Definitions.abs_op T)
         (T' : Type) (o2 : operation Definitions.abs_op T')
-        (x16 : list (Layer.token' TransactionCacheOperation))
+        (x16 : list (LayerImplementation.token' TransactionCacheOperation))
         (x17 : TransactionalDiskLayer.token')
         (x18 : oracle' TransactionCacheOperation)
         (x19 : state Definitions.imp -> state Definitions.imp)
-        (x20 : list (Layer.token' TransactionCacheOperation))
+        (x20 : list (LayerImplementation.token' TransactionCacheOperation))
         (x21 : oracle' TransactionCacheOperation)
         (x22 : state Definitions.imp -> state Definitions.imp)
         (x23 : TransactionalDiskLayer.token') (s0 s3 : state Definitions.imp)

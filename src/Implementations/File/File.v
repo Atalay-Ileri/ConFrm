@@ -13,6 +13,341 @@ End DiskAllocatorParams.
 Module DiskAllocator := BlockAllocator DiskAllocatorParams.
 
 (*** Rep Invariants ***)
+Fixpoint count_somes_up_to {V} n (m: @mem nat _ V) :=
+  match n with
+  | 0 => 0
+  | S x => 
+    match m x with
+    | None => count_somes_up_to x m 
+    | Some _ => S (count_somes_up_to x m)
+    end
+  end.
+
+  Fixpoint get_all_file_sizes_up_to fm n :=
+    match n with
+    | 0 => 0
+    | S n' =>
+      match fm n' with
+      |Some f => length (f.(blocks))
+      |None => 0
+      end + get_all_file_sizes_up_to fm n'
+    end.
+
+  
+  Lemma get_all_file_sizes_0_empty_disk:
+  forall n fm,
+  (forall i, fm i = None) ->
+  get_all_file_sizes_up_to fm n = 0.
+  Proof.
+    induction n; simpl; intros; eauto.
+    rewrite H; eauto.
+  Qed.
+
+  Lemma get_all_file_sizes_up_to_empty_mem:
+  forall n,
+  get_all_file_sizes_up_to empty_mem n = 0.
+  Proof.
+    induction n; simpl; intros; eauto.
+  Qed.
+  
+  Lemma get_all_file_sizes_equal_after_disk:
+  forall a n fm,
+  (forall i, i >= n -> fm i = None) ->
+  get_all_file_sizes_up_to fm n = get_all_file_sizes_up_to fm (n + a).
+  Proof.
+    induction a; simpl; intros.
+    {
+      rewrite PeanoNat.Nat.add_0_r; eauto.
+    }
+    {
+      replace (n + S a) with (S n + a) by lia.
+      rewrite IHa; simpl; eauto.
+      setoid_rewrite H; eauto; simpl.
+      lia.
+    }
+  Qed.
+
+  Lemma count_somes_up_to_empty_mem:
+  forall V n,
+  count_somes_up_to n (@empty_mem _ _ V) = 0.
+  Proof.
+    induction n; simpl; intros; eauto.
+  Qed.
+
+  Lemma count_somes_up_to_upd_oob:
+    forall V n a (v: V) m,
+    a >= n ->
+    count_somes_up_to n (Mem.upd m a v) = count_somes_up_to n m.
+    Proof.
+      induction n; simpl; intros.
+      eauto.
+      rewrite Mem.upd_ne.
+      rewrite IHn; eauto.
+      all: lia.
+    Qed. 
+
+    Lemma count_somes_up_to_some_upd:
+    forall V n a (v: V) m,
+    (exists v, m a = Some v) ->
+    count_somes_up_to n (Mem.upd m a v) = count_somes_up_to n m.
+    Proof.
+      induction n; simpl; intros.
+      eauto.
+      destruct (lt_dec a n).
+      rewrite Mem.upd_ne.
+      rewrite IHn; eauto.
+      lia.
+
+      rewrite count_somes_up_to_upd_oob.
+      destruct H; subst.
+      destruct (addr_dec a n).
+      rewrite Mem.upd_eq; subst; eauto.
+      rewrite H; simpl; eauto.
+
+      rewrite Mem.upd_ne; eauto.
+      lia.
+    Qed. 
+
+    Lemma count_somes_up_to_none_upd:
+    forall V n a (v: V) m,
+    m a = None ->
+    a < n ->
+    count_somes_up_to n (Mem.upd m a v) = count_somes_up_to n m + 1.
+    Proof.
+      induction n; simpl; intros.
+      lia; eauto.
+      destruct (addr_dec a n); subst.
+      rewrite Mem.upd_eq; subst; eauto.
+      rewrite H; simpl; eauto.
+      rewrite count_somes_up_to_upd_oob.
+      lia.
+      eauto.
+
+      rewrite Mem.upd_ne; eauto.
+      rewrite IHn; eauto.
+      destruct (m n); simpl; lia.
+      lia.
+    Qed. 
+
+    Lemma count_somes_up_to_delete_oob:
+    forall V n a (m: @mem _ _ V),
+    a >= n ->
+    count_somes_up_to n (Mem.delete m a) = count_somes_up_to n m.
+    Proof.
+      induction n; simpl; intros.
+      eauto.
+      rewrite Mem.delete_ne.
+      rewrite IHn; eauto.
+      all: lia.
+    Qed. 
+
+    Lemma count_somes_up_to_some_nonzero:
+    forall V n a (m: @mem _ _ V),
+    a < n ->
+    (exists v, m a = Some v) ->
+    count_somes_up_to n m > 0.
+    Proof.
+      induction n; simpl; intros.
+      lia.
+      destruct H0.
+      destruct (addr_dec a n); subst.
+      rewrite H0; simpl; eauto.
+      lia.
+      destruct (m n); simpl; try lia.
+      eapply IHn; eauto.
+      lia.
+    Qed.
+
+    Lemma count_somes_up_to_some_delete:
+    forall V n a (m: @mem _ _ V),
+    a < n ->
+    (exists v, m a = Some v) ->
+    count_somes_up_to n (Mem.delete m a) = 
+    count_somes_up_to n m - 1.
+    Proof.
+      induction n; simpl; intros.
+      lia.
+      destruct H0.
+      destruct (addr_dec a n); subst.
+      rewrite Mem.delete_eq; subst; eauto.
+      rewrite H0; simpl; eauto.
+      rewrite count_somes_up_to_delete_oob.
+      lia.
+      eauto.
+
+      rewrite Mem.delete_ne; eauto.
+      rewrite IHn; eauto.
+      destruct (m n); simpl; try lia.
+      assert (A: a < n) by lia.
+      eapply count_somes_up_to_some_nonzero in A; eauto.
+      lia.
+      lia.
+    Qed.
+
+    Lemma count_somes_up_to_some_repeated_delete:
+    forall V l_a n (m: @mem _ _ V),
+    Forall (fun a => a < n) l_a ->
+    Forall (fun a => exists v, m a = Some v) l_a ->
+    NoDup l_a ->
+    count_somes_up_to n (repeated_apply
+    (Mem.delete (AEQ:=addr_dec)) m l_a) = 
+    count_somes_up_to n m -length l_a.
+    Proof.
+      induction l_a; simpl; intros.
+      lia.
+      inversion H; inversion H0; inversion H1; cleanup.
+      rewrite count_somes_up_to_some_delete; eauto.
+      rewrite IHl_a; eauto.
+      lia.
+      eexists; rewrite repeated_apply_delete_not_in; eauto.
+    Qed.
+
+    Lemma count_somes_up_to_some_delete_list:
+    forall V l n (m1 m2: @mem _ _ V),
+    (forall a, In a l -> a < n) ->
+    (forall a, In a l -> exists v, m1 a = Some v) ->
+    (forall a, In a l -> m2 a = None) ->
+    (forall a, ~In a l -> m1 a = m2 a) ->
+    NoDup l -> 
+    count_somes_up_to n m2 = count_somes_up_to n m1 - length l.
+    Proof.
+      induction l; simpl; intros.
+      assert (m1 = m2). {
+        extensionality x.
+        eauto.
+      }
+      subst; lia.
+      erewrite IHl.
+      instantiate (1:= Mem.delete m1 a).
+      erewrite count_somes_up_to_some_delete; eauto.
+      lia.
+      all: intuition.
+      inversion H3; subst.
+      rewrite Mem.delete_ne; eauto.
+      congruence.
+      inversion H3; subst.
+      destruct (addr_dec a a0); subst.
+      rewrite Mem.delete_eq; eauto.
+      symmetry.
+      apply H1; intuition.
+      rewrite Mem.delete_ne; eauto.
+      apply H2; intuition.
+      inversion H3; subst; eauto.
+    Qed.
+
+    Lemma get_all_file_sizes_up_to_upd_oob:
+      forall n a f m,
+      a >= n ->
+      get_all_file_sizes_up_to (Mem.upd m a f) n = 
+      get_all_file_sizes_up_to m n.
+      Proof.
+        induction n; simpl; intros.
+        eauto.
+        rewrite Mem.upd_ne.
+        rewrite IHn; eauto.
+        all: lia.
+      Qed. 
+
+    Lemma get_all_file_sizes_up_to_in_le:
+      forall n f1 a m,
+      m a = Some f1 ->
+      a < n ->
+      length (blocks f1) <= get_all_file_sizes_up_to m n.
+      Proof.
+        induction n; simpl; intros.
+        lia; eauto.
+        destruct (addr_dec a n).
+        subst; rewrite H; simpl; eauto.
+        lia.
+
+        erewrite IHn; eauto.
+        lia.
+        lia.
+      Qed.
+
+
+    Lemma get_all_file_sizes_up_to_upd_some:
+      forall n f1 f2 a m,
+      m a = Some f1 ->
+      a < n ->
+      get_all_file_sizes_up_to (Mem.upd m a f2) n = 
+      (get_all_file_sizes_up_to m n - length (blocks f1)) + length (blocks f2).
+    Proof.
+      induction n; simpl; intros.
+      lia; eauto.
+      destruct (addr_dec a n).
+      rewrite Mem.upd_eq; subst; eauto.
+      rewrite H; simpl; eauto.
+      rewrite get_all_file_sizes_up_to_upd_oob.
+      lia.
+      eauto.
+      
+      rewrite Mem.upd_ne; eauto.
+      erewrite IHn; eauto.
+      rewrite <- PeanoNat.Nat.add_sub_assoc.
+      lia.
+      eapply get_all_file_sizes_up_to_in_le; eauto.
+      all: lia.
+    Qed. 
+
+    Lemma get_all_file_sizes_up_to_upd_none:
+      forall n f1 a m,
+      m a = None ->
+      a < n ->
+      get_all_file_sizes_up_to (Mem.upd m a f1) n = 
+      get_all_file_sizes_up_to m n + length (blocks f1).
+    Proof.
+      induction n; simpl; intros.
+      lia; eauto.
+      destruct (addr_dec a n).
+      rewrite Mem.upd_eq; subst; eauto.
+      rewrite H; simpl; eauto.
+      rewrite get_all_file_sizes_up_to_upd_oob.
+      lia.
+      eauto.
+      
+      rewrite Mem.upd_ne; eauto.
+      erewrite IHn; eauto.
+      all: lia.
+    Qed. 
+
+    Lemma get_all_file_sizes_up_to_delete_oob:
+      forall n a m,
+      a >= n ->
+      get_all_file_sizes_up_to (Mem.delete m a) n = 
+      get_all_file_sizes_up_to m n.
+      Proof.
+        induction n; simpl; intros.
+        eauto.
+        rewrite Mem.delete_ne.
+        rewrite IHn; eauto.
+        all: lia.
+      Qed. 
+
+    Lemma get_all_file_sizes_up_to_delete:
+      forall n f1 a m,
+      m a = Some f1 ->
+      a < n ->
+      get_all_file_sizes_up_to (Mem.delete m a) n = 
+      get_all_file_sizes_up_to m n - length (blocks f1).
+    Proof.
+      induction n; simpl; intros.
+      lia; eauto.
+      destruct (addr_dec a n); subst.
+      rewrite Mem.delete_eq; subst; eauto.
+      rewrite H; simpl; eauto.
+      rewrite get_all_file_sizes_up_to_delete_oob.
+      lia.
+      eauto.
+      
+      rewrite Mem.delete_ne; eauto.
+      erewrite IHn; eauto.
+      rewrite <- PeanoNat.Nat.add_sub_assoc.
+      lia.
+      eapply get_all_file_sizes_up_to_in_le; eauto.
+      all: lia.
+    Qed. 
+
 Definition file_rep (file: File) (inode: Inode) (file_block_map: disk value) :=
   file.(BaseTypes.owner) = inode.(Inode.owner) /\
   length file.(blocks) = length inode.(block_numbers) /\
@@ -27,7 +362,8 @@ Definition file_map_rep (file_disk: @mem Inum addr_dec File) inode_map file_bloc
    (forall inum inode file,
      inode_map inum  = Some inode ->
      file_disk inum = Some file ->
-     file_rep file inode file_block_map).
+     file_rep file inode file_block_map) /\
+     count_somes_up_to DiskAllocatorParams.num_of_blocks file_block_map = get_all_file_sizes_up_to file_disk Inode.InodeAllocatorParams.num_of_blocks.
 
 Definition files_inner_rep (file_disk: disk File) (d: @total_mem addr addr_dec value):=
   exists inode_map,

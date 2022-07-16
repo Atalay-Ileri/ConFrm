@@ -6,64 +6,64 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === largefile Bench ===
-makefile 1 MB 681473 usec throughput 1502.6 KB/s
+makefile 1 MB 861530 usec throughput 1188.6 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 582393 usec throughput 1758.3 KB/s
+writefile 1 MB 716876 usec throughput 1428.4 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 710692 usec throughput 1440.8 KB/s
+makefile 1 MB 905775 usec throughput 1130.5 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 516720 usec throughput 1981.7 KB/s
+writefile 1 MB 739273 usec throughput 1385.1 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 732494 usec throughput 1398.0 KB/s
+makefile 1 MB 861310 usec throughput 1188.9 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 557043 usec throughput 1838.3 KB/s
+writefile 1 MB 737778 usec throughput 1388.0 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 742415 usec throughput 1379.3 KB/s
+makefile 1 MB 876343 usec throughput 1168.5 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 548174 usec throughput 1868.0 KB/s
+writefile 1 MB 714004 usec throughput 1434.2 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 727682 usec throughput 1407.2 KB/s
+makefile 1 MB 889482 usec throughput 1151.2 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 581790 usec throughput 1760.1 KB/s
+writefile 1 MB 719194 usec throughput 1423.8 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 697920 usec throughput 1467.2 KB/s
+makefile 1 MB 881181 usec throughput 1162.1 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 551462 usec throughput 1856.9 KB/s
+writefile 1 MB 696265 usec throughput 1470.7 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 717524 usec throughput 1427.1 KB/s
+makefile 1 MB 875602 usec throughput 1169.5 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 545932 usec throughput 1875.7 KB/s
+writefile 1 MB 723405 usec throughput 1415.5 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 726587 usec throughput 1409.3 KB/s
+makefile 1 MB 867306 usec throughput 1180.7 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 565333 usec throughput 1811.3 KB/s
+writefile 1 MB 701606 usec throughput 1459.5 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 701973 usec throughput 1458.7 KB/s
+makefile 1 MB 925852 usec throughput 1106.0 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 580786 usec throughput 1763.1 KB/s
+writefile 1 MB 734135 usec throughput 1394.8 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 694897 usec throughput 1473.6 KB/s
+makefile 1 MB 976697 usec throughput 1048.4 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 571505 usec throughput 1791.8 KB/s
+writefile 1 MB 725294 usec throughput 1411.8 KB/s
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -73,38 +73,38 @@ Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  896 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  896 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  894 Writes: 1390 Syncs:  299"
-"Reads:  792 Writes: 776 Syncs:  264"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
 "--- Disk Close Stats ---"
 Disk I/O stats:
 Reads:  3
 Writes: 5
-Syncs:  2
+Syncs:  3
 "--- --- ---  --- --- ---"

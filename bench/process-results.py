@@ -45,7 +45,7 @@ def parse_file(filepath):
     print("")
 
 if __name__== "__main__":
-    fs_names = ["ConFs", "Cfscq"]
+    fs_names = ["ConFs", "Cfscq", "Sfscq"]
     test_names = ["smallfile", "createdelete", "rename"]
     for test in test_names:
         for fs in fs_names:

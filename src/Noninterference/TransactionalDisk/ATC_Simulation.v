@@ -1140,7 +1140,7 @@ exists s1',
       unfold TransactionToTransactionalDisk.Refinement.TC_reboot_f, 
       TransactionToTransactionalDisk.Refinement.TD_reboot_f in *; simpl in *.
       eexists; unfold TransactionToTransactionalDisk.Definitions.refines_reboot,
-      Transaction.transaction_reboot_rep  in ; simpl in *; eauto.
+      Transaction.transaction_reboot_rep in H5; simpl in *; eauto.
       simpl in *; eauto.
     Qed.
 

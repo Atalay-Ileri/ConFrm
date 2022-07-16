@@ -21,7 +21,7 @@ end.
 
 Lemma exec_Crash_finished_exfalso:
 forall O (L: Layer O) u T (p: L.(prog) T) s s' r,
-~exec L u [Layer.Crash O] s p (Finished s' r).
+~exec L u [LayerImplementation.Crash O] s p (Finished s' r).
 Proof.
     unfold not; induction p; simpl; intros;
     invert_exec.
@@ -139,9 +139,9 @@ match goal with
 invert_exec'' H
 | [H: Core.exec (TDCore _) _ _ _ _ _ |- _] =>
 invert_exec'' H
-| [H: TransactionalDiskLayerImplementation.exec' _ _ _ _ _ _ |- _] =>
+| [H: TransactionalDiskLayer.exec' _ _ _ _ _ _ |- _] =>
 invert_exec'' H
-| [H: AuthenticationLayerImplementation.exec' _ _ _ _ _ |- _] =>
+| [H: AuthenticationLayer.exec' _ _ _ _ _ |- _] =>
 invert_exec'' H
 end.
 
@@ -784,15 +784,16 @@ Qed.
     eapply H4 in H2; eauto.
     unfold file_rep in *; cleanup.
     eapply Forall_forall; intros.
-    eapply in_seln_exists in H7; cleanup.
-    erewrite nth_seln_eq in H8.
-    edestruct H6.
+    eapply in_seln_exists in H8; cleanup.
+    erewrite nth_seln_eq in H9.
+    edestruct H7.
     erewrite nth_error_nth'; eauto.
     cleanup.
     unfold DiskAllocator.block_allocator_rep in H0; cleanup.
     destruct (Compare_dec.lt_dec x2 DiskAllocatorParams.num_of_blocks); eauto.
-    erewrite e1  in H10; cleanup.
-    rewrite H8; lia.
+    edestruct (a x2); try lia.
+    rewrite <- H9 in H0;
+    erewrite H0  in H11; cleanup.
     Unshelve.
     eauto.
   Qed.
@@ -846,7 +847,7 @@ Qed.
      eapply_fresh H16 in H13; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H19 in H11; eauto.
-     eapply H20 in H12; eauto.
+     eapply H21 in H12; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -866,7 +867,7 @@ Qed.
      eapply_fresh H16 in H13; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H19 in H11; eauto.
-     eapply H20 in H12; eauto.
+     eapply H21 in H12; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -884,7 +885,7 @@ Qed.
      eapply_fresh H15 in H12; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H18 in H10; eauto.
-     eapply H19 in H11; eauto.
+     eapply H20 in H11; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -904,7 +905,7 @@ Qed.
      eapply_fresh H16 in H13; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H19 in H11; eauto.
-     eapply H20 in H12; eauto.
+     eapply H21 in H12; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -923,7 +924,7 @@ Qed.
      eapply_fresh H16 in H13; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H19 in H11; eauto.
-     eapply H20 in H12; eauto.
+     eapply H21 in H12; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -941,7 +942,7 @@ Qed.
      eapply_fresh H15 in H12; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H18 in H10; eauto.
-     eapply H19 in H11; eauto.
+     eapply H20 in H11; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -959,7 +960,7 @@ Qed.
      eapply_fresh H15 in H12; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H18 in H10; eauto.
-     eapply H19 in H11; eauto.
+     eapply H20 in H11; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -977,7 +978,7 @@ Qed.
      eapply_fresh H15 in H12; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H18 in H10; eauto.
-     eapply H19 in H11; eauto.
+     eapply H20 in H11; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -995,7 +996,7 @@ Qed.
      eapply_fresh H14 in H11; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H17 in H9; eauto.
-     eapply H18 in H10; eauto.
+     eapply H19 in H10; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
  Qed.
@@ -1041,7 +1042,7 @@ Qed.
      eapply_fresh H16 in H13; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H19 in H11; eauto.
-     eapply H20 in H12; eauto.
+     eapply H21 in H12; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -1059,7 +1060,7 @@ Qed.
      eapply_fresh H15 in H12; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H18 in H10; eauto.
-     eapply H19 in H11; eauto.
+     eapply H20 in H11; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -1077,7 +1078,7 @@ Qed.
      eapply_fresh H15 in H12; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H18 in H10; eauto.
-     eapply H19 in H11; eauto.
+     eapply H20 in H11; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
     {
@@ -1095,7 +1096,7 @@ Qed.
      eapply_fresh H14 in H11; eauto; cleanup.
      unfold file_map_rep in *; cleanup.
      eapply H17 in H9; eauto.
-     eapply H18 in H10; eauto.
+     eapply H19 in H10; eauto.
      unfold file_rep in *; cleanup; eauto.
     }
   Opaque write_inner.
@@ -1416,7 +1417,7 @@ unfold same_for_user_except in *; cleanup.
 eapply_fresh H16 in H13; eauto; cleanup.
 unfold file_map_rep in *; cleanup.
 eapply H19 in H11; eauto.
-eapply H20 in H12; eauto.
+eapply H21 in H12; eauto.
 unfold file_rep in *; cleanup; eauto.
 }
 {
@@ -1434,7 +1435,7 @@ unfold same_for_user_except in *; cleanup.
 eapply_fresh H15 in H12; eauto; cleanup.
 unfold file_map_rep in *; cleanup.
 eapply H18 in H10; eauto.
-eapply H19 in H11; eauto.
+eapply H20 in H11; eauto.
 unfold file_rep in *; cleanup; eauto.
 }
 
@@ -1453,7 +1454,7 @@ unfold same_for_user_except in *; cleanup.
 eapply_fresh H15 in H12; eauto; cleanup.
 unfold file_map_rep in *; cleanup.
 eapply H18 in H10; eauto.
-eapply H19 in H11; eauto.
+eapply H20 in H11; eauto.
 unfold file_rep in *; cleanup; eauto.
 }
 
@@ -1472,7 +1473,7 @@ unfold same_for_user_except in *; cleanup.
 eapply_fresh H14 in H11; eauto; cleanup.
 unfold file_map_rep in *; cleanup.
 eapply H17 in H9; eauto.
-eapply H18 in H10; eauto.
+eapply H19 in H10; eauto.
 unfold file_rep in *; cleanup; eauto.
 }
 Opaque write_inner.
@@ -2112,8 +2113,8 @@ edestruct FileInnerSpecs.inode_exists_then_file_exists.
 eauto.
 
 unfold same_for_user_except, file_map_rep, Inode.inode_rep in *; cleanup.
-eapply_fresh H13 in H6; eauto; cleanup.
-eapply_fresh H10 in H5; eauto.
+eapply_fresh H15 in H6; eauto; cleanup.
+eapply_fresh H11 in H5; eauto.
 eapply_fresh H8 in H4; eauto.
 unfold file_rep in *; cleanup; eauto.
 Qed.
@@ -2635,9 +2636,9 @@ Qed.
         repeat cleanup_pairs; repeat unify_invariants.
         
         unfold file_map_rep in *; cleanup.
-        edestruct H0; edestruct H6.
-        eapply H16; eauto.
-        eapply H15; eauto.
+        edestruct H0; edestruct H8.
+        eapply H32; eauto.
+        eapply H23; eauto.
         rewrite Mem.upd_eq; eauto.
         congruence.
       }
@@ -2649,9 +2650,9 @@ Qed.
         repeat cleanup_pairs; repeat unify_invariants.
         
         unfold file_map_rep in *; cleanup.
-        edestruct H0; edestruct H7.
-        eapply H17; eauto.
-        eapply H16; eauto.
+        edestruct H0; edestruct H11.
+        eapply H32; eauto.
+        eapply H22; eauto.
         rewrite Mem.upd_eq; eauto.
         congruence.
       }

@@ -50,6 +50,6 @@ sed -ie '/^module/a import qualified Crypto.Hash.Algorithms' BaseTypes.hs
 sed -ie '/^module/a import Prelude' BaseTypes.hs
 
 # Compile Haskell files 
-ghc -prof -fprof-auto -rtsopts -O2 -threaded ConFs.hs
-ghc -prof -fprof-auto -rtsopts -O2 -threaded mkfs.hs
+ghc -O2 -threaded ConFs.hs
+ghc -O2 -threaded mkfs.hs
 

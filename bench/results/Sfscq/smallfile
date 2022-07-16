@@ -1,5 +1,5 @@
 === Unmount /tmp/SfscqFs ===
-=== SfscqMkfs in /dev/sdb3 ===
+=== SfscqMkfs in /dev/sda3 ===
 Initializing file system
 Initialization OK, 263435 blocks
 Disk I/O stats:
@@ -8,6 +8,20 @@ Writes: 2073
 Syncs:  7
 === Recreate /tmp/SfscqFs ===
 === Mount SfscqFs at /tmp/SfscqFs ===
+=== Starting Testing ===
+=== smallfile Bench ===
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+./tests/smallfile: create /tmp/SfscqFs/d failed Permission denied
+=== Finished Testing ===
+=== Unmount /tmp/SfscqFs ===
 Recovering file system
 Starting file system, 263435 blocks magic 3932
-Single threaded execution is not supported
+=== Delete /tmp/SfscqFs ===
