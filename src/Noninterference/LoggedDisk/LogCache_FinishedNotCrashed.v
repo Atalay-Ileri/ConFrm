@@ -258,7 +258,8 @@ exec CryptoDiskLang u o1 s1
 exec CryptoDiskLang u o2 s2
 (commit a2 v2) (Finished s2' r2) ->
 o1 ++ o3 = o2 ++ o4 ->
-(*length (a1 ++ v1) = length (a2 ++ v2) ->*)
+(*
+length (a1 ++ v1) = length (a2 ++ v2) ->
 (log_length >=
 count
   (current_part
@@ -269,7 +270,7 @@ count
   (current_part
      (decode_header
         (fst (snd s2 hdr_block_num)))) +
-(length a2 + length v2)) -> 
+(length a2 + length v2)) -> *)
 o1 = o2.
 Proof.
   Transparent commit.
@@ -280,23 +281,21 @@ Proof.
   try eapply_fresh log_read_header_finished_oracle_eq in H; eauto;
   subst; eauto; cleanup.
   {
-    apply Nat.ltb_ge in D0.
-    apply Nat.ltb_lt in D.
     Transparent read_header.
-    unfold read_header in *; repeat invert_exec; cleanup.
-    repeat cleanup_pairs; lia.
+    unfold commit_txn, read_header in *.
+    repeat invert_exec; cleanup.
+    simpl in *; congruence.
     Opaque read_header.
   }
   {
-    apply Nat.ltb_ge in D.
-    apply Nat.ltb_lt in D0.
     Transparent read_header.
-    unfold read_header in *; repeat invert_exec; cleanup.
-    repeat cleanup_pairs; lia.
+    unfold commit_txn, read_header in *.
+    repeat invert_exec; cleanup.
+    simpl in *; congruence.
     Opaque read_header.
   }
   {
-    eapply log_commit_txn_finished_oracle_eq in H4; eauto.
+    eapply log_commit_txn_finished_oracle_eq in H3; eauto.
     cleanup; eauto.
   }
   Opaque commit.
@@ -893,8 +892,26 @@ Proof.
   all: intros; try congruence.
   eapply log_flush_txns_finished_oracle_eq in H5; simpl; eauto.
   subst; eauto.
-  admit.
-  admit.
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H19, <- H27 in *.
+    apply in_map_iff in H.
+    cleanup.
+    eapply Forall_forall in H20; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H19, <- H27 in *.
+    apply in_map_iff in H.
+    cleanup.
+    eapply Forall_forall in H28; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+  }
   {
     eapply Forall_forall; intros.
     unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
@@ -931,7 +948,7 @@ Proof.
   }
   Unshelve.
   all: repeat constructor; exact key0.
-Admitted.
+  Qed.
 
 
 Lemma log_recover_finished_oracle_eq:
@@ -979,8 +996,28 @@ Proof.
   3: eauto.
   all: eauto.
   cleanup; eauto.
-  admit.
-  admit.
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H34, <- H26 in *.
+    apply in_map_iff in H.
+    cleanup_no_match.
+    eapply Forall_forall in H35; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H34, <- H26 in *.
+    apply in_map_iff in H.
+    cleanup_no_match.
+    eapply Forall_forall in H27; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    lia.
+  }
   {
     eapply Forall_forall; intros.
     unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
@@ -1062,7 +1099,7 @@ Proof.
     rewrite <- H3 in *; eauto.
   }
   *)
-Admitted.
+Qed.
 
 Lemma log_init_finished_oracle_eq:
 forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1 r2 ,
@@ -1210,16 +1247,42 @@ Proof.
   3: eauto.
   all: eauto.
   cleanup; eauto.
-  admit.
-  admit.
+  shelve.
+  shelve.
   unfold log_reboot_rep, log_reboot_rep_explicit_part in *; eauto.
   unfold log_reboot_rep, log_reboot_rep_explicit_part in *; eauto.
   repeat constructor.
   apply key0.
   intros; cleanup; try congruence.
   Unshelve.
-  all: repeat constructor; exact key0.
-Admitted.
+  all: try solve [repeat constructor; exact key0].
+  {
+    eapply Forall_forall; intros.
+    rewrite <- combine_map' in H16.
+    apply in_map_iff in H16; cleanup; simpl in *.
+    apply in_combine_same in H17; cleanup. 
+    unfold log_rep, log_rep_general, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    eapply Forall_forall in H31; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    split; cleanup; try lia.
+    rewrite firstn_length_l; eauto. 
+  }
+  {
+    eapply Forall_forall; intros.
+    rewrite <- combine_map' in H16.
+    apply in_map_iff in H16; cleanup; simpl in *.
+    apply in_combine_same in H17; cleanup. 
+    unfold log_rep, log_rep_general, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    eapply Forall_forall in H23; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    split; cleanup; try lia.
+    rewrite firstn_length_l; eauto. 
+  }
+Qed.
 
 
 Lemma init_finished_oracle_eq:
@@ -1263,6 +1326,7 @@ length v2) log_length ->
 length a1 = length a2 ->
 length a1 = length v1 ->
 length a2 = length v2 ->
+
 count (current_part (decode_header (fst (snd (snd s1) hdr_block_num))))  =
 count (current_part (decode_header (fst (snd (snd s2) hdr_block_num)))) ->
 count
@@ -1299,6 +1363,7 @@ o1 ++ o3 = o2 ++ o4 ->
 o1 = o2.
 Proof.
   unfold write; intros.
+  (*
   assert (A: length (addr_list_to_blocks
     (map (Init.Nat.add data_start) a1)) = 
   length (addr_list_to_blocks
@@ -1306,6 +1371,7 @@ Proof.
     apply addr_list_to_blocks_length_eq; eauto.
     repeat rewrite map_length; eauto.
   }
+  *)
   cleanup; try solve [intuition eauto; lia]. 
   {
     repeat invert_exec; simpl in *; cleanup;
@@ -1314,15 +1380,12 @@ Proof.
   {
     simpl in *.
     repeat rewrite <-  app_assoc in *; cleanup.
-    eapply_fresh map_ext_eq_prefix in H11; eauto.
+    eapply_fresh map_ext_eq_prefix in H5; eauto.
     cleanup. 
-    eapply log_commit_finished_oracle_eq in H16; eauto; cleanup.
+    eapply log_commit_finished_oracle_eq in H10; eauto; cleanup.
     simpl in *; cleanup.
-    eapply write_batch_to_cache_finished_oracle_eq in H17; subst; eauto.
+    eapply write_batch_to_cache_finished_oracle_eq in H11; subst; eauto.
     subst; eauto.
-    repeat rewrite map_length; lia.
-    repeat rewrite app_length; lia.
-    setoid_rewrite H2; intuition lia.
     repeat econstructor. 
     exact key0.
     intuition; cleanup; congruence.
@@ -1330,9 +1393,9 @@ Proof.
   {
     exfalso; simpl in *.
     repeat rewrite <-  app_assoc in *; cleanup.
-    eapply map_ext_eq_prefix in H11; eauto.
+    eapply map_ext_eq_prefix in H5; eauto.
     cleanup. 
-    eapply_fresh log_commit_finished_oracle_eq in H16; eauto; cleanup.
+    eapply_fresh log_commit_finished_oracle_eq in H10; eauto; cleanup.
     simpl in *; cleanup.
 
     assert (A0: (firstn (length v1)
@@ -1359,8 +1422,88 @@ Proof.
       apply firstn_app2.
       rewrite map_length; lia.
     }
-    eapply commit_finished_oracle in H14; eauto.
+    eapply commit_finished_oracle in H8; eauto.
+    eapply commit_finished_oracle in H10; eauto.
+    repeat split_ors; logic_clean; try congruence; try lia.
+    all: try setoid_rewrite A0; try setoid_rewrite A1; eauto.
+
+    apply FinFun.Injective_map_NoDup; eauto.
+    unfold FinFun.Injective; intros; lia.
+    apply Forall_map.
+    eapply Forall_impl; eauto.
+    pose proof data_fits_in_disk.
+    simpl; intros; split; lia.
+
+    edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
+    a1)).
+    unfold log_rep, log_header_rep, log_rep_general, log_rep_explicit, 
+    log_header_block_rep in *; cleanup.
+    repeat rewrite app_length in *.
+    rewrite map_length; lia.
+
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+
+    lia.
+    apply FinFun.Injective_map_NoDup; eauto.
+    unfold FinFun.Injective; intros; lia.
+    apply Forall_map.
+    eapply Forall_impl; eauto.
+    pose proof data_fits_in_disk.
+    simpl; intros; split; lia.
+
+    edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
+    a2)).
+    unfold log_rep, log_header_rep, log_rep_general, log_rep_explicit, 
+    log_header_block_rep in *; cleanup.
+    repeat rewrite app_length in *.
+    rewrite map_length; lia.
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
+
+    repeat econstructor. 
+    exact key0.
+    intuition; cleanup; congruence.
+  }
+  {
+    exfalso; simpl in *.
+    repeat rewrite <-  app_assoc in *; cleanup.
+    eapply map_ext_eq_prefix in H5; eauto.
+    cleanup. 
+    eapply_fresh log_commit_finished_oracle_eq in H16; 
+    try apply H8; eauto; cleanup.
+    simpl in *; cleanup.
+
+    assert (A0: (firstn (length v1)
+    (blocks_to_addr_list
+      (addr_list_to_blocks
+        (map (Init.Nat.add data_start)
+          a1)))) = (map (Init.Nat.add data_start)
+          a1)). {
+      edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
+      a1)).
+      cleanup.
+      apply firstn_app2.
+      rewrite map_length; lia.
+    }
+    assert (A1: (firstn (length v2)
+    (blocks_to_addr_list
+      (addr_list_to_blocks
+        (map (Init.Nat.add data_start)
+          a2)))) = (map (Init.Nat.add data_start)
+          a2)). {
+      edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
+      a2)).
+      cleanup.
+      apply firstn_app2.
+      rewrite map_length; lia.
+    }
+    eapply commit_finished_oracle in H8; eauto.
     eapply commit_finished_oracle in H16; eauto.
+
     repeat split_ors; logic_clean; try congruence; try lia.
     all: try setoid_rewrite A0; try setoid_rewrite A1; eauto.
 
@@ -1378,76 +1521,10 @@ Proof.
     repeat rewrite app_length in *.
     rewrite map_length; lia.
 
-    apply FinFun.Injective_map_NoDup; eauto.
-    unfold FinFun.Injective; intros; lia.
-    apply Forall_map.
-    eapply Forall_impl; eauto.
-    pose proof data_fits_in_disk.
-    simpl; intros; split; lia.
-
-    edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
-    a2)).
-    unfold log_rep, log_header_rep, log_rep_general, log_rep_explicit, 
-    log_header_block_rep in *; cleanup.
-    repeat rewrite app_length in *.
-    rewrite map_length; lia.
-    repeat rewrite app_length; lia.
-    setoid_rewrite H2; eauto.
-    intuition eauto.
-    repeat econstructor. 
-    exact key0.
-    intuition; cleanup; congruence.
-  }
-  {
-    exfalso; simpl in *.
-    repeat rewrite <-  app_assoc in *; cleanup.
-    eapply map_ext_eq_prefix in H11; eauto.
-    cleanup. 
-    eapply_fresh log_commit_finished_oracle_eq in H22; try apply H14; eauto; cleanup.
-    simpl in *; cleanup.
-
-    assert (A0: (firstn (length v1)
-    (blocks_to_addr_list
-      (addr_list_to_blocks
-        (map (Init.Nat.add data_start)
-          a1)))) = (map (Init.Nat.add data_start)
-          a1)). {
-      edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
-      a1)).
-      cleanup.
-      apply firstn_app2.
-      rewrite map_length; lia.
-    }
-    assert (A1: (firstn (length v2)
-    (blocks_to_addr_list
-      (addr_list_to_blocks
-        (map (Init.Nat.add data_start)
-          a2)))) = (map (Init.Nat.add data_start)
-          a2)). {
-      edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
-      a2)).
-      cleanup.
-      apply firstn_app2.
-      rewrite map_length; lia.
-    }
-    eapply commit_finished_oracle in H14; eauto.
-    eapply commit_finished_oracle in H22; eauto.
-    repeat split_ors; logic_clean; try congruence; try lia.
-    all: try setoid_rewrite A0; try setoid_rewrite A1; eauto.
-
-    apply FinFun.Injective_map_NoDup; eauto.
-    unfold FinFun.Injective; intros; lia.
-    apply Forall_map.
-    eapply Forall_impl; eauto.
-    pose proof data_fits_in_disk.
-    simpl; intros; split; lia.
-
-    edestruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start)
-    a1)).
-    unfold log_rep, log_header_rep, log_rep_general, log_rep_explicit, 
-    log_header_block_rep in *; cleanup.
-    repeat rewrite app_length in *.
-    rewrite map_length; lia.
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
 
     apply FinFun.Injective_map_NoDup; eauto.
     unfold FinFun.Injective; intros; lia.
@@ -1462,9 +1539,11 @@ Proof.
     log_header_block_rep in *; cleanup.
     repeat rewrite app_length in *.
     rewrite map_length; lia.
-    repeat rewrite app_length; lia.
-    setoid_rewrite H2; eauto.
-    intuition eauto.
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
+
     repeat econstructor. 
     exact key0.
     intuition; cleanup; congruence.
@@ -1472,11 +1551,12 @@ Proof.
   {
     simpl in *.
     repeat rewrite <-  app_assoc in *; cleanup.
-    eapply_fresh map_ext_eq_prefix in H11; eauto.
+    eapply_fresh map_ext_eq_prefix in H5; eauto.
     cleanup. 
-    eapply_fresh log_commit_finished_oracle_eq in H22; try apply H14; eauto; cleanup.
+    eapply_fresh log_commit_finished_oracle_eq in H16; 
+    try apply H8; eauto; cleanup.
     simpl in *; cleanup.
-    eapply_fresh map_ext_eq_prefix in H11; eauto.
+    eapply_fresh map_ext_eq_prefix in H5; eauto.
     cleanup.
     assert (A0: (firstn (length v1)
     (blocks_to_addr_list
@@ -1502,23 +1582,25 @@ Proof.
       apply firstn_app2.
       rewrite map_length; lia.
     }
-    eapply commit_finished in H14; eauto.
-    eapply commit_finished in H22; eauto.
+    eapply commit_finished in H8; eauto.
+    eapply commit_finished in H16; eauto.
     simpl in *;
     repeat split_ors; logic_clean; repeat rewrite app_length in *; try congruence; try lia.
-    eapply_fresh log_apply_log_finished_oracle_eq in H17; try apply H25; subst; eauto.
+    eapply_fresh log_apply_log_finished_oracle_eq in H11; 
+    try apply H19; subst; eauto.
     cleanup.
-    eapply apply_log_finished in H17; eauto.
-    eapply apply_log_finished in H25; eauto.
+    eapply apply_log_finished in H11; eauto.
+    eapply apply_log_finished in H19; eauto.
     unfold log_rep in *; cleanup. 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh map_ext_eq_prefix in H22; eauto.
+    eapply_fresh map_ext_eq_prefix in H16; eauto.
     cleanup.
 
-    eapply_fresh log_commit_finished_oracle_eq in H28; try apply H20; eauto; cleanup.
+    eapply_fresh log_commit_finished_oracle_eq in H22; 
+    try apply H14; eauto; cleanup.
     simpl in *; cleanup.
-    eapply commit_finished in H20; eauto.
-    eapply commit_finished in H28; eauto.
+    eapply commit_finished in H14; eauto.
+    eapply commit_finished in H22; eauto.
     unfold log_rep_general, log_rep_explicit, log_rep_inner, header_part_is_valid
     , txns_valid in *;
     simpl in *; logic_clean.
@@ -1529,9 +1611,9 @@ Proof.
     simpl in *.
     repeat split_ors; logic_clean; repeat rewrite app_length in *; try congruence; try lia.
 
-    eapply write_batch_to_cache_finished_oracle_eq in H23; subst; eauto.
+    eapply write_batch_to_cache_finished_oracle_eq in H17; 
     subst; eauto.
-    repeat rewrite map_length; lia.
+    subst; eauto.
     all: try setoid_rewrite H1; try setoid_rewrite A0; try setoid_rewrite A1; eauto.
 
     apply FinFun.Injective_map_NoDup; eauto.
@@ -1548,6 +1630,11 @@ Proof.
     repeat rewrite app_length in *.
     rewrite map_length; lia.
 
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
+
     apply FinFun.Injective_map_NoDup; eauto.
     unfold FinFun.Injective; intros; lia.
     apply Forall_map.
@@ -1561,11 +1648,11 @@ Proof.
     log_header_block_rep in *; cleanup.
     repeat rewrite app_length in *.
     rewrite map_length; lia.
-    repeat rewrite app_length; lia.
-    simpl.
-    unfold upd_set; destruct (addr_dec hdr_block_num
-    hdr_block_num); try lia; simpl.
-    repeat rewrite encode_decode_header; simpl; intuition eauto.
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
+   
     repeat econstructor. 
     exact key0.
     intuition; cleanup; congruence.
@@ -1579,7 +1666,7 @@ Proof.
 
     apply FinFun.Injective_map_NoDup; eauto.
     unfold FinFun.Injective; intros; lia.
-    setoid_rewrite <- H1. try setoid_rewrite A0; try setoid_rewrite A1; eauto.
+    try setoid_rewrite A0; try setoid_rewrite A1; eauto.
     apply Forall_map.
     eapply Forall_impl; eauto.
     pose proof data_fits_in_disk.
@@ -1591,6 +1678,11 @@ Proof.
     log_header_block_rep in *; cleanup.
     repeat rewrite app_length in *.
     rewrite map_length; lia.
+
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
 
     apply FinFun.Injective_map_NoDup; eauto.
     unfold FinFun.Injective; intros; lia.
@@ -1604,13 +1696,15 @@ Proof.
     unfold log_rep, log_header_rep, log_rep_general, log_rep_explicit, 
     log_header_block_rep in *; cleanup.
     repeat rewrite app_length in *.
-    rewrite map_length; lia.
+    rewrite map_length; lia. 
+    erewrite addr_list_to_blocks_length_eq.
+    2: rewrite map_length; eauto.
+    apply addr_list_to_blocks_length_nonzero; eauto.
+    lia.
+
     repeat econstructor. 
     exact key0.
     intuition; cleanup; congruence.
-    repeat rewrite app_length; lia.
-    setoid_rewrite H2; eauto.
-    intuition eauto.
     repeat econstructor. 
     exact key0.
     intuition; cleanup; congruence.
@@ -1618,6 +1712,32 @@ Proof.
   }
   all: try solve [exfalso; intuition eauto; lia].
   all: repeat invert_exec; eauto.
+  Transparent commit read_header.
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  solve [unfold commit, read_header in H7; repeat invert_exec;
+  simpl in *; congruence].
+  Opaque commit read_header.
 Qed.
 
  
@@ -1628,7 +1748,7 @@ forall u n1 n2 st1 st2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (BatchOperations.read_consecutive st1 n1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-n1 = n2 ->
+(* n1 = n2 -> *)
 ~exec CryptoDiskLang u o2 s2
 (BatchOperations.read_consecutive st2 n2) (Crashed s2').
 Proof.
@@ -1646,7 +1766,6 @@ Proof.
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_read_consecutive_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  lia.
 Qed.
 
 Lemma BatchOperations_hash_all_finished_not_crashed:
@@ -1654,7 +1773,7 @@ forall u n1 n2 st1 st2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (BatchOperations.hash_all st1 n1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-length n1 = length n2 ->
+(*length n1 = length n2 ->*)
 ~exec CryptoDiskLang u o2 s2
 (BatchOperations.hash_all st2 n2) (Crashed s2').
 Proof.
@@ -1672,7 +1791,6 @@ Proof.
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_hash_all_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  lia.
 Qed.
 
 Lemma BatchOperations_decrypt_all_finished_not_crashed:
@@ -1680,7 +1798,7 @@ forall u n1 n2 st1 st2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (BatchOperations.decrypt_all st1 n1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-length n1 = length n2 ->
+(* length n1 = length n2 -> *)
 ~exec CryptoDiskLang u o2 s2
 (BatchOperations.decrypt_all st2 n2) (Crashed s2').
 Proof.
@@ -1698,7 +1816,6 @@ Proof.
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_decrypt_all_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  lia.
 Qed.
 
 Lemma BatchOperations_write_batch_finished_not_crashed:
@@ -1706,8 +1823,10 @@ forall u st1 st2 n1 n2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (BatchOperations.write_batch st1 n1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
+(* 
 length st1 = length st2 ->
 length n1 = length n2 ->
+*)
 ~exec CryptoDiskLang u o2 s2
 (BatchOperations.write_batch st2 n2) (Crashed s2').
 Proof.
@@ -1721,13 +1840,12 @@ Proof.
   simpl in *.
   eapply IHst1.
   eauto.
-  4: eauto.
+  3: eauto.
   all: eauto.
 
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_write_batch_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  all: lia.
 Qed.
 
 
@@ -1754,7 +1872,7 @@ forall u l1 l2 h1 h2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (check_hash l1 h1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-length l1 = length l2 ->
+(* length l1 = length l2 -> *)
 ~exec CryptoDiskLang u o2 s2
 (check_hash l2 h2) (Crashed s2').
 Proof.
@@ -1837,13 +1955,13 @@ exec CryptoDiskLang u o1 s1
 read_encrypted_log (Finished s1' r1) ->
 log_reboot_rep_explicit_part  hdr1 txns1 vp s1 ->
 log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
-
+(*
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
 Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
 data_count rec1 = data_count rec2 /\
 start rec1 = start rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
-
+*)
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CryptoDiskLang u o2 s2
 read_encrypted_log (Crashed s2').
@@ -1862,64 +1980,50 @@ Proof.
     repeat rewrite <- app_assoc in *.
     eapply_fresh log_read_header_finished_oracle_eq in H; eauto; cleanup.
     eapply read_header_finished in H; eauto.
-    eapply read_header_finished in H9; eauto.
+    eapply read_header_finished in H6; eauto.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
     cleanup.
     eapply BatchOperations_read_consecutive_finished_not_crashed.
     eauto.
-    3:eauto.
+    2:eauto.
     all: eauto.
 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H7; eauto; cleanup.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H4; eauto; cleanup.
     unfold log_reboot_rep_explicit_part  in *; cleanup.
-    eapply read_consecutive_log_finished in H12; eauto.
-    eapply read_consecutive_log_finished in H7; eauto.
+    eapply read_consecutive_log_finished in H9; eauto.
+    eapply read_consecutive_log_finished in H4; eauto.
     cleanup.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
     eapply log_check_hash_finished_not_crashed.
     eauto.
-    3:eauto.
+    2:eauto.
     all: eauto.
-    repeat rewrite firstn_length_l; eauto.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H11; lia.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H17; lia.
 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh log_check_hash_finished_oracle_eq in H8; eauto; cleanup; eauto.
+    eapply_fresh log_check_hash_finished_oracle_eq in H5; eauto; cleanup; eauto.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
-    repeat rewrite firstn_length_l; eauto.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H18; lia.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H12; lia.
 
 
     unfold check_hash in *.
     repeat invert_exec; simpl in *; cleanup;
     try congruence.
-    clear H10.
+    clear H7.
 
-    eapply BatchOperations.hash_all_finished in H8.
-    eapply BatchOperations.hash_all_finished in H7.
+    eapply BatchOperations.hash_all_finished in H5.
+    eapply BatchOperations.hash_all_finished in H4.
     cleanup.
     unfold log_rep_explicit,
     log_rep_inner,
     header_part_is_valid in *; logic_clean.
     destruct vp; try congruence.
-    apply H6; eauto.
+    apply H3; eauto.
     unfold log_rep_explicit in *; logic_clean; eauto.
     unfold log_rep_explicit in *; logic_clean; eauto.
   }
@@ -1933,44 +2037,36 @@ Proof.
     repeat rewrite <- app_assoc in *.
     eapply_fresh log_read_header_finished_oracle_eq in H; eauto; cleanup.
     eapply read_header_finished in H; eauto.
-    eapply read_header_finished in H10; eauto.
+    eapply read_header_finished in H7; eauto.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
     cleanup.
     eapply BatchOperations_read_consecutive_finished_not_crashed.
-    4: eauto.
-    3:eauto.
+    3: eauto.
+    2:eauto.
     all: eauto.
-    rewrite <- H2 in *; eauto.
 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H7; eauto; cleanup.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H4; eauto; cleanup.
     unfold log_reboot_rep_explicit_part  in *; cleanup.
-    eapply read_consecutive_log_finished in H13; eauto.
-    eapply read_consecutive_log_finished in H7; eauto.
+    eapply read_consecutive_log_finished in H10; eauto.
+    eapply read_consecutive_log_finished in H4; eauto.
     cleanup.
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
     eapply log_check_hash_finished_not_crashed.
     eauto.
-    3:eauto.
+    2:eauto.
     all: eauto.
-    repeat rewrite firstn_length_l; eauto.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H12; lia.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H18; lia.
 
     unfold check_hash in *.
     repeat invert_exec; simpl in *; cleanup;
     try congruence.
 
-    eapply BatchOperations.hash_all_finished in H8.
-    eapply BatchOperations.hash_all_finished in H7.
+    eapply BatchOperations.hash_all_finished in H5.
+    eapply BatchOperations.hash_all_finished in H4.
     cleanup.
     unfold log_rep_explicit,
     log_rep_inner,
@@ -1979,27 +2075,18 @@ Proof.
     apply H1; eauto.
 
     repeat rewrite <- app_assoc in *.
-    eapply_fresh log_check_hash_finished_oracle_eq in H8; eauto; cleanup; eauto.
+    eapply_fresh log_check_hash_finished_oracle_eq in H5; eauto; cleanup; eauto.
     repeat invert_exec; simpl in *; cleanup;
     try split_ors; cleanup;
     repeat invert_exec; simpl in *; cleanup;
     eauto.
     eapply BatchOperations_read_consecutive_finished_not_crashed.
-    4: eauto.
-    3:eauto.
+    3: eauto.
+    2: eauto.
     all: eauto.
-    rewrite <- H3 in *; eauto.
     repeat rewrite <- app_assoc in *.
-    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H9; eauto; cleanup.
+    eapply_fresh BatchOperations_read_consecutive_finished_oracle_eq in H6; eauto; cleanup.
     simpl in *; cleanup.
-
-    repeat rewrite firstn_length_l; eauto.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H19; lia.
-    unfold log_rep_explicit in *; cleanup.
-    rewrite map_length; 
-    setoid_rewrite H13; lia.
 
     unfold log_rep_explicit in *; logic_clean; eauto.
     unfold log_rep_explicit in *; logic_clean; eauto. 
@@ -2028,11 +2115,13 @@ forall u rec1 rec2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (decrypt_txn rec1 l1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
+(*
 addr_count rec1 = addr_count rec2 ->
 data_count rec1 = data_count rec2 ->
 start rec1 = start rec2 ->
 start rec1 + addr_count rec1 + data_count rec1 <= length l1 ->
 start rec2 + addr_count rec2 + data_count rec2 <= length l2 ->
+*)
 ~exec CryptoDiskLang u o2 s2
 (decrypt_txn rec2 l2) (Crashed s2').
 Proof.
@@ -2044,26 +2133,34 @@ Proof.
   eauto).
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_decrypt_all_finished_not_crashed. 
-  4: eauto.
+  3: eauto.
   eauto.
   all: eauto.
-  repeat rewrite firstn_length_l; eauto.
-  rewrite skipn_length; lia.
-  rewrite skipn_length; lia.
 
   repeat rewrite <- app_assoc in *.
   eapply BatchOperations_decrypt_all_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  repeat rewrite firstn_length_l; eauto.
-  rewrite skipn_length; lia.
-  rewrite skipn_length; lia.
 Qed.
 
 Lemma log_decrypt_txns_finished_not_crashed:
 forall u recs1 recs2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (decrypt_txns recs1 l1) (Finished s1' r1) ->
-
+Forall (fun rec => addr_count rec > 0) recs1 ->
+Forall (fun rec => addr_count rec > 0) recs2 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l1) 
+recs1 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l2) 
+recs2 ->
+(*
 Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
 data_count rec1 = data_count rec2 /\
 start rec1 = start rec2) recs1 recs2 -> 
@@ -2071,47 +2168,137 @@ Forall (fun rec1 => start rec1 + addr_count rec1 + data_count rec1 <= length l1)
 Forall (fun rec2 => start rec2 + addr_count rec2 + data_count rec2 <= length l2) recs2 ->
 
 length l1 = length l2 ->
+*)
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CryptoDiskLang u o2 s2
 (decrypt_txns recs2 l2) (Crashed s2').
 Proof.
   unfold not; 
-  induction recs1; destruct recs2; simpl; intros;
-  eapply_fresh forall2_length in H0; simpl in *; try lia.
+  induction recs1; destruct recs2; simpl; intros; simpl in *; try lia.
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto;
   repeat (try split_ors; cleanup;
   repeat invert_exec; simpl in *; cleanup;
   eauto).
 
-  inversion H0; clear H0; subst; eauto.
-  inversion H1; clear H1; subst; eauto.
-  inversion H2; clear H2; subst; eauto.
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto;
   repeat (try split_ors; cleanup;
   repeat invert_exec; simpl in *; cleanup;
   eauto).
 
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+
+  unfold decrypt_txn in *.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+  destruct (firstn
+  (addr_count
+    t +
+   data_count
+    t)
+  (skipn
+    (start
+    t) l2)); simpl in *;
+    cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+  {
+    inversion H1; subst;
+    inversion H3; subst;
+    destruct (addr_count t); try lia; simpl in *.
+    cleanup; simpl in *; try lia.
+    apply skipn_eq_nil in D.
+    split_ors; cleanup; simpl in *; try lia.
+    repeat invert_exec; eauto.
+    simpl in *; congruence.
+  }
+  {
+    unfold decrypt_txn in *; repeat invert_exec; simpl in *; cleanup;
+    eauto.
+    inversion H1; subst;
+    inversion H3; subst;
+    destruct (addr_count t); try lia; simpl in *.
+    cleanup; simpl in *; try lia.
+    apply skipn_eq_nil in D.
+    split_ors; cleanup; simpl in *; try lia.
+    repeat invert_exec; eauto.
+    simpl in *; congruence.
+  }
+  {
+    unfold decrypt_txn in *; repeat invert_exec; simpl in *; cleanup;
+    eauto.
+    inversion H1; subst;
+    inversion H3; subst;
+    destruct (addr_count t); try lia; simpl in *.
+    cleanup; simpl in *; try lia.
+    apply skipn_eq_nil in D.
+    split_ors; cleanup; simpl in *; try lia.
+    repeat invert_exec; eauto.
+    simpl in *; congruence.
+  }
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+  unfold decrypt_txn in *.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+  destruct (firstn
+  (addr_count
+    a +
+   data_count
+    a)
+  (skipn
+    (start
+    a) l1)); simpl in *;
+    cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
   repeat rewrite <- app_assoc in *.
   eapply log_decrypt_txn_finished_not_crashed. 
-  4: eauto.
   eauto.
-  all: eauto.
-  lia.
+  2: eauto.
+  eauto.
 
+  inversion H0;
+  inversion H1;
+  inversion H2;
+  inversion H3; cleanup.
   repeat rewrite <- app_assoc in *.
   eapply log_decrypt_txn_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
   eapply IHrecs1; eauto.
-  rewrite <- H3 in *; eauto.
 
+  inversion H0;
+  inversion H1;
+  inversion H2;
+  inversion H3; cleanup.
   repeat rewrite <- app_assoc in *.
   eapply log_decrypt_txn_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply log_decrypt_txns_finished_oracle_eq in H3. 
-  4: eauto.
+  eapply log_decrypt_txns_finished_oracle_eq in H8. 
+  3: eauto.
   all: eauto. 
   cleanup; simpl in *; cleanup.
 Qed.
@@ -2125,6 +2312,7 @@ Log.recover (Finished s1' r1) ->
 log_reboot_rep_explicit_part  hdr1 txns1 vp s1 ->
 log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
 
+(*
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
 Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
@@ -2133,6 +2321,7 @@ start rec1 = start rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log
 Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
 data_count rec1 = data_count rec2 /\
 start rec1 = start rec2) (Log.records (old_part hdr1)) (Log.records (old_part hdr2)) -> 
+*)
 
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CryptoDiskLang u o2 s2
@@ -2149,91 +2338,89 @@ Proof.
   eapply log_read_encrypted_log_finished_not_crashed in H; eauto.
 
   repeat rewrite <- app_assoc in *.
-  eapply log_read_encrypted_log_finished_oracle_eq in H12.
-  7: eauto. 
-  3: eauto.
+  eapply log_read_encrypted_log_finished_oracle_eq in H8.
+  5: eauto. 
+  2: eauto.
   all: eauto.
   cleanup; simpl in *; cleanup.
   eapply log_write_header_finished_not_crashed; eauto.
   
   repeat rewrite <- app_assoc in *.
-  eapply log_read_encrypted_log_finished_oracle_eq in H12.
-  7: eauto. 
-  3: eauto.
+  eapply log_read_encrypted_log_finished_oracle_eq in H8.
+  5: eauto. 
+  2: eauto.
   all: eauto.
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply log_write_header_finished_oracle_eq in H8; eauto. 
+  eapply log_write_header_finished_oracle_eq in H4; eauto. 
   cleanup; simpl in *; cleanup.
 
   repeat rewrite <- app_assoc in *.
-  eapply_fresh log_read_encrypted_log_finished_oracle_eq in H12.
-  7: eauto. 
-  3: eauto.
+  eapply_fresh log_read_encrypted_log_finished_oracle_eq in H8.
+  5: eauto. 
+  2: eauto.
   all: eauto.
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply log_write_header_finished_oracle_eq in H8; eauto. 
+  eapply log_write_header_finished_oracle_eq in H4; eauto. 
   cleanup; simpl in *; cleanup.
+  unfold log_reboot_rep_explicit_part in *; logic_clean.
+  eapply read_encrypted_log_finished in H; eauto.
+  eapply read_encrypted_log_finished in H8; eauto.
+  simpl in *; cleanup_no_match.
   eapply log_decrypt_txns_finished_not_crashed. 
   7: eauto.
-  all: eauto.
+  all: simpl; eauto.
+  all: simpl.
   {
-    unfold log_reboot_rep_explicit_part in *; logic_clean.
-    eapply read_encrypted_log_finished in H; eauto.
-    eapply read_encrypted_log_finished in H12; eauto.
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    try rewrite <- H32 in H.
+    apply in_map_iff in H.
     cleanup_no_match.
-    repeat cleanup_pairs.
-    destruct vp; eauto.
+    eapply Forall_forall in H33; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    cleanup; lia.
   }
   {
-    unfold log_reboot_rep_explicit_part in *; logic_clean.
-    eapply read_encrypted_log_finished in H; eauto.
-    eapply read_encrypted_log_finished in H12; eauto.
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H24 in *.
+    apply in_map_iff in H.
     cleanup_no_match.
-    repeat cleanup_pairs.
-    unfold log_rep_explicit, log_rep_inner,
-    txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
-    rewrite <- H31.
-    apply Forall_forall; intros.
-    apply in_map_iff in H37; logic_clean; subst.
-    eapply Forall_forall in H32; eauto.
-    unfold txn_well_formed, record_is_valid in *; logic_clean.
+    eapply Forall_forall in H25; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    cleanup; lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    try rewrite <- H32 in H.
+    apply in_map_iff in H.
+    cleanup_no_match.
     rewrite firstn_length_l; eauto.
-    rewrite map_length.
-    setoid_rewrite H27; eauto.
+    eapply Forall_forall in H33; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    cleanup; lia.
+    rewrite map_length; setoid_rewrite H28. 
+    cleanup; lia.
   }
   {
-    unfold log_reboot_rep_explicit_part in *; logic_clean.
-    eapply read_encrypted_log_finished in H; eauto.
-    eapply read_encrypted_log_finished in H12; eauto.
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H24 in *.
+    apply in_map_iff in H.
     cleanup_no_match.
-    repeat cleanup_pairs.
-    unfold log_rep_explicit, log_rep_inner,
-    txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
-    rewrite <- H18.
-    apply Forall_forall; intros.
-    apply in_map_iff in H37; logic_clean; subst.
-    eapply Forall_forall in H19; eauto.
-    unfold txn_well_formed, record_is_valid in *; logic_clean.
     rewrite firstn_length_l; eauto.
-    rewrite map_length.
-    setoid_rewrite H11; eauto.
-  }
-  {
-    unfold log_reboot_rep_explicit_part in *; logic_clean.
-    eapply read_encrypted_log_finished in H; eauto.
-    eapply read_encrypted_log_finished in H12; eauto.
-    cleanup_no_match.
-    repeat cleanup_pairs.
-    unfold log_rep_explicit, log_rep_inner,
-    txns_valid, header_part_is_valid in *; logic_clean; simpl in *.
-    repeat rewrite firstn_length_l; eauto.
-    destruct vp; eauto.
-    rewrite map_length.
-    setoid_rewrite H11; eauto.
-    rewrite map_length.
-    setoid_rewrite H27; eauto.
+    eapply Forall_forall in H25; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    cleanup; lia.
+    rewrite map_length; setoid_rewrite H20. 
+    cleanup; lia.
   }
 Qed.
 
@@ -2243,7 +2430,7 @@ forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
 (Log.init l1) (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-length l1 = length l2 ->
+(*length l1 = length l2 ->*)
 ~exec CryptoDiskLang u o2 s2
 (Log.init l2) (Crashed s2').
 Proof.
@@ -2261,17 +2448,14 @@ Proof.
   repeat rewrite <- app_assoc in *.
   eapply log_write_header_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
-  eapply BatchOperations_write_batch_finished_not_crashed. 
-  eauto.
-  4: eauto.
-  all: repeat rewrite map_length; eauto.
+  eapply BatchOperations_write_batch_finished_not_crashed; eauto.
   
 
   repeat rewrite <- app_assoc in *.
   eapply log_write_header_finished_oracle_eq in H; eauto. 
   cleanup; simpl in *; cleanup.
   repeat rewrite <- app_assoc in *.
-  eapply BatchOperations_write_batch_finished_oracle_eq in H3; eauto. 
+  eapply BatchOperations_write_batch_finished_oracle_eq in H2; eauto. 
   cleanup; simpl in *; cleanup.
   all: repeat rewrite map_length; eauto.
 Qed.
@@ -2302,27 +2486,49 @@ forall u a1 a2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CachedDiskLang u o1 s1
 (LogCache.write_lists_to_cache a1)  (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-Forall2 (fun l1 l2 => length (fst l1) = length (fst l2)) a1 a2 ->
+Forall (fun a => length (fst a) > 0 /\ length (snd a) > 0) a1 -> 
+Forall (fun a => length (fst a) > 0 /\ length (snd a) > 0) a2 -> 
 ~exec CachedDiskLang u o2 s2
 (LogCache.write_lists_to_cache a2) (Crashed s2').
 Proof.
   unfold not; induction a1; destruct a2; 
-  simpl; intros;
-  eapply_fresh forall2_length in H1; simpl in *;  try lia;
+  simpl; intros; simpl in *;  try lia;
   cleanup; repeat invert_exec; simpl in *; cleanup;
   eauto;
   repeat (try split_ors; cleanup;
   repeat invert_exec; simpl in *; cleanup;
   eauto).
-
-  inversion H1; clear H1; cleanup.
-  repeat rewrite <- app_assoc in *.
-  eapply write_batch_to_cache_finished_not_crashed; eauto.
-
-  inversion H1; clear H1; cleanup.
-  repeat rewrite <- app_assoc in *.
-  eapply write_batch_to_cache_finished_oracle_eq in H; eauto.
-  cleanup; eauto.
+  {
+    repeat invert_exec; eauto.
+    inversion H2; cleanup; subst;
+    destruct (fst p), (snd p); simpl in *; try lia; simpl in *.
+    repeat invert_exec; eauto.
+    simpl in *; split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup.
+  }
+  {
+    repeat invert_exec; eauto.
+    inversion H2; cleanup; subst;
+    destruct (fst p), (snd p); simpl in *; try lia; simpl in *.
+    repeat invert_exec; simpl in *; cleanup.
+  }
+  {
+    repeat invert_exec; eauto.
+    inversion H1; cleanup; subst;
+    destruct (fst a), (snd a); simpl in *; try lia; simpl in *.
+    repeat invert_exec; simpl in *; cleanup.
+  }
+  {
+    rewrite <- app_assoc in *.
+    eapply write_batch_to_cache_finished_not_crashed; eauto.
+  }
+  {
+    inversion H1; cleanup;
+    inversion H2; cleanup;
+    repeat rewrite <- app_assoc in *.
+    eapply write_batch_to_cache_finished_oracle_eq in H; eauto; cleanup.
+    eapply IHa1; eauto.
+  }
 Qed.
 
 Lemma read_finished_not_crashed:
@@ -2349,7 +2555,7 @@ recover (Finished s1' r1) ->
 
 log_reboot_rep_explicit_part  hdr1 txns1 vp (snd s1) ->
 log_reboot_rep_explicit_part  hdr2 txns2 vp (snd s2) ->
-
+(*
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Log.count (Log.old_part hdr1) = Log.count (Log.old_part hdr2) ->
 Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
@@ -2358,7 +2564,7 @@ start rec1 = start rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log
 Forall2 (fun rec1 rec2 => addr_count rec1 = addr_count rec2 /\
 data_count rec1 = data_count rec2 /\
 start rec1 = start rec2) (Log.records (old_part hdr1)) (Log.records (old_part hdr2)) -> 
-
+*)
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CachedDiskLang u o2 s2
 recover (Crashed s2').
@@ -2371,122 +2577,51 @@ Proof.
   eauto).
 
   repeat rewrite <- app_assoc in *.
-  eapply map_ext_eq_prefix in H8.
+  eapply map_ext_eq_prefix in H4.
   cleanup.
   eapply log_recover_finished_not_crashed; eauto.
   solve [repeat constructor].
   intros; cleanup; intuition congruence.
 
   repeat rewrite <- app_assoc in *.
-  eapply_fresh map_ext_eq_prefix in H8.
+  eapply_fresh map_ext_eq_prefix in H4.
   cleanup.
-  eapply log_recover_finished_oracle_eq in H6; eauto.
+  eapply log_recover_finished_oracle_eq in H2; eauto.
+  cleanup.
+  eapply Specs.recover_finished in H8; eauto.
+  2: unfold log_reboot_rep; eauto.
+  eapply Specs.recover_finished in H10; eauto.
+  2: unfold log_reboot_rep; eauto.
   cleanup.
   eapply write_lists_to_cache_finished_not_crashed.
-  4: eauto.
+  5: eauto.
   eauto.
   all: eauto.
   {
-    eapply Specs.recover_finished in H12; eauto.
-    2: unfold log_reboot_rep; eauto.
-    eapply Specs.recover_finished in H14; eauto.
-    2: unfold log_reboot_rep; eauto.
-    cleanup.
-    eapply_fresh forall2_length in H4.
-    eapply_fresh forall2_length in H5.
-    destruct vp; simpl in *.
-    {
-      eapply forall2_forall in H4.
-      eapply forall_forall2.
-      eapply Forall_forall; intros.
-      setoid_rewrite <- combine_map' in H14.
-      setoid_rewrite <- combine_map' in H14.
-      apply in_map_iff in H14.
-      cleanup.
-      repeat cleanup_pairs.
-      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
-      log_rep_inner, txns_valid in *; logic_clean.
-      apply in_combine_combine_same in H16; simpl in *; logic_clean.
-      subst.
-      rewrite <- H20, <- H29 in *.
-      eapply Forall_forall in H4; eauto.
-      2: setoid_rewrite <- combine_map';
-        apply in_map; eauto.
-      simpl in *.
-
-      eapply in_seln_exists in H16; cleanup_no_match.
-      erewrite seln_combine in H0.
-      simpl in *;
-      inversion H0; subst.
-      eapply Forall_forall in H30.
-      2: eapply in_seln with (n:= x5).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H33, <- H37 in *; eauto.
-      eapply Forall_forall in H21.
-      2: eapply in_seln with (n:= x5).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H44, <- H48 in *; eauto.
-      repeat rewrite firstn_length_l; eauto.
-      rewrite H14, H16; eauto.
-      rewrite combine_length in H; lia.
-      rewrite combine_length in H; lia.
-      rewrite <- H20, <- H29 in *.
-      repeat rewrite map_length in Hx; eauto.
-      repeat rewrite combine_length; 
-      repeat rewrite map_length.
-      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
-      log_rep_inner, txns_valid in *; logic_clean.
-      rewrite <- H23, <- H32 in *.
-      repeat rewrite map_length in Hx; eauto.
-    }
-    {
-      eapply forall2_forall in H5.
-      eapply forall_forall2.
-      eapply Forall_forall; intros.
-      setoid_rewrite <- combine_map' in H14.
-      setoid_rewrite <- combine_map' in H14.
-      apply in_map_iff in H14.
-      cleanup.
-      repeat cleanup_pairs.
-      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
-      log_rep_inner, txns_valid in *; logic_clean.
-      apply in_combine_combine_same in H16; simpl in *; logic_clean.
-      subst.
-      rewrite <- H20, <- H29 in *.
-      eapply Forall_forall in H5; eauto.
-      2: setoid_rewrite <- combine_map';
-        apply in_map; eauto.
-      simpl in *.
-
-      eapply in_seln_exists in H16; cleanup_no_match.
-      erewrite seln_combine in H0.
-      simpl in *;
-      inversion H0; subst.
-      eapply Forall_forall in H30.
-      2: eapply in_seln with (n:= x5).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H33, <- H37 in *; eauto.
-      eapply Forall_forall in H21.
-      2: eapply in_seln with (n:= x5).
-      unfold txn_well_formed, record_is_valid in *;
-      simpl in *; logic_clean.
-      rewrite H44, <- H48 in *; eauto.
-      repeat rewrite firstn_length_l; eauto.
-      rewrite H14, H16; eauto.
-      rewrite combine_length in H; lia.
-      rewrite combine_length in H; lia.
-      rewrite <- H20, <- H29 in *.
-      repeat rewrite map_length in Hx0; eauto.
-      repeat rewrite combine_length; 
-      repeat rewrite map_length.
-      unfold log_reboot_rep_explicit_part, log_rep_explicit, 
-      log_rep_inner, txns_valid in *; logic_clean.
-      rewrite <- H23, <- H32 in *.
-      repeat rewrite map_length in Hx0; eauto.
-    }
+    eapply Forall_forall; intros.
+    rewrite <- combine_map' in H10.
+    apply in_map_iff in H10; cleanup; simpl in *.
+    apply in_combine_same in H12; cleanup. 
+    unfold log_rep, log_rep_general, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    eapply Forall_forall in H29; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    split; cleanup; try lia.
+    rewrite firstn_length_l; eauto. 
+  }
+  {
+    eapply Forall_forall; intros.
+    rewrite <- combine_map' in H10.
+    apply in_map_iff in H10; cleanup; simpl in *.
+    apply in_combine_same in H12; cleanup. 
+    unfold log_rep, log_rep_general, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    eapply Forall_forall in H21; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    split; cleanup; try lia.
+    rewrite firstn_length_l; eauto. 
   }
   solve [repeat constructor].
   intros; cleanup; intuition congruence.
@@ -2500,7 +2635,7 @@ forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2,
 exec CachedDiskLang u o1 s1
 (init a1)  (Finished s1' r1) ->
 o1 ++ o3 = o2 ++ o4 ->
-length a1 = length a2 ->
+(* length a1 = length a2 -> *)
 ~exec CachedDiskLang u o2 s2
 (init a2) (Crashed s2').
 Proof.
@@ -2511,7 +2646,7 @@ Proof.
   repeat invert_exec; simpl in *; cleanup;
   eauto).
 
-  eapply map_ext_eq_prefix in H8; cleanup.
+  eapply map_ext_eq_prefix in H7; cleanup.
   eapply log_init_finished_not_crashed. 
   eauto.
   3: eauto.
@@ -2522,20 +2657,674 @@ Proof.
   intros; cleanup; intuition congruence.
 Qed.
 
+Lemma BatchOperations_encrypt_all_finished_not_crashed:
+forall v1 v2 u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2,
+exec CryptoDiskLang u o1 s1
+(BatchOperations.encrypt_all a1 v1)  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(BatchOperations.encrypt_all a2 v2) (Crashed s2').
+Proof.
+  unfold not; induction v1; intros; destruct v2; simpl in *;
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup.
+
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  eapply IHv1; eauto.
+  eapply BatchOperations_encrypt_all_finished_oracle_eq in H; eauto;
+  cleanup.
+  simpl in *; cleanup.
+Qed.
+
+
+Lemma commit_txn_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2 v1 v2,
+exec CryptoDiskLang u o1 s1
+(commit_txn a1 v1)  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(commit_txn a2 v2) (Crashed s2').
+Proof.
+  unfold commit_txn, not; intros; cleanup.
+  repeat invert_exec; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat rewrite <- app_assoc in *.
+  eapply log_read_header_finished_not_crashed; eauto.
+  eapply log_read_header_finished_oracle_eq in H; eauto; cleanup.
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  eapply BatchOperations_encrypt_all_finished_not_crashed; eauto.
+  eapply BatchOperations_encrypt_all_finished_oracle_eq in H3; eauto; cleanup.
+
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  eapply BatchOperations_hash_all_finished_not_crashed; eauto.
+  eapply BatchOperations_hash_all_finished_oracle_eq in H5; eauto; cleanup.
+
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  eapply BatchOperations_write_batch_finished_not_crashed; eauto.
+  eapply BatchOperations_write_consecutive_finished_oracle_eq in H6; eauto; cleanup.
+
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+
+  Transparent update_header.
+  clear H11. (* clear read_header *)
+  unfold update_header, write_header in *; 
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  eapply log_read_header_finished_not_crashed; eauto.
+  eapply log_read_header_finished_oracle_eq in H5; eauto; cleanup.
+  simpl in *; cleanup.
+  Opaque update_header.
+
+  eapply log_update_header_finished_oracle_eq in H7; eauto; cleanup.
+  simpl in *; cleanup.
+Qed.
+
+Lemma commit_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2 v1 v2,
+exec CryptoDiskLang u o1 s1
+(commit a1 v1)  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(commit a2 v2) (Crashed s2').
+Proof.
+  Transparent commit.
+  unfold commit, not; simpl; intros; cleanup.
+  repeat invert_exec; cleanup.
+  {
+    split_ors; cleanup;
+    repeat rewrite <- app_assoc in *.
+    
+    eapply log_read_header_finished_not_crashed; eauto.
+
+    eapply log_read_header_finished_oracle_eq in H; eauto; cleanup.
+    repeat invert_exec; simpl in *; cleanup.
+
+    repeat invert_exec; simpl in *; cleanup.
+    split_ors; cleanup; simpl in *.
+
+    Transparent read_header.
+    unfold commit_txn in *;
+    repeat invert_exec; simpl in *; cleanup;
+    split_ors; cleanup; simpl in *;
+    unfold read_header in *; 
+    repeat invert_exec; simpl in *; cleanup;
+    try split_ors; cleanup; simpl in *;
+    repeat invert_exec; simpl in *; cleanup.
+
+    unfold commit_txn, read_header in *;
+    repeat invert_exec; simpl in *; cleanup.
+    Opaque read_header.
+  }
+  {
+    split_ors; cleanup; repeat rewrite <- app_assoc in *.
+    eapply log_read_header_finished_not_crashed; eauto.
+    eapply log_read_header_finished_oracle_eq in H; eauto; cleanup.
+
+    repeat invert_exec; simpl in *; cleanup.
+    clear H3. (* clear read_header *)
+    Transparent read_header.
+    unfold commit_txn, read_header in *;
+    repeat invert_exec; simpl in *; cleanup.
+
+    repeat invert_exec; simpl in *; cleanup;
+    split_ors; cleanup; simpl in *;
+    repeat rewrite <- app_assoc in *.
+    eapply commit_txn_finished_not_crashed; eauto.
+    eapply log_commit_txn_finished_oracle_eq in H2; eauto; cleanup.
+    repeat invert_exec; simpl in *; cleanup.
+  }
+Qed.
+
+Lemma apply_txn_finished_not_crashed:
+forall rec1 rec2 l1 l2 u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+exec CryptoDiskLang u o1 s1
+(apply_txn rec1 l1)  (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(apply_txn rec2 l2) (Crashed s2').
+Proof.
+  unfold apply_txn, not; intros;
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat rewrite <- app_assoc in *.
+  eapply log_decrypt_txn_finished_not_crashed; eauto.
+  eapply log_decrypt_txn_finished_oracle_eq in H; eauto; cleanup.
+  eapply BatchOperations_write_batch_finished_not_crashed; eauto.
+Qed.
+
+Lemma apply_txns_finished_not_crashed:
+forall recs1 recs2 l1 l2 u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+exec CryptoDiskLang u o1 s1
+(apply_txns recs1 l1)  (Finished s1' r1) ->
+Forall (fun rec => addr_count rec > 0) recs1 ->
+Forall (fun rec => addr_count rec > 0) recs2 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l1) 
+recs1 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l2) 
+recs2 ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(apply_txns recs2 l2) (Crashed s2').
+Proof.
+  unfold not; induction recs1; destruct recs2; simpl; intros;
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat rewrite <- app_assoc in *.
+  {
+    unfold apply_txn in *;
+    repeat invert_exec; simpl in *; cleanup;
+    split_ors; cleanup; simpl in *;
+    repeat rewrite <- app_assoc in *.
+
+    unfold decrypt_txn in *;
+    repeat invert_exec; simpl in *; cleanup;
+    split_ors; cleanup; simpl in *;
+    repeat rewrite <- app_assoc in *.
+    destruct ((firstn (addr_count t + data_count t) (skipn (start t) l2))); simpl in *;
+    repeat invert_exec; simpl in *; cleanup;
+    split_ors; cleanup; simpl in *;
+    repeat invert_exec; simpl in *; cleanup;
+    repeat rewrite <- app_assoc in *.
+
+    inversion H1; subst;
+    inversion H3; subst.
+    destruct_fresh ((firstn (addr_count t + data_count t) (skipn (start t) l2))); simpl in *.
+    apply length_zero_iff_nil in D.
+    rewrite firstn_length_l in D; try lia.
+    rewrite skipn_length; lia.
+    repeat invert_exec; simpl in *; cleanup.
+
+    unfold decrypt_txn in *;
+    repeat invert_exec; simpl in *; cleanup.
+
+    inversion H1; subst;
+    inversion H3; subst.
+    destruct_fresh ((firstn (addr_count t + data_count t) (skipn (start t) l2))); simpl in *.
+    apply length_zero_iff_nil in D.
+    rewrite firstn_length_l in D; try lia.
+    rewrite skipn_length; lia.
+    repeat invert_exec; simpl in *; cleanup.
+  }
+  {
+    unfold apply_txn, decrypt_txn  in *;
+    repeat invert_exec; simpl in *; cleanup;
+    repeat rewrite <- app_assoc in *.
+
+    inversion H1; subst;
+    inversion H3; subst.
+    destruct_fresh ((firstn (addr_count t + data_count t) (skipn (start t) l2))); simpl in *.
+    apply length_zero_iff_nil in D.
+    rewrite firstn_length_l in D; try lia.
+    rewrite skipn_length; lia.
+    repeat invert_exec; simpl in *; cleanup.
+  }
+  {
+    unfold apply_txn, decrypt_txn  in *;
+    repeat invert_exec; simpl in *; cleanup;
+    repeat rewrite <- app_assoc in *.
+    destruct_fresh ((firstn (addr_count a + data_count a) (skipn (start a) l1))); simpl in *;
+    repeat invert_exec; simpl in *; cleanup.
+  }
+  split_ors; cleanup; simpl in *;
+  repeat rewrite <- app_assoc in *.
+  eapply apply_txn_finished_not_crashed; eauto.
+  eapply log_apply_txn_finished_oracle_eq in H; eauto; cleanup.
+  inversion H0; subst;
+  inversion H1; subst;
+  inversion H2; subst;
+  inversion H3; subst; eauto.
+Qed.
+
+
+Lemma log_flush_txns_finished_not_crashed:
+forall recs1 recs2 l1 l2 u o1 o2 o3 o4 s1 s2 s1' s2' r1,
+exec CryptoDiskLang u o1 s1
+(flush_txns recs1 l1)  (Finished s1' r1) ->
+
+Forall (fun rec => addr_count rec > 0) recs1 ->
+Forall (fun rec => addr_count rec > 0) recs2 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l1) 
+recs1 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l2) 
+recs2 ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(flush_txns recs2 l2) (Crashed s2').
+Proof.
+  unfold flush_txns, not; intros.
+  repeat invert_exec; simpl in *; cleanup;
+  split_ors; cleanup; simpl in *;
+  repeat rewrite <- app_assoc in *.
+  eapply apply_txns_finished_not_crashed; eauto.
+  eapply log_apply_txns_finished_oracle_eq in H; eauto; cleanup.
+  repeat invert_exec; simpl in *; cleanup;
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  {
+    Transparent update_header.
+    unfold update_header, read_header, write_header in *;
+    repeat invert_exec; simpl in *; cleanup.
+    split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup.
+  split_ors; cleanup; simpl in *;
+  repeat invert_exec; simpl in *; cleanup.
+    Opaque update_header.
+  }
+  eapply log_update_header_finished_oracle_eq in H7; eauto; cleanup.
+  simpl in *; cleanup.
+Qed.
+
+Lemma log_apply_log_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 hdr1 hdr2 txns1 txns2 vp,
+exec CryptoDiskLang u o1 s1
+apply_log  (Finished s1' r1) ->
+log_reboot_rep_explicit_part hdr1 txns1 vp s1 ->
+log_reboot_rep_explicit_part hdr2 txns2 vp s2 ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+apply_log (Crashed s2').
+Proof.
+  Transparent apply_log.
+  unfold apply_log, not; intros.
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  split_ors; cleanup; 
+  repeat invert_exec; simpl in *; cleanup;
+  repeat rewrite <- app_assoc in *.
+  eapply log_read_encrypted_log_finished_not_crashed; eauto.
+  
+  eapply_fresh log_read_encrypted_log_finished_oracle_eq in H; eauto; cleanup.
+  unfold log_reboot_rep_explicit_part in *; cleanup_no_match.
+  eapply read_encrypted_log_finished in H; eauto.
+  eapply read_encrypted_log_finished in H5; eauto.
+  cleanup_no_match; simpl in *.
+  eapply log_flush_txns_finished_not_crashed; only 7: eauto; eauto.
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H21, <- H29 in *.
+    apply in_map_iff in H.
+    cleanup_no_match.
+    eapply Forall_forall in H30; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H21, <- H29 in *.
+    apply in_map_iff in H.
+    cleanup_no_match.
+    eapply Forall_forall in H22; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H21, <- H29 in *.
+    apply in_map_iff in H.
+    cleanup_no_match.
+    rewrite firstn_length_l; eauto.
+    eapply Forall_forall in H30; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+    lia.
+    rewrite map_length; setoid_rewrite H25. 
+    cleanup; lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H21, <- H29 in *.
+    apply in_map_iff in H.
+    cleanup_no_match.
+    rewrite firstn_length_l; eauto.
+    eapply Forall_forall in H22; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+    lia.
+    rewrite map_length; setoid_rewrite H17. 
+    cleanup; lia.
+  }
+Qed.
+
 Opaque apply_log commit.
 Lemma write_finished_not_crashed:
-forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2 v1 v2,
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 a1 a2 v1 v2 txns1 txns2,
 exec CachedDiskLang u o1 s1
 (write a1 v1)  (Finished s1' r1) ->
+log_rep txns1 (snd s1) ->
+log_rep txns2 (snd s2) ->
 o1 ++ o3 = o2 ++ o4 ->
 ~exec CachedDiskLang u o2 s2
 (write a2 v2) (Crashed s2').
-Proof. Admitted.
-(*
+Proof. 
   unfold write, not; intros.
-  cleanup; repeat invert_exec; simpl in *; cleanup;
-  eauto;
-  repeat (try split_ors; cleanup;
-  repeat invert_exec; simpl in *; cleanup;
-  eauto).
-*)
+  cleanup.
+  all: try match goal with 
+  | [H: exec _ _ _ _ (Ret _) (Finished _ _ ),
+    H0: exec _ _ _ _ (Ret _) (Crashed _) |- _ ] =>
+  repeat invert_exec; cleanup; simpl in *; cleanup
+  end.
+  {
+    repeat invert_exec; simpl in *; cleanup; eauto.
+    {
+      split_ors; cleanup; repeat invert_exec; cleanup;
+      repeat rewrite <- app_assoc in *.
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply commit_finished_not_crashed; eauto.
+
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply log_commit_finished_oracle_eq in H6; eauto; cleanup.
+      split_ors; cleanup; repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      eapply write_batch_to_cache_finished_not_crashed; eauto.
+
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply log_commit_finished_oracle_eq in H6; eauto; cleanup.
+      split_ors; cleanup; repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+
+      split_ors; cleanup; repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      {
+        Transparent apply_log.
+        unfold apply_log in *.
+        repeat invert_exec; simpl in *; cleanup;
+        split_ors; cleanup;
+        unfold read_encrypted_log in *;
+        repeat invert_exec; simpl in *; cleanup;
+        try split_ors; cleanup;
+        unfold read_header in *;
+        repeat invert_exec; simpl in *; cleanup;
+        try split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup.
+        Opaque apply_log.
+      }
+      {
+        Transparent apply_log.
+        unfold apply_log, read_encrypted_log, read_header  in *.
+        repeat invert_exec; simpl in *; cleanup.
+        Opaque apply_log.
+      }
+      {
+        Transparent apply_log.
+        unfold apply_log, read_encrypted_log, read_header  in *.
+        repeat invert_exec; simpl in *; cleanup.
+        Opaque apply_log.
+      }
+    }
+    {
+      split_ors; cleanup; repeat invert_exec; cleanup;
+      repeat rewrite <- app_assoc in *.
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply commit_finished_not_crashed; only 2: eauto; eauto.
+
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply log_commit_finished_oracle_eq in H6; eauto; cleanup.
+      split_ors; cleanup; repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      {
+        Transparent apply_log.
+        unfold apply_log, read_encrypted_log, read_header  in *.
+        repeat invert_exec; simpl in *; cleanup.
+        Opaque apply_log.
+      }
+      {
+        Transparent apply_log.
+        unfold apply_log, read_encrypted_log, read_header  in *.
+        repeat invert_exec; simpl in *; cleanup.
+        Opaque apply_log.
+      }
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply_fresh log_commit_finished_oracle_eq in H6; eauto; cleanup.
+      split_ors; cleanup; repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+
+      unfold log_rep in *; cleanup.
+      destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a1)).
+      destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a2)).
+      eapply commit_finished in H6; eauto.
+      eapply commit_finished in H14; eauto.
+      repeat split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      
+      eapply log_apply_log_finished_not_crashed; eauto.
+      unfold log_rep_general in *; cleanup.
+      do 2 eexists; split; eauto.
+      intros; congruence.
+      unfold log_rep_general in *; cleanup.
+      do 2 eexists; split; eauto.
+      intros; congruence.
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply log_apply_log_finished_oracle_eq in H9; eauto; cleanup.
+      split_ors; cleanup; repeat invert_exec; 
+      simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      split_ors; cleanup; repeat invert_exec; 
+      simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      eapply_fresh HC_map_ext_eq_prefix in H9; cleanup.
+      eapply commit_finished_not_crashed; eauto.
+      eapply_fresh HC_map_ext_eq_prefix in H9; cleanup.
+      eapply log_commit_finished_oracle_eq in H12; eauto; 
+      simpl in *; cleanup.
+      all: try rewrite e1; try rewrite e2.
+      {
+        rewrite firstn_app2; eauto.
+        apply FinFun.Injective_map_NoDup; eauto.
+        unfold FinFun.Injective; intros; lia.
+        rewrite map_length; eauto.
+      }
+      {
+        rewrite firstn_app2; eauto.    
+        apply Forall_forall; intros.
+        apply in_map_iff in H13; cleanup.
+        eapply_fresh Forall_forall in f; eauto.
+        pose proof data_fits_in_disk.
+        split; try lia.
+        rewrite map_length; eauto.
+      }    
+      {
+        rewrite app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        rewrite map_length; eauto.
+      }
+      {
+        lia.
+      }
+      {
+        rewrite firstn_app2; eauto.
+        apply FinFun.Injective_map_NoDup; eauto.
+        unfold FinFun.Injective; intros; lia.
+        rewrite map_length; eauto.
+      }
+      {
+        rewrite firstn_app2; eauto.    
+        apply Forall_forall; intros.
+        apply in_map_iff in H13; cleanup.
+        eapply_fresh Forall_forall in f0; eauto.
+        pose proof data_fits_in_disk.
+        split; try lia.
+        rewrite map_length; eauto.
+      }    
+      {
+        rewrite app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        2: rewrite map_length; eauto.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+      }
+      {
+        lia.
+      }
+      {
+        unfold log_rep in *; cleanup.
+      destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a1)).
+      destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a2)).
+      eapply commit_finished in H6; eauto.
+      eapply commit_finished in H14; eauto.
+      repeat split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *.
+      eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
+      eapply log_apply_log_finished_oracle_eq in H9; eauto; cleanup.
+      eapply_fresh HC_map_ext_eq_prefix in H9; cleanup.
+      eapply log_commit_finished_oracle_eq in H12; eauto; 
+      simpl in *; cleanup.
+      eapply write_batch_to_cache_finished_not_crashed; eauto.
+      all: try rewrite e1; try rewrite e2.
+      {
+        rewrite firstn_app2; eauto.
+        apply FinFun.Injective_map_NoDup; eauto.
+        unfold FinFun.Injective; intros; lia.
+        rewrite map_length; eauto.
+      }
+      {
+        rewrite firstn_app2; eauto.    
+        apply Forall_forall; intros.
+        apply in_map_iff in H3; cleanup.
+        eapply_fresh Forall_forall in f; eauto.
+        pose proof data_fits_in_disk.
+        split; try lia.
+        rewrite map_length; eauto.
+      }    
+      {
+        rewrite app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        rewrite map_length; eauto.
+      }
+      {
+        lia.
+      }
+      {
+        rewrite firstn_app2; eauto.
+        apply FinFun.Injective_map_NoDup; eauto.
+        unfold FinFun.Injective; intros; lia.
+        rewrite map_length; eauto.
+      }
+      {
+        rewrite firstn_app2; eauto.    
+        apply Forall_forall; intros.
+        apply in_map_iff in H3; cleanup.
+        eapply_fresh Forall_forall in f0; eauto.
+        pose proof data_fits_in_disk.
+        split; try lia.
+        rewrite map_length; eauto.
+      }    
+      {
+        rewrite app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        2: rewrite map_length; eauto.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+      }
+      {
+        lia.
+      }
+    }
+    }
+  }
+  {
+    Transparent commit.
+    repeat invert_exec; simpl in *; cleanup;
+    repeat (split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *).
+  }
+  {
+    repeat invert_exec; simpl in *; cleanup;
+    repeat (split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *).
+  }
+  {
+    repeat invert_exec; simpl in *; cleanup;
+    repeat (split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *).
+  }
+  {
+    repeat invert_exec; simpl in *; cleanup;
+    repeat (split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *).
+  }
+  {
+    repeat invert_exec; simpl in *; cleanup;
+    repeat (split_ors; cleanup; try congruence;
+      repeat invert_exec; simpl in *; cleanup;
+      repeat rewrite <- app_assoc in *).
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; simpl in *; cleanup; try congruence.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; simpl in *; cleanup; try congruence.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; simpl in *; cleanup; try congruence.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; simpl in *; cleanup; try congruence.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; simpl in *; cleanup; try congruence.
+  }
+Qed.

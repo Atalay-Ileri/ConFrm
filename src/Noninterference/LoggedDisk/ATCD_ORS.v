@@ -1106,7 +1106,6 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   repeat unify_execs_prefix; cleanup); eauto.
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup); eauto.
-
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1253,9 +1252,11 @@ LD_have_same_structure o1 o2 ->
     Log.log_header_rep hdr2 txns2 (snd s3) /\
     merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd s3)) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
     (forall a, a >= data_start -> snd ((snd (snd s3)) a) = [])) ->
+(* 
 Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) ->
 Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
 Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
+*)
 no_accidental_overlap selector (snd (snd s1')) ->
 no_accidental_overlap selector (snd (snd s2')) ->
 x18 ++ x16 = x21 ++ x20 -> 

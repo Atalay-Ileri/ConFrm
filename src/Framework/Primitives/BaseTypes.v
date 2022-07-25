@@ -43,6 +43,9 @@ Axiom addr_list_to_blocks_length_le_preserve:
     length l1 <= length l2 ->
     length (addr_list_to_blocks l1) <= length (addr_list_to_blocks l2).
 
+Axiom addr_list_to_blocks_length_nonzero:
+  forall l,
+  length l > 0 -> length (addr_list_to_blocks l) > 0.
 
 
 Axiom blocks_to_addr_list_length_le_preserve:

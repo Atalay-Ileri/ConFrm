@@ -225,7 +225,8 @@ Inductive Log_Crash_State :=
 
 Definition record_is_valid key_list count record :=
   In (key record) key_list /\
-  (start record) + (addr_count record) + (data_count record) <= count.
+  (start record) + (addr_count record) + (data_count record) <= count /\
+  addr_count record > 0 /\ data_count record > 0.
 
 Fixpoint hashes_in_hashmap hm h vl :=
   match vl with

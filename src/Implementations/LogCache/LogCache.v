@@ -27,22 +27,24 @@ Defined.
 
 (* Converts to disk address before writing to log *)
 Definition write  addr_l (data_l: list value) :=
-  if (Forall_dec (fun a => a < data_length) (fun a => lt_dec a data_length) addr_l) then
-    if (NoDup_dec addr_l) then
-      if (Nat.eq_dec (length addr_l) (length data_l)) then
-        if (le_dec (length (addr_list_to_blocks (map (plus data_start) addr_l)) + length data_l) log_length) then
+    if (Forall_dec (fun a => a < data_length) (fun a => lt_dec a data_length) addr_l) then
+      if (NoDup_dec addr_l) then
+        if (Nat.eq_dec (length addr_l) (length data_l)) then
+          if (le_dec (length (addr_list_to_blocks (map (plus data_start) addr_l)) + length data_l) log_length) then
+          if (lt_dec 0 (length addr_l)) then
+            committed <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
+          _ <-
+          if committed then
+            Ret tt
+          else
+            _ <- |CDDP| apply_log;
+          _ <- |CDCO| (Flush _ _);
+          _ <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
+          Ret tt;
           
-          committed <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
-        _ <-
-        if committed then
-          Ret tt
-        else
-          _ <- |CDDP| apply_log;
-        _ <- |CDCO| (Flush _ _);
-        _ <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
-        Ret tt;
-        
-        write_batch_to_cache (map (plus data_start) addr_l) data_l
+          write_batch_to_cache (map (plus data_start) addr_l) data_l
+          else
+            Ret tt
         else
           Ret tt
       else
@@ -806,7 +808,7 @@ Theorem write_finished:
    (~Forall (fun a => a < data_length) al \/
     ~NoDup al \/
     length al <> length vl \/
-    length (addr_list_to_blocks (map (plus data_start) al)) + length vl > log_length )) \/
+    length (addr_list_to_blocks (map (plus data_start) al)) + length vl > log_length)) \/
   (cached_log_rep (upd_batch merged_disk al vl) s' /\
    Forall (fun a => a < data_length) al /\
    NoDup al /\
@@ -997,6 +999,14 @@ Proof.
       rewrite app_length, map_length; lia.
     }
     {
+      erewrite addr_list_to_blocks_length_eq.
+      eapply addr_list_to_blocks_length_nonzero; eauto.
+      rewrite map_length; eauto.
+    }
+    {
+      lia.
+    }
+    {
       rewrite map_length; eauto.
     }
   } 
@@ -1020,6 +1030,20 @@ Proof.
   {
     rewrite H7.
     rewrite app_length, map_length; lia.
+  }
+  {
+    erewrite addr_list_to_blocks_length_eq.
+    eapply addr_list_to_blocks_length_nonzero; eauto.
+    rewrite map_length; eauto.
+  }
+  {
+    lia.
+  }
+  {
+    assert(A: length al = 0) by lia.
+    apply length_zero_iff_nil in A.
+    subst; simpl.
+    right; intuition eauto; lia.
   }
   {
     left; intuition eauto; lia.
@@ -1451,6 +1475,11 @@ Proof.
       {
         rewrite H5, app_length, map_length; lia.
       }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        apply map_length.
+      }
     }
     {
       destruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) al)).
@@ -1661,6 +1690,11 @@ Proof.
       }
       {
         rewrite H0, app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        apply map_length.
       }
     }
     {
@@ -2191,6 +2225,11 @@ Proof.
             {
               rewrite H, app_length, map_length; lia.
             }
+            {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        apply map_length.
+      }
           }
           unfold log_rep in *; logic_clean.
           destruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) al)).
@@ -2277,6 +2316,11 @@ Proof.
             {
               rewrite H9, app_length, map_length; lia.
             }
+            {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        apply map_length.
+      }
         }
         {(** write_batch_to_cache_crashed **)
           eapply apply_log_finished_oracle in H5; eauto.
@@ -2383,6 +2427,11 @@ Proof.
             {
               rewrite H11, app_length, map_length; lia.
             }
+            {
+              erewrite addr_list_to_blocks_length_eq.
+              eapply addr_list_to_blocks_length_nonzero; eauto.
+              apply map_length.
+            }
         }
       }
       all: destruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) al)).
@@ -2402,6 +2451,11 @@ Proof.
       }
       {
         rewrite H0, app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        apply map_length.
       }
     }
   }
