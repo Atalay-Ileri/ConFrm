@@ -1020,7 +1020,11 @@ Definition LD_have_same_structure {T T'} (p1: LoggedDiskLayer.logged_disk_prog T
 (p2: LoggedDiskLayer.logged_disk_prog T') :=
   match p1, p2 with
   | LoggedDiskLayer.Read _, LoggedDiskLayer.Read _ => True
-  | LoggedDiskLayer.Write l1 l3, LoggedDiskLayer.Write l2 l4 => length l1 = length l2 /\ length l3 = length l4
+  | LoggedDiskLayer.Write l1 l3, LoggedDiskLayer.Write l2 l4 => 
+  length l1 = length l2 /\ length l3 = length l4 /\
+  (NoDup l1 <-> NoDup l2) /\ 
+  (Forall (fun a : nat => a < data_length) l1 <->
+Forall (fun a : nat => a < data_length) l2)
   | LoggedDiskLayer.Recover, LoggedDiskLayer.Recover => True
   | LoggedDiskLayer.Init l1, LoggedDiskLayer.Init l2 => length l1 = length l2
   | _, _ => False
@@ -1102,15 +1106,17 @@ destruct o1, o2; simpl in *; cleanup; try tauto.
   eauto; cleanup; eauto;
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup); eauto.
-  repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup); eauto.
-  repeat (split_ors; cleanup; repeat unify_execs;
-  repeat unify_execs_prefix; cleanup); eauto.
+  all: intuition eauto.
 }
 {
+  unfold refines, LogCache.cached_log_rep, Log.log_rep, Log.log_header_rep,
+  Log.log_rep_general in *.
+  cleanup.
   repeat (split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup).
   eapply recover_finished_oracle_eq in H1; eauto.
+  do 2 eexists; split; intuition eauto; try congruence.
+  do 2 eexists; split; intuition eauto; try congruence.
 }
 {
   repeat (split_ors; cleanup; repeat unify_execs;
@@ -1153,15 +1159,30 @@ Unshelve.
 all: exact [].
 Qed.
 
-(**
+
 Lemma exec_crashed_oracle_length_prefix:
     forall l l1 l0 l2 u o1 o2 o3 o4 s1 s2 s3 s4,
         exec CachedDiskLang u o1 s1 (LogCache.write l1 l2) (Crashed s3) ->
         exec CachedDiskLang u o2 s2 (LogCache.write l l0) (Crashed s4) -> 
         o1 ++ o3 = o2 ++ o4 ->
         length o1 = length o2.
-  Proof. Admitted.
-*)
+  Proof.
+  unfold LogCache.write; intros; cleanup;
+  repeat invert_exec; simpl; eauto.
+  all: try match goal with
+  | [ |- 1 = _] =>
+    unfold Log.commit, Log.read_header in *;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup)
+  end.
+  all: try match goal with
+  | [ |- _ = 1  ] =>
+    unfold Log.commit, Log.read_header in *;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup)
+  end.
+   Admitted.
+
 
 Set Nested Proofs Allowed.
   Lemma le_lt_exfalso:
@@ -1188,6 +1209,7 @@ n < a + m.
 intros; lia.
 Qed.
 
+(*
 Lemma recs_eqv_fold_left_add:
   forall recs1 recs2 n,
   Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) recs1 recs2 -> 
@@ -1206,7 +1228,7 @@ Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) recs1 recs2
     induction recs1; destruct recs2; simpl in *; intros;
     try inversion H; try inversion H0; cleanup; eauto.
   Qed.
-
+*)
 Lemma encode_header_extensional:
 forall hdr1 hdr2,
 Log.encode_header hdr1 = Log.encode_header hdr2 ->
@@ -1260,16 +1282,21 @@ Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.record
 no_accidental_overlap selector (snd (snd s1')) ->
 no_accidental_overlap selector (snd (snd s2')) ->
 x18 ++ x16 = x21 ++ x20 -> 
-x17 = x23.
+token_refines T u0 s0 o1 (fun s => (empty_mem, (fst (snd s), select_total_mem selector (snd (snd s))))) x21
+x23 \/
+token_refines T' u0 s3 o2 (fun s => (empty_mem, (fst (snd s), select_total_mem selector (snd (snd s))))) x18
+x17.
 Proof.
 intros;
 destruct o1, o2; simpl in *; try tauto.
 {
   repeat split_ors; cleanup; repeat unify_execs_prefix; cleanup;
   repeat unify_execs; cleanup; eauto.
+  intuition eauto.
 }
 {
-  eapply_fresh exec_crashed_oracle_length_prefix in H1; eauto.
+  intros.
+  (* eapply_fresh write_crashed_oracle_length_prefix in H1; eauto.
   setoid_rewrite Hx in H0.
   clear Hx.
   setoid_rewrite app_length in H.
@@ -1278,14 +1305,15 @@ destruct o1, o2; simpl in *; try tauto.
   setoid_rewrite H12 in H.
   setoid_rewrite addr_list_to_blocks_length_eq in H;
   try solve [do 2 rewrite map_length with (f:= (Nat.add data_start)); apply H3].
+  *)
   repeat match goal with
   |[H: exists _, _ |- _] => destruct H
   end.
   specialize H with (1:= H4).
   specialize H0 with (1:= H5).
-  eapply recs_eqv_fold_left_add with (n:= 0) in H7; eauto.
+  (* eapply recs_eqv_fold_left_add with (n:= 0) in H7; eauto.
   setoid_rewrite H7 in H.
-  setoid_rewrite H6 in H.
+  setoid_rewrite H6 in H. 
   (* clear H6 H7. *)
   remember (fold_left Nat.add
   (map
@@ -1295,7 +1323,10 @@ destruct o1, o2; simpl in *; try tauto.
   (* clear Heqc2. *)
   remember (length (addr_list_to_blocks (map (Nat.add data_start) l1))) as c1.
   setoid_rewrite <- Heqc1 in H.
+
   (* clear Heqc1. *)
+  *)
+
   split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup; eauto; try lia.
   split_ors; cleanup; repeat unify_execs;
@@ -1312,6 +1343,9 @@ destruct o1, o2; simpl in *; try tauto.
   repeat unify_execs_prefix; cleanup; eauto; try lia.
   split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup; eauto; try lia.
+  left.
+  intros.
+  cleanup.
   split_ors; cleanup; repeat unify_execs;
   repeat unify_execs_prefix; cleanup; eauto; try lia.
   split_ors; cleanup; repeat unify_execs;

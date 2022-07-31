@@ -185,7 +185,8 @@ Definition oracle_refines_same_from_related_test2
     refines_related related_states_abs s1_imp s2_imp ->
     recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs ->
     recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' ->
-    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs.
+    (recovery_oracles_refine u s1_imp p1_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs' \/
+    recovery_oracles_refine u s2_imp p2_abs rec_abs l_get_reboot_state_imp l_o_imp l_o_abs) .
 
     (** RDNI **)
 (**
@@ -582,9 +583,10 @@ Lemma RDNI_transfer_test2:
       l_get_reboot_state_imp
       l_get_reboot_state_abs ->
 
+    
     abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
     abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
-    
+
     oracle_refines_same_from_related_test2 R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
 
     exec_compiled_preserves_validity R
@@ -632,12 +634,45 @@ Proof.
   | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
      H1: oracle_refines_same_from_related_test2 _ _ _ _ _ _ _ |- _ ] =>
-    eapply H1 in H0; eauto; cleanup
+    eapply_fresh H1 in H0; eauto; cleanup
   end.
 
   (** Construct abs executions **)
   unfold refines_related in *; cleanup.
+  split_ors.
+  {
+    match goal with
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
+     H1: SimulationForProgram _ _ ?p1 _ _ _,
+     H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
+    eapply_fresh H1 in H; eauto; cleanup;
+    eapply_fresh H2 in H0; eauto; cleanup
+  end.
+  simpl in *; cleanup.
+
+  (** Use self_simulation to generate second abs execution from s2 **)
+  match goal with
+  | [H: exec_with_recovery L_abs _ _ _ _ p1_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ _ _ _,
+     H1: RDNI _ _ _ _ _ _ _ _,
+     H2: equivalent_states_abs _ _ |- _ ] =>
+    eapply_fresh H1 in H;    
+    specialize Hx with (3:= H2); edestruct Hx;
+    eauto; cleanup
+  end.
   
+  (** Show two executions are the same **)
+  match goal with
+  | [H: exec_with_recovery L_abs _ _ _ _ p2_abs _ _,
+     H0: exec_with_recovery L_abs _ _ _ _ p2_abs _ _ |- _ ] =>
+    eapply exec_with_recovery_deterministic_wrt_reboot_state in H;
+    eauto; cleanup
+  end.
+  
+  repeat (split; eauto).
+  }
+  {
   match goal with
   | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
      H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
@@ -668,6 +703,7 @@ Proof.
   end.
   
   repeat (split; eauto).
+  }
 Qed.
 
 
@@ -1226,6 +1262,109 @@ Proof.
   (** Construct abs executions **)
   unfold refines_related in *; cleanup.
   
+  match goal with
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
+     H1: SimulationForProgram _ _ ?p1 _ _ _,
+     H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
+    eapply_fresh H1 in H; eauto; cleanup;
+    eapply_fresh H2 in H0; eauto; cleanup
+  end.
+  simpl in *; cleanup.
+
+  edestruct H; eauto.
+  do 2 eexists; intuition eauto.
+Qed.
+
+Lemma RDNIW_transfer_test2:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
+    u T (p1_abs p2_abs: L_abs.(prog) T)
+      rec_abs
+      l_get_reboot_state_imp
+      l_get_reboot_state_abs
+      equivalent_states_abs
+      valid_state_abs
+      cond,
+
+    RDNI_Weak
+      u p1_abs p2_abs
+      rec_abs
+      valid_state_abs
+      equivalent_states_abs
+      cond
+      l_get_reboot_state_abs ->
+    
+    SimulationForProgram R u p1_abs rec_abs 
+      l_get_reboot_state_imp
+      l_get_reboot_state_abs ->
+
+    SimulationForProgram R u p2_abs rec_abs 
+      l_get_reboot_state_imp
+      l_get_reboot_state_abs ->
+
+    abstract_oracles_exist_wrt R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp ->
+    abstract_oracles_exist_wrt R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp ->
+    
+    oracle_refines_same_from_related_test2 R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs ->
+
+    exec_compiled_preserves_validity R
+    u p1_abs rec_abs l_get_reboot_state_imp
+    (refines_valid R valid_state_abs) ->
+
+    exec_compiled_preserves_validity R
+    u p2_abs rec_abs l_get_reboot_state_imp
+    (refines_valid R valid_state_abs) ->
+    
+    RDNI_Weak
+      u (R.(compile) p1_abs)
+      (R.(compile) p2_abs)
+      (R.(compile) rec_abs)
+      (refines_valid R valid_state_abs)
+      (refines_related R equivalent_states_abs)
+      cond
+      l_get_reboot_state_imp.
+Proof.
+
+  intros.
+  (** Convert to weak self_simulation **)
+  unfold RDNI_Weak; simpl; intros.
+
+  (** Construct abs oracles **)
+  (* unfold refines_valid, refines_related in *; cleanup. *)
+
+  match goal with
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
+     H1: abstract_oracles_exist_wrt _ _ _ ?p1 _ _,
+     H2: abstract_oracles_exist_wrt _ _ _ ?p2 _ _ |- _ ] =>
+    eapply_fresh H1 in H; eauto; cleanup;
+    eapply_fresh H2 in H0; eauto; cleanup;
+    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
+  end.
+  
+  match goal with
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H1: oracle_refines_same_from_related_test2 _ _ _ _ _ _ _ |- _ ] =>
+    eapply_fresh H1 in H0; eauto; cleanup
+  end.
+  
+  (** Construct abs executions **)
+  unfold refines_related in *; cleanup.
+  split_ors.
+  match goal with
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
+     H1: SimulationForProgram _ _ ?p1 _ _ _,
+     H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
+    eapply_fresh H1 in H; eauto; cleanup;
+    eapply_fresh H2 in H0; eauto; cleanup
+  end.
+  simpl in *; cleanup.
+
+  edestruct H; eauto.
+  do 2 eexists; intuition eauto.
+
   match goal with
   | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
      H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
