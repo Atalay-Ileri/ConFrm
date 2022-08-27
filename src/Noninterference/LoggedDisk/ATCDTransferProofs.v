@@ -19,6 +19,10 @@ Proof.
   abstract_oracles_exist_wrt; eauto.
 Qed.
 
+Definition compile_to_ATCD {T} (p: prog _ T) := 
+  (Simulation.Definitions.compile ATCD_Refinement
+(Simulation.Definitions.compile ATC_Refinement
+   (Simulation.Definitions.compile FD.refinement p))).
 
 (********** Transfer Theorems ***********)
 Opaque File.read File.recover.
@@ -27,39 +31,25 @@ Theorem ss_ATCD_read:
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Read inum off |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  (compile_to_ATCD  (| Read inum off |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
+
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Read inum off |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-  RDNI_explicit u lo s1 s2
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Read inum off))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Read inum off))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) Recover)))) 
+  (compile_to_ATCD  (| Read inum off |))
+  (compile_to_ATCD (|Recover|)) lo s2 -> 
+
+  RDNI_Weak_explicit u lo s1 s2
+    (compile_to_ATCD  (| Read inum off |))
+    (compile_to_ATCD  (| Read inum off |))
+    (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
-    (refines_related ATCD_Refinement
-    (refines_related ATC_Refinement (AD_related_states u' None)))
+    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' None)))
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply RDNI_explicit_transfer.
+  eapply RDNIW_explicit_transfer.
   - apply ss_ATC_read.
   - eapply ATCD_simulation.
     shelve.
@@ -69,7 +59,7 @@ Proof.
     shelve.
   - intros; apply ATCD_AOE; eauto.
     shelve.
-  - eapply ATCD_ORS_transfer; simpl.
+  - intros; eapply ATCD_ORS_transfer; simpl.
     all: shelve.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
@@ -77,13 +67,12 @@ Proof.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
   intros; simpl; eauto.
-  - admit. (* apply ATCD_TS_read. *)
   Unshelve.
   all: simpl; try solve [try apply not_init_compile; apply not_init_read].
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HRDNI_transfer; simpl; eauto.
+    eapply ATC_HSS_transfer; simpl; eauto.
     eapply have_same_structure_read; eauto.
     all: simpl; try solve [try apply not_init_compile; apply not_init_read].
     eapply TIE_auth_then_exec; eauto.
@@ -98,35 +87,21 @@ Theorem ss_ATCD_write:
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Write inum off v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  (compile_to_ATCD (| Write inum off v |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
+
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Write inum off v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
+  (compile_to_ATCD (| Write inum off v |))
+  (compile_to_ATCD (|Recover|)) lo s2 -> 
+
   RDNI_explicit u lo s1 s2
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Write inum off v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Write inum off v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) Recover)))) 
+    (compile_to_ATCD (| Write inum off v |))
+    (compile_to_ATCD (| Write inum off v |))
+    (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
-    (refines_related ATCD_Refinement
-    (refines_related ATC_Refinement (AD_related_states u' None)))
+    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' None)))
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
@@ -170,35 +145,19 @@ Theorem ss_ATCD_create:
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Create v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  (compile_to_ATCD (| Create v |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Create v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
+  (compile_to_ATCD (| Create v |))
+  (compile_to_ATCD (|Recover|)) lo s2 -> 
     RDNI_explicit u lo s1 s2
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Create v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Create v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) Recover)))) 
+    (compile_to_ATCD (| Create v |))
+    (compile_to_ATCD (| Create v |))
+    (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
-    (refines_related ATCD_Refinement
-    (refines_related ATC_Refinement (AD_related_states u' None)))
+    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' None)))
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
@@ -240,35 +199,19 @@ Theorem ss_ATCD_extend:
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Extend inum v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  (compile_to_ATCD(| Extend inum v |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Extend inum v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
+  (compile_to_ATCD(| Extend inum v |))
+  (compile_to_ATCD (|Recover|))lo s2 -> 
     RDNI_explicit u lo s1 s2
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Extend inum v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Extend inum v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) Recover)))) 
+    (compile_to_ATCD(| Extend inum v |))
+    (compile_to_ATCD(| Extend inum v |))
+    (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
-    (refines_related ATCD_Refinement
-    (refines_related ATC_Refinement (AD_related_states u' None)))
+    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' None)))
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
@@ -311,32 +254,17 @@ Theorem ss_ATCD_change_owner:
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| ChangeOwner inum v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  (compile_to_ATCD (| ChangeOwner inum v |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| ChangeOwner inum v |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
+  (compile_to_ATCD (| ChangeOwner inum v |))
+  (compile_to_ATCD (|Recover|)) lo s2 -> 
     RDNI_explicit u lo s1 s2
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (ChangeOwner inum v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (ChangeOwner inum v))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) Recover)))) 
+    (compile_to_ATCD (| ChangeOwner inum v |))
+    (compile_to_ATCD (| ChangeOwner inum v |))
+    (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
     (refines_related ATCD_Refinement
     (refines_related ATC_Refinement (AD_related_states u' (Some inum))))
@@ -383,32 +311,17 @@ Theorem ss_ATCD_delete:
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Delete inum |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-     (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s1 -> 
+  (compile_to_ATCD (| Delete inum |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement
-        (Simulation.Definitions.compile FD.refinement (| Delete inum |))))
-  (Simulation.Definitions.compile ATCD_Refinement
-    (Simulation.Definitions.compile ATC_Refinement File.recover)) lo s2 -> 
-    RDNI_explicit u lo s1 s2
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Delete inum))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) (Delete inum))))) 
-    (ATCD_Refinement.(Simulation.Definitions.compile) 
-    (ATC_Refinement.(Simulation.Definitions.compile) 
-    (FD.refinement.(Simulation.Definitions.compile) 
-    (FDOp.(Op) Recover)))) 
+  (compile_to_ATCD (| Delete inum |))
+  (compile_to_ATCD (|Recover|)) lo s2 -> 
+  RDNI_explicit u lo s1 s2
+    (compile_to_ATCD (| Delete inum |))
+    (compile_to_ATCD (| Delete inum |))
+    (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
     (refines_related ATCD_Refinement
     (refines_related ATC_Refinement (AD_related_states u' None)))
@@ -450,7 +363,7 @@ Admitted.
 
 
 
-
+(*
 Opaque File.recover.
 Lemma ATCD_TS_read_inner:
     forall n inum off u u' txns1 txns2 hdr1 hdr2,
@@ -1753,6 +1666,6 @@ Lemma ATCD_TS_read_inner:
     Unshelve.
     all: eauto.
   Qed.
-
+*)
 
       

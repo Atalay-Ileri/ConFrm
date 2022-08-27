@@ -2110,6 +2110,24 @@ Proof.
   eauto).
 Qed.
 
+Lemma log_update_header_finished_not_crashed:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' r1 h1 h2,
+exec CryptoDiskLang u o1 s1
+(update_header h1) (Finished s1' r1) ->
+o1 ++ o3 = o2 ++ o4 ->
+~exec CryptoDiskLang u o2 s2
+(update_header h2) (Crashed s2').
+Proof.
+  Transparent update_header read_header.
+  unfold update_header, read_header, write_header, not; intros.
+  cleanup; repeat invert_exec; simpl in *; cleanup;
+  eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup;
+  eauto).
+  Opaque read_header.
+Qed.
+
 Lemma log_decrypt_txn_finished_not_crashed:
 forall u rec1 rec2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' r1,
 exec CryptoDiskLang u o1 s1
@@ -3326,5 +3344,1565 @@ Proof.
   {
     unfold commit, read_header in *; 
     repeat invert_exec; simpl in *; cleanup; try congruence.
+  }
+Qed.
+
+
+
+(**** Crashed_oracle_eq ***)
+Ltac unify_finished_oracles :=
+  repeat rewrite <- app_assoc in *; 
+  match goal with 
+  [H1: exec _ _ ?o1 _ _ (Finished _ _),
+  H0: exec _ _ ?o2 _ _(Finished _ _),
+  H: ?o1 ++ _ = ?o2 ++ _ |- _] =>
+  try ((eapply BatchOperations_encrypt_all_finished_oracle_eq in H1 ||
+  eapply BatchOperations_hash_all_finished_oracle_eq in H1 ||
+  eapply BatchOperations_write_batch_finished_oracle_eq in H1 ||
+  eapply BatchOperations_read_consecutive_finished_oracle_eq in H1 ||
+  eapply BatchOperations_decrypt_all_finished_oracle_eq in H1 ||
+  eapply log_write_header_finished_oracle_eq in H1 ||
+  eapply log_update_header_finished_oracle_eq in H1 ||
+  eapply log_apply_log_finished_oracle_eq in H1 ||
+  eapply log_apply_txn_finished_oracle_eq in H1 ||
+  eapply log_apply_txns_finished_oracle_eq in H1 ||
+  eapply log_check_hash_finished_oracle_eq in H1 ||
+  eapply log_commit_finished_oracle_eq in H1 ||
+  eapply log_commit_txn_finished_oracle_eq in H1 ||
+  eapply log_decrypt_txn_finished_oracle_eq in H1 ||
+  eapply log_decrypt_txns_finished_oracle_eq in H1 ||
+  eapply log_flush_txns_finished_oracle_eq in H1 ||
+  eapply log_init_finished_oracle_eq in H1 ||
+  eapply_fresh log_read_encrypted_log_finished_oracle_eq in H1 ||
+  eapply log_read_header_finished_oracle_eq in H1 ||
+  eapply log_recover_finished_oracle_eq in H1 ||
+  eapply write_batch_to_cache_finished_oracle_eq in H1 ||
+  eapply write_lists_to_cache_finished_oracle_eq in H1); 
+  eauto;
+  subst; cleanup_no_match; 
+  repeat rewrite <- app_assoc in *; cleanup_no_match)
+end.
+
+
+Ltac unify_finished_not_crashed_oracles :=
+  repeat rewrite <- app_assoc in *; 
+  try match goal with 
+  [H1: exec _ _ ?o1 _ _ (Finished _ _),
+  H0: exec _ _ ?o2 _ _(Crashed _),
+  H: ?o2 ++ _ = ?o1 ++ _ |- _] =>
+  symmetry in H
+  end;
+  try solve [
+  match goal with 
+  [H1: exec _ _ ?o1 _ _ (Finished _ _),
+  H0: exec _ _ ?o2 _ _(Crashed _),
+  H: ?o1 ++ _ = ?o2 ++ _ |- _] =>
+  try ((eapply BatchOperations_encrypt_all_finished_not_crashed in H1 ||
+  eapply BatchOperations_hash_all_finished_not_crashed in H1 ||
+  eapply BatchOperations_write_batch_finished_not_crashed in H1 ||
+  eapply BatchOperations_read_consecutive_finished_not_crashed in H1 ||
+  eapply BatchOperations_decrypt_all_finished_not_crashed in H1 ||
+  eapply log_write_header_finished_not_crashed in H1 ||
+  eapply log_update_header_finished_not_crashed in H1 ||
+  eapply log_apply_log_finished_not_crashed in H1 ||
+  eapply apply_txn_finished_not_crashed in H1 ||
+  eapply apply_txns_finished_not_crashed in H1 ||
+  eapply log_check_hash_finished_not_crashed in H1 ||
+  eapply commit_finished_not_crashed in H1 ||
+  eapply commit_txn_finished_not_crashed in H1 ||
+  eapply log_decrypt_txn_finished_not_crashed in H1 ||
+  eapply log_decrypt_txns_finished_not_crashed in H1 ||
+  eapply log_flush_txns_finished_not_crashed in H1 ||
+  eapply log_init_finished_not_crashed in H1 ||
+  eapply log_read_encrypted_log_finished_not_crashed in H1 ||
+  eapply log_read_header_finished_not_crashed in H1||
+  eapply log_recover_finished_not_crashed in H1 ||
+  eapply write_batch_to_cache_finished_not_crashed in H1 ||
+  eapply write_lists_to_cache_finished_not_crashed in H1); 
+  eauto; exfalso; eauto) 
+  end].
+
+Lemma BatchOperations_encrypt_all_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' k1 k2,
+exec CryptoDiskLang u o1 s1
+(BatchOperations.encrypt_all k1 l1)  (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+(BatchOperations.encrypt_all k2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  induction l1; destruct l2; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply IHl1 in H2; eauto; subst; eauto.
+Qed.
+
+Lemma BatchOperations_hash_all_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' k1 k2,
+exec CryptoDiskLang u o1 s1
+(BatchOperations.hash_all k1 l1)  (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(BatchOperations.hash_all k2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  induction l1; destruct l2; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply IHl1 in H2; eauto; subst; eauto.
+Qed.
+
+Lemma BatchOperations_write_batch_crashed_oracle_eq:
+forall u k1 k2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+
+exec CryptoDiskLang u o1 s1
+(BatchOperations.write_batch k1 l1)  (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(BatchOperations.write_batch k2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  induction k1; destruct k2; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply IHk1 in H2; eauto; subst; eauto.
+Qed.
+
+Definition  BatchOperations_write_consecutive_crashed_oracle_eq := BatchOperations_write_batch_crashed_oracle_eq. 
+
+
+Lemma BatchOperations_read_consecutive_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2' k1 k2,
+exec CryptoDiskLang u o1 s1
+(BatchOperations.read_consecutive k1 l1)  (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(BatchOperations.read_consecutive k2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  induction l1; destruct l2; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply IHl1 in H2; eauto; subst; eauto.
+Qed.
+
+Lemma BatchOperations_decrypt_all_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2'   k1 k2,
+exec CryptoDiskLang u o1 s1
+(BatchOperations.decrypt_all k1 l1)  (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+(BatchOperations.decrypt_all k2 l2) (Crashed s2' ) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  induction l1; destruct l2; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply IHl1 in H2; eauto; subst; eauto.
+Qed.
+
+
+
+
+Lemma log_read_header_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+read_header  (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+read_header (Crashed s2' ) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent read_header.
+  unfold read_header; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto).
+  Opaque read_header.
+Qed.
+
+Lemma log_write_header_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' h1 h2,
+exec CryptoDiskLang u o1 s1
+(write_header h1) (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(write_header h2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent write_header.
+  unfold write_header; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto).
+  Opaque write_header.
+Qed.
+
+Lemma log_update_header_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' h1 h2,
+exec CryptoDiskLang u o1 s1
+(update_header h1) (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+(update_header h2) (Crashed s2' ) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent update_header.
+  unfold update_header; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply log_read_header_crashed_oracle_eq in H; eauto.
+  eapply log_write_header_crashed_oracle_eq in H4; eauto;
+  subst; eauto.
+  Opaque update_header.
+Qed.
+
+
+Lemma log_commit_txn_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' a1 a2 v1 v2,
+exec CryptoDiskLang u o1 s1
+(commit_txn a1 v1)  (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+(commit_txn a2 v2) (Crashed s2' ) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  unfold commit_txn; intros.
+
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply log_read_header_crashed_oracle_eq in H1; eauto.
+  eapply BatchOperations_encrypt_all_crashed_oracle_eq  in H5; eauto; subst; eauto.
+  eapply BatchOperations_hash_all_crashed_oracle_eq  in H6; eauto; subst; eauto.
+  eapply BatchOperations_write_consecutive_crashed_oracle_eq  in H7; eauto; subst; eauto.
+  eapply log_update_header_crashed_oracle_eq in H9; eauto; subst; eauto.
+  Opaque commit_txn.
+Qed.
+
+Lemma log_commit_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' a1 a2 v1 v2,
+exec CryptoDiskLang u o1 s1
+(commit a1 v1)  (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(commit a2 v2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent commit.
+  unfold commit; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply log_read_header_crashed_oracle_eq in H1; eauto.
+  {
+    Transparent commit_txn read_header.
+    unfold commit_txn, read_header in *.
+    repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+    Opaque commit_txn read_header.
+  }
+  {
+    Transparent commit_txn read_header.
+    unfold commit_txn, read_header in *.
+    repeat invert_exec; cleanup.
+    simpl in *; congruence.
+    Opaque commit_txn read_header.
+  }
+  {
+    Transparent commit_txn read_header.
+    unfold commit_txn, read_header in *.
+    repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+    Opaque commit_txn read_header.
+  }
+  {
+    Transparent commit_txn read_header.
+    unfold commit_txn, read_header in *.
+    repeat invert_exec; cleanup.
+    simpl in *; congruence.
+    Opaque commit_txn read_header.
+  }
+  eapply log_commit_txn_crashed_oracle_eq  in H1; eauto; subst; eauto.
+  Opaque commit.
+Qed.
+
+Lemma log_check_hash_crashed_oracle_eq:
+forall u l1 l2 h1 h2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+(check_hash l1 h1) (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+(check_hash l2 h2) (Crashed s2' ) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent check_hash.
+  unfold check_hash; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  try eapply_fresh BatchOperations_hash_all_crashed_oracle_eq in H; eauto;
+  subst; eauto; cleanup.
+Qed.
+
+Lemma log_read_encrypted_log_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' vp txns1 txns2 hdr1 hdr2,
+
+exec CryptoDiskLang u o1 s1
+read_encrypted_log (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+read_encrypted_log (Crashed s2') ->
+
+log_reboot_rep_explicit_part  hdr1 txns1 vp s1 ->
+log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
+
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent read_encrypted_log.
+  unfold read_encrypted_log; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  eapply log_read_header_crashed_oracle_eq in H; eauto; subst; eauto; cleanup.
+
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  eapply BatchOperations_read_consecutive_crashed_oracle_eq in H3; eauto; subst; eauto.
+  
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  eapply log_check_hash_crashed_oracle_eq in H3; eauto; subst; eauto.
+  
+  unfold check_hash in *; repeat invert_exec; try congruence.
+
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  destruct (count (old_part x4)); simpl in *;
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  destruct (count (old_part x4)); simpl in *;
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  destruct (count (old_part x0)); simpl in *;
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  destruct (count (old_part x0)); simpl in *;
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+
+  repeat split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles;
+  try unify_finished_not_crashed_oracles.
+  eapply BatchOperations_read_consecutive_crashed_oracle_eq in H3; eauto; subst; eauto.
+  eauto.
+  Opaque read_encrypted_log.
+Qed.
+
+Lemma log_decrypt_txn_crashed_oracle_eq:
+forall u txn_rec1 txn_rec2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+(decrypt_txn txn_rec1 l1) (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(decrypt_txn txn_rec2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  unfold decrypt_txn; simpl; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  try eapply_fresh BatchOperations_decrypt_all_crashed_oracle_eq in H; eauto;
+  subst; eauto; cleanup.
+Qed.
+
+
+Lemma log_apply_txn_crashed_oracle_eq:
+forall u txn_rec1 txn_rec2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+(apply_txn txn_rec1 l1) (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(apply_txn txn_rec2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent apply_txn.
+  unfold apply_txn; simpl; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  try eapply_fresh log_decrypt_txn_crashed_oracle_eq in H1; eauto;
+  subst; eauto; cleanup.
+  eapply BatchOperations_write_batch_crashed_oracle_eq in H1; eauto;
+  cleanup; eauto.
+Qed.
+
+
+Lemma log_apply_txns_crashed_oracle_eq:
+forall u txn_recs1 txn_recs2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+(apply_txns txn_recs1 l1) (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(apply_txns txn_recs2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+Forall (fun rec => addr_count rec > 0) txn_recs1 ->
+Forall (fun rec => addr_count rec > 0) txn_recs2 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l1) 
+txn_recs1 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l2) 
+txn_recs2 ->
+o1 = o2.
+Proof.
+  Transparent apply_txns.
+  induction txn_recs1; destruct txn_recs2; simpl; intros; simpl in *; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count t + data_count t) (skipn (start t) l2)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count t + data_count t) (skipn (start t) l2)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count a + data_count a) (skipn (start a) l1)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count a + data_count a) (skipn (start a) l1)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  eapply log_apply_txn_crashed_oracle_eq in H; eauto.
+  inversion H2; subst;
+  inversion H3; subst;
+  inversion H4; subst;
+  inversion H5; subst;
+  repeat rewrite <- app_assoc in *.
+  eapply IHtxn_recs1 in H7; eauto.
+  cleanup; eauto.
+Qed.
+
+Lemma log_decrypt_txns_crashed_oracle_eq:
+forall u txn_recs1 txn_recs2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+(decrypt_txns txn_recs1 l1) (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(decrypt_txns txn_recs2 l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+Forall (fun rec => addr_count rec > 0) txn_recs1 ->
+Forall (fun rec => addr_count rec > 0) txn_recs2 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l1) 
+txn_recs1 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l2) 
+txn_recs2 ->
+o1 = o2.
+Proof.
+  Opaque apply_txns.
+  induction txn_recs1; destruct txn_recs2; simpl; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto); 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count t + data_count t) (skipn (start t) l2)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count t + data_count t) (skipn (start t) l2)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count t + data_count t) (skipn (start t) l2)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count a + data_count a) (skipn (start a) l1)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count a + data_count a) (skipn (start a) l1)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    unfold apply_txn, decrypt_txn in *.
+    repeat invert_exec; eauto.
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles);
+  destruct (firstn (addr_count a + data_count a) (skipn (start a) l1)); simpl in *;
+  repeat invert_exec; eauto;
+    repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+
+  eapply log_decrypt_txn_crashed_oracle_eq in H; eauto.
+  inversion H2; subst;
+  inversion H3; subst;
+  inversion H4; subst;
+  inversion H5; subst;
+  repeat rewrite <- app_assoc in *.
+  eapply IHtxn_recs1 in H0; eauto.
+  cleanup; eauto.
+
+  inversion H2; subst;
+  inversion H3; subst;
+  inversion H4; subst;
+  inversion H5; subst;
+  unify_finished_not_crashed_oracles.
+  inversion H2; subst;
+  inversion H3; subst;
+  inversion H4; subst;
+  inversion H5; subst;
+  unify_finished_not_crashed_oracles.
+  exfalso; eapply log_decrypt_txns_finished_not_crashed.
+   eauto.
+   6: eauto.
+   all: eauto.
+
+   inversion H2; subst;
+   inversion H3; subst;
+   inversion H4; subst;
+   inversion H5; subst;
+   unify_finished_oracles; eauto.
+Qed.
+
+
+Lemma log_flush_txns_crashed_oracle_eq:
+forall u txn_recs1 txn_recs2 l1 l2 o1 o2 o3 o4 s1 s2 s1' s2'  ,
+exec CryptoDiskLang u o1 s1
+(flush_txns txn_recs1 l1) (Crashed s1' ) ->
+exec CryptoDiskLang u o2 s2
+(flush_txns txn_recs2 l2) (Crashed s2' ) ->
+o1 ++ o3 = o2 ++ o4 ->
+Forall (fun rec => addr_count rec > 0) txn_recs1 ->
+Forall (fun rec => addr_count rec > 0) txn_recs2 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l1) 
+txn_recs1 ->
+Forall (fun txn_rec1 => 
+start txn_rec1 +
+addr_count txn_rec1 +
+data_count txn_rec1 <=
+length l2) 
+txn_recs2 ->
+o1 = o2.
+Proof.
+  Transparent flush_txns.
+  unfold flush_txns; intros;
+
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+
+  eapply log_apply_txns_crashed_oracle_eq in H0; only 2: apply H; eauto.
+  exfalso; eapply apply_txns_finished_not_crashed. 
+  eauto.
+  6: eauto.
+  all: eauto.
+
+  exfalso; eapply apply_txns_finished_not_crashed. 
+  eauto.
+  6: eauto.
+  all: eauto.
+  eapply log_update_header_crashed_oracle_eq in H7; eauto.
+  cleanup; eauto.
+
+  exfalso; eapply apply_txns_finished_not_crashed. 
+  eauto.
+  6: eauto.
+  all: eauto.
+Qed.
+
+Lemma log_apply_log_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' hdr1 hdr2 txns1 txns2,
+exec CryptoDiskLang u o1 s1
+apply_log (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+apply_log (Crashed s2') ->
+
+log_header_rep hdr1 txns1 s1 ->
+log_header_rep hdr2 txns2 s2 ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent apply_log.
+  unfold apply_log; intros.
+  unfold log_header_rep, log_rep_general in *; cleanup.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto); 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+  eapply_fresh log_read_encrypted_log_crashed_oracle_eq in H0; eauto.
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  exfalso;
+  eapply_fresh log_read_encrypted_log_finished_not_crashed in H0; eauto.
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  exfalso;
+  eapply_fresh log_read_encrypted_log_finished_not_crashed in H; eauto.
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+
+  eapply read_encrypted_log_finished in H0; eauto.
+  eapply read_encrypted_log_finished in H4; eauto.
+  cleanup; simpl in *.
+  all: intros; try congruence.
+  eapply log_flush_txns_crashed_oracle_eq in H3; simpl; eauto.
+  subst; eauto.
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H19, <- H27 in *.
+    apply in_map_iff in H.
+    cleanup.
+    eapply Forall_forall in H28; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H19, <- H27 in *.
+    apply in_map_iff in H.
+    cleanup.
+    eapply Forall_forall in H20; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H19, <- H27 in *.
+    apply in_map_iff in H.
+    cleanup.
+    rewrite firstn_length_l; eauto.
+    eapply Forall_forall in H28; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+    rewrite map_length; setoid_rewrite H23. lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H19, <- H27 in *.
+    apply in_map_iff in H.
+    cleanup.
+    rewrite firstn_length_l; eauto.
+    eapply Forall_forall in H20; 
+    unfold txn_well_formed, record_is_valid in *; cleanup; eauto.
+    lia.
+    rewrite map_length; setoid_rewrite H15. lia.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  {
+    unfold log_reboot_rep_explicit_part, log_header_rep, log_rep_general in *.
+    do 2 eexists; intuition eauto.
+    congruence.
+  }
+  Unshelve.
+  all: repeat constructor; exact key0.
+  Qed.
+
+
+Lemma log_recover_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' vp hdr1 hdr2 txns1 txns2,
+exec CryptoDiskLang u o1 s1
+Log.recover (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+Log.recover (Crashed s2') ->
+log_reboot_rep_explicit_part  hdr1 txns1 vp s1 ->
+log_reboot_rep_explicit_part  hdr2 txns2 vp s2 ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent Log.recover.
+  unfold Log.recover; intros;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto); 
+  repeat unify_finished_oracles; try unify_finished_not_crashed_oracles.
+  eapply_fresh log_read_encrypted_log_crashed_oracle_eq in H0; eauto.
+  eapply_fresh log_read_encrypted_log_finished_not_crashed in H; eauto; intuition. 
+  eapply_fresh log_write_header_crashed_oracle_eq in H3; eauto; subst; eauto.
+  eapply_fresh log_read_encrypted_log_finished_not_crashed in H; eauto; intuition.
+  eauto.
+  simpl in *; cleanup.
+  eapply_fresh log_read_encrypted_log_finished_not_crashed in H; eauto; intuition.
+  simpl in *; cleanup.
+  simpl in *; cleanup.
+  
+  unfold log_reboot_rep_explicit_part, log_rep_general in *; cleanup.
+  eapply read_encrypted_log_finished in H4; eauto.
+  eapply read_encrypted_log_finished in H0; eauto.
+  cleanup_no_match; simpl in *.
+  all: intros; try congruence.
+  eapply log_decrypt_txns_crashed_oracle_eq in H6. 
+  3: eauto.
+  all: eauto.
+  cleanup; eauto.
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H30 in *.
+    apply in_map_iff in H0.
+    cleanup_no_match.
+    eapply Forall_forall in H31; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H30, <- H22 in *.
+    apply in_map_iff in H0.
+    cleanup_no_match.
+    eapply Forall_forall in H23; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H30, <- H22 in *.
+    apply in_map_iff in H0.
+    cleanup_no_match.
+    rewrite firstn_length_l; eauto.
+    eapply Forall_forall in H31; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    lia.
+    rewrite map_length; setoid_rewrite H26. cleanup; lia.
+  }
+  {
+    eapply Forall_forall; intros.
+    unfold log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
+    rewrite <- H30, <- H22 in *.
+    apply in_map_iff in H0.
+    cleanup_no_match.
+    rewrite firstn_length_l; eauto.
+    eapply Forall_forall in H23; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    lia.
+    rewrite map_length; setoid_rewrite H18. 
+    cleanup; lia.
+  }
+Qed.
+
+Lemma log_init_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CryptoDiskLang u o1 s1
+(Log.init l1)  (Crashed s1') ->
+exec CryptoDiskLang u o2 s2
+(Log.init l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Transparent Log.init.
+  unfold Log.init; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply_fresh log_write_header_crashed_oracle_eq in H0; eauto.
+  eapply_fresh BatchOperations_write_batch_crashed_oracle_eq in H1; eauto; subst; eauto.
+Qed.
+
+
+Lemma read_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' a1 a2,
+exec CachedDiskLang u o1 s1
+(read a1)  (Crashed s1') ->
+exec CachedDiskLang u o2 s2
+(read a2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  unfold read; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+Qed.
+
+
+
+Lemma write_batch_to_cache_crashed_oracle_eq:
+forall u l1 l2 l3 l4 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CachedDiskLang u o1 s1
+(LogCache.write_batch_to_cache l1 l3)  (Crashed s1') ->
+exec CachedDiskLang u o2 s2
+(LogCache.write_batch_to_cache l2 l4) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  induction l1; destruct l2; simpl in *; intros; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  eapply IHl1 in H3; eauto.
+  cleanup; eauto.
+Qed.
+
+Lemma write_lists_to_cache_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CachedDiskLang u o1 s1
+(LogCache.write_lists_to_cache l1)  (Crashed s1') ->
+exec CachedDiskLang u o2 s2
+(LogCache.write_lists_to_cache l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+Forall (fun a => length (fst a) > 0 /\ length (snd a) > 0) l1 -> 
+Forall (fun a => length (fst a) > 0 /\ length (snd a) > 0) l2 -> 
+o1 = o2.
+Proof.
+  induction l1; destruct l2; simpl in *; intros;  simpl in *; try lia;
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  {
+    destruct (fst p); simpl in *;
+    repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+
+  {
+    destruct (fst p); simpl in *;
+    repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    destruct (fst a); simpl in *;
+    repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  {
+    destruct (fst a); simpl in *;
+    repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles; try unify_finished_not_crashed_oracles).
+  }
+  eapply_fresh write_batch_to_cache_crashed_oracle_eq in H1; eauto.
+  inversion H2; subst;
+  inversion H3; subst;
+  cleanup.
+  eapply IHl1 in H5; eauto.
+  cleanup; eauto.
+Qed.
+
+
+Lemma recover_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' vp hdr1 hdr2 txns1 txns2,
+exec CachedDiskLang u o1 s1
+recover  (Crashed s1') ->
+exec CachedDiskLang u o2 s2
+recover (Crashed s2') ->
+log_reboot_rep_explicit_part  hdr1 txns1 vp (snd s1) ->
+log_reboot_rep_explicit_part  hdr2 txns2 vp (snd s2) ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Opaque Log.recover.
+  unfold recover; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  eapply_fresh HC_map_ext_eq_prefix in H5; cleanup.
+  eapply_fresh log_recover_crashed_oracle_eq in H; eauto; subst; eauto.
+  eapply_fresh HC_map_ext_eq_prefix in H5; cleanup.
+  exfalso; eapply log_recover_finished_not_crashed; eauto; subst; eauto.
+  eapply_fresh HC_map_ext_eq_prefix in H5; cleanup.
+  symmetry in H.
+  exfalso; eapply log_recover_finished_not_crashed.
+  eauto.
+  4: eauto.
+  all: eauto.
+  eapply_fresh HC_map_ext_eq_prefix in H5; cleanup.  
+  eapply_fresh Specs.recover_finished in H8; eauto.
+  eapply_fresh Specs.recover_finished in H10; eauto.
+  unify_finished_oracles.
+  cleanup; eauto.
+  eapply write_lists_to_cache_crashed_oracle_eq in H5; eauto; subst; eauto. 
+  shelve.
+  shelve.
+  unfold log_reboot_rep, log_reboot_rep_explicit_part in *; eauto.
+  unfold log_reboot_rep, log_reboot_rep_explicit_part in *; eauto.
+  Unshelve.
+  all: try solve [repeat constructor; exact key0].
+  {
+    eapply Forall_forall; intros.
+    rewrite <- combine_map' in H.
+    apply in_map_iff in H; cleanup; simpl in *.
+    apply in_combine_same in H13; cleanup. 
+    unfold log_rep, log_rep_general, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    eapply Forall_forall in H21; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    split; cleanup; try lia.
+    rewrite firstn_length_l; eauto. 
+  }
+  {
+    eapply Forall_forall; intros.
+    rewrite <- combine_map' in H.
+    apply in_map_iff in H; cleanup; simpl in *.
+    apply in_combine_same in H13; cleanup. 
+    unfold log_rep, log_rep_general, log_rep_explicit, 
+    log_rep_inner, txns_valid in *; logic_clean.
+    eapply Forall_forall in H29; 
+    unfold txn_well_formed, record_is_valid in *; 
+    cleanup_no_match; eauto.
+    split; cleanup; try lia.
+    rewrite firstn_length_l; eauto. 
+  }
+Qed.
+
+
+Lemma init_crashed_oracle_eq:
+forall u l1 l2 o1 o2 o3 o4 s1 s2 s1' s2',
+exec CachedDiskLang u o1 s1
+(init l1)  (Crashed s1') ->
+exec CachedDiskLang u o2 s2
+(init l2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+o1 = o2.
+Proof.
+  Opaque Log.init.
+  unfold init; intros.
+  repeat invert_exec; eauto;
+  repeat invert_exec; cleanup; eauto;
+  repeat (try split_ors; cleanup;
+  repeat invert_exec; simpl in *; cleanup; eauto; 
+  try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  apply HC_map_ext_eq_prefix in H7; eauto; cleanup.
+  eapply log_init_crashed_oracle_eq in H; eauto.
+  subst; eauto.
+Qed.
+
+
+Lemma write_crashed_oracle_eq:
+forall u o1 o2 o3 o4 s1 s2 s1' s2' a1 a2 v1 v2 hdr1 hdr2 txns1 txns2,
+log_header_rep hdr1 txns1 (snd s1) ->
+log_header_rep hdr2 txns2 (snd s2) ->
+(NoDup a1 <-> NoDup a2) ->
+(Forall (fun a => a < data_length) a1 <->
+Forall (fun a => a < data_length) a2) -> 
+exec CachedDiskLang u o1 s1
+(write a1 v1)  (Crashed s1') ->
+exec CachedDiskLang u o2 s2
+(write a2 v2) (Crashed s2') ->
+o1 ++ o3 = o2 ++ o4 ->
+length a1 = length a2 ->
+o1 = o2.
+Proof.
+  Opaque apply_log Log.commit commit LogCache.write_batch_to_cache.
+  unfold write; intros.
+  cleanup; try solve [intuition eauto; lia].
+  all: try match goal with
+  | [H: exec _ _ _ _ (Ret _) (Crashed _),
+  H0: exec _ _ _ _ (Ret _) (Crashed _) |- _ ] =>
+  repeat invert_exec; eauto
+  end.
+  all: try solve [intuition].
+  {
+    repeat invert_exec; eauto;
+    repeat invert_exec; cleanup; eauto;
+    repeat split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles; try unify_finished_not_crashed_oracles;
+    eapply_fresh HC_map_ext_eq_prefix in H5; eauto; cleanup.
+    {
+      eapply log_commit_crashed_oracle_eq in H3; eauto.
+      subst; eauto.
+    }
+    {
+      repeat split_ors; cleanup;
+      repeat invert_exec; simpl in *; cleanup; eauto; 
+      try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+    }
+    {
+      exfalso; eapply commit_finished_not_crashed; eauto.
+    }
+    {
+      symmetry in H3; exfalso; eapply commit_finished_not_crashed; eauto.
+    }
+    {
+      symmetry in H3; exfalso; eapply commit_finished_not_crashed; eauto.
+    }
+    {
+      eapply log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      repeat split_ors; cleanup;
+      repeat invert_exec; simpl in *; cleanup; eauto; 
+      try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+      eapply write_batch_to_cache_crashed_oracle_eq in H8; eauto.
+      subst; eauto.
+    }
+    {
+      eapply_fresh log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      repeat split_ors; cleanup;
+      repeat invert_exec; simpl in *; cleanup; eauto; 
+      try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+      {
+        repeat split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+        Transparent apply_log read_encrypted_log read_header.
+        {
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        {
+          clear H9.
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        Opaque apply_log read_encrypted_log read_header.
+      }
+      {
+        Transparent apply_log read_encrypted_log read_header.
+        unfold apply_log, read_encrypted_log, read_header in *.
+        repeat invert_exec; cleanup; eauto;
+        repeat (try split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        Opaque apply_log read_encrypted_log read_header.
+      }
+      {
+        repeat split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+        Transparent apply_log read_encrypted_log read_header.
+        {
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        {
+          clear H9.
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        Opaque apply_log read_encrypted_log read_header.
+      }
+      {
+        Transparent apply_log read_encrypted_log read_header.
+        unfold apply_log, read_encrypted_log, read_header in *.
+        repeat invert_exec; cleanup; eauto;
+        repeat (try split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        Opaque apply_log read_encrypted_log read_header.
+      }
+    }
+    {
+      eapply_fresh log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      repeat split_ors; cleanup;
+      repeat invert_exec; simpl in *; cleanup; eauto; 
+      try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+      {
+        repeat split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+        Transparent apply_log read_encrypted_log read_header.
+        {
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        {
+          clear H9.
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        Opaque apply_log read_encrypted_log read_header.
+      }
+      {
+        Transparent apply_log read_encrypted_log read_header.
+        unfold apply_log, read_encrypted_log, read_header in *.
+        repeat invert_exec; cleanup; eauto;
+        repeat (try split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        Opaque apply_log read_encrypted_log read_header.
+      }
+      {
+        repeat split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+        Transparent apply_log read_encrypted_log read_header.
+        {
+          unfold apply_log, read_encrypted_log, read_header in *.
+          repeat invert_exec; cleanup; eauto;
+          repeat (try split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        }
+        Opaque apply_log read_encrypted_log read_header.
+      }
+      {
+        Transparent apply_log read_encrypted_log read_header.
+        unfold apply_log, read_encrypted_log, read_header in *.
+        repeat invert_exec; cleanup; eauto;
+        repeat (try split_ors; cleanup;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+        Opaque apply_log read_encrypted_log read_header.
+      }
+    }
+    {
+      eapply_fresh log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      unfold log_rep in *; cleanup.
+      destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a1)).
+      destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a2)).
+      eapply Specs.commit_finished in H7; eauto.
+      eapply Specs.commit_finished in H12; eauto.
+      {
+        repeat invert_exec; cleanup; eauto;
+        repeat split_ors; cleanup; try congruence;
+        repeat invert_exec; simpl in *; cleanup; eauto; 
+        try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+        {
+          repeat invert_exec; cleanup; eauto;
+          repeat split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles; try unify_finished_not_crashed_oracles;
+          eapply_fresh HC_map_ext_eq_prefix in H5; eauto; cleanup.
+          {
+            eapply log_apply_log_crashed_oracle_eq in H3; eauto; cleanup; eauto.
+          }
+          {
+            unfold log_header_rep, log_rep_general in *; cleanup.
+            exfalso; eapply log_apply_log_finished_not_crashed; eauto.
+            all: unfold log_reboot_rep_explicit_part; do 2 eexists; intuition eauto; try congruence.
+          }
+          {
+            symmetry in H3.
+            unfold log_header_rep, log_rep_general in *; cleanup.
+            exfalso; eapply log_apply_log_finished_not_crashed; eauto.
+            all: unfold log_reboot_rep_explicit_part; do 2 eexists; intuition eauto; try congruence.
+          }
+          {
+            eapply log_apply_log_finished_oracle_eq in H3; eauto; cleanup; eauto.
+            repeat invert_exec; cleanup; eauto;
+            repeat (try split_ors; cleanup;
+            repeat invert_exec; simpl in *; cleanup; eauto; 
+            try unify_finished_oracles); try unify_finished_not_crashed_oracles;
+            eapply_fresh HC_map_ext_eq_prefix in H16; eauto; cleanup.
+            {
+              eapply log_commit_crashed_oracle_eq in H3; eauto.
+              subst; eauto.
+            }
+            {
+              repeat split_ors; cleanup;
+              repeat invert_exec; simpl in *; cleanup; eauto; 
+              try unify_finished_oracles; try unify_finished_not_crashed_oracles.
+            }
+            {
+              symmetry in H3; exfalso; eapply commit_finished_not_crashed; eauto.
+            }
+            {
+              eapply log_commit_finished_oracle_eq in H19; eauto; cleanup; eauto.
+            }
+          }
+        }
+        {
+          repeat invert_exec; cleanup; eauto;
+          repeat split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles; try unify_finished_not_crashed_oracles;
+          eapply_fresh HC_map_ext_eq_prefix in H5; eauto; cleanup.
+          {
+            unfold log_header_rep, log_rep_general in *; cleanup.
+            exfalso; eapply log_apply_log_finished_not_crashed; eauto.
+            all: unfold log_reboot_rep_explicit_part; do 2 eexists; intuition eauto; try congruence.
+          }
+          {
+            eapply log_apply_log_finished_oracle_eq in H3; eauto; cleanup; eauto.
+            repeat invert_exec; cleanup; eauto;
+            repeat (try split_ors; cleanup;
+            repeat invert_exec; simpl in *; cleanup; eauto; 
+            try unify_finished_oracles); try unify_finished_not_crashed_oracles;
+            eapply_fresh HC_map_ext_eq_prefix in H18; eauto; cleanup.
+            {
+              exfalso; eapply commit_finished_not_crashed; eauto.
+            }
+            {
+              eapply log_commit_finished_oracle_eq in H3; eauto; simpl in *; 
+              cleanup; eauto.
+            }
+          }
+        }
+        {
+          repeat invert_exec; cleanup; eauto;
+          repeat split_ors; cleanup;
+          repeat invert_exec; simpl in *; cleanup; eauto; 
+          try unify_finished_oracles; try unify_finished_not_crashed_oracles;
+          eapply_fresh HC_map_ext_eq_prefix in H5; eauto; cleanup.
+          {
+            symmetry in H3.
+            unfold log_header_rep, log_rep_general in *; cleanup.
+            exfalso; eapply log_apply_log_finished_not_crashed; eauto.
+            all: unfold log_reboot_rep_explicit_part; do 2 eexists; intuition eauto; try congruence.
+          }
+          {
+            eapply log_apply_log_finished_oracle_eq in H3; eauto; cleanup; eauto.
+            repeat invert_exec; cleanup; eauto;
+            repeat (try split_ors; cleanup;
+            repeat invert_exec; simpl in *; cleanup; eauto; 
+            try unify_finished_oracles); try unify_finished_not_crashed_oracles;
+            eapply_fresh HC_map_ext_eq_prefix in H18; eauto; cleanup.
+            {
+              symmetry in H3.
+              exfalso; eapply commit_finished_not_crashed; eauto.
+            }
+            {
+              eapply log_commit_finished_oracle_eq in H3; eauto; simpl in *; 
+              cleanup; eauto.
+            }
+          }
+        }
+        {
+          eapply_fresh HC_map_ext_eq_prefix in H5; eauto; cleanup.
+          repeat unify_finished_oracles.
+          simpl in *; cleanup; eauto.
+          repeat rewrite <- app_assoc in *;
+          eapply_fresh HC_map_ext_eq_prefix in H20; eauto; cleanup.
+          unify_finished_oracles.
+          eapply write_batch_to_cache_crashed_oracle_eq in H20; 
+          eauto; simpl in *; 
+          cleanup; eauto.
+        }
+      }
+      all: try rewrite e1; try rewrite e2.
+      {
+        rewrite firstn_app2; eauto.
+        apply FinFun.Injective_map_NoDup; eauto.
+        unfold FinFun.Injective; intros; lia.
+        rewrite map_length; eauto.
+        lia.
+      }
+      {
+        rewrite firstn_app2; eauto.    
+        apply Forall_forall; intros.
+        apply in_map_iff in H3; cleanup.
+        eapply_fresh Forall_forall in f0; eauto.
+        pose proof data_fits_in_disk.
+        split; try lia.
+        rewrite map_length; eauto.
+        lia.
+      }    
+      {
+        rewrite app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+        rewrite map_length; eauto.
+        setoid_rewrite e. lia.
+      }
+      {
+        lia.
+      }
+      {
+        rewrite firstn_app2; eauto.
+        apply FinFun.Injective_map_NoDup; eauto.
+        unfold FinFun.Injective; intros; lia.
+        rewrite map_length; eauto.
+      }
+      {
+        rewrite firstn_app2; eauto.    
+        apply Forall_forall; intros.
+        apply in_map_iff in H3; cleanup.
+        eapply_fresh Forall_forall in f; eauto.
+        pose proof data_fits_in_disk.
+        split; try lia.
+        rewrite map_length; eauto.
+      }    
+      {
+        rewrite app_length, map_length; lia.
+      }
+      {
+        erewrite addr_list_to_blocks_length_eq.
+        2: rewrite map_length; eauto.
+        eapply addr_list_to_blocks_length_nonzero; eauto.
+      }
+      {
+        lia.
+      }
+    }
+  }
+  Transparent commit read_header.
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; cleanup; eauto;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; cleanup; eauto;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; cleanup; eauto;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; cleanup; eauto;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles); try unify_finished_not_crashed_oracles.
   }
 Qed.

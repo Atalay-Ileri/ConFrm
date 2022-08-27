@@ -1378,3 +1378,94 @@ Proof.
   edestruct H; eauto.
   do 2 eexists; intuition eauto.
 Qed.
+
+Lemma RDNIW_explicit_transfer:
+  forall O_imp O_abs (L_imp: Layer O_imp) (L_abs: Layer O_abs) (R: Refinement L_imp L_abs)
+    u T (p1_abs p2_abs: L_abs.(prog) T)
+      rec_abs
+      l_get_reboot_state_imp
+      l_get_reboot_state_abs
+      equivalent_states_abs
+      valid_state_abs
+      cond lo s1 s2,
+
+    RDNI_Weak
+      u p1_abs p2_abs
+      rec_abs
+      valid_state_abs
+      equivalent_states_abs
+      cond
+      l_get_reboot_state_abs ->
+    
+    SimulationForProgram R u p1_abs rec_abs 
+      l_get_reboot_state_imp
+      l_get_reboot_state_abs ->
+
+    SimulationForProgram R u p2_abs rec_abs 
+      l_get_reboot_state_imp
+      l_get_reboot_state_abs ->
+
+      (forall s_abs, abstract_oracles_exist_wrt_explicit R R.(refines) u p1_abs rec_abs l_get_reboot_state_imp lo s1 s_abs)->
+      (forall s_abs, abstract_oracles_exist_wrt_explicit R R.(refines) u p2_abs rec_abs l_get_reboot_state_imp lo s2 s_abs)->
+    
+      (forall l_o_abs1 l_o_abs2, oracle_refines_same_from_related_explicit R u p1_abs p2_abs rec_abs l_get_reboot_state_imp equivalent_states_abs lo l_o_abs1 l_o_abs2 s1 s2) ->
+
+    exec_compiled_preserves_validity R
+    u p1_abs rec_abs l_get_reboot_state_imp
+    (refines_valid R valid_state_abs) ->
+
+    exec_compiled_preserves_validity R
+    u p2_abs rec_abs l_get_reboot_state_imp
+    (refines_valid R valid_state_abs) ->
+    
+    RDNI_Weak_explicit
+      u lo s1 s2
+      (R.(compile) p1_abs)
+      (R.(compile) p2_abs)
+      (R.(compile) rec_abs)
+      (refines_valid R valid_state_abs)
+      (refines_related R equivalent_states_abs)
+      cond
+      l_get_reboot_state_imp.
+Proof.
+
+  intros.
+  (** Convert to weak self_simulation **)
+  unfold RDNI_Weak_explicit; simpl; intros.
+
+  (** Construct abs oracles **)
+  (* unfold refines_valid, refines_related in *; cleanup. *)
+
+  match goal with
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
+     H1: forall _, abstract_oracles_exist_wrt_explicit _ _ _ ?p1 _ _ _ _ _,
+     H2: forall _, abstract_oracles_exist_wrt_explicit _ _ _ ?p2 _ _ _ _ _|- _ ] =>
+    eapply_fresh H1 in H; eauto; cleanup;
+    eapply_fresh H2 in H0; eauto; cleanup;
+    try solve [ unfold refines_valid, refines_related in *; cleanup; eauto]
+  end.
+  
+  match goal with
+  | [H: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H0: recovery_oracles_refine _ _ _ _ _ _ _ _,
+     H1: forall _ _, oracle_refines_same_from_related_explicit _ _ _ _ _ _ _ _ _ _ _ _ |- _ ] =>
+    eapply_fresh H1 in H0; eauto; cleanup
+  end.
+  
+  (** Construct abs executions **)
+  unfold refines_related in *; cleanup.
+  
+  match goal with
+  | [H: exec_with_recovery _ _ _ _ _ (compile _ ?p1) _ _,
+     H0: exec_with_recovery _ _ _ _ _ (compile _ ?p2) _ _,
+     H1: SimulationForProgram _ _ ?p1 _ _ _,
+     H2: SimulationForProgram _ _ ?p2 _ _ _ |- _ ] =>
+    eapply_fresh H1 in H; eauto; cleanup;
+    eapply_fresh H2 in H0; eauto; cleanup
+  end.
+  simpl in *; cleanup.
+
+  edestruct H; eauto.
+  do 2 eexists; intuition eauto.
+Qed.

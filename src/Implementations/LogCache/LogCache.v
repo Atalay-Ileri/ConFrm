@@ -33,26 +33,26 @@ Definition write  addr_l (data_l: list value) :=
           if (le_dec (length (addr_list_to_blocks (map (plus data_start) addr_l)) + length data_l) log_length) then
           if (lt_dec 0 (length addr_l)) then
             committed <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
-          _ <-
-          if committed then
-            Ret tt
+            if committed then
+              _ <- write_batch_to_cache (map (plus data_start) addr_l) data_l;
+              Ret (Some tt)
+            else
+              Ret None
           else
-            _ <- |CDDP| apply_log;
-          _ <- |CDCO| (Flush _ _);
-          _ <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
-          Ret tt;
-          
-          write_batch_to_cache (map (plus data_start) addr_l) data_l
-          else
-            Ret tt
+            Ret None
         else
-          Ret tt
+          Ret None
       else
-        Ret tt
+        Ret None
     else
-      Ret tt
+      Ret None
   else
-    Ret tt.
+    Ret None.
+
+
+    Definition apply_log :=
+      _ <- |CDDP| apply_log;
+      |CDCO| (Flush _ _).
 
 
 (* Takes a data region_address *)
@@ -1052,6 +1052,7 @@ Proof.
     left; intuition eauto; lia.
   }
 Qed.
+
 
 Theorem write_crashed_oracle:
   forall merged_disk s o al vl s' u hdr txns,

@@ -56,17 +56,15 @@ Lemma TIE_auth_then_exec:
       solve_get_first.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-      repeat invert_lift2; cleanup.
+      repeat invert_exec; cleanup.
       eapply Transaction.read_finished in H8; eauto.
       eapply Transaction.read_finished in H10; eauto.
       cleanup. clear H10 H11.
-      destruct (nth_error (value_to_bits r1) inum);
-      destruct (nth_error (value_to_bits r2) inum);
+      destruct (test_bit inum (value_to_bits r1));
+      destruct (test_bit inum (value_to_bits r2));
       simpl; intuition eauto.
-      destruct b, b0; simpl; intuition eauto.
       solve_get_first.
       solve_get_first.
-      destruct b; simpl; intuition eauto.
       all: repeat destruct_and_split; simpl; eauto.
       Opaque Inode.get_owner.
     }
@@ -92,12 +90,12 @@ Lemma TIE_auth_then_exec:
     2: apply TD_oracle_refines_operation_eq.
     cleanup.
 
-    repeat invert_lift2.
+    repeat invert_exec; cleanup.
     unfold AD_related_states, refines_related in *; simpl in *; cleanup.
     unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
     repeat cleanup_pairs.
+    eapply Inode.get_owner_finished in H11; eauto.
     eapply Inode.get_owner_finished in H14; eauto.
-    eapply Inode.get_owner_finished in H16; eauto.
     cleanup; repeat split_ors; cleanup.
     simpl in *.
     repeat invert_exec; try congruence.
@@ -149,17 +147,15 @@ Proof.
     solve_get_first.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-      repeat invert_lift2; cleanup.
+      repeat invert_exec; cleanup.
       eapply Transaction.read_finished in H11; eauto.
       eapply Transaction.read_finished in H13; eauto.
       cleanup. clear H13 H14.
-      destruct (nth_error (value_to_bits r1) inum);
-      destruct (nth_error (value_to_bits r2) inum);
+      destruct (test_bit inum (value_to_bits r1));
+      destruct (test_bit inum (value_to_bits r2));
       simpl; intuition eauto.
-      destruct b, b0; simpl; intuition eauto.
       solve_get_first.
       solve_get_first.
-      destruct b; simpl; intuition eauto.
       all: repeat destruct_and_split; simpl; eauto.
       Opaque Inode.get_block_number.
     }
@@ -179,10 +175,10 @@ Proof.
       cleanup.
   
       eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H4; eauto.
-      2: eapply have_same_structure_get_block_number; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      2: eapply have_same_structure_get_block_number; simpl; eauto.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -203,23 +199,22 @@ Proof.
     solve_get_first.
       unfold HC_refines in *; simpl in *; cleanup.
       unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-      repeat invert_lift2; cleanup.
+      repeat invert_exec; cleanup.
       eapply Transaction.read_finished in H11; eauto.
       eapply Transaction.read_finished in H24; eauto.
       cleanup. clear H24 H25.
-      destruct (nth_error (value_to_bits r1) (seln (Inode.block_numbers x3) off 0));
-      destruct (nth_error (value_to_bits r2) (seln (Inode.block_numbers x4) off 0));
+      destruct (test_bit (seln (Inode.block_numbers x3) off 0) (value_to_bits r1) );
+      destruct (test_bit (seln (Inode.block_numbers x4) off 0) (value_to_bits r2) );
       simpl; intuition eauto.
-      destruct b, b0; simpl; intuition eauto.
       {
-        eapply data_block_inbounds.
+        eapply BlockAllocatorExistence.data_block_inbounds_2.
         4: eauto.
         all: eauto.
         eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
         [| intros; FileInnerSpecs.solve_bounds ]; eauto.
       }
       {
-        eapply data_block_inbounds.
+        eapply BlockAllocatorExistence.data_block_inbounds_2.
         4: eauto.
         all: eauto.
         eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
@@ -227,8 +222,15 @@ Proof.
       }
       solve_get_first.
       solve_get_first.
-      destruct b; simpl; intuition eauto.
     }
+    unfold File.files_inner_rep, 
+    FD_related_states, same_for_user_except,
+    File.file_map_rep    in *; logic_clean.
+    do 2 eexists; intuition eauto.
+
+    eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+    eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+    eapply BlockAllocatorExistence.addrs_match_exactly_sym; eauto.
   }
   repeat destruct_and_split; simpl; eauto.
   Unshelve.
@@ -265,17 +267,15 @@ Proof.
     solve_get_first.
     unfold HC_refines in *; simpl in *; cleanup.
     unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-    repeat invert_lift2; cleanup.
+    repeat invert_exec; cleanup.
     eapply Transaction.read_finished in H11; eauto.
     eapply Transaction.read_finished in H13; eauto.
     cleanup. clear H13 H14.
-    destruct (nth_error (value_to_bits r1) inum);
-    destruct (nth_error (value_to_bits r2) inum);
+    destruct (test_bit inum (value_to_bits r1));
+    destruct (test_bit inum (value_to_bits r2));
     simpl; intuition eauto.
-    destruct b, b0; simpl; intuition eauto.
     solve_get_first.
     solve_get_first.
-    destruct b; simpl; intuition eauto.
     all: repeat destruct_and_split; simpl; eauto.
     Opaque Inode.get_block_number.
   }
@@ -296,9 +296,9 @@ Proof.
   
       eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H4; eauto.
       2: eapply have_same_structure_get_block_number; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -309,62 +309,68 @@ Proof.
       {
         clear H H2.
         unfold File.DiskAllocator.write; simpl; intuition eauto.
-    destruct (Compare_dec.lt_dec
-    (seln (Inode.block_numbers x3) off 0)
-    File.DiskAllocatorParams.num_of_blocks);
-    destruct (Compare_dec.lt_dec
-    (seln (Inode.block_numbers x4) off 0)
-    File.DiskAllocatorParams.num_of_blocks); simpl; intuition eauto.
-    solve_get_first.
-    solve_get_first.
-      unfold HC_refines in *; simpl in *; cleanup.
-      unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-      repeat invert_lift2; cleanup.
-      eapply Transaction.read_finished in H11; eauto.
-      eapply Transaction.read_finished in H24; eauto.
-      cleanup. clear H24 H25.
-      destruct (nth_error (value_to_bits r1) (seln (Inode.block_numbers x3) off 0));
-      destruct (nth_error (value_to_bits r2) (seln (Inode.block_numbers x4) off 0));
-      simpl; intuition eauto.
-      destruct b, b0; simpl; intuition eauto.
-      {
-        eapply data_block_inbounds.
-        4: eauto.
-        all: eauto.
-        eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
-        [| intros; FileInnerSpecs.solve_bounds ]; eauto.
-      }
-      {
-        eapply data_block_inbounds.
-        4: eauto.
-        all: eauto.
-        eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
-        [| intros; FileInnerSpecs.solve_bounds ]; eauto.
-      }
-      {
-        unfold AD_related_states, refines_related in *; simpl in *; cleanup.
-        unfold refines, File.files_rep in *; simpl in *; cleanup.
+        destruct (Compare_dec.lt_dec
+        (seln (Inode.block_numbers x3) off 0)
+        File.DiskAllocatorParams.num_of_blocks);
+        destruct (Compare_dec.lt_dec
+        (seln (Inode.block_numbers x4) off 0)
+        File.DiskAllocatorParams.num_of_blocks); simpl; intuition eauto.
+        solve_get_first.
+        solve_get_first.
         unfold HC_refines in *; simpl in *; cleanup.
-        unfold TransactionToTransactionalDisk.Definitions.refines,
-        Transaction.transaction_rep in *; simpl in *; cleanup.
-        repeat split_ors; cleanup; try congruence.
-        repeat cleanup_pairs.
-        destruct s, s2; simpl in *; try lia; eauto.
-        erewrite addr_list_to_blocks_length_eq; eauto.
-      }
-      {
-        unfold AD_related_states, refines_related in *; simpl in *; cleanup.
-        unfold refines, File.files_rep in *; simpl in *; cleanup.
-        unfold HC_refines in *; simpl in *; cleanup.
-        unfold TransactionToTransactionalDisk.Definitions.refines,
-        Transaction.transaction_rep in *; simpl in *; cleanup.
-        repeat split_ors; cleanup; try congruence.
-        repeat cleanup_pairs.
-        destruct s, s2; simpl in *; try lia; eauto.
-        erewrite addr_list_to_blocks_length_eq; eauto.
-      }
-      destruct b; simpl; intuition eauto.
+        unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
+        repeat invert_exec; cleanup.
+        eapply Transaction.read_finished in H11; eauto.
+        eapply Transaction.read_finished in H24; eauto.
+        cleanup. clear H24 H25.
+        destruct (test_bit (seln (Inode.block_numbers x3) off 0) (value_to_bits r1));
+        destruct (test_bit (seln (Inode.block_numbers x4) off 0) (value_to_bits r2));
+        simpl; intuition eauto.
+        {
+          eapply BlockAllocatorExistence.data_block_inbounds_2.
+          4: eauto.
+          all: eauto.
+          eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
+          [| intros; FileInnerSpecs.solve_bounds ]; eauto.
+        }
+        {
+          eapply BlockAllocatorExistence.data_block_inbounds_2.
+          4: eauto.
+          all: eauto.
+          eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; 
+          [| intros; FileInnerSpecs.solve_bounds ]; eauto.
+        }
+        {
+          unfold AD_related_states, refines_related in *; simpl in *; cleanup.
+          unfold refines, File.files_rep in *; simpl in *; cleanup.
+          unfold HC_refines in *; simpl in *; cleanup.
+          unfold TransactionToTransactionalDisk.Definitions.refines,
+          Transaction.transaction_rep in *; simpl in *; cleanup.
+          repeat split_ors; cleanup; try congruence.
+          repeat cleanup_pairs.
+          destruct s, s2; simpl in *; try lia; eauto.
+          erewrite addr_list_to_blocks_length_eq; eauto.
+        }
+        {
+          unfold AD_related_states, refines_related in *; simpl in *; cleanup.
+          unfold refines, File.files_rep in *; simpl in *; cleanup.
+          unfold HC_refines in *; simpl in *; cleanup.
+          unfold TransactionToTransactionalDisk.Definitions.refines,
+          Transaction.transaction_rep in *; simpl in *; cleanup.
+          repeat split_ors; cleanup; try congruence.
+          repeat cleanup_pairs.
+          destruct s, s2; simpl in *; try lia; eauto.
+          erewrite addr_list_to_blocks_length_eq; eauto.
+        }
     }
+    unfold File.files_inner_rep, 
+    FD_related_states, same_for_user_except,
+    File.file_map_rep    in *; logic_clean.
+    do 2 eexists; intuition eauto.
+
+    eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+    eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+    eapply BlockAllocatorExistence.addrs_match_exactly_sym; eauto.
   }
   unfold File.DiskAllocator.write;
   repeat destruct_and_split; simpl; eauto.
@@ -390,22 +396,16 @@ unfold refines_related, File.create; simpl; intuition eauto; cleanup.
   solve_get_first.
   unfold HC_refines in *; simpl in *; cleanup.
   unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-  repeat invert_lift2; cleanup.
+  repeat invert_exec; cleanup.
   eapply Transaction.read_finished in H7; eauto.
   eapply Transaction.read_finished in H9; eauto.
   cleanup.
 
   destruct_fresh (Compare_dec.lt_dec
-  (get_first_zero_index
-      (firstn
-        Inode.InodeAllocatorParams.num_of_blocks
-        (value_to_bits r1)))
+  (get_first_zero_index (value_to_bits r1))
   Inode.InodeAllocatorParams.num_of_blocks);
   destruct_fresh (Compare_dec.lt_dec
-  (get_first_zero_index
-      (firstn
-        Inode.InodeAllocatorParams.num_of_blocks
-        (value_to_bits r2)))
+  (get_first_zero_index (value_to_bits r2))
   Inode.InodeAllocatorParams.num_of_blocks);
   simpl; eauto. 
   FileSpecs.hide H9.
@@ -448,7 +448,7 @@ unfold refines_related, File.create; simpl; intuition eauto; cleanup.
   repeat cleanup_pairs.
   unfold HC_refines in *; simpl in *; cleanup.
   unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-  repeat invert_lift2; cleanup.
+  repeat invert_exec; cleanup.
   eapply Transaction.write_finished in H2; eauto.
   eapply Transaction.write_finished in H8; eauto.
   cleanup.
@@ -500,21 +500,15 @@ Proof.
 
   unfold HC_refines in *; simpl in *; cleanup.
   unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-  repeat invert_lift2; cleanup.
+  repeat invert_exec; cleanup.
   eapply Transaction.read_finished in H11; eauto.
   eapply Transaction.read_finished in H13; eauto.
   cleanup. clear H13 H14.
   destruct (Compare_dec.lt_dec
-  (get_first_zero_index
-    (firstn
-        File.DiskAllocatorParams.num_of_blocks
-        (value_to_bits r1)))
+  (get_first_zero_index (value_to_bits r1))
   File.DiskAllocatorParams.num_of_blocks);
   destruct (Compare_dec.lt_dec
-  (get_first_zero_index
-    (firstn
-        File.DiskAllocatorParams.num_of_blocks
-        (value_to_bits r2)))
+  (get_first_zero_index (value_to_bits r2))
   File.DiskAllocatorParams.num_of_blocks);
   simpl; intuition eauto.
   {
@@ -555,7 +549,7 @@ Proof.
 
   unfold HC_refines in *; simpl in *; cleanup.
   unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-  repeat invert_lift2; cleanup.
+  repeat invert_exec; cleanup.
   eapply Transaction.write_finished in H1; eauto.
   eapply Transaction.write_finished in H10; eauto.
   unfold AD_related_states, refines_related in *; simpl in *; cleanup.
@@ -621,42 +615,31 @@ repeat destruct_and_split; simpl; intuition eauto.
           cleanup; eauto; try congruence.
           destruct (addr_eq_dec Inode.InodeAllocatorParams.bitmap_addr
           (File.DiskAllocatorParams.bitmap_addr +
-          S
-            (get_first_zero_index
-                (firstn File.DiskAllocatorParams.num_of_blocks
-                  (value_to_bits x6))))); eauto.
+          S (get_first_zero_index (value_to_bits x6)))); eauto.
           shelve.
           cleanup; eauto; try congruence.
           destruct (addr_eq_dec Inode.InodeAllocatorParams.bitmap_addr
           (File.DiskAllocatorParams.bitmap_addr +
-          S
-            (get_first_zero_index
-                (firstn File.DiskAllocatorParams.num_of_blocks
-                  (value_to_bits x11))))); eauto.
+          S (get_first_zero_index (value_to_bits x11)))); eauto.
           shelve.
         
           {
             unfold HC_refines in *; simpl in *; cleanup.
             unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-            repeat invert_lift2; cleanup.
+            repeat invert_exec; cleanup.
             eapply Transaction.read_finished in H16; eauto.
             eapply Transaction.read_finished in H19; eauto.
             cleanup. clear H19 H20.
-            destruct (nth_error (value_to_bits r1) inum);
-            destruct (nth_error (value_to_bits r2) inum);
+            destruct (test_bit inum (value_to_bits r1));
+            destruct (test_bit inum (value_to_bits r2));
             simpl; intuition eauto.
-            destruct b, b0; simpl; intuition eauto.
             {
               unfold AD_related_states, refines_related in *; simpl in *; cleanup.
               unfold refines, File.files_rep in *; simpl in *; cleanup.
               destruct (addr_eq_dec
               (Inode.InodeAllocatorParams.bitmap_addr + S inum)
               (File.DiskAllocatorParams.bitmap_addr +
-              S
-                (get_first_zero_index
-                    (firstn
-                      File.DiskAllocatorParams.num_of_blocks
-                      (value_to_bits x6))))); eauto.
+              S (get_first_zero_index (value_to_bits x6)))); eauto.
               shelve.
             }
             {
@@ -665,14 +648,9 @@ repeat destruct_and_split; simpl; intuition eauto.
               destruct (addr_eq_dec
               (Inode.InodeAllocatorParams.bitmap_addr + S inum)
               (File.DiskAllocatorParams.bitmap_addr +
-              S
-                (get_first_zero_index
-                    (firstn
-                      File.DiskAllocatorParams.num_of_blocks
-                      (value_to_bits x11))))); eauto.
+              S (get_first_zero_index (value_to_bits x11)))); eauto.
               shelve.
             }
-            destruct b; simpl; intuition eauto.
             
           }
           repeat destruct_and_split; simpl; eauto.
@@ -699,32 +677,25 @@ repeat destruct_and_split; simpl; intuition eauto.
             cleanup; eauto; try congruence.
           destruct (addr_eq_dec Inode.InodeAllocatorParams.bitmap_addr
           (File.DiskAllocatorParams.bitmap_addr +
-          S
-            (get_first_zero_index
-                (firstn File.DiskAllocatorParams.num_of_blocks
-                  (value_to_bits x6))))); eauto.
+          S (get_first_zero_index  (value_to_bits x6)))); eauto.
           shelve.
           }
           {
           cleanup; eauto; try congruence.
           destruct (addr_eq_dec Inode.InodeAllocatorParams.bitmap_addr
           (File.DiskAllocatorParams.bitmap_addr +
-          S
-            (get_first_zero_index
-                (firstn File.DiskAllocatorParams.num_of_blocks
-                  (value_to_bits x11))))); eauto.
+          S (get_first_zero_index (value_to_bits x11)))); eauto.
           shelve.
           }
           unfold HC_refines in *; simpl in *; cleanup.
             unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-            repeat invert_lift2; cleanup.
+            repeat invert_exec; cleanup.
             eapply Transaction.read_finished in H16; eauto.
             eapply Transaction.read_finished in H19; eauto.
             cleanup. clear H19 H21.
-            destruct (nth_error (value_to_bits r1) inum);
-            destruct (nth_error (value_to_bits r2) inum);
+            destruct (test_bit inum (value_to_bits r1));
+            destruct (test_bit inum (value_to_bits r2));
             simpl; intuition eauto.
-            destruct b, b0; simpl; intuition eauto.
             {
               unfold AD_related_states, refines_related in *; simpl in *; cleanup.
               unfold refines, File.files_rep in *; simpl in *; cleanup.
@@ -735,7 +706,6 @@ repeat destruct_and_split; simpl; intuition eauto.
               unfold refines, File.files_rep in *; simpl in *; cleanup.
               erewrite addr_list_to_blocks_length_eq; eauto.
             }
-            destruct b; simpl; intuition eauto.
             {
               unfold Inode.set_inode; simpl; intuition eauto.
               unfold Inode.InodeAllocator.write; simpl; intuition eauto.
@@ -789,17 +759,15 @@ unfold refines_related, File.change_owner_inner; simpl; intuition eauto; cleanup
     solve_get_first.
     unfold HC_refines in *; simpl in *; cleanup.
     unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-    repeat invert_lift2; cleanup.
+    repeat invert_exec; cleanup.
     eapply Transaction.read_finished in H11; eauto.
     eapply Transaction.read_finished in H13; eauto.
     cleanup. clear H13 H14.
-    destruct (nth_error (value_to_bits r1) inum);
-    destruct (nth_error (value_to_bits r2) inum);
+    destruct (test_bit inum (value_to_bits r1));
+    destruct (test_bit inum (value_to_bits r2));
     simpl; intuition eauto.
-    destruct b, b0; simpl; intuition eauto.
     solve_get_first.
     solve_get_first.
-    destruct b; simpl; intuition eauto.
     all: repeat destruct_and_split; simpl; eauto.
     Opaque Inode.get_inode.
   }
@@ -821,9 +789,9 @@ unfold refines_related, File.change_owner_inner; simpl; intuition eauto; cleanup
   
       eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H2; eauto.
       2: eapply have_same_structure_get_inode; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -846,7 +814,7 @@ unfold refines_related, File.change_owner_inner; simpl; intuition eauto; cleanup
 
     unfold HC_refines in *; simpl in *; cleanup.
     unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-    repeat invert_lift2; cleanup.
+    repeat invert_exec; cleanup.
     eapply Transaction.read_finished in H20; eauto.
     eapply Transaction.read_finished in H24; eauto.
     cleanup. clear H24 H27.
@@ -856,13 +824,21 @@ unfold refines_related, File.change_owner_inner; simpl; intuition eauto; cleanup
     repeat split_ors; cleanup; try congruence.
     repeat cleanup_pairs.
     destruct s, s3; simpl in *; try lia; eauto.
-    destruct (nth_error (value_to_bits r1) inum);
-    destruct (nth_error (value_to_bits r2) inum);
+    destruct (test_bit inum (value_to_bits r1));
+    destruct (test_bit inum (value_to_bits r2));
     simpl; intuition eauto.
-    destruct b, b0; simpl; intuition eauto.
-    destruct b; simpl; intuition eauto.
     simpl; intuition eauto.
+
+    unfold File.files_inner_rep, 
+    FD_related_states, same_for_user_except,
+    File.file_map_rep    in *; logic_clean.
+    do 2 eexists; intuition eauto.
+
+    eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+    eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+    eapply BlockAllocatorExistence.addrs_match_exactly_sym; eauto.
   }
+  
   unfold Inode.set_inode, Inode.InodeAllocator.write; simpl; intuition eauto.
   destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks); simpl; intuition eauto.
 }
@@ -902,14 +878,13 @@ Proof.
     unfold refines, File.files_rep in *; simpl in *; cleanup.
     unfold HC_refines in *; simpl in *; cleanup.
     unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-    repeat invert_lift2; cleanup.
+    repeat invert_exec; cleanup.
     eapply Transaction.read_finished in H11; eauto.
     eapply Transaction.read_finished in H13; eauto.
     cleanup. clear H13 H14.
-    destruct (nth_error (value_to_bits r1) a);
-    destruct (nth_error (value_to_bits r2) n);
+    destruct (test_bit a (value_to_bits r1));
+    destruct (test_bit n (value_to_bits r2));
     simpl; intuition eauto.
-    destruct b, b0; simpl; intuition eauto.
     {
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep in *; simpl in *; cleanup.
@@ -928,7 +903,6 @@ Proof.
       rewrite H1; eauto.
       repeat rewrite app_length, map_length; eauto.
     }
-    destruct b; simpl; intuition eauto.
     Opaque Inode.get_all_block_numbers Inode.get_inode.
   }
   repeat destruct_and_split; simpl; eauto.
@@ -952,7 +926,7 @@ Proof.
       2: eapply have_same_structure_DiskAllocator_free; eauto.
       4: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -974,7 +948,7 @@ Proof.
 
         unfold HC_refines in *; simpl in *; cleanup.
         unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-        repeat invert_lift2; cleanup.
+        repeat invert_exec; cleanup.
         eapply Transaction.read_finished in H10; eauto.
         eapply Transaction.read_finished in H16; eauto.
         cleanup.
@@ -998,7 +972,7 @@ Proof.
 
         unfold HC_refines in *; simpl in *; cleanup.
         unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-        repeat invert_lift2; cleanup.
+        repeat invert_exec; cleanup.
         eapply Transaction.read_finished in H10; eauto.
         eapply Transaction.read_finished in H16; eauto.
         cleanup.
@@ -1031,7 +1005,7 @@ Proof.
 
         unfold HC_refines in *; simpl in *; cleanup.
         unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-        repeat invert_lift2; cleanup.
+        repeat invert_exec; cleanup.
         eapply Transaction.read_finished in H10; eauto.
         eapply Transaction.read_finished in H17; eauto.
         cleanup.
@@ -1173,17 +1147,15 @@ Proof.
     solve_get_first.
     unfold HC_refines in *; simpl in *; cleanup.
     unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-    repeat invert_lift2; cleanup.
+    repeat invert_exec; cleanup.
     eapply Transaction.read_finished in H11; eauto.
     eapply Transaction.read_finished in H13; eauto.
     cleanup. clear H13 H14.
-    destruct (nth_error (value_to_bits r1) inum);
-    destruct (nth_error (value_to_bits r2) inum);
+    destruct (test_bit inum (value_to_bits r1));
+    destruct (test_bit inum (value_to_bits r2));
     simpl; intuition eauto.
-    destruct b, b0; simpl; intuition eauto.
     solve_get_first.
     solve_get_first.
-    destruct b; simpl; intuition eauto.
     all: repeat destruct_and_split; simpl; eauto.
     Opaque Inode.get_all_block_numbers Inode.get_inode.
   }
@@ -1204,9 +1176,9 @@ Proof.
   
       eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H4; eauto.
       2: eapply have_same_structure_get_all_block_numbers; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -1234,6 +1206,14 @@ Proof.
         repeat cleanup_pairs.
         destruct s, s2; simpl in *; try lia; eauto.
       }
+      unfold File.files_inner_rep, 
+      FD_related_states, same_for_user_except,
+      File.file_map_rep    in *; logic_clean.
+      do 2 eexists; intuition eauto.
+
+      eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+      eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+      eapply BlockAllocatorExistence.addrs_match_exactly_sym; eauto.
     }
     repeat destruct_and_split; simpl; eauto.
     {
@@ -1252,9 +1232,9 @@ Proof.
   
       eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H4; eauto.
       2: eapply have_same_structure_get_all_block_numbers; eauto.
-      2: apply TD_oracle_refines_operation_eq.
+      3: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -1281,7 +1261,7 @@ Proof.
       (* 2: eapply have_same_structure_free_all_blocks; eauto. *)
       3: apply TD_oracle_refines_operation_eq.
       cleanup.
-      repeat invert_lift2.
+      repeat invert_exec.
       unfold AD_related_states, refines_related in *; simpl in *; cleanup.
       unfold refines, File.files_rep, File.files_inner_rep in *; simpl in *; cleanup.
       repeat cleanup_pairs.
@@ -1335,15 +1315,14 @@ Proof.
       }
       unfold HC_refines in *; simpl in *; cleanup.
       unfold TransactionToTransactionalDisk.Definitions.refines in *; simpl in *; cleanup.
-      repeat invert_lift2; cleanup.
+      repeat invert_exec; cleanup.
       eapply Transaction.read_finished in H29; eauto.
       eapply Transaction.read_finished in H45; eauto.
       cleanup. clear H45 H46.
-      destruct (nth_error (value_to_bits r1) inum);
-      destruct (nth_error (value_to_bits r2) inum);
-      simpl; intuition eauto.
       assume (A: (length (Inode.block_numbers x3) = length (Inode.block_numbers x4))).
-      destruct b, b0; simpl; intuition eauto.
+      destruct (test_bit inum (value_to_bits r1));
+      destruct (test_bit inum (value_to_bits r2));
+      simpl; intuition eauto.
       {
         eapply free_all_blocks_transaction_length in H8.
         eapply free_all_blocks_transaction_length in H9.
@@ -1384,7 +1363,6 @@ Proof.
         setoid_rewrite A.
         eauto.
       }
-      destruct b; simpl; intuition eauto.
       {
         eapply have_same_structure_free_all_blocks; simpl; eauto.
 
@@ -1396,10 +1374,10 @@ Proof.
 
           unfold File.file_map_rep in *; cleanup.
           eapply_fresh H31 in H29; eauto.
-          eapply_fresh H32 in H30; eauto.
+          eapply_fresh H33 in H30; eauto.
           unfold File.file_rep in *; cleanup.
           unfold FD_related_states, same_for_user_except in *; cleanup.
-          eapply H40 in H29; eauto; cleanup; eauto.
+          eapply H42 in H29; eauto; cleanup; eauto.
         }
         eapply SameRetType.all_block_numbers_in_bound; eauto.
         eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
@@ -1415,7 +1393,7 @@ Proof.
           eapply Forall_forall; intros.
           eapply in_seln_exists in H29; cleanup.
           simpl; rewrite <- H30.
-          eapply TSCommon.used_blocks_are_allocated_2; eauto.
+          eapply BlockAllocatorExistence.used_blocks_are_allocated_2; eauto.
           eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
           intros; FileInnerSpecs.solve_bounds.
         }
@@ -1424,7 +1402,7 @@ Proof.
           eapply Forall_forall; intros.
           eapply in_seln_exists in H29; cleanup.
           simpl; rewrite <- H30.
-          eapply TSCommon.used_blocks_are_allocated_2; eauto.
+          eapply BlockAllocatorExistence.used_blocks_are_allocated_2; eauto.
           eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
           intros; FileInnerSpecs.solve_bounds.
         }
@@ -1446,6 +1424,14 @@ Proof.
         eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; [|
         intros; FileInnerSpecs.solve_bounds]; eauto.
       }
+      unfold File.files_inner_rep, 
+      FD_related_states, same_for_user_except,
+      File.file_map_rep    in *; logic_clean.
+      do 2 eexists; intuition eauto.
+
+      eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+      eapply BlockAllocatorExistence.addrs_match_exactly_trans; eauto.
+      eapply BlockAllocatorExistence.addrs_match_exactly_sym; eauto.
     }
     unfold Inode.free, Inode.InodeAllocator.free.
     destruct (Compare_dec.lt_dec inum Inode.InodeAllocatorParams.num_of_blocks); simpl; intuition eauto.
@@ -1460,9 +1446,9 @@ Proof.
 
           unfold File.file_map_rep in *; cleanup.
           eapply_fresh H47 in H45; eauto.
-          eapply_fresh H48 in H46; eauto.
+          eapply_fresh H49 in H46; eauto.
           unfold File.file_rep in *; cleanup.
           unfold FD_related_states, same_for_user_except in *; cleanup.
-          eapply H56 in H45; eauto; cleanup; eauto.
+          eapply H58 in H45; eauto; cleanup; eauto.
         }
 Qed.
