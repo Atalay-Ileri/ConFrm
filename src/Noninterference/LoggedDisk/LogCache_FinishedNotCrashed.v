@@ -1427,6 +1427,10 @@ Proof.
     repeat split_ors; logic_clean; try congruence; try lia.
     all: try setoid_rewrite A0; try setoid_rewrite A1; eauto.
 
+    {
+      cleanup.
+      unfold commit_finished_oracle_is_true in *; cleanup.
+    }
     apply FinFun.Injective_map_NoDup; eauto.
     unfold FinFun.Injective; intros; lia.
     apply Forall_map.
@@ -1507,6 +1511,9 @@ Proof.
     repeat split_ors; logic_clean; try congruence; try lia.
     all: try setoid_rewrite A0; try setoid_rewrite A1; eauto.
 
+    {
+      unfold commit_finished_oracle_is_true  in *; cleanup.
+    }
     apply FinFun.Injective_map_NoDup; eauto.
     unfold FinFun.Injective; intros; lia.
     apply Forall_map.
@@ -4521,7 +4528,7 @@ exec CachedDiskLang u o1 s1
 exec CachedDiskLang u o2 s2
 (write a2 v2) (Crashed s2') ->
 o1 ++ o3 = o2 ++ o4 ->
-length a1 = length a2 ->
+(* length a1 = length a2 -> *)
 o1 = o2.
 Proof.
   Opaque apply_log Log.commit commit LogCache.write_batch_to_cache.
@@ -4559,15 +4566,15 @@ Proof.
       symmetry in H3; exfalso; eapply commit_finished_not_crashed; eauto.
     }
     {
-      eapply log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      eapply log_commit_finished_oracle_eq in H11; eauto; cleanup.
       repeat split_ors; cleanup;
       repeat invert_exec; simpl in *; cleanup; eauto; 
       try unify_finished_oracles; try unify_finished_not_crashed_oracles.
-      eapply write_batch_to_cache_crashed_oracle_eq in H8; eauto.
+      eapply write_batch_to_cache_crashed_oracle_eq in H7; eauto.
       subst; eauto.
     }
     {
-      eapply_fresh log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      eapply_fresh log_commit_finished_oracle_eq in H11; eauto; cleanup.
       repeat split_ors; cleanup;
       repeat invert_exec; simpl in *; cleanup; eauto; 
       try unify_finished_oracles; try unify_finished_not_crashed_oracles.
@@ -4584,7 +4591,7 @@ Proof.
           try unify_finished_oracles); try unify_finished_not_crashed_oracles.
         }
         {
-          clear H9.
+          clear H8.
           unfold apply_log, read_encrypted_log, read_header in *.
           repeat invert_exec; cleanup; eauto;
           repeat (try split_ors; cleanup;
@@ -4615,7 +4622,7 @@ Proof.
           try unify_finished_oracles); try unify_finished_not_crashed_oracles.
         }
         {
-          clear H9.
+          clear H8.
           unfold apply_log, read_encrypted_log, read_header in *.
           repeat invert_exec; cleanup; eauto;
           repeat (try split_ors; cleanup;
@@ -4635,7 +4642,7 @@ Proof.
       }
     }
     {
-      eapply_fresh log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      eapply_fresh log_commit_finished_oracle_eq in H11; eauto; cleanup.
       repeat split_ors; cleanup;
       repeat invert_exec; simpl in *; cleanup; eauto; 
       try unify_finished_oracles; try unify_finished_not_crashed_oracles.
@@ -4652,7 +4659,7 @@ Proof.
           try unify_finished_oracles); try unify_finished_not_crashed_oracles.
         }
         {
-          clear H9.
+          clear H8.
           unfold apply_log, read_encrypted_log, read_header in *.
           repeat invert_exec; cleanup; eauto;
           repeat (try split_ors; cleanup;
@@ -4695,12 +4702,12 @@ Proof.
       }
     }
     {
-      eapply_fresh log_commit_finished_oracle_eq in H12; eauto; cleanup.
+      eapply_fresh log_commit_finished_oracle_eq in H11; eauto; cleanup.
       unfold log_rep in *; cleanup.
       destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a1)).
       destruct_fresh (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) a2)).
-      eapply Specs.commit_finished in H7; eauto.
-      eapply Specs.commit_finished in H12; eauto.
+      eapply Specs.commit_finished in H6; eauto.
+      eapply Specs.commit_finished in H11; eauto.
       {
         repeat invert_exec; cleanup; eauto;
         repeat split_ors; cleanup; try congruence;
@@ -4732,7 +4739,7 @@ Proof.
             repeat (try split_ors; cleanup;
             repeat invert_exec; simpl in *; cleanup; eauto; 
             try unify_finished_oracles); try unify_finished_not_crashed_oracles;
-            eapply_fresh HC_map_ext_eq_prefix in H16; eauto; cleanup.
+            eapply_fresh HC_map_ext_eq_prefix in H15; eauto; cleanup.
             {
               eapply log_commit_crashed_oracle_eq in H3; eauto.
               subst; eauto.
@@ -4746,7 +4753,7 @@ Proof.
               symmetry in H3; exfalso; eapply commit_finished_not_crashed; eauto.
             }
             {
-              eapply log_commit_finished_oracle_eq in H19; eauto; cleanup; eauto.
+              eapply log_commit_finished_oracle_eq in H18; eauto; cleanup; eauto.
             }
           }
         }
@@ -4767,7 +4774,7 @@ Proof.
             repeat (try split_ors; cleanup;
             repeat invert_exec; simpl in *; cleanup; eauto; 
             try unify_finished_oracles); try unify_finished_not_crashed_oracles;
-            eapply_fresh HC_map_ext_eq_prefix in H18; eauto; cleanup.
+            eapply_fresh HC_map_ext_eq_prefix in H17; eauto; cleanup.
             {
               exfalso; eapply commit_finished_not_crashed; eauto.
             }
@@ -4795,7 +4802,7 @@ Proof.
             repeat (try split_ors; cleanup;
             repeat invert_exec; simpl in *; cleanup; eauto; 
             try unify_finished_oracles); try unify_finished_not_crashed_oracles;
-            eapply_fresh HC_map_ext_eq_prefix in H18; eauto; cleanup.
+            eapply_fresh HC_map_ext_eq_prefix in H17; eauto; cleanup.
             {
               symmetry in H3.
               exfalso; eapply commit_finished_not_crashed; eauto.
@@ -4811,9 +4818,9 @@ Proof.
           repeat unify_finished_oracles.
           simpl in *; cleanup; eauto.
           repeat rewrite <- app_assoc in *;
-          eapply_fresh HC_map_ext_eq_prefix in H20; eauto; cleanup.
+          eapply_fresh HC_map_ext_eq_prefix in H19; eauto; cleanup.
           unify_finished_oracles.
-          eapply write_batch_to_cache_crashed_oracle_eq in H20; 
+          eapply write_batch_to_cache_crashed_oracle_eq in H19; 
           eauto; simpl in *; 
           cleanup; eauto.
         }
@@ -4824,7 +4831,6 @@ Proof.
         apply FinFun.Injective_map_NoDup; eauto.
         unfold FinFun.Injective; intros; lia.
         rewrite map_length; eauto.
-        lia.
       }
       {
         rewrite firstn_app2; eauto.    
@@ -4834,16 +4840,13 @@ Proof.
         pose proof data_fits_in_disk.
         split; try lia.
         rewrite map_length; eauto.
-        lia.
       }    
       {
         rewrite app_length, map_length; lia.
       }
       {
-        erewrite addr_list_to_blocks_length_eq.
         eapply addr_list_to_blocks_length_nonzero; eauto.
         rewrite map_length; eauto.
-        setoid_rewrite e. lia.
       }
       {
         lia.
@@ -4867,9 +4870,8 @@ Proof.
         rewrite app_length, map_length; lia.
       }
       {
-        erewrite addr_list_to_blocks_length_eq.
-        2: rewrite map_length; eauto.
         eapply addr_list_to_blocks_length_nonzero; eauto.
+        rewrite map_length; eauto.
       }
       {
         lia.
@@ -4877,6 +4879,20 @@ Proof.
     }
   }
   Transparent commit read_header.
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; cleanup; eauto;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  }
+  {
+    unfold commit, read_header in *; 
+    repeat invert_exec; cleanup; eauto;
+    repeat (try split_ors; cleanup;
+    repeat invert_exec; simpl in *; cleanup; eauto; 
+    try unify_finished_oracles); try unify_finished_not_crashed_oracles.
+  }
   {
     unfold commit, read_header in *; 
     repeat invert_exec; cleanup; eauto;

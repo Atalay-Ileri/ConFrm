@@ -33,26 +33,26 @@ Definition write  addr_l (data_l: list value) :=
           if (le_dec (length (addr_list_to_blocks (map (plus data_start) addr_l)) + length data_l) log_length) then
           if (lt_dec 0 (length addr_l)) then
             committed <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
-            if committed then
-              _ <- write_batch_to_cache (map (plus data_start) addr_l) data_l;
-              Ret (Some tt)
-            else
-              Ret None
+          _ <-
+          if committed then
+            Ret tt
           else
-            Ret None
+            _ <- |CDDP| apply_log;
+          _ <- |CDCO| (Flush _ _);
+          _ <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
+          Ret tt;
+          
+          write_batch_to_cache (map (plus data_start) addr_l) data_l
+          else
+            Ret tt
         else
-          Ret None
+          Ret tt
       else
-        Ret None
+        Ret tt
     else
-      Ret None
+      Ret tt
   else
-    Ret None.
-
-
-    Definition apply_log :=
-      _ <- |CDDP| apply_log;
-      |CDCO| (Flush _ _).
+    Ret tt.
 
 
 (* Takes a data region_address *)
@@ -202,6 +202,12 @@ Set Nested Proofs Allowed.
 
 
 (*** SPECS ***)
+Definition write_batch_to_cache_finished_oracle_is len :=
+  (repeat (OpToken
+  (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+  (Token1 (CacheOperation addr_dec value) CryptoDiskOperation Cont)) len) ++ 
+  [LayerImplementation.Cont CachedDiskOperation].
+
 Global Opaque Log.commit Log.apply_log.
 Theorem write_batch_to_cache_finished_oracle:
   forall al vl o s s' t u,
@@ -209,8 +215,9 @@ Theorem write_batch_to_cache_finished_oracle:
     exec CachedDiskLang u o s (write_batch_to_cache al vl) (Finished s' t) ->
     snd s' = snd s /\
     fst s' = Mem.upd_batch (fst s) al vl /\
-    length o = S (length al).
+    o = write_batch_to_cache_finished_oracle_is (length al).
 Proof.
+  unfold write_batch_to_cache_finished_oracle_is;
   induction al; simpl; intros;
   repeat invert_exec; cleanup;
   eauto; simpl in *; try lia.
@@ -220,25 +227,40 @@ Proof.
 Qed.
 
 
+Definition write_batch_to_cache_crashed_oracle_is o n :=
+  o = (repeat (OpToken (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+  (Token1 (CacheOperation addr_dec value) CryptoDiskOperation Cont)) n) ++ 
+  [LayerImplementation.Crash CachedDiskOperation] \/ 
+  o = (repeat (OpToken (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+  (Token1 (CacheOperation addr_dec value) CryptoDiskOperation Cont)) n) ++ 
+  [OpToken (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+  (Token1 (CacheOperation addr_dec value) CryptoDiskOperation Crash)].
+
 Theorem write_batch_to_cache_crashed_oracle:
   forall al vl o s s' u,
     exec CachedDiskLang u o s (write_batch_to_cache al vl) (Crashed s') ->
     snd s' = snd s /\
-    length o >= 1 /\
-    length o <= S (length al).
+    (exists n, write_batch_to_cache_crashed_oracle_is o n).
 Proof.
+  unfold write_batch_to_cache_crashed_oracle_is;
   induction al; simpl; intros;
   repeat invert_exec; cleanup;
   eauto; simpl in *; try lia;
-  invert_exec; eauto.
-  simpl; intuition eauto.
-  lia.
+  repeat invert_exec; eauto.
+  
+  intuition; eauto.
+  exists 0; intuition eauto.
+  intuition; eauto.
+  exists 0; intuition eauto.
+
   split_ors; cleanup; repeat invert_exec; eauto.
-  simpl; intuition eauto.
-  lia.
+  intuition; eauto.
+  exists 0; intuition eauto.
+
   eapply IHal in H1; cleanup; eauto.
-  simpl; intuition eauto.
-  lia.
+  simpl; intuition eauto; cleanup.
+  exists (S x); simpl; intuition.
+  exists (S x); simpl; intuition.
 Qed.
 
 Theorem write_batch_to_cache_finished:
@@ -269,56 +291,60 @@ Proof.
   eapply IHal in H1; cleanup; eauto.
 Qed.
 
+Definition write_lists_to_cache_finished_oracle_is {T} (ll: list (list T)) :=
+  fold_right (@app _) [LayerImplementation.Cont CachedDiskOperation]  (map (fun l => write_batch_to_cache_finished_oracle_is (length l)) ll).
+
 Theorem write_lists_to_cache_finished_oracle:
   forall l_la_lv s o s' t u,
     Forall (fun la_lv => length (fst la_lv) = length (snd la_lv)) l_la_lv ->
     exec CachedDiskLang u o s (write_lists_to_cache l_la_lv) (Finished s' t) ->
     fst s' = Mem.list_upd_batch (fst s) (map fst l_la_lv) (map snd l_la_lv) /\
     snd s' = snd s /\
-    length o = S ((fold_right Nat.add 0 (map (fun l=> length l) (map fst l_la_lv))) + length l_la_lv).
+    o = write_lists_to_cache_finished_oracle_is (map fst l_la_lv).
 Proof.
+  unfold write_lists_to_cache_finished_oracle_is;
   induction l_la_lv; simpl; intros; repeat invert_exec; eauto.
   inversion H; cleanup.
   apply write_batch_to_cache_finished_oracle in H0; eauto.
   cleanup.
   apply IHl_la_lv in H1; eauto.
   cleanup; repeat cleanup_pairs; eauto.
-  intuition eauto.
-  repeat rewrite app_length; cleanup.
-  setoid_rewrite H3.
-  setoid_rewrite H7.
-  lia.
 Qed.  
-  
+
+Definition write_lists_to_cache_crashed_oracle_is {T1 T2} o (l_la_lv: list (list T1 * list T2)) :=
+(exists n o', o = fold_right (@app _) o' (map write_batch_to_cache_finished_oracle_is (map (fun l => length (fst l)) (firstn n l_la_lv))) /\
+    (o' = [LayerImplementation.Crash CachedDiskOperation] \/ 
+    (exists m, write_batch_to_cache_crashed_oracle_is o' m))).
 
 Theorem write_lists_to_cache_crashed_oracle:
   forall l_la_lv s o s' u,
     Forall (fun la_lv => length (fst la_lv) = length (snd la_lv)) l_la_lv ->
     exec CachedDiskLang u o s (write_lists_to_cache l_la_lv) (Crashed s') ->
     snd s' = snd s /\
-    length o >= 1 /\
-    length o <= S ((fold_right Nat.add 0 (map (fun l=> length l) (map fst l_la_lv))) + length l_la_lv).
+    write_lists_to_cache_crashed_oracle_is o l_la_lv.
 Proof.
+  unfold write_lists_to_cache_crashed_oracle_is;
   induction l_la_lv; simpl; intros; repeat invert_exec; eauto.
+  setoid_rewrite firstn_nil; simpl; intuition eauto.
+  exists 0; eauto.
+
   split_ors; cleanup; repeat invert_exec.
   apply write_batch_to_cache_crashed_oracle in H0; eauto.
   cleanup; intuition eauto.
-  lia.
+  exists 0; simpl; intuition eauto.
 
   inversion H; cleanup.
   apply write_batch_to_cache_finished_oracle in H1; eauto.
   apply IHl_la_lv in H2; eauto.
   cleanup; repeat cleanup_pairs; eauto.
-  cleanup; intuition eauto.
-  repeat rewrite app_length. 
-  eapply Nat.le_trans; eauto.
-  eapply Plus.le_plus_r; eauto.
+  cleanup; intuition eauto; cleanup.
 
-  repeat rewrite app_length.
-  setoid_rewrite H7. 
-  eapply Nat.le_trans.
-  eapply Plus.plus_le_compat_l; eauto.
-  lia.
+  eexists (S x3), _; simpl; intuition eauto.
+  rewrite H4; eauto.
+  
+  eexists (S x3), _; simpl; split.
+  2: right; intuition eauto.
+  rewrite H4; eauto.
 Qed.
 
 Theorem write_lists_to_cache_finished:
@@ -1052,7 +1078,554 @@ Proof.
     left; intuition eauto; lia.
   }
 Qed.
+(**************)
 
+Definition transform_token := 
+  (fun o : LayerImplementation.token' CryptoDiskOperation =>
+match o with
+| OpToken _ o1 =>
+    OpToken
+      (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+      (Token2 (CacheOperation addr_dec value) CryptoDiskOperation o1)
+| LayerImplementation.Crash _ =>
+    LayerImplementation.Crash
+      (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+| LayerImplementation.Cont _ =>
+    LayerImplementation.Cont
+      (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+end).
+
+
+Definition write_crashed_oracle_is_1 o hdr len :=
+  ((exists o', 
+  o = OpToken
+  (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+  (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+     (Token2 CryptoOperation
+        (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+        DiskLayer.Cont))
+:: LayerImplementation.Cont
+     (HorizontalComposition (CacheOperation addr_dec value)
+        CryptoDiskOperation)
+   :: LayerImplementation.Cont
+        (HorizontalComposition (CacheOperation addr_dec value)
+           CryptoDiskOperation) 
+        :: map transform_token o' /\
+  (read_encrypted_log_crashed_oracle_is o' hdr Current_Part \/
+   apply_log_crashed_oracle_is_2 o' hdr)) 
+  \/
+  (exists o', o = OpToken
+  (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+  (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+     (Token2 CryptoOperation
+        (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+        DiskLayer.Cont))
+:: LayerImplementation.Cont
+     (HorizontalComposition (CacheOperation addr_dec value)
+        CryptoDiskOperation)
+   :: LayerImplementation.Cont
+        (HorizontalComposition (CacheOperation addr_dec value)
+           CryptoDiskOperation)
+      :: OpToken
+           (HorizontalComposition (CacheOperation addr_dec value)
+              CryptoDiskOperation)
+           (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+              (Token2 CryptoOperation
+                 (DiskOperation addr_dec value
+                    (fun a : addr => a < disk_size)) DiskLayer.Cont))
+         :: LayerImplementation.Cont
+              (HorizontalComposition (CacheOperation addr_dec value)
+                 CryptoDiskOperation)
+            :: map
+                 (fun o : LayerImplementation.token' CryptoDiskOperation =>
+                  match o with
+                  | OpToken _ o1 =>
+                      OpToken
+                        (HorizontalComposition
+                           (CacheOperation addr_dec value)
+                           CryptoDiskOperation)
+                        (Token2 (CacheOperation addr_dec value)
+                           CryptoDiskOperation o1)
+                  | LayerImplementation.Crash _ =>
+                      LayerImplementation.Crash
+                        (HorizontalComposition
+                           (CacheOperation addr_dec value)
+                           CryptoDiskOperation)
+                  | LayerImplementation.Cont _ =>
+                      LayerImplementation.Cont
+                        (HorizontalComposition
+                           (CacheOperation addr_dec value)
+                           CryptoDiskOperation)
+                  end)
+                 ((BatchOperations.rec_oracle_finished_disk
+                     (count (current_part hdr)) ++
+                   (BatchOperations.rec_oracle_finished_crypto
+                      (count (current_part hdr)) ++
+                    [LayerImplementation.Cont
+                       (HorizontalComposition CryptoOperation
+                          (DiskOperation addr_dec value
+                             (fun a : addr => a < disk_size)))]) ++
+                   [LayerImplementation.Cont
+                      (HorizontalComposition CryptoOperation
+                         (DiskOperation addr_dec value
+                            (fun a : addr => a < disk_size)))]) ++
+                  flush_txns_finished_oracle_is (records (current_part hdr))) ++
+               OpToken
+                 (HorizontalComposition (CacheOperation addr_dec value)
+                    CryptoDiskOperation)
+                 (Token1 (CacheOperation addr_dec value) CryptoDiskOperation
+                    Cont)
+               :: map transform_token o' /\
+        commit_crashed_oracle_is_1 o' len)
+).
+
+
+Definition write_crashed_oracle_is_2 o hdr len :=
+(exists o', o = OpToken
+        (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+        (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+           (Token2 CryptoOperation
+              (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+              DiskLayer.Cont))
+      :: LayerImplementation.Cont
+           (HorizontalComposition (CacheOperation addr_dec value)
+              CryptoDiskOperation)
+         :: LayerImplementation.Cont
+              (HorizontalComposition (CacheOperation addr_dec value)
+                 CryptoDiskOperation)
+            :: OpToken
+                 (HorizontalComposition (CacheOperation addr_dec value)
+                    CryptoDiskOperation)
+                 (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+                    (Token2 CryptoOperation
+                       (DiskOperation addr_dec value
+                          (fun a : addr => a < disk_size)) DiskLayer.Cont))
+               :: LayerImplementation.Cont
+                    (HorizontalComposition (CacheOperation addr_dec value)
+                       CryptoDiskOperation)
+                  :: map
+                       (fun o : LayerImplementation.token' CryptoDiskOperation =>
+                        match o with
+                        | OpToken _ o1 =>
+                            OpToken
+                              (HorizontalComposition
+                                 (CacheOperation addr_dec value)
+                                 CryptoDiskOperation)
+                              (Token2 (CacheOperation addr_dec value)
+                                 CryptoDiskOperation o1)
+                        | LayerImplementation.Crash _ =>
+                            LayerImplementation.Crash
+                              (HorizontalComposition
+                                 (CacheOperation addr_dec value)
+                                 CryptoDiskOperation)
+                        | LayerImplementation.Cont _ =>
+                            LayerImplementation.Cont
+                              (HorizontalComposition
+                                 (CacheOperation addr_dec value)
+                                 CryptoDiskOperation)
+                        end)
+                       ((BatchOperations.rec_oracle_finished_disk
+                           (count (current_part hdr)) ++
+                         (BatchOperations.rec_oracle_finished_crypto
+                            (count (current_part hdr)) ++
+                          [LayerImplementation.Cont
+                             (HorizontalComposition CryptoOperation
+                                (DiskOperation addr_dec value
+                                   (fun a : addr => a < disk_size)))]) ++
+                         [LayerImplementation.Cont
+                            (HorizontalComposition CryptoOperation
+                               (DiskOperation addr_dec value
+                                  (fun a : addr => a < disk_size)))]) ++
+                        flush_txns_finished_oracle_is (records (current_part hdr))) ++
+                     OpToken
+                       (HorizontalComposition (CacheOperation addr_dec value)
+                          CryptoDiskOperation)
+                       (Token1 (CacheOperation addr_dec value) CryptoDiskOperation
+                          Cont)
+                     :: map transform_token o' /\ 
+                     commit_crashed_oracle_is_2 o' len).
+
+Definition write_crashed_oracle_is_3 o hdr len :=
+(exists o', o = OpToken
+(HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+(Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+  (Token2 CryptoOperation
+      (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+      DiskLayer.Cont))
+:: LayerImplementation.Cont
+  (HorizontalComposition (CacheOperation addr_dec value)
+      CryptoDiskOperation)
+:: LayerImplementation.Cont
+      (HorizontalComposition (CacheOperation addr_dec value)
+        CryptoDiskOperation)
+    :: OpToken
+        (HorizontalComposition (CacheOperation addr_dec value)
+            CryptoDiskOperation)
+        (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+            (Token2 CryptoOperation
+              (DiskOperation addr_dec value
+                  (fun a : addr => a < disk_size)) DiskLayer.Cont))
+      :: LayerImplementation.Cont
+            (HorizontalComposition (CacheOperation addr_dec value)
+              CryptoDiskOperation)
+          :: map
+              (fun o : LayerImplementation.token' CryptoDiskOperation =>
+                match o with
+                | OpToken _ o1 =>
+                    OpToken
+                      (HorizontalComposition
+                        (CacheOperation addr_dec value)
+                        CryptoDiskOperation)
+                      (Token2 (CacheOperation addr_dec value)
+                        CryptoDiskOperation o1)
+                | LayerImplementation.Crash _ =>
+                    LayerImplementation.Crash
+                      (HorizontalComposition
+                        (CacheOperation addr_dec value)
+                        CryptoDiskOperation)
+                | LayerImplementation.Cont _ =>
+                    LayerImplementation.Cont
+                      (HorizontalComposition
+                        (CacheOperation addr_dec value)
+                        CryptoDiskOperation)
+                end)
+              ((BatchOperations.rec_oracle_finished_disk
+                  (count (current_part hdr)) ++
+                (BatchOperations.rec_oracle_finished_crypto
+                    (count (current_part hdr)) ++
+                  [LayerImplementation.Cont
+                    (HorizontalComposition CryptoOperation
+                        (DiskOperation addr_dec value
+                          (fun a : addr => a < disk_size)))]) ++
+                [LayerImplementation.Cont
+                    (HorizontalComposition CryptoOperation
+                      (DiskOperation addr_dec value
+                          (fun a : addr => a < disk_size)))]) ++
+                flush_txns_finished_oracle_is (records (current_part hdr))) ++
+            OpToken
+              (HorizontalComposition (CacheOperation addr_dec value)
+                  CryptoDiskOperation)
+              (Token1 (CacheOperation addr_dec value) CryptoDiskOperation
+                  Cont)
+            :: map transform_token o' /\ 
+            commit_crashed_oracle_is_3 o' len).
+            
+
+Definition write_crashed_oracle_is_4 o hdr len :=
+            ((exists o', o = OpToken
+            (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+            (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+               (Token2 CryptoOperation
+                  (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+                  DiskLayer.Cont))
+          :: LayerImplementation.Cont
+               (HorizontalComposition (CacheOperation addr_dec value)
+                  CryptoDiskOperation)
+             :: LayerImplementation.Cont
+                  (HorizontalComposition (CacheOperation addr_dec value)
+                     CryptoDiskOperation)
+                :: OpToken
+                     (HorizontalComposition (CacheOperation addr_dec value)
+                        CryptoDiskOperation)
+                     (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+                        (Token2 CryptoOperation
+                           (DiskOperation addr_dec value
+                              (fun a : addr => a < disk_size)) DiskLayer.Cont))
+                   :: LayerImplementation.Cont
+                        (HorizontalComposition (CacheOperation addr_dec value)
+                           CryptoDiskOperation)
+                      :: map
+                           (fun o : LayerImplementation.token' CryptoDiskOperation =>
+                            match o with
+                            | OpToken _ o1 =>
+                                OpToken
+                                  (HorizontalComposition
+                                     (CacheOperation addr_dec value)
+                                     CryptoDiskOperation)
+                                  (Token2 (CacheOperation addr_dec value)
+                                     CryptoDiskOperation o1)
+                            | LayerImplementation.Crash _ =>
+                                LayerImplementation.Crash
+                                  (HorizontalComposition
+                                     (CacheOperation addr_dec value)
+                                     CryptoDiskOperation)
+                            | LayerImplementation.Cont _ =>
+                                LayerImplementation.Cont
+                                  (HorizontalComposition
+                                     (CacheOperation addr_dec value)
+                                     CryptoDiskOperation)
+                            end)
+                           ((BatchOperations.rec_oracle_finished_disk
+                               (count (current_part hdr)) ++
+                             (BatchOperations.rec_oracle_finished_crypto
+                                (count (current_part hdr)) ++
+                              [LayerImplementation.Cont
+                                 (HorizontalComposition CryptoOperation
+                                    (DiskOperation addr_dec value
+                                       (fun a : addr => a < disk_size)))]) ++
+                             [LayerImplementation.Cont
+                                (HorizontalComposition CryptoOperation
+                                   (DiskOperation addr_dec value
+                                      (fun a : addr => a < disk_size)))]) ++
+                            flush_txns_finished_oracle_is (records (current_part hdr))) ++
+                         OpToken
+                           (HorizontalComposition (CacheOperation addr_dec value)
+                              CryptoDiskOperation)
+                           (Token1 (CacheOperation addr_dec value) CryptoDiskOperation
+                              Cont)
+                         :: map transform_token o' /\
+            commit_crashed_oracle_is_4 o' len) \/
+            (exists o', o = OpToken
+            (HorizontalComposition (CacheOperation addr_dec value)
+               CryptoDiskOperation)
+            (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+               (Token2 CryptoOperation
+                  (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+                  DiskLayer.Cont))
+          :: LayerImplementation.Cont
+               (HorizontalComposition (CacheOperation addr_dec value)
+                  CryptoDiskOperation)
+             :: LayerImplementation.Cont
+                  (HorizontalComposition (CacheOperation addr_dec value)
+                     CryptoDiskOperation)
+                :: OpToken
+                     (HorizontalComposition (CacheOperation addr_dec value)
+                        CryptoDiskOperation)
+                     (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+                        (Token2 CryptoOperation
+                           (DiskOperation addr_dec value
+                              (fun a : addr => a < disk_size)) DiskLayer.Cont))
+                   :: LayerImplementation.Cont
+                        (HorizontalComposition (CacheOperation addr_dec value)
+                           CryptoDiskOperation)
+                      :: map
+                           (fun o : LayerImplementation.token' CryptoDiskOperation =>
+                            match o with
+                            | OpToken _ o1 =>
+                                OpToken
+                                  (HorizontalComposition
+                                     (CacheOperation addr_dec value)
+                                     CryptoDiskOperation)
+                                  (Token2 (CacheOperation addr_dec value)
+                                     CryptoDiskOperation o1)
+                            | LayerImplementation.Crash _ =>
+                                LayerImplementation.Crash
+                                  (HorizontalComposition
+                                     (CacheOperation addr_dec value)
+                                     CryptoDiskOperation)
+                            | LayerImplementation.Cont _ =>
+                                LayerImplementation.Cont
+                                  (HorizontalComposition
+                                     (CacheOperation addr_dec value)
+                                     CryptoDiskOperation)
+                            end)
+                           ((BatchOperations.rec_oracle_finished_disk
+                               (count (current_part hdr)) ++
+                             (BatchOperations.rec_oracle_finished_crypto
+                                (count (current_part hdr)) ++
+                              [LayerImplementation.Cont
+                                 (HorizontalComposition CryptoOperation
+                                    (DiskOperation addr_dec value
+                                       (fun a : addr => a < disk_size)))]) ++
+                             [LayerImplementation.Cont
+                                (HorizontalComposition CryptoOperation
+                                   (DiskOperation addr_dec value
+                                      (fun a : addr => a < disk_size)))]) ++
+                            flush_txns_finished_oracle_is
+                              (records (current_part hdr))) ++
+                         OpToken
+                           (HorizontalComposition (CacheOperation addr_dec value)
+                              CryptoDiskOperation)
+                           (Token1 (CacheOperation addr_dec value)
+                              CryptoDiskOperation Cont)
+                         :: map transform_token o' ++
+                            [LayerImplementation.Crash
+                               (HorizontalComposition (CacheOperation addr_dec value)
+                                  CryptoDiskOperation)] /\
+                  commit_finished_oracle_is_true o' len) \/
+                (exists o1 o2, o = OpToken
+                (HorizontalComposition
+                   (CacheOperation addr_dec value)
+                   CryptoDiskOperation)
+                (Token2 (CacheOperation addr_dec value)
+                   CryptoDiskOperation
+                   (Token2 CryptoOperation
+                      (DiskOperation addr_dec value
+                         (fun a : addr => a < disk_size))
+                      DiskLayer.Cont))
+              :: LayerImplementation.Cont
+                   (HorizontalComposition
+                      (CacheOperation addr_dec value)
+                      CryptoDiskOperation)
+                 :: LayerImplementation.Cont
+                      (HorizontalComposition
+                         (CacheOperation addr_dec value)
+                         CryptoDiskOperation)
+                    :: OpToken
+                         (HorizontalComposition
+                            (CacheOperation addr_dec value)
+                            CryptoDiskOperation)
+                         (Token2 (CacheOperation addr_dec value)
+                            CryptoDiskOperation
+                            (Token2 CryptoOperation
+                               (DiskOperation addr_dec value
+                                  (fun a : addr => a < disk_size))
+                               DiskLayer.Cont))
+                       :: LayerImplementation.Cont
+                            (HorizontalComposition
+                               (CacheOperation addr_dec value)
+                               CryptoDiskOperation)
+                          :: (map
+                                (fun
+                                   o : LayerImplementation.token'
+                                         CryptoDiskOperation =>
+                                 match o with
+                                 | OpToken _ o1 =>
+                                     OpToken
+                                       (HorizontalComposition
+                                          (CacheOperation addr_dec
+                                             value)
+                                          CryptoDiskOperation)
+                                       (Token2
+                                          (CacheOperation addr_dec
+                                             value)
+                                          CryptoDiskOperation o1)
+                                 | LayerImplementation.Crash _ =>
+                                     LayerImplementation.Crash
+                                       (HorizontalComposition
+                                          (CacheOperation addr_dec
+                                             value)
+                                          CryptoDiskOperation)
+                                 | LayerImplementation.Cont _ =>
+                                     LayerImplementation.Cont
+                                       (HorizontalComposition
+                                          (CacheOperation addr_dec
+                                             value)
+                                          CryptoDiskOperation)
+                                 end)
+                                ((BatchOperations.rec_oracle_finished_disk
+                                    (count (current_part hdr)) ++
+                                  (BatchOperations.rec_oracle_finished_crypto
+                                     (count (current_part hdr)) ++
+                                   [LayerImplementation.Cont
+                                      (HorizontalComposition
+                                         CryptoOperation
+                                         (DiskOperation addr_dec
+                                            value
+                                            (fun a : addr =>
+                                             a < disk_size)))]) ++
+                                  [LayerImplementation.Cont
+                                     (HorizontalComposition
+                                        CryptoOperation
+                                        (DiskOperation addr_dec value
+                                           (fun a : addr =>
+                                            a < disk_size)))]) ++
+                                 flush_txns_finished_oracle_is
+                                   (records (current_part hdr))) ++
+                              OpToken
+                                (HorizontalComposition
+                                   (CacheOperation addr_dec value)
+                                   CryptoDiskOperation)
+                                (Token1
+                                   (CacheOperation addr_dec value)
+                                   CryptoDiskOperation Cont)
+                              :: map
+                                   (fun
+                                      o : LayerImplementation.token'
+                                            CryptoDiskOperation =>
+                                    match o with
+                                    | OpToken _ o1 =>
+                                        OpToken
+                                          (HorizontalComposition
+                                             (CacheOperation addr_dec
+                                                value)
+                                             CryptoDiskOperation)
+                                          (Token2
+                                             (CacheOperation addr_dec
+                                                value)
+                                             CryptoDiskOperation o1)
+                                    | LayerImplementation.Crash _ =>
+                                        LayerImplementation.Crash
+                                          (HorizontalComposition
+                                             (CacheOperation addr_dec
+                                                value)
+                                             CryptoDiskOperation)
+                                    | LayerImplementation.Cont _ =>
+                                        LayerImplementation.Cont
+                                          (HorizontalComposition
+                                             (CacheOperation addr_dec
+                                                value)
+                                             CryptoDiskOperation)
+                                    end) o1 ++
+                                 [LayerImplementation.Cont
+                                    (HorizontalComposition
+                                       (CacheOperation addr_dec value)
+                                       CryptoDiskOperation)]) ++ o2 /\
+                                       commit_finished_oracle_is_true o1 len /\
+                                       (exists n, write_batch_to_cache_crashed_oracle_is o2 n))).
+
+Definition write_crashed_oracle_is_5 o hdr :=
+(o = OpToken
+    (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+    (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+       (Token2 CryptoOperation
+          (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+          DiskLayer.Cont))
+  :: LayerImplementation.Cont
+       (HorizontalComposition (CacheOperation addr_dec value)
+          CryptoDiskOperation)
+     :: LayerImplementation.Cont
+          (HorizontalComposition (CacheOperation addr_dec value)
+             CryptoDiskOperation)
+        :: OpToken
+             (HorizontalComposition (CacheOperation addr_dec value)
+                CryptoDiskOperation)
+             (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+                (Token2 CryptoOperation
+                   (DiskOperation addr_dec value
+                      (fun a : addr => a < disk_size)) DiskLayer.Cont))
+           :: LayerImplementation.Cont
+                (HorizontalComposition (CacheOperation addr_dec value)
+                   CryptoDiskOperation)
+              :: map
+                   (fun o : LayerImplementation.token' CryptoDiskOperation =>
+                    match o with
+                    | OpToken _ o1 =>
+                        OpToken
+                          (HorizontalComposition
+                             (CacheOperation addr_dec value)
+                             CryptoDiskOperation)
+                          (Token2 (CacheOperation addr_dec value)
+                             CryptoDiskOperation o1)
+                    | LayerImplementation.Crash _ =>
+                        LayerImplementation.Crash
+                          (HorizontalComposition
+                             (CacheOperation addr_dec value)
+                             CryptoDiskOperation)
+                    | LayerImplementation.Cont _ =>
+                        LayerImplementation.Cont
+                          (HorizontalComposition
+                             (CacheOperation addr_dec value)
+                             CryptoDiskOperation)
+                    end)
+                   ((BatchOperations.rec_oracle_finished_disk
+                       (count (current_part hdr)) ++
+                     (BatchOperations.rec_oracle_finished_crypto
+                        (count (current_part hdr)) ++
+                      [LayerImplementation.Cont
+                         (HorizontalComposition CryptoOperation
+                            (DiskOperation addr_dec value
+                               (fun a : addr => a < disk_size)))]) ++
+                     [LayerImplementation.Cont
+                        (HorizontalComposition CryptoOperation
+                           (DiskOperation addr_dec value
+                              (fun a : addr => a < disk_size)))]) ++
+                    flush_txns_finished_oracle_is (records (current_part hdr))) ++
+                 [OpToken
+                    (HorizontalComposition (CacheOperation addr_dec value)
+                       CryptoDiskOperation)
+                    (Token1 (CacheOperation addr_dec value) CryptoDiskOperation
+                       Crash)]).
 
 Theorem write_crashed_oracle:
   forall merged_disk s o al vl s' u hdr txns,
@@ -1066,18 +1639,15 @@ Theorem write_crashed_oracle:
   exec CachedDiskLang u o s (write al vl) (Crashed s') ->
   (cached_log_rep merged_disk s' /\ 
     (
-      (length o < c1 * 4 + 8 /\ 
-      (length o > 3 -> count (current_part hdr) + length (addr_list_to_blocks 
-      (map (Init.Nat.add data_start) al)) + length vl <= log_length)) \/
+      o = [LayerImplementation.Crash CachedDiskOperation] \/ 
+
+      (exists o', 
+      o = map transform_token o' /\
+      commit_crashed_oracle_is_1 o' (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) \/
   
       (count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length /\
-        (
-          length o < c2 * 4 + 10 \/
-          
-          (length o > c2 * 4 + c3 + 11 /\
-          length o <= c2 * 4 + c3 + c1 * 4 + 23)
-        )
+        write_crashed_oracle_is_1 o hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))
       )
     )
   ) \/
@@ -1088,16 +1658,18 @@ Theorem write_crashed_oracle:
     (list_upd_batch_set (snd (snd s')) (map addr_list txns) (map data_blocks txns))) /\
     (forall a, a >= data_start -> snd ((snd (snd s')) a) = []) /\
     (
-        (length o >= c1 * 4 + 8 /\ 
-        length o <  c1 * 6 + 12 /\
+        ((exists o', 
+        o = map transform_token o' /\
+        commit_crashed_oracle_is_2 o'
+         (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) /\
         count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl <= log_length) \/
     
-        (length o > c2 * 4 + c3 + c1 * 4 + 23 /\
-        length o <= c2 * 4 + c3 + c1 * 6 + 27 /\
+        (write_crashed_oracle_is_2 o hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
         count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length)
       )) \/
+
  (exists old_txns new_txn old_hdr new_hdr,
    let txns := old_txns ++ [new_txn] in
     log_crash_rep (During_Commit_Header_Write old_txns txns) (snd s') /\
@@ -1114,7 +1686,10 @@ Theorem write_crashed_oracle:
     (forall a, a >= data_start -> snd ((snd (snd s')) a) = []) /\
     addr_blocks new_txn = addr_list_to_blocks (map (Init.Nat.add data_start) al) /\ data_blocks new_txn = vl /\
     (
-        (length o =  c1 * 6 + 12 /\
+        ((exists o', 
+        o = map transform_token o' /\
+        commit_crashed_oracle_is_3 o'
+         (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) /\
         count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl <= log_length /\
         (forall i : nat,
@@ -1125,7 +1700,7 @@ Theorem write_crashed_oracle:
           length (snd (snd (snd s') (log_start + Log.count (Log.current_part hdr) + i))) = 1) /\
           old_hdr = hdr) \/
 
-        (length o = c2 * 4 + c3 + c1 * 6 + 28 /\
+        (write_crashed_oracle_is_3 o hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
         count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length /\
         (forall i : nat,
@@ -1139,25 +1714,50 @@ Theorem write_crashed_oracle:
     ) \/
   
     (cached_log_crash_rep (After_Commit (upd_batch merged_disk al vl)) s' /\
-     ((length o >=  c1 * 6 + 13 /\
-      length o <  c1 * 6 + length al + 16 /\
+     ((((exists o', 
+     o = map transform_token o' /\
+     commit_crashed_oracle_is_4 o'
+    (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) \/
+    (exists o', 
+     o = map transform_token o' ++  [LayerImplementation.Crash
+     (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)] /\
+     commit_finished_oracle_is_true o'
+    (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) \/
+    (exists o1 o2 n, 
+     o = map transform_token o1 ++  LayerImplementation.Cont
+     (HorizontalComposition (CacheOperation addr_dec value)
+        CryptoDiskOperation) :: o2 /\
+     commit_finished_oracle_is_true o1
+    (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
+    write_batch_to_cache_crashed_oracle_is o2 n)) /\
       count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl <= log_length) \/
       
-      (length o >= c2 * 4 + c3 + c1 * 6 + 29 /\
-      length o < c2 * 4 + c3 + c1 * 6 + length al + 32 /\
+      (write_crashed_oracle_is_4 o hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
       count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length))) \/
     
     (cached_log_crash_rep (During_Apply merged_disk) s' /\
-    length o >= c2 * 4 + 10 /\
-    length o <  c2 * 4 + c3 + 16 /\
+    ((exists o', 
+    o = OpToken
+    (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+    (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+       (Token2 CryptoOperation
+          (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+          DiskLayer.Cont))
+  :: LayerImplementation.Cont
+       (HorizontalComposition (CacheOperation addr_dec value)
+          CryptoDiskOperation)
+     :: LayerImplementation.Cont
+          (HorizontalComposition (CacheOperation addr_dec value)
+             CryptoDiskOperation)
+        :: map transform_token o' /\
+    (apply_log_crashed_oracle_is_3 o' hdr \/ exists n, apply_log_crashed_oracle_is_1 o' hdr n))) /\
     count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length) \/
     
     (cached_log_crash_rep (After_Apply merged_disk) s' /\ 
-    length o >= c2 * 4 + c3 + 16 /\
-    length o < c2 * 4 + c3 + 17 /\
+    write_crashed_oracle_is_5 o hdr /\
     count (current_part hdr) + length (addr_list_to_blocks 
         (map (Init.Nat.add data_start) al)) + length vl > log_length)
    ) /\
@@ -1167,7 +1767,12 @@ Theorem write_crashed_oracle:
    length al = length vl /\
    length (addr_list_to_blocks (map (plus data_start) al)) + length vl <= log_length).
 Proof.
-  unfold cached_log_rep, write; simpl; intros.
+  unfold write_crashed_oracle_is_1, 
+  write_crashed_oracle_is_2, 
+  write_crashed_oracle_is_3, 
+  write_crashed_oracle_is_4, 
+  write_crashed_oracle_is_5, 
+  cached_log_rep, write; simpl; intros.
   cleanup; invert_exec.
   {
     split_ors; cleanup; repeat invert_exec.
@@ -1179,7 +1784,6 @@ Proof.
         repeat cleanup_pairs; eauto.
         {
           left; eexists; intuition eauto.
-          repeat rewrite map_length; eauto.
         }
         {
           right; repeat (split; eauto).
@@ -1200,9 +1804,9 @@ Proof.
             intros; simpl.
             unfold log_crash_rep, log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H17; eauto.
-            unfold txn_well_formed, record_is_valid in H17; logic_clean.
-            eapply Forall_forall in H22; eauto; lia.
+            eapply Forall_forall in H16; eauto.
+            unfold txn_well_formed, record_is_valid in H16; logic_clean.
+            eapply Forall_forall in H21; eauto; lia.
           }
           rewrite A.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1226,9 +1830,6 @@ Proof.
           }
           {
             rewrite H4; eauto.
-          }
-          {
-            repeat rewrite map_length; simpl; lia.
           }
         }
         {
@@ -1364,7 +1965,7 @@ Proof.
           }
           {
             clear H7 H12.
-            rewrite map_length; left.
+            left.
             repeat (split; eauto).
             edestruct H11.
             erewrite addr_list_to_blocks_length_eq; eauto.
@@ -1453,9 +2054,6 @@ Proof.
           }
           {
             rewrite H7; simpl; eauto.
-          }
-          {
-            rewrite map_length; lia.
           }
         }
       }
@@ -1570,8 +2168,7 @@ Proof.
             rewrite H9; simpl; eauto.
           }
           {
-            rewrite app_length, map_length; simpl in *.
-            rewrite H10. left; repeat split; try lia.
+            left; intuition eauto.
             rewrite app_length in *; lia.
           }
         }
@@ -1598,9 +2195,9 @@ Proof.
             unfold log_rep, log_rep_general, log_rep_explicit,
             log_rep_inner, txns_valid in *; cleanup.
             
-            eapply Forall_forall in H19; eauto.
-            unfold txn_well_formed, record_is_valid in H19; logic_clean.
-            eapply Forall_forall in H23; eauto; lia.
+            eapply Forall_forall in H18; eauto.
+            unfold txn_well_formed, record_is_valid in H18; logic_clean.
+            eapply Forall_forall in H22; eauto; lia.
           }
           rewrite A.
           repeat rewrite shift_list_upd_batch_set_comm.
@@ -1620,26 +2217,26 @@ Proof.
           unfold log_rep, log_rep_general, log_rep_explicit in *;
           simpl in *; logic_clean.
           unfold log_rep_inner, txns_valid in *; logic_clean.
-          eapply forall_app_l in H17.
+          eapply forall_app_l in H16.
           simpl in *.
-          inversion H17; subst.
-          unfold txn_well_formed in H20; logic_clean.
-          rewrite H20, H6, H0 in *.
+          inversion H16; subst.
+          unfold txn_well_formed in H19; logic_clean.
+          rewrite H19, H6, H0 in *.
           rewrite firstn_app2; eauto.
           rewrite map_length; eauto.
           repeat rewrite map_length; eauto.
           
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x y); subst.
+            destruct (addr_dec x2 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
           }
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x y); subst.
+            destruct (addr_dec x2 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
           }          
           {
             apply shift_eq_after.
@@ -1648,29 +2245,18 @@ Proof.
           }
           {
             unfold sumbool_agree; intros; intuition eauto.
-            destruct (addr_dec x y); subst.
+            destruct (addr_dec x2 y); subst.
             destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-            destruct (addr_dec (data_start + x) (data_start + y)); eauto; lia.
+            destruct (addr_dec (data_start + x2) (data_start + y)); eauto; lia.
           }
           {
             rewrite H9; simpl; eauto.
           }
           {
-            rewrite app_length, map_length; simpl.
+            simpl.
             left; intuition.
-            setoid_rewrite H10.
-            remember (length
-            (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ data_blocks x1) *
-            6) as y.
-            rewrite <- e.
-            rewrite map_length in *.
-            repeat rewrite <- Nat.add_assoc. 
-            apply Nat.add_lt_mono_l.
-            eapply Nat.le_trans.
-            instantiate (1:= 15 + S(length al)).
-            eapply Nat.le_trans.
-            2: eapply Nat.add_le_mono_l in H4; eauto.
-            simpl; eauto. lia.
+            right; right; 
+            do 3 eexists; intuition eauto.
             rewrite app_length in *; lia.
           }
         }
@@ -1713,11 +2299,8 @@ Proof.
              {
                left; unfold cached_log_rep; simpl.
                eexists; intuition eauto.
-               right; split; eauto.
+               right; right; split; eauto.
                rewrite app_length in *; lia.
-               repeat rewrite app_length;
-               repeat rewrite map_length.
-               setoid_rewrite H7. lia.
              }
              {               
                split_ors; cleanup.
@@ -1729,7 +2312,7 @@ Proof.
                  log_rep_explicit, log_crash_rep,
                  log_rep_inner, txns_valid, header_part_is_valid in *; 
                  simpl in *; logic_clean.
-                 rewrite <- H27.
+                 rewrite <- H24.
                  repeat erewrite RepImplications.bimap_get_addr_list; eauto.
                  repeat rewrite total_mem_map_shift_comm.
                  repeat rewrite total_mem_map_fst_list_upd_batch_set.
@@ -1745,24 +2328,24 @@ Proof.
 
                  apply forall_forall2.
                  apply Forall_forall; intros.
-                 rewrite <- combine_map in H36.
-                 apply in_map_iff in H36; logic_clean.
-                 eapply Forall_forall in H16; eauto.
-                 unfold txn_well_formed in H16; logic_clean; eauto.
-                 destruct x9; simpl in *.
-                 inversion H36; subst.
+                 rewrite <- combine_map in H33.
+                 apply in_map_iff in H33; logic_clean.
+                 eapply Forall_forall in H13; eauto.
+                 unfold txn_well_formed in H13; logic_clean; eauto.
+                 destruct x8; simpl in *.
+                 inversion H33; subst.
                  simpl. 
-                 rewrite H40, <- H44, firstn_length_l; eauto. 
+                 rewrite H37, <- H41, firstn_length_l; eauto. 
                  repeat rewrite map_length; eauto.
                  
                  repeat rewrite list_upd_batch_not_in; eauto.
                  rewrite upd_batch_ne.
                  rewrite list_upd_batch_not_in; eauto.
                  intros.
-                 apply in_firstn_in in H34; eauto.
+                 apply in_firstn_in in H31; eauto.
                  intros Hx.
                  apply in_firstn_in in Hx; eauto.
-                 eapply H33; eauto.
+                 eapply H30; eauto.
                  apply in_seln; eauto.
                  destruct (lt_dec x0 (length (map addr_list txns))); eauto.
                  rewrite seln_oob in Hx; eauto.
@@ -1774,15 +2357,15 @@ Proof.
                  log_rep_explicit, log_crash_rep,
                  log_rep_inner, txns_valid, header_part_is_valid in *; 
                  simpl in *; logic_clean.
-                 rewrite <- H29.
+                 rewrite <- H26.
                  erewrite RepImplications.bimap_get_addr_list; eauto.
                  rewrite upd_batch_set_ne; eauto.
                  rewrite list_upd_batch_set_not_in; eauto.
                  intros.
-                 apply in_firstn_in in H35; eauto.
+                 apply in_firstn_in in H32; eauto.
                  intros Hx.
                  apply in_firstn_in in Hx; eauto.
-                 eapply H10; eauto.
+                 eapply H7; eauto.
                  eexists; split; eauto. 
                  apply in_seln; eauto.
                  destruct (lt_dec x0 (length (map addr_list txns))); eauto.
@@ -1790,18 +2373,6 @@ Proof.
                  simpl in *; intuition.
                  lia.
                  repeat rewrite map_length; eauto.
-                 {
-                   repeat rewrite app_length;
-                   repeat rewrite map_length.
-                    setoid_rewrite H7.
-                    lia.
-                 }
-                 {
-                    repeat rewrite app_length;
-                    repeat rewrite map_length.
-                   setoid_rewrite H7.
-                   lia.
-                 }
                  {
                    rewrite app_length in *; lia.
                  }
@@ -1817,7 +2388,7 @@ Proof.
                  rewrite total_mem_map_fst_list_upd_batch_set.
                  unfold log_header_rep, log_rep_general, 
                  log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-                 rewrite <- H15.
+                 rewrite <- H12.
                  erewrite RepImplications.bimap_get_addr_list.
                  4: eauto.
                  rewrite TotalMem.list_upd_batch_noop; eauto.
@@ -1828,11 +2399,8 @@ Proof.
                  {
                   repeat rewrite app_length;
                   repeat rewrite map_length.
-                  setoid_rewrite H7.
-                  right; intuition eauto.
+                  right; right; intuition eauto.
                   rewrite app_length in *; lia.
-                  right; intuition eauto; try lia.
-
                  }
                }
                {
@@ -1852,7 +2420,7 @@ Proof.
                     unfold log_rep; eauto.
                   }
                   unfold log_header_rep, log_rep_general, log_rep_explicit, log_rep_inner, txns_valid in *; logic_clean.
-                  rewrite <- H14.
+                  rewrite <- H12.
                   erewrite RepImplications.bimap_get_addr_list.
                   4: eauto.
                    repeat rewrite total_mem_map_shift_comm.
@@ -1864,10 +2432,10 @@ Proof.
                     rewrite TotalMem.list_upd_batch_noop; eauto.
                     unfold not; intros; pose proof hdr_before_log.
                    pose proof data_start_where_log_ends.
-                   apply in_map_iff in H16; cleanup.
-                   eapply Forall_forall in H15; eauto.
-                   unfold txn_well_formed in H15; cleanup.
-                   eapply Forall_forall in H23; eauto.
+                   apply in_map_iff in H14; cleanup.
+                   eapply Forall_forall in H13; eauto.
+                   unfold txn_well_formed in H13; cleanup.
+                   eapply Forall_forall in H21; eauto.
                    lia.
                     eauto.
                     rewrite map_length; eauto.
@@ -1888,19 +2456,19 @@ Proof.
                  setoid_rewrite shift_upd_noop.
                  unfold log_header_rep, log_rep_general, log_rep_explicit,
                  log_rep_inner, txns_valid in *; simpl in *; logic_clean.
-                 rewrite <- H14.
+                 rewrite <- H12.
                  erewrite RepImplications.bimap_get_addr_list.
                  4: eauto.
                  rewrite TotalMem.list_upd_batch_noop; eauto.
                  {
                    apply forall_forall2.
                    apply Forall_forall; intros.
-                   rewrite <- combine_map in H16.
-                   apply in_map_iff in H16; cleanup.
+                   rewrite <- combine_map in H14.
+                   apply in_map_iff in H14; cleanup.
                    simpl.
                    eapply Forall_forall in H15; eauto.
                    unfold txn_well_formed in H15; logic_clean.
-                   rewrite H18.
+                   rewrite H16.
                    apply firstn_length_l; eauto.
                    lia.
                    repeat rewrite map_length; eauto.
@@ -1908,12 +2476,12 @@ Proof.
                  {
                    apply forall_forall2.
                    apply Forall_forall; intros.
-                   rewrite <- combine_map in H16.
-                   apply in_map_iff in H16; cleanup.
+                   rewrite <- combine_map in H14.
+                   apply in_map_iff in H14; cleanup.
                    simpl.
                    eapply Forall_forall in H15; eauto.
                    unfold txn_well_formed in H15; logic_clean.
-                   rewrite H18.
+                   rewrite H16.
                    apply firstn_length_l; eauto.
                    lia.
                    repeat rewrite map_length; eauto.
@@ -1930,12 +2498,12 @@ Proof.
                    log_rep_inner, txns_valid in *; logic_clean.
                    apply forall_forall2.
                    apply Forall_forall; intros.
-                   rewrite <- combine_map in H16.
-                   apply in_map_iff in H16; cleanup.
+                   rewrite <- combine_map in H14.
+                   apply in_map_iff in H14; cleanup.
                    simpl.
                    eapply Forall_forall in H15; eauto.
                    unfold txn_well_formed in H15; logic_clean.
-                   rewrite H18.
+                   rewrite H16.
                    apply firstn_length_l; eauto.
                    lia.
                    repeat rewrite map_length; eauto.
@@ -1951,20 +2519,6 @@ Proof.
                    intros; pose proof hdr_before_log.
                    pose proof data_start_where_log_ends.
                    lia.
-                 }
-                 {
-                  repeat rewrite app_length;
-                  repeat rewrite map_length.
-                  setoid_rewrite H7.
-                  setoid_rewrite H2.
-                  lia.
-                 }
-                 {
-                  repeat rewrite app_length;
-                  repeat rewrite map_length.
-                  setoid_rewrite H7.
-                  setoid_rewrite H2.
-                  lia.
                  }
                  {
                   rewrite app_length in *; lia.
@@ -1989,20 +2543,6 @@ Proof.
                  intros; pose proof hdr_before_log.
                  pose proof data_start_where_log_ends.
                  lia.
-               }
-               {
-                repeat rewrite app_length;
-                repeat rewrite map_length.
-                setoid_rewrite H7.
-                setoid_rewrite H10.
-                simpl. lia.
-               }
-               {
-                repeat rewrite app_length;
-                repeat rewrite map_length.
-                setoid_rewrite H7.
-                setoid_rewrite H10.
-                simpl. lia.
                }
                {
                  rewrite app_length in *; try lia.
@@ -2034,9 +2574,7 @@ Proof.
               {
                 repeat rewrite app_length;
                 repeat rewrite map_length.
-                setoid_rewrite H7.
-                setoid_rewrite H10.
-                right; intuition eauto.
+                right; right; intuition eauto.
                 rewrite app_length in *; lia.
                 right; simpl.
                 rewrite app_length in *;
@@ -2070,8 +2608,6 @@ Proof.
                 simpl in *; 
                 repeat rewrite map_length in *;
                 simpl in *.
-                setoid_rewrite H7.
-                setoid_rewrite H10.
                 right; intuition eauto; try lia.
               }
             }
@@ -2084,7 +2620,7 @@ Proof.
               instantiate (2:= []).
               simpl; eauto.
               simpl.
-              replace (addr_list x4) with (map (Init.Nat.add data_start) al).           
+              replace (addr_list x2) with (map (Init.Nat.add data_start) al).           
               rewrite shift_upd_batch_set_comm.
               rewrite shift_eq_after with (m1:= s2) (m2:= sync
          (upd_set (list_upd_batch_set s1 (map addr_list txns) (map data_blocks txns)) hdr_block_num
@@ -2099,19 +2635,19 @@ Proof.
                 lia.
               }
               intros; lia.
-              intros; apply H12; lia.
+              intros; apply H10; lia.
               {
                 unfold sumbool_agree; intros; intuition eauto.
-                destruct (addr_dec x6 y); subst.
+                destruct (addr_dec x4 y); subst.
                 destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-                destruct (addr_dec (data_start + x6) (data_start + y)); eauto; lia.
+                destruct (addr_dec (data_start + x4) (data_start + y)); eauto; lia.
               }
               {
                 unfold log_crash_rep in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H24; cleanup.
-                inversion H29; cleanup.
-                unfold txn_well_formed in H32; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H22; cleanup.
+                inversion H27; cleanup.
+                unfold txn_well_formed in H30; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
@@ -2129,30 +2665,27 @@ Proof.
                   lia.
                 }
                 intros; lia.
-                intros; apply H12; lia.
+                intros; apply H10; lia.
               }
-              rewrite H12; simpl; eauto.
+              rewrite H10; simpl; eauto.
               {
                 repeat rewrite app_length in *;
                 simpl in *; 
                 repeat rewrite map_length in *;
                 simpl in *.
-                setoid_rewrite H7.
-                setoid_rewrite H10.
-                setoid_rewrite H13.
                 unfold log_rep_general, 
                 log_rep_explicit, log_rep_inner,
                 txns_valid,
-                header_part_is_valid in H8;
+                header_part_is_valid in H7;
                 cleanup; simpl in *.
-                rewrite <- H22 in *; simpl in *.
+                rewrite <- H20 in *; simpl in *.
                 repeat rewrite Nat.add_0_r in *.
                 right; intuition eauto; try lia.
-                edestruct H15.
+                edestruct H13.
                 erewrite addr_list_to_blocks_length_eq; eauto.
                 rewrite map_length; eauto.
                 eauto.
-                edestruct H15.
+                edestruct H13.
                 erewrite addr_list_to_blocks_length_eq; eauto.
                 rewrite map_length; eauto.
                 eauto.
@@ -2163,7 +2696,7 @@ Proof.
               right; left; intuition eauto.
               eexists; intuition eauto.
               simpl.
-              replace (addr_list x4) with (map (Init.Nat.add data_start) al).
+              replace (addr_list x2) with (map (Init.Nat.add data_start) al).
               rewrite shift_upd_batch_set_comm.
               rewrite shift_eq_after with (m1:= s2) (m2:= sync
          (sync
@@ -2181,31 +2714,28 @@ Proof.
                 lia.
               }
               intros; lia.
-              intros; apply H11; lia.
+              intros; apply H9; lia.
               {
                 unfold sumbool_agree; intros; intuition eauto.
-                destruct (addr_dec x5 y); subst.
+                destruct (addr_dec x3 y); subst.
                 destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-                destruct (addr_dec (data_start + x5) (data_start + y)); eauto; lia.
+                destruct (addr_dec (data_start + x3) (data_start + y)); eauto; lia.
               }
               {
                 unfold log_rep, log_rep_general, log_rep_explicit in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H18; cleanup.
-                inversion H18; cleanup.
-                unfold txn_well_formed in H27; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H16; cleanup.
+                inversion H16; cleanup.
+                unfold txn_well_formed in H25; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
-              rewrite H11; simpl; eauto.
+              rewrite H9; simpl; eauto.
               {
                 repeat rewrite app_length in *;
                 simpl in *; 
                 repeat rewrite map_length in *;
                 simpl in *.
-                setoid_rewrite H7.
-                setoid_rewrite H10.
-                setoid_rewrite H12.
                 right; intuition eauto; try lia.
               }
             }
@@ -2218,7 +2748,7 @@ Proof.
             }
             {
               apply Forall_forall; intros.
-              apply in_map_iff in H9; cleanup_no_match.
+              apply in_map_iff in H8; cleanup_no_match.
               eapply_fresh Forall_forall in f; eauto.
               pose proof data_fits_in_disk.
               split; try lia.
@@ -2243,7 +2773,7 @@ Proof.
             destruct (addr_dec hdr_block_num hdr_block_num); try lia.
             destruct (list_upd_batch_set s1 (map addr_list txns) 
             (map data_blocks txns) hdr_block_num); simpl in *.
-            destruct x0; simpl in *; cleanup.
+            destruct x; simpl in *; cleanup.
             rewrite encode_decode_header, app_length in H2; simpl in *;
             lia.
           }
@@ -2272,7 +2802,7 @@ Proof.
                 lia.
               }
               intros; lia.
-              intros; apply H12; lia.
+              intros; apply H10; lia.
               {
                 unfold sumbool_agree; intros; intuition eauto.
                 destruct (addr_dec x0 y); subst.
@@ -2282,25 +2812,22 @@ Proof.
               {
                 unfold log_rep, log_rep_general, log_rep_explicit in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H18; cleanup.
-                inversion H18; cleanup.
-                unfold txn_well_formed in H27; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H16; cleanup.
+                inversion H16; cleanup.
+                unfold txn_well_formed in H25; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
-              rewrite H12; simpl; eauto.
+              rewrite H10; simpl; eauto.
               {
                 repeat (repeat rewrite app_length in *;
                 simpl in *; 
                 repeat rewrite map_length in *;
                 simpl in * ).
-                setoid_rewrite H7.
-                setoid_rewrite H10.
-                setoid_rewrite H13.
                 right; intuition eauto; try lia.
               }
             }
-            all: try rewrite H9, firstn_app2.
+            all: try rewrite H8, firstn_app2.
             all: try rewrite app_length;
             try rewrite map_length; try lia.
             {
@@ -2309,13 +2836,13 @@ Proof.
             }
             {
               apply Forall_forall; intros.
-              apply in_map_iff in H11; cleanup_no_match.
+              apply in_map_iff in H9; cleanup_no_match.
               eapply_fresh Forall_forall in f; eauto.
               pose proof data_fits_in_disk.
               split; try lia.
             }
             {
-              rewrite H9, app_length, map_length; lia.
+              rewrite H8, app_length, map_length; lia.
             }
             {
         erewrite addr_list_to_blocks_length_eq.
@@ -2329,7 +2856,7 @@ Proof.
           unfold log_rep in *; logic_clean.
           destruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) al)).
           simpl in *; repeat cleanup_pairs; simpl in *.
-          eapply commit_finished_oracle in H8; eauto.
+          eapply commit_finished_oracle in H7; eauto.
           simpl in *; repeat cleanup_pairs; simpl in *.
           split_ors; cleanup; try congruence; try lia.
           2: {
@@ -2368,50 +2895,35 @@ Proof.
                 lia.
               }
               intros; lia.
-              intros; apply H12; lia.
+              intros; apply H11; lia.
               {
                 unfold sumbool_agree; intros; intuition eauto.
-                destruct (addr_dec x6 y); subst.
+                destruct (addr_dec x5 y); subst.
                 destruct (addr_dec (data_start + y) (data_start + y)); eauto; congruence.
-                destruct (addr_dec (data_start + x6) (data_start + y)); eauto; lia.
+                destruct (addr_dec (data_start + x5) (data_start + y)); eauto; lia.
               }
               {
                 unfold log_rep, log_rep_general, log_rep_explicit in *; cleanup.
                 simpl in *.
-                unfold log_rep_inner, txns_valid in H20; cleanup.
-                inversion H20; cleanup.
-                unfold txn_well_formed in H29; simpl in *; cleanup.
+                unfold log_rep_inner, txns_valid in H17; cleanup.
+                inversion H17; cleanup.
+                unfold txn_well_formed in H26; simpl in *; cleanup.
                 rewrite firstn_app2; eauto.
                 rewrite map_length; eauto.
               }
-              rewrite H12; simpl; eauto.
+              rewrite H11; simpl; eauto.
               {
                 right; simpl.
                 repeat (repeat rewrite app_length in *;
                 simpl in *; 
                 repeat rewrite map_length in *;
                 simpl in * ).
-                setoid_rewrite H7.
-                setoid_rewrite H13.
-                setoid_rewrite H14.
                 intuition eauto; try lia.
-                repeat rewrite <- e in *.
-                remember (count (current_part hdr) * 4 +
-                fold_left Nat.add
-                  (map
-                     (fun txnr : txn_record => addr_count txnr * 2 + data_count txnr * 4 + 3)
-                     (records (current_part hdr))) 0) as y.
-                remember ((length (addr_list_to_blocks (map (Init.Nat.add data_start) al)) + length al) *
-                6) as z.
-                replace (3 + (y + 12 + S (z + 13 + 1) + length x4)) with
-                ((30 + y + z) + length x4) by lia.
-                replace (y + z + length al + 32) with
-                ((30 + y + z) + (2 + length al)) by lia.
-                apply Nat.add_lt_mono_l.
-                simpl; apply le_n_S; eauto.
+                right; right.
+                do 2 eexists; intuition eauto.
               }
             }
-            all: try rewrite H11, firstn_app2.
+            all: try rewrite H10, firstn_app2.
             all: try rewrite app_length;
             try rewrite map_length; try lia.
             {
@@ -2426,7 +2938,7 @@ Proof.
               split; try lia.
             }
             {
-              rewrite H11, app_length, map_length; lia.
+              rewrite H10, app_length, map_length; lia.
             }
             {
               erewrite addr_list_to_blocks_length_eq.

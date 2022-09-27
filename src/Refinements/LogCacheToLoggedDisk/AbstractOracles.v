@@ -792,7 +792,7 @@ match l_selector with
             log_rep_explicit, log_header_block_rep in *; cleanup.
               left; intuition eauto.
               edestruct H23; eauto.
-              erewrite <- H21.
+              erewrite <- H17.
               setoid_rewrite <- H19; fold Nat.add; try lia.
               unfold select_total_mem; simpl; eauto.
 
@@ -944,7 +944,6 @@ match l_selector with
         {
             unfold log_header_rep, log_rep_general, 
             log_rep_explicit, log_header_block_rep in *; cleanup.
-            setoid_rewrite H7.
             intuition eauto.
         }
       }
@@ -986,9 +985,6 @@ match l_selector with
               log_rep_explicit, log_header_block_rep in *; cleanup.
               eauto.
           }
-          unfold log_header_rep, log_rep_general, 
-              log_rep_explicit, log_header_block_rep in *; cleanup.
-          erewrite addr_list_to_blocks_length_eq; eauto.
         }
       }
       {
@@ -1005,7 +1001,7 @@ match l_selector with
         unfold cached_log_crash_rep in *;
         simpl in *; cleanup.
         eexists; intuition eauto.
-        setoid_rewrite <- H13.
+        setoid_rewrite <- H12.
         repeat rewrite total_mem_map_shift_comm.
         repeat rewrite total_mem_map_fst_list_upd_batch_set.
         erewrite empty_mem_list_upd_batch_eq_list_upd_batch_total; eauto.
@@ -1016,7 +1012,7 @@ match l_selector with
         {
           unfold log_header_rep, log_rep_general, 
           log_rep_explicit, log_header_block_rep in *; cleanup.
-          lia.
+          eauto.
         }
         unfold log_header_rep, log_rep_general, 
             log_rep_explicit, log_header_block_rep in *; cleanup.
@@ -1059,6 +1055,7 @@ match l_selector with
           }
           split_ors; cleanup.
           {
+            clear H10.
             split_ors.
             {
               cleanup.

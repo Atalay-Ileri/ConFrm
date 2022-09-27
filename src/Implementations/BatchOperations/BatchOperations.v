@@ -330,6 +330,40 @@ Definition write_consecutive_crashed := write_batch_crashed.
 
 
 (* Oracle length versions*)
+
+Definition rec_oracle_op1_crypto n :=
+  repeat (OpToken
+    (HorizontalComposition CryptoOperation
+       (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+    (Token1 CryptoOperation
+       (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)) Cont)) n.
+
+Definition rec_oracle_op1_disk n :=
+repeat (OpToken
+(HorizontalComposition CryptoOperation
+(DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+(Token2 CryptoOperation
+(DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)) DiskLayer.Cont)) n.
+      
+
+Definition rec_oracle_op2 n :=
+  repeat (LayerImplementation.Cont
+        (HorizontalComposition CryptoOperation
+           (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))) n.
+
+Definition rec_oracle_finished_crypto n :=
+  rec_oracle_op1_crypto n ++
+    [LayerImplementation.Cont
+    CryptoDiskOperation] ++
+    rec_oracle_op2 n.
+
+Definition rec_oracle_finished_disk n :=
+  rec_oracle_op1_disk n ++
+    [LayerImplementation.Cont
+    CryptoDiskOperation] ++
+    rec_oracle_op2 n.
+
+
 Theorem decrypt_all_finished_oracle:
   forall key evl o s s' t u,
     exec CryptoDiskLang u o s (decrypt_all key evl) (Finished s' t) ->
@@ -338,7 +372,7 @@ Theorem decrypt_all_finished_oracle:
     fst (fst s') = fst (fst s) /\
     snd (fst s') = upd_batch (snd (fst s)) evl (map (fun ev => (key, decrypt key ev)) evl) /\
     snd s' = snd s /\
-    length o = (length evl * 2) + 1.
+    o = rec_oracle_finished_crypto (length evl).
 Proof.
   induction evl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -348,9 +382,44 @@ Proof.
   edestruct IHevl; eauto; cleanup.
   eexists; intuition eauto.
   repeat cleanup_pairs; eauto.
-  rewrite app_length; simpl.
-  setoid_rewrite H5; lia.
+  unfold rec_oracle_finished_crypto, rec_oracle_op1_crypto, rec_oracle_op2; 
+  repeat cleanup_pairs; eauto.
+  replace (LayerImplementation.Cont
+  (HorizontalComposition CryptoOperation
+     (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+:: repeat
+     (LayerImplementation.Cont
+        (HorizontalComposition CryptoOperation
+           (DiskOperation addr_dec value
+              (fun a0 : addr => a0 < disk_size)))) 
+              (length evl)) with 
+     (repeat
+         (LayerImplementation.Cont
+            (HorizontalComposition CryptoOperation
+               (DiskOperation addr_dec value
+                  (fun a0 : addr => a0 < disk_size)))) 
+         (S (length evl))) by (simpl; eauto).
+
+  rewrite repeat_app_tail.
+  repeat rewrite <- app_assoc; simpl; eauto.
 Qed.
+
+Definition batch_operations_crypto_crashed_oracle_is o n length_evl :=
+  ((n <= length_evl /\ o = rec_oracle_op1_crypto n ++ [OpToken
+      (HorizontalComposition CryptoOperation
+         (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+      (Token1 CryptoOperation
+         (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)) Crash)]) \/
+      (n = length_evl /\
+       o = rec_oracle_op1_crypto n ++ [LayerImplementation.Crash CryptoDiskOperation]) \/
+
+      (exists k, k < length_evl /\ n = length_evl /\
+      o = rec_oracle_op1_crypto n ++ [LayerImplementation.Cont
+    CryptoDiskOperation] ++
+    rec_oracle_op2 k ++
+      [LayerImplementation.Crash
+         (HorizontalComposition CryptoOperation
+            (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))])).
 
 Theorem decrypt_all_crashed_oracle:
   forall key evl o s s' u,
@@ -361,29 +430,31 @@ Theorem decrypt_all_crashed_oracle:
       snd (fst s') = upd_batch (snd (fst s)) (firstn n evl) (firstn n (map (fun ev => (key, decrypt key ev)) evl)) /\
       snd s' = snd s /\
       n <= length evl /\
-      length o >= 1 /\
-      length o <= (length evl * 2) + 1.
+      batch_operations_crypto_crashed_oracle_is o n (length evl).
 Proof.
+  unfold batch_operations_crypto_crashed_oracle_is;
   induction evl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
   exists 0; simpl; eauto.
-  intuition eauto.
+  intuition lia.
   
   split_ors; cleanup; repeat invert_exec.
   exists 0; simpl; eauto.
-  intuition eauto.
-  lia.
-  lia.
+  intuition lia.
 
   split_ors; cleanup; repeat invert_exec.
   {
     apply IHevl in H; cleanup.
-    exists (S x); simpl; intuition eauto.
-    repeat cleanup_pairs; eauto.
-    destruct p; eauto.
-    lia.
-    lia.
+    exists (S x); simpl; intuition eauto;
+    cleanup; subst; simpl; intuition (try lia).
+    all: repeat cleanup_pairs; eauto.
+    all: destruct p; eauto.
+    right; right; 
+    exists x0.
+    unfold rec_oracle_finished_crypto;
+    repeat rewrite <- app_assoc;
+    simpl; intuition lia.
   }
   {
     eapply decrypt_all_finished_oracle in H0; cleanup; eauto.
@@ -392,9 +463,15 @@ Proof.
     intuition eauto.
     repeat cleanup_pairs; eauto.
     destruct p; eauto.
-    lia.
-    rewrite app_length; simpl.
-    setoid_rewrite H4; lia.   
+
+
+
+    right; right; 
+    exists (length evl).
+    unfold rec_oracle_finished_crypto;
+    repeat rewrite <- app_assoc;
+    simpl; intuition lia.
+
     rewrite map_length; eauto.
   }
 Qed.
@@ -409,7 +486,7 @@ Theorem read_consecutive_finished_oracle:
          (snd s) (a + i) = vs /\
          fst vs = seln t i value0) /\
     s' = s /\
-    length o = (count * 2) + 1.
+    o = rec_oracle_finished_disk count.
 Proof.
   induction count; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -425,35 +502,75 @@ Proof.
   rewrite <- PeanoNat.Nat.add_succ_comm.
   eapply H1; lia.
   simpl in *.
-  rewrite app_length; simpl in *.
-  setoid_rewrite H3.
-  destruct s; intuition eauto.
-  lia.
+
+  unfold rec_oracle_finished_disk, rec_oracle_op1_disk, rec_oracle_op2; 
+  repeat cleanup_pairs; eauto.
+  replace (LayerImplementation.Cont
+  (HorizontalComposition CryptoOperation
+     (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+:: repeat
+     (LayerImplementation.Cont
+        (HorizontalComposition CryptoOperation
+           (DiskOperation addr_dec value
+              (fun a0 : addr => a0 < disk_size)))) 
+              (length x3)) with 
+     (repeat
+         (LayerImplementation.Cont
+            (HorizontalComposition CryptoOperation
+               (DiskOperation addr_dec value
+                  (fun a0 : addr => a0 < disk_size)))) 
+         (S (length x3))) by (simpl; eauto).
+
+  rewrite repeat_app_tail.
+  repeat rewrite <- app_assoc; simpl; eauto.
 Qed.
+
+Definition batch_operations_disk_crashed_oracle_is o n count :=
+  ((n <= count /\ o = rec_oracle_op1_disk n ++ [OpToken
+    (HorizontalComposition CryptoOperation
+       (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+    (Token2 CryptoOperation
+       (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)) DiskLayer.Crash)]) \/
+    (n = count /\
+     o = rec_oracle_op1_disk n ++ [LayerImplementation.Crash CryptoDiskOperation]) \/
+
+    (exists k, k < count /\ n = count /\
+    o = rec_oracle_op1_disk n ++ [LayerImplementation.Cont
+  CryptoDiskOperation] ++
+  rec_oracle_op2 k ++
+    [LayerImplementation.Crash
+       (HorizontalComposition CryptoOperation
+          (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))])).
 
 Theorem read_consecutive_crashed_oracle:
   forall count a o s s' u,
     exec CryptoDiskLang u o s (read_consecutive a count) (Crashed s') ->
-    s' = s /\
-    length o >= 1 /\
-    length o <= (count * 2) + 1.
+    s' = s /\ 
+    exists n, batch_operations_disk_crashed_oracle_is o n count.
 Proof.
+  unfold batch_operations_disk_crashed_oracle_is;
   induction count; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try solve [intuition eauto; lia].
   repeat (split_ors; cleanup; repeat invert_exec; simpl; eauto).
   destruct s; simpl; intuition eauto.
-  lia.
+  exists 0; simpl; intuition lia.
+
  
   eapply IHcount in H; eauto; cleanup.
-  destruct s; simpl in *; intuition eauto.
-  lia.
+  split.
+  destruct s; simpl in *; eauto. 
+  exists (S x); intuition eauto; cleanup; subst; simpl;
+  try intuition lia.
+    right; right; exists x0;
+    simpl; repeat rewrite <- app_assoc; intuition lia.
+
   apply read_consecutive_finished_oracle in H0; cleanup; eauto.
   destruct s; intuition eauto.
-  repeat rewrite app_length; simpl in *.
-  lia.
-  repeat rewrite app_length; simpl in *.
-  setoid_rewrite H2; lia.
+  exists (S (length x0)).
+    right; right; exists (length x0);
+    unfold rec_oracle_finished_disk;
+    simpl; repeat rewrite <- app_assoc; intuition lia.
 Qed.
 
 Theorem encrypt_all_finished_oracle:
@@ -464,19 +581,37 @@ Theorem encrypt_all_finished_oracle:
     fst (fst s') = fst (fst s) /\
     snd (fst s') = upd_batch (snd (fst s)) (map (encrypt key) vl) (map (fun v => (key, v)) vl) /\
     snd s' = snd s /\
-    length o = (length vl * 2) + 1.
+    (o = rec_oracle_finished_crypto (length vl)).
 Proof.
+  unfold rec_oracle_finished_crypto, rec_oracle_op1_crypto, rec_oracle_op2; 
   induction vl; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; simpl; eauto.
   - intuition eauto.
-  - edestruct IHvl; eauto; cleanup.
+  - edestruct IHvl; eauto; cleanup; subst.
     eexists; intuition eauto.
+
     repeat cleanup_pairs; eauto.
-    rewrite app_length; simpl.
-    setoid_rewrite H5; simpl. 
-    lia.
+    replace (LayerImplementation.Cont
+    (HorizontalComposition CryptoOperation
+       (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+  :: repeat
+       (LayerImplementation.Cont
+          (HorizontalComposition CryptoOperation
+             (DiskOperation addr_dec value
+                (fun a0 : addr => a0 < disk_size)))) 
+       (length vl)) with 
+       (repeat
+           (LayerImplementation.Cont
+              (HorizontalComposition CryptoOperation
+                 (DiskOperation addr_dec value
+                    (fun a0 : addr => a0 < disk_size)))) 
+           (S (length vl))) by (simpl; eauto).
+  
+    rewrite repeat_app_tail.
+    repeat rewrite <- app_assoc; simpl; eauto.
 Qed.
+
 
 Theorem encrypt_all_crashed_oracle:
   forall key vl o s s' u,
@@ -486,9 +621,9 @@ Theorem encrypt_all_crashed_oracle:
       fst (fst s') = fst (fst s) /\
       snd (fst s') = upd_batch (snd (fst s)) (firstn n (map (encrypt key) vl)) (firstn n (map (fun v => (key, v)) vl)) /\
       snd s' = snd s /\
-      length o >= 1 /\
-      length o <= (length vl * 2) + 1.
+      batch_operations_crypto_crashed_oracle_is o n (length vl).
 Proof.
+  unfold batch_operations_crypto_crashed_oracle_is.
   induction vl; simpl; intros;
   cleanup_no_match; simpl in *; 
   repeat invert_exec_no_match;
@@ -500,7 +635,7 @@ Proof.
   repeat invert_exec_no_match.
   {
     exists 0; simpl; intuition eauto.
-    lia.
+    intuition lia.
   }
   split_ors; cleanup_no_match; 
   repeat invert_exec_no_match.
@@ -509,22 +644,25 @@ Proof.
     cleanup_no_match; 
     eauto; simpl.
     exists (S x); simpl; cleanup_no_match; intuition eauto;
-    repeat cleanup_pairs; eauto;
-    destruct p; simpl in *; eauto; try lia.
+    repeat cleanup_pairs; eauto.
+    all: try solve [destruct p; simpl in *; eauto].
+    simpl; intuition lia.
+    right; right; exists x0;
+    simpl; intuition lia.
   }
   {
     eapply encrypt_all_finished_oracle in H0; cleanup_no_match.
 
-    exists (S(S (length vl + length vl))); intuition eauto;
+    exists (S (length vl)); intuition eauto;
     repeat rewrite firstn_oob; simpl; eauto;
     try solve [rewrite map_length; simpl; lia];
     repeat cleanup_pairs; eauto.
-    destruct p; simpl; eauto.
-
-    lia.
-    rewrite app_length; simpl.
-    setoid_rewrite H4; simpl.
-    lia.
+    all: try solve [destruct p; simpl in *; eauto].
+    right; right; 
+    exists (length vl).
+    unfold rec_oracle_finished_crypto;
+    repeat rewrite <- app_assoc;
+    simpl; intuition lia.
   }      
 Qed.
 
@@ -537,15 +675,34 @@ Theorem hash_all_finished_oracle:
     fst (fst (fst s')) = fst (fst (fst s)) /\
     snd (fst s') = snd (fst s) /\
     snd s' = snd s /\
-    length o = (length vl * 2) + 1.
+    (o = rec_oracle_finished_crypto (length vl)).
 Proof.
+  unfold rec_oracle_finished_crypto, rec_oracle_op1_crypto, rec_oracle_op2;
   induction vl; simpl; intros.
   repeat invert_exec; cleanup; intuition eauto.
   repeat invert_exec; cleanup.
   edestruct IHvl; eauto; cleanup.
   simpl in *; intuition eauto.
-  rewrite app_length; simpl.
-  setoid_rewrite H6; lia.
+
+    repeat cleanup_pairs; eauto.
+    replace (LayerImplementation.Cont
+    (HorizontalComposition CryptoOperation
+       (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+  :: repeat
+       (LayerImplementation.Cont
+          (HorizontalComposition CryptoOperation
+             (DiskOperation addr_dec value
+                (fun a0 : addr => a0 < disk_size)))) 
+       (length vl)) with 
+       (repeat
+           (LayerImplementation.Cont
+              (HorizontalComposition CryptoOperation
+                 (DiskOperation addr_dec value
+                    (fun a0 : addr => a0 < disk_size)))) 
+           (S (length vl))) by (simpl; eauto).
+  
+    rewrite repeat_app_tail.
+    repeat rewrite <- app_assoc; simpl; eauto.
 Qed.
 
 Lemma rolling_hash_list_length :
@@ -565,24 +722,24 @@ Theorem hash_all_crashed_oracle:
     fst (fst (fst s')) = fst (fst (fst s)) /\
     snd (fst s') = snd (fst s) /\
     snd s' = snd s /\
-    length o >= 1 /\
-    length o <= (length (rolling_hash_list h vl) * 2) + 1.
+    batch_operations_crypto_crashed_oracle_is o n (length vl).
 Proof.
+  unfold batch_operations_crypto_crashed_oracle_is;
   induction vl; simpl; intros.
   repeat invert_exec; cleanup; simpl; eauto.
   exists 0; simpl; intuition eauto.
   
   repeat invert_exec; cleanup.
   repeat (split_ors; cleanup; repeat invert_exec; simpl; eauto).
-  exists 0; simpl; intuition eauto.
-  lia.
-  lia.
-  
-  edestruct IHvl; eauto; cleanup.
-  simpl in *; repeat cleanup_pairs; eauto.
-  exists (S x); simpl; intuition eauto.
-  lia.
-  lia.
+  exists 0; simpl; intuition lia.
+
+  edestruct IHvl; eauto; cleanup; subst.
+  simpl in *; repeat cleanup_pairs; subst; eauto.
+  exists (S x); subst; simpl; intuition (try lia).
+  all: try solve [subst; simpl; intuition lia].
+  cleanup_no_match; subst; simpl.
+  right; right; exists x0;
+  simpl; intuition lia.
     
   eapply hash_all_finished_oracle in H0; cleanup; eauto;
   simpl in *; intuition eauto.
@@ -592,11 +749,10 @@ Proof.
   simpl; intuition eauto.
  
   repeat rewrite app_length.
-  simpl.
-  setoid_rewrite H5; lia.
-  repeat rewrite rolling_hash_list_length, app_length.
-  simpl.
-  setoid_rewrite H5; lia.
+  setoid_rewrite rolling_hash_list_length.
+  right; right; exists (length vl);
+  unfold rec_oracle_finished_crypto;
+  simpl; repeat rewrite <- app_assoc; intuition lia.
 
   generalize vl (hash_function h a).
   induction vl0; simpl; intros; eauto.
@@ -611,7 +767,7 @@ Theorem write_batch_finished_oracle:
     exec CryptoDiskLang u o s (write_batch al vl) (Finished s' t) ->
     (forall a, In a al -> a < disk_size) /\
     fst s' = fst s /\ snd s' = TotalMem.upd_batch_set (snd s) al vl /\
-    length o = (length al * 2) + 1.
+     o = rec_oracle_finished_disk (length al).
 Proof.
   induction al; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
@@ -622,9 +778,32 @@ Proof.
   simpl in *; cleanup.
   intuition eauto.
   subst; congruence.
-  rewrite app_length; simpl.
-  setoid_rewrite H3; lia.
+  inversion H; subst.
+  clear H4.
+
+  unfold rec_oracle_finished_disk, rec_oracle_op1_disk, rec_oracle_op2; 
+  repeat cleanup_pairs; eauto.
+  replace (LayerImplementation.Cont
+  (HorizontalComposition CryptoOperation
+     (DiskOperation addr_dec value (fun a0 : addr => a0 < disk_size)))
+:: repeat
+     (LayerImplementation.Cont
+        (HorizontalComposition CryptoOperation
+           (DiskOperation addr_dec value
+              (fun a0 : addr => a0 < disk_size)))) 
+     (length al)) with 
+     (repeat
+         (LayerImplementation.Cont
+            (HorizontalComposition CryptoOperation
+               (DiskOperation addr_dec value
+                  (fun a0 : addr => a0 < disk_size)))) 
+         (S (length al))) by (simpl; eauto).
+
+  rewrite repeat_app_tail.
+  repeat rewrite <- app_assoc; simpl; eauto.
 Qed.
+
+
 
 Theorem write_batch_crashed_oracle:
   forall al vl o s s' u,
@@ -635,9 +814,9 @@ Theorem write_batch_crashed_oracle:
       (forall a, In a (firstn n al) -> a < disk_size) /\
       fst s' = fst s /\ 
       snd s' = TotalMem.upd_batch_set (snd s) (firstn n al) (firstn n vl) /\
-      length o >= 1 /\
-      length o <= (length al * 2) + 1.
+      batch_operations_disk_crashed_oracle_is o n (length al).
 Proof.
+  unfold batch_operations_disk_crashed_oracle_is;
   induction al; simpl; intros;
   cleanup; simpl in *; repeat invert_exec;
   cleanup; try lia; eauto.
@@ -648,10 +827,8 @@ Proof.
   
   split_ors; cleanup; repeat invert_exec; simpl.
   {
-    exists 0; split; intuition eauto; simpl in *.
-    lia.
-    intuition.
-    lia.
+    exists 0; split; intuition eauto; simpl in *; 
+    intuition (try lia).
   }
 
   split_ors; cleanup; repeat invert_exec; simpl in *.
@@ -659,9 +836,14 @@ Proof.
     eapply IHal in H0; try lia.
     cleanup; simpl in *; cleanup.
     exists (S x); split; intuition eauto; simpl in *.
-    lia.
-    split_ors; cleanup; eauto.
-    lia.
+    all: try solve [subst; simpl; intuition lia].
+    all: try solve [split_ors; cleanup; eauto].
+    inversion H; subst.
+    clear H6.
+    cleanup; subst; simpl.
+    right; right; exists x0;
+  unfold rec_oracle_finished_disk;
+  simpl; repeat rewrite <- app_assoc; intuition lia.
   }
   {
     eapply write_batch_finished_oracle in H1; eauto; cleanup.
@@ -672,9 +854,13 @@ Proof.
     cleanup; split; intuition eauto; simpl in *.
     cleanup.
     eauto.
-    lia.
-    rewrite app_length; simpl.
-    setoid_rewrite H3; lia.
+
+    inversion H; subst.
+    clear H4.
+    cleanup; subst; simpl.
+    right; right; exists (length al);
+    unfold rec_oracle_finished_disk;
+    simpl; repeat rewrite <- app_assoc; intuition lia.
   }
 Qed.
 

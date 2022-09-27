@@ -1,4 +1,4 @@
-Require Import Framework TotalMem CachedDiskLayer LoggedDiskLayer Log Log.RepImplications LogCache.
+Require Import Framework TotalMem CachedDiskLayer LoggedDiskLayer Log Log.RepImplications Log.Specs LogCache.
 Require Import FSParameters FunctionalExtensionality Lia.
 Close Scope predicate_scope.
 Import ListNotations.
@@ -50,29 +50,40 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
          (o2 = CrashBefore /\
          ((cached_log_rep merged_disk d1' /\
          (
-            (length o1 < c1 * 4 + 8 /\ 
-            (length o1 > 3 -> count (current_part hdr) + length (addr_list_to_blocks 
-            (map (Init.Nat.add data_start) al)) + length vl <= log_length)) \/
+            o1 = [LayerImplementation.Crash CachedDiskOperation] \/ 
+
+            (exists o', 
+            o1 = map transform_token o' /\
+            commit_crashed_oracle_is_1 o' (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) \/
         
             (count (current_part hdr) + length (addr_list_to_blocks 
               (map (Init.Nat.add data_start) al)) + length vl > log_length /\
-              (
-                length o1 < c2 * 4 + 10 \/
-                
-                (length o1 > c2 * 4 + c3 + 11 /\
-                length o1 <= c2 * 4 + c3 + c1 * 4 + 23)
-              )
+              write_crashed_oracle_is_1 o1 hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))
             )
           )) \/
           
           (cached_log_crash_rep (During_Apply merged_disk) d1' /\
-          length o1 >= c2 * 4 + 10 /\
-          length o1 <  c2 * 4 + c3 + 16 /\
+          (exists o', 
+            o1 = OpToken
+            (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)
+            (Token2 (CacheOperation addr_dec value) CryptoDiskOperation
+              (Token2 CryptoOperation
+                  (DiskOperation addr_dec value (fun a : addr => a < disk_size))
+                  DiskLayer.Cont))
+          :: LayerImplementation.Cont
+              (HorizontalComposition (CacheOperation addr_dec value)
+                  CryptoDiskOperation)
+            :: LayerImplementation.Cont
+                  (HorizontalComposition (CacheOperation addr_dec value)
+                    CryptoDiskOperation)
+                :: map transform_token o' /\
+            (apply_log_crashed_oracle_is_3 o' hdr \/ 
+            exists n, apply_log_crashed_oracle_is_1 o' hdr n)) /\
           count (current_part hdr) + length (addr_list_to_blocks 
               (map (Init.Nat.add data_start) al)) + length vl > log_length) \/
           
           (cached_log_crash_rep (After_Apply merged_disk) d1' /\ 
-          length o1 = c2 * 4 + c3 + 16 /\
+          write_crashed_oracle_is_5 o1 hdr /\
           count (current_part hdr) + length (addr_list_to_blocks 
           (map (Init.Nat.add data_start) al)) + length vl > log_length))) \/
         (exec impl u o1 d1 (write al vl) (Crashed d1') /\
@@ -83,13 +94,26 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
             length al = length vl /\
             Forall (fun a : nat => a < data_length) al /\
             length (addr_list_to_blocks al) + length vl <= log_length /\
-            ((length o1 >=  c1 * 6 + 13 /\
-            length o1 <  c1 * 6 + length al + 16 /\
+            ((((exists o', 
+            o1 = map transform_token o' /\
+            commit_crashed_oracle_is_4 o'
+           (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) \/
+           (exists o', 
+            o1 = map transform_token o' ++  [LayerImplementation.Crash
+            (HorizontalComposition (CacheOperation addr_dec value) CryptoDiskOperation)] /\
+            commit_finished_oracle_is_true o'
+           (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) \/
+           (exists o1' o2' n, 
+            o1 = map transform_token o1' ++  LayerImplementation.Cont
+            (HorizontalComposition (CacheOperation addr_dec value)
+               CryptoDiskOperation) :: o2' /\
+            commit_finished_oracle_is_true o1'
+           (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
+           write_batch_to_cache_crashed_oracle_is o2' n)) /\
             count (current_part hdr) + length (addr_list_to_blocks 
               (map (Init.Nat.add data_start) al)) + length vl <= log_length) \/
             
-            (length o1 >= c2 * 4 + c3 + c1 * 6 + 29 /\
-            length o1 < c2 * 4 + c3 + c1 * 6 + length al + 32 /\
+            (write_crashed_oracle_is_4 o1 hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
             count (current_part hdr) + length (addr_list_to_blocks 
               (map (Init.Nat.add data_start) al)) + length vl > log_length)))) \/
               
@@ -102,13 +126,14 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
               (forall a, a >= data_start -> snd ((snd (snd d1')) a) = [])) /\
               o2 = CrashBefore /\
               (
-                  (length o1 >= c1 * 4 + 8 /\ 
-                  length o1 <  c1 * 6 + 12 /\
+                  ((exists o', 
+                  o1 = map transform_token o' /\
+                  commit_crashed_oracle_is_2 o'
+                   (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) /\
                   count (current_part hdr) + length (addr_list_to_blocks 
                   (map (Init.Nat.add data_start) al)) + length vl <= log_length) \/
               
-                  (length o1 > c2 * 4 + c3 + c1 * 4 + 23 /\
-                  length o1 <= c2 * 4 + c3 + c1 * 6 + 27 /\
+                  (write_crashed_oracle_is_2 o1 hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
                   count (current_part hdr) + length (addr_list_to_blocks 
                   (map (Init.Nat.add data_start) al)) + length vl > log_length)
               )
@@ -125,7 +150,10 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
                                   (map data_blocks old_txns))) /\
               (forall a, a >= data_start -> snd ((snd (snd d1')) a) = [])) /\
               (
-                  (length o1 =  c1 * 6 + 12 /\
+                  ((exists o', 
+                  o1 = map transform_token o' /\
+                  commit_crashed_oracle_is_3 o'
+                   (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) /\
                   count (current_part hdr) + length (addr_list_to_blocks 
                   (map (Init.Nat.add data_start) al)) + length vl <= log_length /\
                   (forall i, i < length (addr_list_to_blocks al) + length vl -> 
@@ -134,7 +162,7 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
                     (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) i value0 /\
                     length (snd ((snd (snd d1')) (log_start + Log.count (Log.current_part hdr) + i))) = 1)) \/
               
-                  (length o1 = c2 * 4 + c3 + c1 * 6 + 28 /\
+                  (write_crashed_oracle_is_3 o1 hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
                   count (current_part hdr) + length (addr_list_to_blocks 
                   (map (Init.Nat.add data_start) al)) + length vl > log_length /\
                   (forall i, i < length (addr_list_to_blocks al) + length vl -> 
@@ -155,13 +183,16 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
               new_hdr <> old_hdr /\
               cached_log_reboot_rep_explicit_part new_hdr merged_disk Log.Old_Part (get_reboot_state d1') /\
               o2 = CrashBefore /\
-              ((length o1 =  c1 * 6 + 12 /\
+              (((exists o', 
+              o1 = map transform_token o' /\
+              commit_crashed_oracle_is_3 o'
+               (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) /\
               (exists i, i < length (addr_list_to_blocks al) + length vl /\ 
               fst ((snd (snd (get_reboot_state  d1'))) (log_start + Log.count (Log.current_part hdr) + i)) <> 
               seln (map (encrypt (Log.key (Log.record new_txn)))
               (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) i value0)) \/
               
-              (length o1 = c2 * 4 + c3 + c1 * 6 + 28 /\ 
+              (write_crashed_oracle_is_3 o1 hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
               (exists i, i < length (addr_list_to_blocks al) + length vl /\ 
               fst ((snd (snd (get_reboot_state  d1'))) (log_start + i)) <> 
               seln (map (encrypt (Log.key (Log.record new_txn)))
@@ -173,13 +204,16 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
             cached_log_reboot_rep_explicit_part new_hdr (upd_batch merged_disk al vl) Log.Current_Part (get_reboot_state d1') /\
             o2 = CrashAfter /\
             (snd (snd (get_reboot_state  d1'))) hdr_block_num = (encode_header new_hdr, []) /\
-            ((length o1 =  c1 * 6 + 12 /\
+            (((exists o', 
+            o1 = map transform_token o' /\
+            commit_crashed_oracle_is_3 o'
+             (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl))) /\
               (forall i, i < length (addr_list_to_blocks al) + length vl ->
               fst ((snd (snd (get_reboot_state  d1'))) (log_start + Log.count (Log.current_part hdr) + i)) = 
               seln (map (encrypt (Log.key (Log.record new_txn)))
               (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) i value0)) \/
               
-              (length o1 = c2 * 4 + c3 + c1 * 6 + 28 /\ 
+              (write_crashed_oracle_is_3 o1 hdr (length (addr_list_to_blocks (map (Init.Nat.add data_start) al) ++ vl)) /\
               (forall i, i < length (addr_list_to_blocks al) + length vl ->
               fst ((snd (snd (get_reboot_state  d1'))) (log_start + i)) =
               seln (map (encrypt (Log.key (Log.record new_txn)))

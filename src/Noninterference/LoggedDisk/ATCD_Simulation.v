@@ -912,15 +912,15 @@ data_length u x2
 
                  apply forall_forall2.
                  apply Forall_forall; intros.
-                 rewrite <- combine_map in H14.
-                 apply in_map_iff in H14; logic_clean.
+                 rewrite <- combine_map in H13.
+                 apply in_map_iff in H13; logic_clean.
                  unfold Log.log_rep_explicit, Log.log_rep_inner,
                  Log.txns_valid in *; logic_clean.
-                 eapply Forall_forall in H23; eauto.
-                 unfold Log.txn_well_formed in H23; logic_clean; eauto.
+                 eapply Forall_forall in H22; eauto.
+                 unfold Log.txn_well_formed in H22; logic_clean; eauto.
                  destruct x11; simpl in *.
-                 inversion H14; subst.
-                 rewrite H34, <- H38, firstn_length_l; eauto. 
+                 inversion H13; subst.
+                 rewrite H33, <- H37, firstn_length_l; eauto. 
                  repeat rewrite map_length; eauto.
                  
                  repeat rewrite list_upd_batch_not_in; eauto.
@@ -950,15 +950,15 @@ data_length u x2
 
                  apply forall_forall2.
                  apply Forall_forall; intros.
-                 rewrite <- combine_map in H14.
-                 apply in_map_iff in H14; logic_clean.
+                 rewrite <- combine_map in H13.
+                 apply in_map_iff in H13; logic_clean.
                  unfold Log.log_rep_explicit, Log.log_rep_inner,
                  Log.txns_valid in *; logic_clean.
-                 eapply Forall_forall in H23; eauto.
-                 unfold Log.txn_well_formed in H23; logic_clean; eauto.
+                 eapply Forall_forall in H22; eauto.
+                 unfold Log.txn_well_formed in H22; logic_clean; eauto.
                  destruct x11; simpl in *.
-                 inversion H14; subst.
-                 rewrite H34, <- H38, firstn_length_l; eauto. 
+                 inversion H13; subst.
+                 rewrite H33, <- H37, firstn_length_l; eauto. 
                  repeat rewrite map_length; eauto.
                  
                  repeat rewrite list_upd_batch_not_in; eauto.
@@ -1308,14 +1308,14 @@ select_total_mem selector (snd (snd s0))))) orc t.
                Log.log_rep_inner,
                Log.header_part_is_valid  in *; simpl in *; cleanup.
                repeat rewrite encode_decode_header in *.
-               assert (x8 = (fst x3)). {
+               assert (x9 = (fst x3)). {
                   unfold Log.log_header_block_rep in *; logic_clean; subst.
                   simpl in *.
                   rewrite H31.
                   rewrite select_for_addr_not_1_latest; eauto.
                }
                subst.
-               assert (Log.decode_header x7 = x1). {
+               assert (Log.decode_header x8 = x1). {
                   unfold Log.log_header_block_rep in *; logic_clean; subst.
                   simpl in *.
                   rewrite H31 in H10; inversion H10; eauto.
@@ -1334,7 +1334,7 @@ select_total_mem selector (snd (snd s0))))) orc t.
                Log.log_rep_inner,
                Log.header_part_is_valid  in *; simpl in *; cleanup.
                repeat rewrite encode_decode_header in *.  
-               assert (x8 = (fst x3)). {
+               assert (x9 = (fst x3)). {
                   unfold Log.log_header_block_rep in *; logic_clean; subst.
                   simpl in *.
                   rewrite H31.
@@ -1368,14 +1368,14 @@ select_total_mem selector (snd (snd s0))))) orc t.
             {
               replace (log_start + Log.count (Log.old_part x4) +
               (x5 - Log.count (Log.old_part x4))) with
-              (log_start + x5) in H24 by lia.
+              (log_start + x5) in H17  by lia.
                  apply H21.
                  unfold select_total_mem; simpl.
-                 rewrite H24.
+                 rewrite H17.
                  edestruct H27; eauto.
                  replace (log_start + Log.count (Log.old_part x4) +
               (x5 - Log.count (Log.old_part x4))) with
-              (log_start + x5) in H25 by lia.
+              (log_start + x5) in H24 by lia.
                  eauto.
             }
           }
@@ -1521,7 +1521,7 @@ select_total_mem selector (snd (snd s0))))) orc t.
            left.
            intuition eauto.
            edestruct H25; eauto.
-           rewrite <- H23.
+           rewrite <- H22.
            repeat rewrite <- PeanoNat.Nat.add_assoc.
            erewrite <- H19; simpl; eauto; try lia.
            {
@@ -1532,14 +1532,14 @@ select_total_mem selector (snd (snd s0))))) orc t.
             Log.log_rep_inner,
             Log.header_part_is_valid  in *; simpl in *; cleanup.
             repeat rewrite encode_decode_header in *.  
-            assert (x7 = (fst x3)). {
+            assert (x8 = (fst x3)). {
                unfold Log.log_header_block_rep in *; logic_clean; subst.
                simpl in *.
                rewrite H31.
                rewrite select_for_addr_not_1_latest; eauto.
             }
             subst.
-            assert (Log.decode_header x6 = x1). {
+            assert (Log.decode_header x7 = x1). {
                unfold Log.log_header_block_rep in *; logic_clean; subst.
                simpl in *.
                rewrite H31 in H10; inversion H10; subst.
@@ -1674,7 +1674,7 @@ select_total_mem selector (snd (snd s0))))) orc t.
       Log.log_header_block_rep in *; cleanup; eauto.
     }
     subst; eauto.
-    setoid_rewrite H8; eauto.
+
   }
   split_ors; cleanup.
   {
@@ -1730,8 +1730,6 @@ select_total_mem selector (snd (snd s0))))) orc t.
     unfold Log.log_rep; eauto.
     eapply LogCache.log_rep_forall2_txns_length_match; eauto.
     unfold Log.log_rep; eauto.
-    split; eauto.
-    lia.
   }
 }
 {
