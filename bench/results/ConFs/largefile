@@ -6,74 +6,208 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === largefile Bench ===
-makefile 1 MB 861530 usec throughput 1188.6 KB/s
+makefile 1 MB 918179 usec throughput 1115.3 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 716876 usec throughput 1428.4 KB/s
+writefile 1 MB 750230 usec throughput 1364.9 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 905775 usec throughput 1130.5 KB/s
+makefile 1 MB 894539 usec throughput 1144.7 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 739273 usec throughput 1385.1 KB/s
+writefile 1 MB 745120 usec throughput 1374.3 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 861310 usec throughput 1188.9 KB/s
+makefile 1 MB 895671 usec throughput 1143.3 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 737778 usec throughput 1388.0 KB/s
+writefile 1 MB 742807 usec throughput 1378.6 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 876343 usec throughput 1168.5 KB/s
+makefile 1 MB 900698 usec throughput 1136.9 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 714004 usec throughput 1434.2 KB/s
+writefile 1 MB 740343 usec throughput 1383.1 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 889482 usec throughput 1151.2 KB/s
+makefile 1 MB 964144 usec throughput 1062.1 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 719194 usec throughput 1423.8 KB/s
+writefile 1 MB 720861 usec throughput 1420.5 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 881181 usec throughput 1162.1 KB/s
+makefile 1 MB 903822 usec throughput 1133.0 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 696265 usec throughput 1470.7 KB/s
+writefile 1 MB 756763 usec throughput 1353.1 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 875602 usec throughput 1169.5 KB/s
+makefile 1 MB 896866 usec throughput 1141.8 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 723405 usec throughput 1415.5 KB/s
+writefile 1 MB 731335 usec throughput 1400.2 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 867306 usec throughput 1180.7 KB/s
+makefile 1 MB 904667 usec throughput 1131.9 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 701606 usec throughput 1459.5 KB/s
+writefile 1 MB 728580 usec throughput 1405.5 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 925852 usec throughput 1106.0 KB/s
+makefile 1 MB 876964 usec throughput 1167.7 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 734135 usec throughput 1394.8 KB/s
+writefile 1 MB 730936 usec throughput 1400.9 KB/s
 === FS Stats ===
 ========
-makefile 1 MB 976697 usec throughput 1048.4 KB/s
+makefile 1 MB 919965 usec throughput 1113.1 KB/s
 === FS Stats ===
 ========
-writefile 1 MB 725294 usec throughput 1411.8 KB/s
+writefile 1 MB 732786 usec throughput 1397.4 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 899310 usec throughput 1138.7 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 783115 usec throughput 1307.6 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 916822 usec throughput 1116.9 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 747904 usec throughput 1369.2 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 906151 usec throughput 1130.1 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 754439 usec throughput 1357.3 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 924990 usec throughput 1107.0 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 722403 usec throughput 1417.5 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 909568 usec throughput 1125.8 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 759396 usec throughput 1348.4 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 940861 usec throughput 1088.4 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 747446 usec throughput 1370.0 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 900118 usec throughput 1137.6 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 708910 usec throughput 1444.5 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 882070 usec throughput 1160.9 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 709503 usec throughput 1443.3 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 958897 usec throughput 1067.9 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 765011 usec throughput 1338.5 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 899436 usec throughput 1138.5 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 759358 usec throughput 1348.5 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 937188 usec throughput 1092.6 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 746167 usec throughput 1372.3 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 903007 usec throughput 1134.0 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 759121 usec throughput 1348.9 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 910496 usec throughput 1124.7 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 741644 usec throughput 1380.7 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 905126 usec throughput 1131.3 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 763711 usec throughput 1340.8 KB/s
+=== FS Stats ===
+========
+makefile 1 MB 961695 usec throughput 1064.8 KB/s
+=== FS Stats ===
+========
+writefile 1 MB 741839 usec throughput 1380.4 KB/s
 === FS Stats ===
 ========
 === Finished Testing ===
 === Unmount /tmp/ConFs ===
-=== Delete /tmp/ConFs ===
 Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  896 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
+"Reads:  792 Writes: 776 Syncs:  520"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  894 Writes: 1390 Syncs:  588"
 "Reads:  792 Writes: 776 Syncs:  520"
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  894 Writes: 1390 Syncs:  588"
@@ -108,3 +242,4 @@ Reads:  3
 Writes: 5
 Syncs:  3
 "--- --- ---  --- --- ---"
+=== Delete /tmp/ConFs ===

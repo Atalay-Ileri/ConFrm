@@ -6,34 +6,79 @@
 === Mount ConFs at /tmp/ConFs ===
 === Starting Testing ===
 === smallfile Bench ===
-DATA: 107 1006264
+DATA: 111 1000947
 === FS Stats ===
 ========
-DATA: 108 1001711
+DATA: 105 1005929
 === FS Stats ===
 ========
-DATA: 104 1003779
+DATA: 109 1006494
 === FS Stats ===
 ========
-DATA: 105 1007614
+DATA: 104 1006896
 === FS Stats ===
 ========
-DATA: 106 1000947
+DATA: 106 1000036
 === FS Stats ===
 ========
-DATA: 107 1007212
+DATA: 107 1002667
 === FS Stats ===
 ========
-DATA: 105 1003051
+DATA: 106 1004329
 === FS Stats ===
 ========
-DATA: 105 1000072
+DATA: 112 1012120
 === FS Stats ===
 ========
-DATA: 103 1008431
+DATA: 109 1004266
 === FS Stats ===
 ========
-DATA: 107 1004669
+DATA: 108 1002088
+=== FS Stats ===
+========
+DATA: 108 1001938
+=== FS Stats ===
+========
+DATA: 107 1005847
+=== FS Stats ===
+========
+DATA: 107 1007698
+=== FS Stats ===
+========
+DATA: 107 1004468
+=== FS Stats ===
+========
+DATA: 111 1007998
+=== FS Stats ===
+========
+DATA: 107 1003950
+=== FS Stats ===
+========
+DATA: 108 1006935
+=== FS Stats ===
+========
+DATA: 108 1005543
+=== FS Stats ===
+========
+DATA: 107 1008804
+=== FS Stats ===
+========
+DATA: 104 1006805
+=== FS Stats ===
+========
+DATA: 105 1002629
+=== FS Stats ===
+========
+DATA: 100 1001864
+=== FS Stats ===
+========
+DATA: 103 1003346
+=== FS Stats ===
+========
+DATA: 105 1008704
+=== FS Stats ===
+========
+DATA: 99 1007305
 === FS Stats ===
 ========
 === Finished Testing ===
@@ -42,25 +87,55 @@ Starting file system.
 Recovering file system
 Initializing Done
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  974 Writes: 1188 Syncs:  648"
-"Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  981 Writes: 1199 Syncs:  654"
-"Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  945 Writes: 1155 Syncs:  630"
+"Reads:  1010 Writes: 1232 Syncs:  672"
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  954 Writes: 1166 Syncs:  636"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  990 Writes: 1210 Syncs:  660"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  945 Writes: 1155 Syncs:  630"
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  963 Writes: 1177 Syncs:  642"
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  972 Writes: 1188 Syncs:  648"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  954 Writes: 1166 Syncs:  636"
+"Reads:  963 Writes: 1177 Syncs:  642"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  1017 Writes: 1243 Syncs:  678"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  990 Writes: 1210 Syncs:  660"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  981 Writes: 1199 Syncs:  654"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  981 Writes: 1199 Syncs:  654"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  972 Writes: 1188 Syncs:  648"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  972 Writes: 1188 Syncs:  648"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  972 Writes: 1188 Syncs:  648"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  1008 Writes: 1232 Syncs:  672"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  972 Writes: 1188 Syncs:  648"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  981 Writes: 1199 Syncs:  654"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  981 Writes: 1199 Syncs:  654"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  972 Writes: 1188 Syncs:  648"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  945 Writes: 1155 Syncs:  630"
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  954 Writes: 1166 Syncs:  636"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  909 Writes: 1111 Syncs:  606"
 "Reads:  0 Writes: 0 Syncs:  0"
 "Reads:  936 Writes: 1144 Syncs:  624"
 "Reads:  0 Writes: 0 Syncs:  0"
-"Reads:  972 Writes: 1188 Syncs:  648"
+"Reads:  954 Writes: 1166 Syncs:  636"
+"Reads:  0 Writes: 0 Syncs:  0"
+"Reads:  900 Writes: 1100 Syncs:  600"
 "--- Disk Close Stats ---"
 Disk I/O stats:
 Reads:  0

@@ -1037,7 +1037,7 @@ Definition TC_have_same_structure {T T'} (p1: TransactionCacheLayer.TransactionC
     | P1 p1 , P1 p2 =>
       match p1, p2 with  
       | ListLayer.Get _, ListLayer.Get _ => True
-      | ListLayer.Put _, ListLayer.Put _ => True
+      | ListLayer.Put a1, ListLayer.Put a2 => True
       | ListLayer.Delete _, ListLayer.Delete _ => True
       | _, _ => False
       end
@@ -1046,7 +1046,7 @@ Definition TC_have_same_structure {T T'} (p1: TransactionCacheLayer.TransactionC
     | _, _ => False
     end.
 
-Fixpoint ATC_have_same_structure {T T'} (p1: ATCLang.(prog) T) (p2: ATCLang.(prog) T') u s1 s2 o1 o2:=
+Fixpoint ATC_have_same_structure {T T'} (p1: ATCLang.(prog) T) (p2: ATCLang.(prog) T') u s1 s2 :=
   match p1, p2 with
   | Op _ o1, Op _ o2 =>
     match o1, o2 with
@@ -1057,16 +1057,13 @@ Fixpoint ATC_have_same_structure {T T'} (p1: ATCLang.(prog) T) (p2: ATCLang.(pro
     end
   | Ret _, Ret _ => True
   | @Bind _ T1_1 T1_2 p1_1 p1_2, @Bind _ T2_1 T2_2 p2_1 p2_2 =>
-    exists o1' o1'' o2' o2'',
     T1_1 = T2_1 /\
     T1_2 = T2_2 /\
-    o1 = o1' ++ o1'' /\
-    o2 = o2' ++ o2'' /\
-    ATC_have_same_structure p1_1 p2_1 u s1 s2 o1' o2' /\
-    (forall s1' r1 s2' r2,
-    exec ATCLang u o1' s1 p1_1 (Finished s1' r1) ->
-    exec ATCLang u o2' s2 p2_1 (Finished s2' r2) ->
-    ATC_have_same_structure (p1_2 r1) (p2_2 r2) u s1' s2' o1'' o2'')
+    ATC_have_same_structure p1_1 p2_1 u s1 s2 /\
+    (forall s1' r1 s2' r2 o,
+        exec ATCLang u o s1 p1_1 (Finished s1' r1) ->
+        exec ATCLang u o s2 p2_1 (Finished s2' r2) ->
+    ATC_have_same_structure (p1_2 r1) (p2_2 r2) u s1' s2')
   | _, _ => False
   end.
 
@@ -1820,7 +1817,7 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
 
   exec ATCDLang u o1 s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
   exec ATCDLang u o2 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
-  ATC_have_same_structure p1 p2 u s1a s2a oa1 oa2 ->
+  ATC_have_same_structure p1 p2 u s1a s2a ->
 
   (forall u T (o1: operation TransactionCacheOperation T) T' (o2 : operation TransactionCacheOperation T') x x0 x1 x2 x3 x4 x5 x6 s1 s2 s1' s2' r1 r2,
   TCD_CoreRefinement.(Simulation.Definitions.token_refines) u s1 o1 x5 x4 x0 ->
@@ -1888,14 +1885,13 @@ Proof.
     exfalso; eapply finished_not_crashed_oracle_prefix in H0; eauto;
     rewrite <- app_assoc; eauto.
 
-    eapply_fresh exec_finished_deterministic_prefix in H15; eauto; cleanup.
+    eapply_fresh exec_finished_deterministic_prefix in H17; eauto; cleanup.
     eapply_fresh exec_finished_deterministic_prefix in H22; eauto; cleanup.
     repeat unify_execs; cleanup.
-    eapply_fresh IHp1 in H8; eauto; subst; cleanup.
     
     repeat rewrite <- app_assoc in *.
     
-    eapply_fresh ATCD_exec_lift_finished in H15; eauto;
+    eapply_fresh ATCD_exec_lift_finished in H17; eauto;
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
     try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
     try solve [apply not_init_read].
@@ -1905,12 +1901,10 @@ Proof.
     try solve [apply not_init_read].
     simpl in *; cleanup.
 
+    eapply_fresh IHp1 in H8; eauto; subst; cleanup.
+
     eapply H in H6; eauto.
     cleanup; eauto.
-
-    repeat unify_execs.
-    eapply H17; eauto.
-
   }
 Unshelve.
 all: eauto.
@@ -1931,7 +1925,7 @@ exec ATCDLang u o2 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Cra
 @HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s1 s1a ->
 @HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s2 s2a ->
 
-ATC_have_same_structure p1 p2 u s1a s2a oa1 oa2 ->
+ATC_have_same_structure p1 p2 u s1a s2a ->
 not_init p1 ->
 not_init p2 ->
 o1 ++ o3 = o2 ++ o4 ->
@@ -2006,11 +2000,9 @@ Proof.
     [eauto | | eauto];
     rewrite <- app_assoc; eauto].
     {
-
-    eapply exec_finished_deterministic_prefix in H16; eauto; cleanup.
-    repeat unify_execs; cleanup.
-    repeat rewrite <- app_assoc in *.
-    eapply IHp1; eauto.
+      eapply_fresh exec_finished_deterministic_prefix in H16; eauto; cleanup.
+      repeat unify_execs; cleanup.
+      repeat rewrite <- app_assoc in *; eauto.
     }
     {
       exfalso; eapply finished_not_crashed_oracle_prefix in H3; eauto. 
@@ -2025,12 +2017,7 @@ Proof.
       eapply exec_finished_deterministic_prefix in H22; eauto; cleanup.
       repeat unify_execs; cleanup.
 
-      eapply_fresh ATCD_oracle_refines_impl_eq in H19. 
-      7: eauto.
-      all: eauto.
-      2: apply TC_oracle_refines_operation_eq.
-      cleanup.
-      
+
       eapply_fresh exec_compiled_preserves_refinement_finished in H2; eauto; 
       cleanup; simpl in *.
       eapply_fresh exec_compiled_preserves_refinement_finished in H14; eauto; 
@@ -2042,6 +2029,13 @@ Proof.
       try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
       try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       simpl in *; cleanup.
+
+      eapply_fresh ATCD_oracle_refines_impl_eq in H19. 
+      7: eauto.
+      all: eauto.
+      2: apply TC_oracle_refines_operation_eq.
+      cleanup.
+      
 
       eapply H.
       7: eauto.
@@ -2067,27 +2061,336 @@ Proof.
   do 2 eexists; intuition eauto.
 Qed.
 
-
-Set Nested Proofs Allowed.
 Lemma ATC_have_same_structure_sym:
 forall T1 (p1 : ATCLang.(prog) T1) 
-T2 (p2 : ATCLang.(prog) T2) u s1 s2 o1 o2,
-ATC_have_same_structure p1 p2 u s1 s2 o1 o2 ->
-ATC_have_same_structure p2 p1 u s2 s1 o2 o1.
+T2 (p2 : ATCLang.(prog) T2) u s1 s2,
+ATC_have_same_structure p1 p2 u s1 s2 ->
+ATC_have_same_structure p2 p1 u s2 s1.
 Proof.
 induction p1; destruct p2; 
 simpl; intros; 
 simpl in *; cleanup; eauto.
 
-destruct o3, o4;
+destruct o1, o2;
 simpl in *; cleanup; eauto.
 
 destruct o, o0;
 simpl in *; cleanup; eauto.
 
 intuition eauto.
-do 4 eexists; 
 intuition eauto.
+Qed.
+
+
+Lemma equivalence_preserved:
+forall u T (p1 p2: prog ATCLang T) o s1 s2 s1a s2a 
+hdr1 hdr2 txns1 txns2 s1' s2' r1 r2 selector oa,
+Log.log_header_rep hdr1 txns1 (snd (snd (snd s1))) ->
+Log.log_header_rep hdr2 txns2 (snd (snd (snd s2))) ->
+
+@HC_refines _ _ _ _ ATCDLang ATCLang TCD_CoreRefinement s1 s1a ->
+@HC_refines _ _ _ _ ATCDLang ATCLang TCD_CoreRefinement s2 s2a ->
+
+exec ATCDLang u o s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+exec ATCDLang u o s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+ATC_have_same_structure p1 p2 u s1a s2a ->
+Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2)  ->
+Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) ->
+Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) ->
+
+not_init p1 ->
+not_init p2 ->
+
+oracle_refines ATCDCore ATCCore ATCDLang ATCLang ATCD_CoreRefinement T
+    u s1 p1 (ATCD_reboot_f selector) o oa ->
+oracle_refines ATCDCore ATCCore ATCDLang ATCLang ATCD_CoreRefinement T
+    u s2 p2 (ATCD_reboot_f selector) o oa ->
+
+exists hdr1' hdr2' txns1' txns2',
+Log.log_header_rep hdr1' txns1' (snd (snd (snd s1'))) /\
+Log.log_header_rep hdr2' txns2' (snd (snd (snd s2'))) /\
+Log.count (Log.current_part hdr1') = Log.count (Log.current_part hdr2') /\
+Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1')) (Log.records (Log.current_part hdr2')) /\
+Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1')) (Log.records (Log.current_part hdr2')).
+Proof.
+  induction p1; destruct p2; simpl in *; intros;
+  cleanup; try tauto.
+  {
+    destruct o2, o3; simpl in *.
+    repeat invert_exec; simpl in *; cleanup; 
+    do 4 eexists; intuition eauto.
+  }
+  {
+    destruct o3, o5; simpl in *; cleanup; try tauto;
+    repeat invert_exec; simpl in *; cleanup; 
+    do 4 eexists; intuition eauto.
+  }
+  {
+    destruct o3, o5; simpl in *; cleanup; try tauto;
+    repeat invert_exec; simpl in *; cleanup; 
+    do 4 eexists; intuition eauto.
+  }
+  {
+    simpl in *.
+    destruct o5; simpl in *; cleanup; try tauto.
+  }
+  {
+    destruct o3, o5; simpl in *; cleanup; try tauto;
+    repeat invert_exec; simpl in *; cleanup;
+    try solve [do 4 eexists; intuition eauto].
+    3:{
+      clear H3 H4 H11 H13 H14 H16.
+      Transparent LogCache.recover.
+      unfold LogCache.recover in *.
+      repeat invert_exec; simpl in *; cleanup.
+      unfold Log.log_header_rep, Log.log_rep_general in *; logic_clean.
+      eapply Specs.recover_finished in H14; eauto.
+      2: {
+        unfold Log.log_reboot_rep.
+        do 4 eexists; intuition eauto.
+        repeat cleanup_pairs; eauto.
+        congruence.
+      }
+
+      eapply Specs.recover_finished in H22; eauto.
+      2: {
+        unfold Log.log_reboot_rep.
+        do 4 eexists; intuition eauto.
+        repeat cleanup_pairs; eauto.
+        congruence.
+      }
+      eapply LogCache.write_lists_to_cache_finished_disk in H12. 
+      eapply LogCache.write_lists_to_cache_finished_disk in H19.
+      unfold Log.log_rep, Log.log_rep_general in *; cleanup.
+      repeat cleanup_pairs; simpl in *.
+      do 4 eexists; split; eauto.
+          split; eauto.
+          unfold 
+          Log.log_header_rep, Log.log_rep_general, 
+          Log.log_rep_explicit, Log.log_header_block_rep,
+          Log.log_rep_inner, Log.header_part_is_valid,
+          Log.txns_valid in *;
+          cleanup; simpl in *; eauto.
+    }
+    {
+      eapply LogCache.read_finished_disk in H18; eauto.
+      eapply LogCache.read_finished_disk in H22; eauto.
+      cleanup.
+      try solve [do 4 eexists; intuition eauto].
+    }
+    {
+      clear H3 H4 H11 H13 H14 H16.
+      eapply LogCache.write_finished_log_rep in H21; eauto.
+      eapply LogCache.write_finished_log_rep in H25; eauto.
+      destruct H21, H25; try logic_clean.
+      {
+        do 4 eexists; simpl in *; eauto.
+      }
+      {
+        repeat split_ors; logic_clean; try solve [intuition; try tauto; try lia].
+        {
+          setoid_rewrite H5 in H16. 
+          setoid_rewrite H17 in H16.
+          exfalso; eauto.
+        }
+        {
+          erewrite addr_list_to_blocks_length_eq in H25.
+          2: do 2 rewrite map_length; symmetry; apply H5.
+          setoid_rewrite H17 in H21.
+          instantiate (1:=(Nat.add data_start)) in H25.
+          exfalso; eapply PeanoNat.Nat.lt_nge; eauto.
+        }
+        {
+          cleanup; simpl in *.
+          setoid_rewrite H5 in H16. 
+          lia.
+        } 
+        {
+          setoid_rewrite H5 in H16. 
+          setoid_rewrite H17 in H16.
+          exfalso; eauto.
+        }
+        {
+          erewrite addr_list_to_blocks_length_eq in H25.
+          2: do 2 rewrite map_length; symmetry; apply H5.
+          setoid_rewrite H17 in H21.
+          instantiate (1:=(Nat.add data_start)) in H25.
+          exfalso; eapply PeanoNat.Nat.lt_nge; eauto.
+        }
+        {
+          cleanup; simpl in *.
+          setoid_rewrite H5 in H16. 
+          lia.
+        } 
+      }
+      {
+        repeat split_ors; logic_clean; try solve [intuition; try tauto; try lia].
+        {
+          setoid_rewrite <- H5 in H21. 
+          setoid_rewrite <- H17 in H21.
+          exfalso; eauto.
+        }
+        {
+          setoid_rewrite <- H5 in H21. 
+          setoid_rewrite <- H17 in H21.
+          exfalso; eauto.
+        }
+        {
+          erewrite addr_list_to_blocks_length_eq in H23.
+          2: do 2 rewrite map_length; rewrite H5; eauto.
+          setoid_rewrite <- H17 in H23.
+          instantiate (1:=(Nat.add data_start)) in H23.
+          exfalso; eapply PeanoNat.Nat.lt_nge; eauto.
+        }
+        {
+          erewrite addr_list_to_blocks_length_eq in H23.
+          2: do 2 rewrite map_length; rewrite H5; eauto.
+          setoid_rewrite <- H17 in H23.
+          instantiate (1:=(Nat.add data_start)) in H23.
+          exfalso; eapply PeanoNat.Nat.lt_nge; eauto.
+        }
+        {
+          cleanup; simpl in *.
+          setoid_rewrite <- H5 in H21. 
+          lia.
+        }
+        {
+          cleanup; simpl in *.
+          setoid_rewrite <- H5 in H21. 
+          lia.
+        }
+      }
+      {
+        repeat split_ors; logic_clean.
+        {
+          do 4 eexists; split; eauto.
+          split; eauto.
+          unfold 
+          Log.log_header_rep, Log.log_rep_general, 
+          Log.log_rep_explicit, Log.log_header_block_rep,
+          Log.log_rep_inner, Log.header_part_is_valid,
+          Log.txns_valid in *;
+          cleanup; simpl in *; eauto.
+          rewrite <- H40, <- H53 in *.
+          repeat rewrite map_app; simpl.
+          eapply forall_app_l in H41, H54; simpl in *.
+          inversion H41; inversion H54; subst.
+          unfold Log.txn_well_formed in *; cleanup.
+          split.
+          repeat rewrite fold_left_app; simpl.
+          erewrite addr_list_to_blocks_length_eq.
+          2: do 2 rewrite map_length; apply H5. 
+          instantiate (1:=(Nat.add data_start)).
+          rewrite H6; eauto.
+          split; apply Forall2_app; eauto;
+          repeat constructor.
+          rewrite H60, H91.
+          erewrite addr_list_to_blocks_length_eq; eauto.
+          do 2 rewrite map_length; apply H5.
+          rewrite H63, H92; eauto.
+        }
+        {
+          erewrite addr_list_to_blocks_length_eq in H32.
+          2: do 2 rewrite map_length; apply H5. 
+          setoid_rewrite H17 in H32.
+          setoid_rewrite H6 in H32.
+          instantiate (1:=(Nat.add data_start)) in H32.
+          exfalso; eapply PeanoNat.Nat.lt_nge.
+          apply H33. eauto.
+        }
+        {
+          erewrite addr_list_to_blocks_length_eq in H32.
+          2: do 2 rewrite map_length; apply H5. 
+          setoid_rewrite H17 in H32.
+          setoid_rewrite H6 in H32.
+          instantiate (1:=(Nat.add data_start)) in H32.
+          exfalso; eapply PeanoNat.Nat.lt_nge.
+          apply H32. eauto.
+        }
+        {
+          do 4 eexists; split; eauto.
+          split; eauto.
+          unfold 
+          Log.log_header_rep, Log.log_rep_general, 
+          Log.log_rep_explicit, Log.log_header_block_rep,
+          Log.log_rep_inner, Log.header_part_is_valid,
+          Log.txns_valid in *;
+          cleanup; simpl in *; eauto.
+          rewrite <- H40, <- H53 in *.
+          repeat rewrite map_app; simpl.
+          inversion H41; inversion H54; subst.
+          unfold Log.txn_well_formed in *; cleanup.
+          rewrite <- H40, <- H53 in *.
+          split.
+          erewrite addr_list_to_blocks_length_eq.
+          2: do 2 rewrite map_length; apply H5. 
+          instantiate (1:=(Nat.add data_start)); eauto.
+          split; eauto;
+          repeat constructor.
+          rewrite H60, H91.
+          erewrite addr_list_to_blocks_length_eq; eauto.
+          do 2 rewrite map_length; apply H5.
+          rewrite H63, H92; eauto.
+        }
+      }
+    }
+    {
+      exfalso; eapply H9; eauto.
+    }
+  }
+  {
+    repeat invert_exec; do 4 eexists; intuition eauto.
+  }
+  {
+    repeat invert_exec.
+    repeat rewrite <- app_assoc in *.
+    repeat split_ors; cleanup; repeat unify_execs_prefix;
+    cleanup; repeat unify_execs; cleanup.
+    exfalso; eapply finished_not_crashed_oracle_prefix in H4; 
+    [eauto | eauto];
+    rewrite <- app_assoc; eauto.
+
+    exfalso; eapply finished_not_crashed_oracle_prefix in H4; eauto;
+    rewrite <- app_assoc; eauto.
+    rewrite H13; eauto.
+    instantiate (1 := nil); rewrite app_nil_r; eauto.
+
+    exfalso; eapply finished_not_crashed_oracle_prefix in H5; eauto;
+    rewrite <- app_assoc; eauto.
+    rewrite H19; eauto.
+    rewrite app_nil_r; eauto.
+
+    eapply_fresh exec_finished_deterministic_prefix in H4; eauto; cleanup.
+    eapply_fresh exec_finished_deterministic_prefix in H5; eauto; cleanup.
+    2: erewrite H19; eauto.
+    repeat unify_execs; cleanup.
+
+    eapply_fresh ATCD_exec_lift_finished in H4; eauto;
+      try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+      try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+      eapply_fresh ATCD_exec_lift_finished in H5; eauto;
+      try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+      try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+      simpl in *; cleanup.
+
+    eapply_fresh ATCD_oracle_refines_impl_eq in H5.
+    6: apply H4.
+    all: eauto.
+    2: apply TC_oracle_refines_operation_eq.
+    cleanup; eauto.
+    repeat unify_execs; cleanup.
+
+    edestruct IHp1.
+    5: eauto.
+    5: eauto.
+    5: eauto.
+    all: eauto.
+    logic_clean.
+    eauto.
+
+    Unshelve.
+    all: constructor.
+  }
 Qed.
 
 
@@ -2111,12 +2414,12 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
       merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s2)))) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
       (forall a, a >= data_start -> snd ((snd(snd (snd (snd s2)))) a) = [])) ->
 
-@HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s1 s1a ->
-@HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s2 s2a ->
+  @HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s1 s1a ->
+  @HC_refines _ _ _ _ _ ATCLang TCD_CoreRefinement s2 s2a ->
 
   exec ATCDLang u o1 s1 (ATCD_Refinement.(Simulation.Definitions.compile) p1) (Crashed s1') ->
   exec ATCDLang u o2 s2 (ATCD_Refinement.(Simulation.Definitions.compile) p2) (Crashed s2') ->
-  ATC_have_same_structure p1 p2 u s1a s2a oa1 oa2 ->
+  ATC_have_same_structure p1 p2 u s1a s2a ->
 
   (forall u T (o1: operation TransactionCacheOperation T) T' (o2 : operation TransactionCacheOperation T') x x0 x1 x2 x3 x4 x5 x6 s1 s2 s1' s2' r1 r2,
   TCD_CoreRefinement.(Simulation.Definitions.token_refines) u s1 o1 x5 x4 x0 ->
@@ -2171,9 +2474,9 @@ oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
   Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) -> 
   no_accidental_overlap selector (snd (snd (snd (snd s1')))) ->
   no_accidental_overlap selector (snd (snd (snd (snd s2')))) -> 
-o1 ++ o3 = o2 ++ o4 ->
-not_init p1 /\ not_init p2 ->
-oa1 = oa2.
+  o1 ++ o3 = o2 ++ o4 ->
+  not_init p1 /\ not_init p2 ->
+  oa1 = oa2.
 Proof.
   induction p1; destruct p2; simpl; intros; try tauto; 
   cleanup_no_match; try tauto.
@@ -2218,6 +2521,15 @@ Proof.
     repeat split_ors; cleanup; 
     repeat unify_execs_prefix;
     cleanup; repeat unify_execs; cleanup.
+    eapply_fresh ATCD_exec_lift_crashed in H6; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    eapply_fresh ATCD_exec_lift_crashed in H7; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    simpl in *; cleanup.
     eapply IHp1; eauto.
 
     all: try match goal with
@@ -2228,7 +2540,17 @@ Proof.
     end.
 
     rewrite <- app_assoc in *.
+
     eapply exec_finished_deterministic_prefix in H30; eauto; cleanup.
+    eapply_fresh ATCD_exec_lift_crashed in H7; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    eapply_fresh ATCD_exec_lift_finished in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    simpl in *; cleanup.
     exfalso; eapply ATCD_oracle_refines_prefix_one_crashed.
     4: eauto.
     6: eauto.
@@ -2237,6 +2559,15 @@ Proof.
 
     rewrite <- app_assoc in *.
     eapply exec_finished_deterministic_prefix in H28; eauto; cleanup.
+    eapply_fresh ATCD_exec_lift_crashed in H6; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    eapply_fresh ATCD_exec_lift_finished in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    simpl in *; cleanup.
     exfalso; eapply ATCD_oracle_refines_prefix_one_crashed.
     4: apply H6.
     3: apply H8.
@@ -2247,21 +2578,22 @@ Proof.
     eapply exec_finished_deterministic_prefix in H31; eauto; cleanup.
     repeat unify_execs; cleanup.
     repeat rewrite <- app_assoc in *.
+    eapply_fresh ATCD_exec_lift_finished in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    eapply_fresh ATCD_exec_lift_finished in H25; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
+    try solve [apply not_init_read].
+    simpl in *; cleanup.
     eapply_fresh ATCD_oracle_refines_impl_eq in H33.
     7: eauto.
     all: eauto.
     cleanup.
 
-    eapply ATCD_exec_lift_finished in H8; eauto;
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
-    try solve [apply not_init_read].
-    eapply ATCD_exec_lift_finished in H25; eauto;
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed];
-    try solve [apply not_init_read].
-    simpl in *; cleanup.
-
+    eapply_fresh equivalence_preserved in H11; eauto.
+    logic_clean.
     unfold HC_refines in H6, H7; simpl in *.
     unfold HC_refines in H6, H7; simpl in *.
     unfold refines, LogCache.cached_log_rep,
@@ -2287,11 +2619,49 @@ Proof.
     Log.log_rep; simpl in *.
     intuition eauto.
     eexists; intuition eauto. 
-    all: admit. (* Need a preservation lemma. *)
+    {
+      clear H24 H27. 
+      unfold Log.log_rep_general, 
+      Log.log_rep_explicit, Log.log_header_block_rep,
+      Log.log_rep_inner, Log.header_part_is_valid,
+      Log.txns_valid in *;
+      cleanup; simpl in *; eauto.
+      unfold Log.log_header_rep, Log.log_rep_general, 
+      Log.log_rep_explicit, Log.log_header_block_rep,
+      Log.log_rep_inner, Log.header_part_is_valid,
+      Log.txns_valid in *;
+      cleanup; simpl in *; eauto.
+    }
+    {
+      clear H24 H27. 
+      unfold Log.log_rep_general, 
+      Log.log_rep_explicit, Log.log_header_block_rep,
+      Log.log_rep_inner, Log.header_part_is_valid,
+      Log.txns_valid in *;
+      cleanup; simpl in *; eauto.
+      unfold Log.log_header_rep, Log.log_rep_general, 
+      Log.log_rep_explicit, Log.log_header_block_rep,
+      Log.log_rep_inner, Log.header_part_is_valid,
+      Log.txns_valid in *;
+      cleanup; simpl in *; eauto.
+    }
+    {
+      clear H24 H27. 
+      unfold Log.log_rep_general, 
+      Log.log_rep_explicit, Log.log_header_block_rep,
+      Log.log_rep_inner, Log.header_part_is_valid,
+      Log.txns_valid in *;
+      cleanup; simpl in *; eauto.
+      unfold Log.log_header_rep, Log.log_rep_general, 
+      Log.log_rep_explicit, Log.log_header_block_rep,
+      Log.log_rep_inner, Log.header_part_is_valid,
+      Log.txns_valid in *;
+      cleanup; simpl in *; eauto.
+    }
   }
 Unshelve.
 all: eauto.
-Admitted.
+Qed.
 
 
 
@@ -2301,18 +2671,43 @@ T (p1 p2: AD.(prog) T)  u u' ex l_o_imp l_o_abs l_o_abs' (s1 s2: state ATCDLang)
 
 ATC_Simulation.not_init p1 ->
 ATC_Simulation.not_init p2 ->
-(forall s1a s2a o_abs l_o_abs_rest o_abs' l_o_abs_rest', 
+(forall s1a s2a o_abs l_o_abs_rest o_abs' l_o_abs_rest' o1 o2 o3 o4 selector,
   l_o_abs = o_abs :: l_o_abs_rest ->
   l_o_abs' = o_abs' :: l_o_abs_rest' ->
+
 (refines_related ATC_Refinement (AD_related_states u' ex)) s1a s2a ->
+
 ((exists s1' s2' r1 r2,
 exec ATCLang u o_abs s1a (Simulation.Definitions.compile ATC_Refinement p1) (Finished s1' r1) /\
 exec ATCLang u o_abs' s2a (Simulation.Definitions.compile ATC_Refinement p2) (Finished s2' r2)) \/
 (exists s1' s2',
 exec ATCLang u o_abs s1a (Simulation.Definitions.compile ATC_Refinement p1) (Crashed s1') /\
 exec ATCLang u o_abs' s2a (Simulation.Definitions.compile ATC_Refinement p2) (Crashed s2'))) ->
+
+oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
+  T u s1 (Simulation.Definitions.compile ATC_Refinement p1) (ATCD_reboot_f selector) o1 o_abs ->
+oracle_refines _ _ ATCDLang ATCLang ATCD_CoreRefinement
+  T u s2 (Simulation.Definitions.compile ATC_Refinement p2) (ATCD_reboot_f selector) o2 o_abs' ->
+
+  (exists hdr1 hdr2 merged_disk1 merged_disk2,
+  (exists txns1,
+        fst (snd (snd s1)) = Mem.list_upd_batch empty_mem (map Log.addr_list txns1) (map Log.data_blocks txns1) /\
+        Log.log_header_rep hdr1 txns1 (snd (snd (snd s1))) /\
+        merged_disk1 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s1)))) (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+        (forall a, a >= data_start -> snd ((snd (snd (snd (snd s1)))) a) = [])) /\
+    (exists txns2, 
+        fst (snd (snd s2)) = Mem.list_upd_batch empty_mem (map Log.addr_list txns2) (map Log.data_blocks txns2) /\
+        Log.log_header_rep hdr2 txns2 (snd (snd (snd s2))) /\
+        merged_disk2 = total_mem_map fst (shift (plus data_start) (list_upd_batch_set (snd (snd (snd (snd s2)))) (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+        (forall a, a >= data_start -> snd ((snd(snd (snd (snd s2)))) a) = [])) /\
+    Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) /\
+    Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2)) /\
+    Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (Log.records (Log.current_part hdr1)) (Log.records (Log.current_part hdr2))) ->
+
+o1 ++ o2 = o3 ++ o4 ->
+
 ATC_have_same_structure (Simulation.Definitions.compile ATC_Refinement p1)
-(Simulation.Definitions.compile ATC_Refinement p2) u s1a s2a o_abs o_abs') ->
+(Simulation.Definitions.compile ATC_Refinement p2) u s1a s2a) ->
 
 (exists hdr1 hdr2 merged_disk1 merged_disk2,
 (exists txns1,
@@ -2361,11 +2756,18 @@ Proof.
     cleanup; try tauto.
     simpl in *; repeat split_ors; cleanup; try tauto.
     unfold refines_related at 1 in H5; cleanup; eauto.
-    simpl in *. 
+    simpl in *.
+    eapply_fresh ATCD_exec_lift_finished in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    eapply_fresh ATCD_exec_lift_finished in H9; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    simpl in *; cleanup. 
     eapply ATCD_oracle_refines_impl_eq in H8.
     6: apply H9.
     all: eauto.
-    2: apply TC_oracle_refines_operation_eq.
+    3: apply TC_oracle_refines_operation_eq.
     cleanup; eauto.
     all: shelve.
   }
@@ -2377,16 +2779,28 @@ Proof.
     unfold refines_related at 1 in H5; cleanup; eauto.
     simpl in *; repeat split_ors; cleanup; try tauto.
     {
-      simpl in *. 
+      simpl in *.
+      eapply_fresh ATCD_exec_lift_finished in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    eapply_fresh ATCD_exec_lift_finished in H9; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed]. 
       eapply ATCD_oracle_refines_impl_eq in H8.
       6: apply H9.
       all: eauto.
-      2: apply TC_oracle_refines_operation_eq.
+      3: apply TC_oracle_refines_operation_eq.
       cleanup; eauto.
       all: shelve.
     }
     {
       simpl in *.
+      eapply_fresh ATCD_exec_lift_finished in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    eapply_fresh ATCD_exec_lift_crashed in H9; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       exfalso; eapply ATCD_oracle_refines_prefix_one_crashed.
       3: eauto.
       3: eauto.
@@ -2395,6 +2809,12 @@ Proof.
     }
     {
       simpl in *.
+      eapply_fresh ATCD_exec_lift_crashed in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    eapply_fresh ATCD_exec_lift_finished in H9; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       exfalso; eapply ATCD_oracle_refines_prefix_one_crashed.
       3: eauto.
       3: eauto.
@@ -2403,11 +2823,17 @@ Proof.
     }
     {
       simpl in *. 
+      eapply_fresh ATCD_exec_lift_crashed in H8; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
+    eapply_fresh ATCD_exec_lift_crashed in H9; eauto;
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
+    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
       eapply_fresh ATCD_oracle_refines_impl_eq_crashed in H8.
       8: apply H9.
       all: eauto.
-      2: apply TC_oracle_refines_operation_eq.
-      2: apply TC_oracle_refines_operation_eq_crashed; eauto.
+      3: apply TC_oracle_refines_operation_eq.
+      3: apply TC_oracle_refines_operation_eq_crashed; eauto.
       eapply ATCD_ORS_recover in H21.
       apply H21 in H23; 
       subst; eauto.
@@ -2418,9 +2844,19 @@ Proof.
   all: eauto.
   all: try split.
   all: try solve [eapply not_init_compile; eauto].
-  all: try solve [ 
-    apply H1 in H18; eauto; apply ATC_have_same_structure_sym; eauto].
-  exact (fun _ => 0).
+  all: try solve[
+    try logic_clean;
+    eapply H1 in H18; eauto;[
+    left; do 4 eexists; intuition eauto|
+    do 4 eexists; intuition eauto] ].
+    exact (fun _ => 0).
+  {
+    cleanup.
+    eapply ATC_have_same_structure_sym.
+    eapply H1 in H18; eauto.
+    right; do 2 eexists; intuition eauto.
+    do 4 eexists; intuition eauto.
+  }
   exact (fun _ _ => True).
   {
     unfold refines_related_reboot in *; cleanup; simpl in *.
@@ -2439,770 +2875,15 @@ Proof.
     eexists (_, (_, _)), (_, (_, _)).
     simpl; intuition eauto.
     all: eapply not_init_compile; eauto.
-  } 
-Qed.
-
-Theorem have_same_structure_Transaction_read:
-forall u s1 s2 a1 a2 o1 o2 o3 o4,
-((exists s1' s2' r1 r2,
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a1)) (Finished s1' r1) /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a2)) (Finished s2' r2)) \/
-(exists s1' s2',
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a1)) (Crashed s1') /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a2)) (Crashed s2'))) ->
-o1 ++ o3 = o2 ++ o4 ->
-ATC_have_same_structure
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a1))
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.read a2)) u s1 s2 o1 o2.
-Proof.
-  unfold Transaction.read; intros.
-  split_ors; cleanup.
-  {
-    repeat (repeat invert_exec; cleanup).
-    all: try solve [simpl in *; cleanup].
+  }
     {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup; simpl; eauto.
-    }
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      
-      simpl; eauto.
-      simpl; eauto.
-    }
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      
-      simpl; eauto.
-      simpl; eauto.
-    }
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      
-      simpl; eauto.
-      simpl; eauto.
-    }
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      
-      simpl; eauto.
-      simpl; eauto.
-    }
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-    repeat invert_exec.
-
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    simpl; eauto.
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].  
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup];
-    simpl; eauto.
-    simpl; eauto.
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    simpl; eauto.
-    simpl; eauto.
-
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    simpl; eauto.
-    simpl; eauto.
-
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    simpl; eauto.
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-  }
-Qed.
-  
-Theorem have_same_structure_Transaction_write:
-forall u s1 s2 a1 a2 v1 v2 o1 o2 o3 o4,
-((exists s1' s2' r1 r2,
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a1 v1)) (Finished s1' r1) /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a2 v2)) (Finished s2' r2)) \/
-(exists s1' s2',
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a1 v1)) (Crashed s1') /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a2 v2)) (Crashed s2'))) ->
-o1 ++ o3 = o2 ++ o4 -> 
-ATC_have_same_structure
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a1 v1))
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ (Transaction.write a2 v2)) u s1 s2 o1 o2.
-Proof.
-  unfold Transaction.write; intros.
-  split_ors; cleanup.
-  {
-    repeat (repeat invert_exec; cleanup).
-    all: try solve [simpl in *; cleanup].
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      simpl; eauto.
-    }
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.      
-    }
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-    repeat invert_exec.
-
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-
-    
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-     
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    do 4 eexists; intuition eauto.
-    simpl; eauto.
-
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup]. 
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-  }
-Qed.
-
-Theorem have_same_structure_Transaction_commit:
-forall u u' ex s1 s2 o1 o2 o3 o4,
-((exists s1' s2' r1 r2,
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.commit) (Finished s1' r1) /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.commit) (Finished s2' r2)) \/
-(exists s1' s2',
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.commit) (Crashed s1') /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.commit) (Crashed s2'))) ->
-o1 ++ o3 = o2 ++ o4 -> 
-length (dedup_last addr_dec (rev (map fst (fst (snd s1))))) =
-length (dedup_last addr_dec (rev (map fst (fst (snd s2))))) ->
-refines_related ATC_Refinement (AD_related_states ex u') s1 s2 ->
-ATC_have_same_structure
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.commit)
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.commit) u s1 s2 o1 o2.
-Proof.
-  unfold Transaction.commit; intros.
-  split_ors; cleanup.
-  {
-    repeat (repeat invert_exec; cleanup).
-    all: try solve [simpl in *; cleanup].
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat cleanup_pairs.
-      intuition eauto.
-      repeat rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-      simpl; eauto.
-    }
-    {
-      repeat split_ors; cleanup; try lia.
-      exfalso; apply H0; apply Transaction.dedup_last_NoDup.
-      repeat cleanup_pairs; cleanup.
-      erewrite <- dedup_last_dedup_by_list_length_le in H0.
-      exfalso; intuition eauto.
-      repeat rewrite rev_length, map_length; eauto.
-
-      unfold refines_related  in *; simpl in *.
-      unfold HC_refines in *; simpl in *.
-      unfold TransactionToTransactionalDisk.Definitions.refines,
-      Transaction.transaction_rep in *; simpl in *.
-      logic_clean; eauto.
-      repeat cleanup_pairs.
-      exfalso; apply H0; eauto.
-      eapply Forall_forall; intros.
-      apply Transaction.dedup_last_in in H.
-      apply in_rev in H.
-      eapply Forall_forall in H27; eauto.
-      
-      repeat cleanup_pairs.
-      erewrite <- addr_list_to_blocks_length_eq in H21. 
-      2: apply H1.
-      erewrite <- dedup_last_dedup_by_list_length_le in H0; eauto.
-      erewrite <- dedup_last_dedup_by_list_length_le in H21.
-      lia.
-      repeat rewrite rev_length, map_length; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-    }
-    {
-      repeat split_ors; cleanup; try lia.
-      exfalso; apply H0; apply Transaction.dedup_last_NoDup.
-      repeat cleanup_pairs; cleanup.
-      erewrite <- dedup_last_dedup_by_list_length_le in H0.
-      exfalso; intuition eauto.
-      repeat rewrite rev_length, map_length; eauto.
-
-      unfold refines_related  in *; simpl in *.
-      unfold HC_refines in *; simpl in *.
-      unfold TransactionToTransactionalDisk.Definitions.refines,
-      Transaction.transaction_rep in *; simpl in *.
-      logic_clean; eauto.
-      repeat cleanup_pairs.
-      exfalso; apply H0; eauto.
-      eapply Forall_forall; intros.
-      apply Transaction.dedup_last_in in H.
-      apply in_rev in H.
-      eapply Forall_forall in H18; eauto.
-      
-      repeat cleanup_pairs.
-      erewrite addr_list_to_blocks_length_eq in H27. 
-      2: apply H1.
-      erewrite <- dedup_last_dedup_by_list_length_le in H0; eauto.
-      erewrite <- dedup_last_dedup_by_list_length_le in H27.
-      lia.
-      repeat rewrite rev_length, map_length; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-    }
-    {
-      clear H15 H21. (* Clear or conditions *)
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat cleanup_pairs.
-      intuition eauto.
-      repeat rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-
-      apply Transaction.dedup_last_NoDup.
-      apply Transaction.dedup_last_NoDup.
-
-      unfold refines_related  in *; simpl in *.
-      unfold HC_refines in *; simpl in *.
-      unfold TransactionToTransactionalDisk.Definitions.refines,
-      Transaction.transaction_rep in *; simpl in *.
-      logic_clean; eauto.
-      repeat cleanup_pairs.
-      eapply Forall_forall; intros.
-      apply Transaction.dedup_last_in in H0.
-      apply in_rev in H0.
-      eapply Forall_forall in H4; eauto.
-      
-      unfold refines_related  in *; simpl in *.
-      unfold HC_refines in *; simpl in *.
-      unfold TransactionToTransactionalDisk.Definitions.refines,
-      Transaction.transaction_rep in *; simpl in *.
-      logic_clean; eauto.
-      repeat cleanup_pairs.
-      eapply Forall_forall; intros.
-      apply Transaction.dedup_last_in in H0.
-      apply in_rev in H0.
-      eapply Forall_forall in H9; eauto.
-
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-    }
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-    repeat invert_exec.
-
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-
-    repeat cleanup_pairs.
-    repeat rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-
-    
-    apply Transaction.dedup_last_NoDup.
-    apply Transaction.dedup_last_NoDup.
-
-    repeat cleanup_pairs.
-    unfold refines_related  in *; simpl in *.
-    unfold HC_refines in *; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
-    Transaction.transaction_rep in *; simpl in *.
-    logic_clean; eauto.
-    repeat cleanup_pairs.
-    eapply Forall_forall; intros.
-    apply Transaction.dedup_last_in in H0.
-    apply in_rev in H0.
-    eapply Forall_forall in H4; eauto.
-    
-    repeat cleanup_pairs.
-    unfold refines_related  in *; simpl in *.
-    unfold HC_refines in *; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
-    Transaction.transaction_rep in *; simpl in *.
-    logic_clean; eauto.
-    repeat cleanup_pairs.
-    eapply Forall_forall; intros.
-    apply Transaction.dedup_last_in in H0.
-    apply in_rev in H0.
-    eapply Forall_forall in H9; eauto.
-
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-
-    repeat rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat split_ors; cleanup;
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-     
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-    repeat rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-
-    {
-      repeat split_ors; cleanup; try lia.
-      exfalso; apply H; apply Transaction.dedup_last_NoDup.
-      repeat cleanup_pairs; cleanup.
-      erewrite <- dedup_last_dedup_by_list_length_le in H.
-      exfalso; intuition eauto.
-      repeat rewrite rev_length, map_length; eauto.
-
-      unfold refines_related  in *; simpl in *.
-      unfold HC_refines in *; simpl in *.
-      unfold TransactionToTransactionalDisk.Definitions.refines,
-      Transaction.transaction_rep in *; simpl in *.
-      logic_clean; eauto.
-      repeat cleanup_pairs.
-      exfalso; apply H; eauto.
-      eapply Forall_forall; intros.
-      apply Transaction.dedup_last_in in H0.
-      apply in_rev in H0.
-      eapply Forall_forall in H5; eauto.
-      
-      repeat cleanup_pairs.
-      erewrite addr_list_to_blocks_length_eq in H20. 
-      2: apply H1.
-      erewrite <- dedup_last_dedup_by_list_length_le in H; eauto.
-      erewrite <- dedup_last_dedup_by_list_length_le in H20.
-      lia.
-      repeat rewrite rev_length, map_length; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-    }    
-    {
-      repeat split_ors; cleanup; try lia.
-      exfalso; apply H; apply Transaction.dedup_last_NoDup.
-      repeat cleanup_pairs; cleanup.
-      erewrite <- dedup_last_dedup_by_list_length_le in H.
-      exfalso; intuition eauto.
-      repeat rewrite rev_length, map_length; eauto.
-
-      unfold refines_related  in *; simpl in *.
-      unfold HC_refines in *; simpl in *.
-      unfold TransactionToTransactionalDisk.Definitions.refines,
-      Transaction.transaction_rep in *; simpl in *.
-      logic_clean; eauto.
-      repeat cleanup_pairs.
-      exfalso; apply H; eauto.
-      eapply Forall_forall; intros.
-      apply Transaction.dedup_last_in in H0.
-      apply in_rev in H0.
-      eapply Forall_forall in H14; eauto.
-      
-      repeat cleanup_pairs.
-      erewrite <- addr_list_to_blocks_length_eq in H20. 
-      2: apply H1.
-      erewrite <- dedup_last_dedup_by_list_length_le in H; eauto.
-      erewrite <- dedup_last_dedup_by_list_length_le in H20.
-      lia.
-      repeat rewrite rev_length, map_length; eauto.
-      repeat rewrite rev_length, map_length; eauto.
-    }
-    clear H11 H13. 
-
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-
-    repeat cleanup_pairs.
-    repeat rewrite <- dedup_last_dedup_by_list_length_le; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-    repeat rewrite rev_length, map_length; eauto.
-
-    
-    apply Transaction.dedup_last_NoDup.
-    apply Transaction.dedup_last_NoDup.
-
-    repeat cleanup_pairs.
-    unfold refines_related  in *; simpl in *.
-    unfold HC_refines in *; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
-    Transaction.transaction_rep in *; simpl in *.
-    logic_clean; eauto.
-    repeat cleanup_pairs.
-    eapply Forall_forall; intros.
-    apply Transaction.dedup_last_in in H0.
-    apply in_rev in H0.
-    eapply Forall_forall in H4; eauto.
-    
-    repeat cleanup_pairs.
-    unfold refines_related  in *; simpl in *.
-    unfold HC_refines in *; simpl in *.
-    unfold TransactionToTransactionalDisk.Definitions.refines,
-    Transaction.transaction_rep in *; simpl in *.
-    logic_clean; eauto.
-    repeat cleanup_pairs.
-    eapply Forall_forall; intros.
-    apply Transaction.dedup_last_in in H0.
-    apply in_rev in H0.
-    eapply Forall_forall in H9; eauto.
-  }
-Qed.
-
-
-Theorem have_same_structure_Transaction_recover:
-forall u s1 s2 o1 o2 o3 o4,
-((exists s1' s2' r1 r2,
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.recover) (Finished s1' r1) /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.recover) (Finished s2' r2)) \/
-(exists s1' s2',
-exec ATCLang u o1 s1 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.recover) (Crashed s1') /\
-exec ATCLang u o2 s2 (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.recover) (Crashed s2'))) ->
-o1 ++ o3 = o2 ++ o4 -> 
-ATC_have_same_structure
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.recover)
-  (@lift_L2 AuthenticationOperation _ TransactionCacheLang _ Transaction.recover) u s1 s2 o1 o2.
-Proof.
-  unfold Transaction.recover; intros.
-  split_ors; cleanup.
-  {
-    repeat (repeat invert_exec; cleanup).
-    all: try solve [simpl in *; cleanup].
-    {
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-      simpl; eauto.
-      repeat invert_exec; cleanup;
-      repeat rewrite map_app;
-      do 4 eexists; intuition eauto.
-    }
-  }
-  {
-    repeat (repeat invert_exec; simpl in *; cleanup);
-    simpl; intuition eauto;
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    eexists _, [], _, [].
-    repeat rewrite app_nil_r;
-    simpl; intuition eauto.
-
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat invert_exec; simpl in *; cleanup;
-    simpl; eauto.
-    repeat (repeat invert_exec; cleanup);
-    try solve [simpl in *; cleanup].
-    repeat rewrite map_app;
-    do 4 eexists; intuition eauto.
-  }
-Qed.
-
-Theorem ATC_HSS_transfer:
-forall u u' ex T (p1 p2: AD.(prog) T) s1 s2 s1a s2a o1 o2 o3 o4,
-HSS.have_same_structure p1 p2 u s1a s2a ->
-ATC_Simulation.not_init p1 ->
-ATC_Simulation.not_init p2 ->
-((exists s1' s2' r1 r2,
-exec ATCLang u o1 s1 (ATC_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) /\
-exec ATCLang u o2 s2 (ATC_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2)) \/
-(exists s1' s2',
-exec ATCLang u o1 s1 (ATC_Refinement.(Simulation.Definitions.compile) p1) (Crashed s1') /\
-exec ATCLang u o2 s2 (ATC_Refinement.(Simulation.Definitions.compile) p2) (Crashed s2'))) ->
-o1 ++ o3 = o2 ++ o4 -> 
-length (dedup_last addr_dec (rev (map fst (fst (snd s1))))) =
-length (dedup_last addr_dec (rev (map fst (fst (snd s2))))) ->
-refines_related ATC_Refinement (AD_related_states ex u') s1 s2 ->
-ATC_have_same_structure (ATC_Refinement.(Simulation.Definitions.compile) p1) (ATC_Refinement.(Simulation.Definitions.compile) p2) u s1 s2 o1 o2.
-Proof.
-  Opaque Transaction.read Transaction.write Transaction.commit Transaction.recover.
-  induction p1; destruct p2; simpl in *; intros; try tauto.
-  {
-    cleanup; simpl in *; try tauto.
-    unfold TD_have_same_structure in *.
-    cleanup; simpl in *; try tauto.
-    eapply have_same_structure_Transaction_read; eauto.
-    eapply have_same_structure_Transaction_write; eauto.
-    eapply have_same_structure_Transaction_commit; eauto.
-    eapply have_same_structure_Transaction_recover; eauto.
-    exfalso; intuition eauto.
-  }
-  {
-    unfold refines_related in *; simpl in *.
-    intuition; cleanup.
-    repeat invert_exec.
-    do 4 eexists; intuition; cleanup_no_match.
-    eapply IHp1; eauto.
-    repeat rewrite <- app_assoc in *.
-    left; do 2 eexists;
-    intuition eauto.
-    repeat rewrite <- app_assoc in *.
-    apply H4.
-
-    repeat rewrite <- app_assoc in *.
-    repeat unify_execs; cleanup.
-
-    eapply_fresh ATC_Simulation.ATC_oracle_refines_finished in H15; eauto; cleanup.
-    eapply_fresh ATC_Simulation.ATC_oracle_refines_finished in H16; eauto; cleanup.
-    
-    eapply_fresh ATC_Simulation.ATC_exec_lift_finished in H15; eauto;
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
     cleanup.
-    eapply_fresh ATC_Simulation.ATC_exec_lift_finished in H16; eauto;
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_finished];
-    try solve [apply TransactionToTransactionalDisk.Refinement.TC_to_TD_core_simulation_crashed].
-    cleanup.
-
-    simpl in *.
-
-    eapply_fresh ATC_ORS.ATC_oracle_refines_impl_eq in H8 eauto.
-    4: apply TD_oracle_refines_operation_eq.
-    cleanup.
-    eapply H; eauto.
-    eapply H12; eauto.
+    eapply H1 in H18; eauto.
+    do 4 eexists; intuition eauto.
   }
-  Unshelve.
+  Unshelve. 
   all: eauto.
-Admitted.
+  all: try tauto.
+  exact (fun _ => 0).
+Qed.
+

@@ -28,6 +28,42 @@ Ltac solve_get_first:=
   end.
 
 
+
+Fixpoint transaction_input_equiv 
+{T1 T2} 
+(p1: AD.(prog) T1) (p2: AD.(prog) T2) 
+(s1 s2: ATCLang.(state)) :=
+match p1, p2 with
+| Op _ o1, Op _ o2 =>
+  match o1, o2 with
+  | P2 (TransactionalDiskLayer.Read a1), 
+    P2 (TransactionalDiskLayer.Read a2) =>
+    (a1 < data_length <-> a2 < data_length) /\
+    (Transaction.get_first (fst (snd s1)) a1 = None <->
+    Transaction.get_first (fst (snd s2)) a2 = None)
+
+  | P2 (TransactionalDiskLayer.Write a1 v1), 
+    P2 (TransactionalDiskLayer.Write a2 v2) =>
+    (a1 < data_length <-> a2 < data_length) /\
+  ((length (addr_list_to_blocks (map fst (fst (snd s1)) ++ [a1])) +
+  length (map snd (fst (snd s1)) ++ [v1])) <= log_length <->
+  (length (addr_list_to_blocks (map fst (fst (snd s2)) ++ [a2])) +
+            length (map snd (fst (snd s2)) ++ [v2])) <= log_length)
+  | _, _ => True
+  end
+
+|Bind p1 p3, Bind p2 p4 =>
+transaction_input_equiv p1 p2 s1 s2 /\
+(forall s1' s2' r1 r2 u o,
+exec ATCLang u o s1 (ATC_Refinement.(Simulation.Definitions.compile) p1) (Finished s1' r1) ->
+exec ATCLang u o s2 (ATC_Refinement.(Simulation.Definitions.compile) p2) (Finished s2' r2) ->
+transaction_input_equiv (p3 r1) (p4 r2) s1' s2' 
+)
+
+| _, _ => True
+end.
+
+
 Lemma TIE_auth_then_exec:
     forall T (p1 p2: addr -> TD.(prog) (option T)) inum s1 s2 u ex,
     (forall s1 s2,

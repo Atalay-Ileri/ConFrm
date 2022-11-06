@@ -5,121 +5,301 @@ Disk I/O stats:
 Reads:  0
 Writes: 10
 Syncs:  6
-makefile 1 MB 1743590 usec throughput 587.3 KB/s
+makefile 1 MB 1798138 usec throughput 569.5 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1303010 usec throughput 785.9 KB/s
+writefile 1 MB 1337517 usec throughput 765.6 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1755165 usec throughput 583.4 KB/s
+makefile 1 MB 1741078 usec throughput 588.1 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1318878 usec throughput 776.4 KB/s
+writefile 1 MB 1357313 usec throughput 754.4 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1775680 usec throughput 576.7 KB/s
+makefile 1 MB 1770021 usec throughput 578.5 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1343041 usec throughput 762.4 KB/s
+writefile 1 MB 1315540 usec throughput 778.4 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1798929 usec throughput 569.2 KB/s
+makefile 1 MB 1764895 usec throughput 580.2 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1333627 usec throughput 767.8 KB/s
+writefile 1 MB 1427895 usec throughput 717.1 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1843605 usec throughput 555.4 KB/s
+makefile 1 MB 1779193 usec throughput 575.5 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1331927 usec throughput 768.8 KB/s
+writefile 1 MB 1370467 usec throughput 747.2 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1835074 usec throughput 558.0 KB/s
+makefile 1 MB 1720886 usec throughput 595.0 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1326644 usec throughput 771.9 KB/s
+writefile 1 MB 1319786 usec throughput 775.9 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1795739 usec throughput 570.2 KB/s
+makefile 1 MB 1786360 usec throughput 573.2 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1338519 usec throughput 765.0 KB/s
+writefile 1 MB 1321683 usec throughput 774.8 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1730721 usec throughput 591.7 KB/s
+makefile 1 MB 1791617 usec throughput 571.6 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1341770 usec throughput 763.2 KB/s
+writefile 1 MB 1339924 usec throughput 764.2 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1739060 usec throughput 588.8 KB/s
+makefile 1 MB 1760170 usec throughput 581.8 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1315946 usec throughput 778.1 KB/s
+writefile 1 MB 1311272 usec throughput 780.9 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280
 Syncs:  1024
 ========
-makefile 1 MB 1722973 usec throughput 594.3 KB/s
+makefile 1 MB 1741784 usec throughput 587.9 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 2967
 Syncs:  1156
 ========
-writefile 1 MB 1311290 usec throughput 780.9 KB/s
+writefile 1 MB 1364127 usec throughput 750.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1778363 usec throughput 575.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1457640 usec throughput 702.5 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1755628 usec throughput 583.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1386632 usec throughput 738.5 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1833880 usec throughput 558.4 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1359790 usec throughput 753.1 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1772554 usec throughput 577.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1404322 usec throughput 729.2 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1796496 usec throughput 570.0 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1349512 usec throughput 758.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1778504 usec throughput 575.8 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1374768 usec throughput 744.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1794931 usec throughput 570.5 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1332050 usec throughput 768.7 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1771810 usec throughput 577.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1375922 usec throughput 744.2 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1740685 usec throughput 588.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1390696 usec throughput 736.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1762493 usec throughput 581.0 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1391429 usec throughput 735.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1840828 usec throughput 556.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1375464 usec throughput 744.5 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1820005 usec throughput 562.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1342176 usec throughput 762.9 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1773859 usec throughput 577.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1385164 usec throughput 739.3 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1802342 usec throughput 568.1 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1338152 usec throughput 765.2 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 1280
+Syncs:  1024
+========
+makefile 1 MB 1766687 usec throughput 579.6 KB/s
+=== FS Stats ===
+Reads:  0
+Writes: 2967
+Syncs:  1156
+========
+writefile 1 MB 1268354 usec throughput 807.3 KB/s
 === FS Stats ===
 Reads:  0
 Writes: 1280

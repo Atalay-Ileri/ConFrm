@@ -33,26 +33,27 @@ Definition write  addr_l (data_l: list value) :=
           if (le_dec (length (addr_list_to_blocks (map (plus data_start) addr_l)) + length data_l) log_length) then
           if (lt_dec 0 (length addr_l)) then
             committed <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
-            if committed then
-              _ <- write_batch_to_cache (map (plus data_start) addr_l) data_l;
-              Ret (Some tt)
-            else
-              Ret None
+          _ <-
+          if committed then
+            Ret tt
           else
-            Ret None
+            _ <- |CDDP| apply_log;
+          _ <- |CDCO| (Flush _ _);
+          _ <- |CDDP| commit (addr_list_to_blocks (map (plus data_start) addr_l)) data_l;
+          Ret tt;
+          
+          write_batch_to_cache (map (plus data_start) addr_l) data_l
+          else
+            Ret tt
         else
-          Ret None
+          Ret tt
       else
-        Ret None
+        Ret tt
     else
-      Ret None
+      Ret tt
   else
-    Ret None.
+    Ret tt.
 
-
-    Definition apply_log :=
-      _ <- |CDDP| apply_log;
-      |CDCO| (Flush _ _).
 
 
 (* Takes a data region_address *)
@@ -255,6 +256,18 @@ Proof.
   edestruct IHal; eauto.
 Qed.
 
+Theorem write_batch_to_cache_finished_disk:
+  forall al vl o s s' t u,
+    exec CachedDiskLang u o s (write_batch_to_cache al vl) (Finished s' t) ->
+    snd s' = snd s.
+Proof.
+  induction al; simpl; intros;
+  repeat invert_exec; cleanup;
+  eauto; simpl in *; try lia;
+  repeat invert_exec; eauto.
+  eapply IHal in H0; eauto.
+Qed.
+
 
 Theorem write_batch_to_cache_crashed:
   forall al vl o s s' u,
@@ -290,6 +303,17 @@ Proof.
   lia.
 Qed.  
   
+Theorem write_lists_to_cache_finished_disk:
+  forall l_la_lv s o s' t u,
+    exec CachedDiskLang u o s (write_lists_to_cache l_la_lv) (Finished s' t) ->
+    snd s' = snd s.
+Proof.
+  induction l_la_lv; simpl; intros; repeat invert_exec; eauto.
+  apply write_batch_to_cache_finished_disk in H; eauto.
+  cleanup.
+  apply IHl_la_lv in H0; eauto.
+  cleanup; repeat cleanup_pairs; eauto.
+Qed.  
 
 Theorem write_lists_to_cache_crashed_oracle:
   forall l_la_lv s o s' u,
@@ -2491,3 +2515,161 @@ Proof.
   right. cleanup; do 2 eexists; eauto.
 Qed.
 
+(** XXXXXXXXX **)
+Theorem write_finished_log_rep:
+  forall hdr1 txns1 s1 o al vl s' t u,
+  Log.log_header_rep hdr1 txns1 (snd s1) ->
+  exec CachedDiskLang u o s1 (write al vl) (Finished s' t) ->
+  (Log.log_header_rep hdr1 txns1 (snd s') /\
+   (~Forall (fun a => a < data_length) al \/
+    ~NoDup al \/
+    length al <> length vl \/
+    length (addr_list_to_blocks (map (plus data_start) al)) + length vl > log_length \/
+    length al = 0)) \/
+  (exists txn hdr, 
+  ((Log.log_header_rep hdr (txns1++[txn]) (snd s') /\
+    Log.count (Log.current_part hdr1) +  length (addr_list_to_blocks (map (plus data_start) al)) + length vl <= log_length) \/
+  (Log.log_header_rep hdr [txn] (snd s') /\
+  Log.count (Log.current_part hdr1) +  length (addr_list_to_blocks (map (plus data_start) al)) + length vl > log_length)) /\
+  length (addr_blocks txn) = length (addr_list_to_blocks (map (Init.Nat.add data_start) al)) /\
+  length (data_blocks txn) = length vl /\
+   Forall (fun a => a < data_length) al /\
+   NoDup al /\
+   length al = length vl /\
+   length (addr_list_to_blocks (map (plus data_start) al)) + length vl <= log_length /\
+   length al > 0).
+Proof.
+  unfold write; simpl; intros.
+  cleanup; simpl in *; invert_exec_no_match; simpl in *; cleanup_no_match; simpl in *; eauto.
+  invert_exec.
+  destruct (addr_list_to_blocks_to_addr_list (map (Init.Nat.add data_start) al)).
+  eapply commit_finished_oracle in H3; eauto.
+  all: try rewrite H4.
+  split_ors; cleanup_no_match.
+  {(** initial commit is success **)
+    right.
+    repeat invert_exec.
+    apply write_batch_to_cache_finished in H1; eauto; cleanup.
+    repeat cleanup_pairs.
+    unfold log_rep in *; logic_clean.
+    do 2 eexists; simpl.
+    intuition eauto.
+    left; intuition eauto.
+    repeat rewrite app_length in *; lia.
+    rewrite H5; eauto.
+    lia.
+    rewrite map_length; eauto.
+  }
+  {(** First commit failed. Time to apply the log **)
+    repeat invert_exec.
+    simpl in *.
+    repeat cleanup_pairs; simpl in *.
+    eapply apply_log_finished in H9; eauto.
+    logic_clean.
+    apply write_batch_to_cache_finished in H1.
+    logic_clean.
+    unfold log_rep in *; logic_clean.
+    eapply commit_finished_oracle in H10; eauto.
+    all: try rewrite H4.
+    split_ors; cleanup_no_match.
+    {(** second commit is success **)
+      right.
+      repeat cleanup_pairs.
+      unfold log_rep in *; logic_clean.
+      do 2 eexists; simpl.
+      intuition eauto.
+      right; intuition eauto.
+      repeat rewrite app_length in *; lia.
+
+      unfold log_rep, log_rep_general, log_rep_explicit,
+      log_rep_inner, txns_valid in *; cleanup; simpl in *; eauto. 
+      lia.
+    }
+    {
+      rewrite app_length in *.
+      repeat cleanup_pairs.
+      unfold log_rep, log_rep_general, log_rep_explicit,
+      log_rep_inner, header_part_is_valid, txns_valid in *;
+      simpl in *; cleanup; simpl in *. 
+          
+      rewrite <- H14 in *; simpl in *.
+      lia.
+    }
+    {
+      rewrite firstn_app2; eauto.
+      apply FinFun.Injective_map_NoDup; eauto.
+      unfold FinFun.Injective; intros; lia.
+      rewrite map_length; eauto.
+    }
+    {
+      rewrite firstn_app2; eauto.    
+      apply Forall_forall; intros.
+      apply in_map_iff in H11; cleanup.
+      eapply_fresh Forall_forall in f; eauto.
+      pose proof data_fits_in_disk.
+      split; try lia.
+      rewrite map_length; eauto.
+    }    
+    {
+      rewrite app_length, map_length; lia.
+    }
+    {
+      erewrite addr_list_to_blocks_length_eq.
+      eapply addr_list_to_blocks_length_nonzero; eauto.
+      rewrite map_length; eauto.
+    }
+    {
+      lia.
+    }
+    {
+      rewrite map_length; eauto.
+    }
+  } 
+  {
+    rewrite firstn_app2; eauto.
+    apply FinFun.Injective_map_NoDup; eauto.
+    unfold FinFun.Injective; intros; lia.
+    rewrite map_length; eauto.
+  }
+  {
+    rewrite firstn_app2; eauto.    
+    apply Forall_forall; intros.
+    apply in_map_iff in H5; cleanup_no_match.
+    eapply_fresh Forall_forall in f; eauto.
+    pose proof data_fits_in_disk.
+    split; try lia.
+    rewrite map_length; eauto.
+  }
+  {
+    rewrite app_length, map_length; lia.
+  }
+  {
+    erewrite addr_list_to_blocks_length_eq.
+    eapply addr_list_to_blocks_length_nonzero; eauto.
+    rewrite map_length; eauto.
+  }
+  {
+    lia.
+  }
+  {
+    assert(A: length al = 0) by lia.
+    left; intuition eauto; try lia.
+  }
+  {
+    left; intuition eauto; lia.
+  }
+  {
+    left; intuition eauto; lia.
+  }
+Qed.
+
+Theorem read_finished_disk:
+  forall a s o s' t u,
+    exec CachedDiskLang u o s (read a) (Finished s' t) ->
+    s' = s.
+Proof.
+  unfold read; simpl; intros; repeat invert_exec; eauto.
+  cleanup; repeat invert_exec; eauto.
+  destruct s; simpl; eauto.
+  destruct s, s0; simpl; eauto.
+Qed.

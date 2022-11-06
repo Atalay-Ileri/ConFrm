@@ -295,6 +295,29 @@ Proof.
   intuition eauto.    
 Qed.
 
+Theorem get_inode_finished_precise:
+  forall dh u o s inum t s',
+    inode_rep dh (fst (snd s)) ->
+    exec (TDLang data_length) u o s (get_inode inum) (Finished s' t) ->
+    ((exists inode, t = Some inode /\ dh inum = Some inode) \/
+     (t = None /\ dh inum = None)) /\
+    s' = s.
+Proof.
+  unfold get_inode, inode_rep; intros; cleanup.
+  repeat invert_exec;
+  eapply read_finished_precise in H0; eauto;
+  cleanup; split_ors; cleanup; eauto;
+  split; eauto.
+  {
+    unfold inode_map_rep in *; cleanup.
+    left; rewrite H0; cleanup; simpl; eauto.
+  }
+  {
+    unfold inode_map_rep in *; cleanup.
+    right; split; eauto.
+    rewrite H0, H2; simpl; eauto.
+  } 
+Qed.
 
 Theorem set_inode_finished:
   forall dh u o s inum inode t s',
@@ -496,6 +519,41 @@ Proof.
   right; intuition eauto.  
 Qed.
 
+Theorem get_block_number_finished_precise:
+  forall dh u o s inum off t s',
+    inode_rep dh (fst (snd s)) ->
+    exec (TDLang data_length) u o s (get_block_number inum off) (Finished s' t) ->
+    ((exists inode, off < length (inode.(block_numbers)) /\
+               t = Some (seln (inode.(block_numbers)) off 0) /\
+               dh inum = Some inode) \/
+     (t = None /\ (dh inum = None \/
+                  (exists inode, dh inum = Some inode /\
+                            off >= length (inode.(block_numbers)))))) /\
+    s' = s.
+Proof.
+  unfold get_block_number; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished_precise in H0; eauto;
+  cleanup; eauto;
+  split; eauto;
+  split_ors; cleanup.
+  {    
+    destruct_fresh (nth_error (block_numbers x0) off); eauto.  
+    {
+      left; eexists; split; eauto.
+      eapply nth_error_some_lt; eauto.
+      rewrite nth_seln_eq.
+      erewrite nth_error_nth; eauto.
+    }
+    {
+      right; intuition eauto.
+      right; eexists; split; eauto.
+      apply nth_error_None; eauto.
+    }
+  }
+  right; intuition eauto.  
+Qed.
+
 Theorem get_all_block_numbers_finished:
   forall dh u o s inum t s',
     inode_rep dh (fst (snd s)) ->
@@ -540,6 +598,23 @@ Proof.
   split_ors; cleanup; intuition eauto.
 Qed.
 
+
+Theorem get_owner_finished_precise:
+  forall dh u o s inum t s',
+    inode_rep dh (fst (snd s)) ->
+    exec (TDLang data_length) u o s (get_owner inum) (Finished s' t) ->
+    ((exists inode, t = Some inode.(owner) /\ dh inum = Some inode) \/
+     (t = None /\ dh inum = None)) /\
+    s' = s.
+Proof.
+  unfold get_owner; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished_precise in H0; eauto;
+  cleanup; eauto;
+  split; eauto.
+  split_ors; cleanup; eauto.
+  split_ors; cleanup; intuition eauto.
+Qed.
 
 (*** Crashed ***)
 Theorem alloc_crashed:

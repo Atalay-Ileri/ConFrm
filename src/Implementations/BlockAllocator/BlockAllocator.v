@@ -904,6 +904,41 @@ Proof.
   }
 Qed.
 
+Theorem read_finished_precise:
+  forall dh u o s a t s',
+    block_allocator_rep dh (fst (snd s)) ->
+    exec (TDLang data_length) u o s (read a) (Finished s' t) ->
+    ((exists v, t = Some v /\ dh a = Some v) \/
+     (t = None /\ dh a = None)) /\
+     s' = s.
+Proof.
+  unfold read; intros; simpl in *.
+  cleanup; repeat invert_exec; cleanup; intuition eauto; try lia;
+  try solve [ pose proof blocks_fit_in_disk; lia ].
+  {
+    left; eexists; intuition eauto.
+    unfold block_allocator_rep in *; cleanup.
+    eapply (valid_bits_extract _ _ _ a) in H0; try lia.
+    cleanup.
+    split_ors; cleanup; eauto.
+    congruence.
+  }
+  {
+    unfold block_allocator_rep in *; cleanup.    
+    eapply (valid_bits_extract _ _ _ a) in H0; try lia.
+    cleanup.
+    split_ors; cleanup; eauto.
+    congruence.
+  }
+  {
+    unfold block_allocator_rep in *; cleanup.
+    right; split; eauto.
+    eapply H2; lia.
+  }
+Qed.
+
+
+
 Theorem write_finished:
   forall dh u o s a v t s',
     block_allocator_rep dh (fst (snd s)) ->

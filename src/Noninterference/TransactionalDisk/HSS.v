@@ -30,9 +30,10 @@ Fixpoint have_same_structure {T T'} (p1: AD.(prog) T) (p2: AD.(prog) T') u s1 s2
     T1_1 = T2_1 /\
     T1_2 = T2_2 /\
     have_same_structure p1_1 p2_1 u s1 s2 /\
-    (forall o s1' r1 s2' r2,
-    exec AD u o s1 p1_1 (Finished s1' r1) ->
-    exec AD u o s2 p2_1 (Finished s2' r2) ->
+    (forall o1 o2 o3 o4 s1' r1 s2' r2,
+    exec AD u o1 s1 p1_1 (Finished s1' r1) ->
+    exec AD u o2 s2 p2_1 (Finished s2' r2) ->
+    o1 ++ o3 = o2 ++ o4 ->
     have_same_structure (p1_2 r1) (p2_2 r2) u s1' s2')
   | _, _ => False
   end.
@@ -161,7 +162,6 @@ destruct (Compare_dec.lt_dec
          (fst (snd (snd s2))
          Inode.InodeAllocatorParams.bitmap_addr)))); try lia.
 
-
 simpl; intuition eauto.
 repeat invert_exec; try lia; cleanup.
 simpl; intuition eauto.
@@ -173,6 +173,7 @@ destruct u0; try solve [intuition congruence];
 simpl; eauto.
 destruct u0; try solve [intuition congruence];
 simpl; eauto.
+all: simpl in *; cleanup; eauto.
 {
   pose proof Inode.InodeAllocatorParams.blocks_fit_in_disk.
   pose proof Inode.InodeAllocatorParams.num_of_blocks_in_bounds.
@@ -420,6 +421,8 @@ destruct u0; try solve [intuition congruence];
 simpl; eauto.
 destruct u0; try solve [intuition congruence];
 simpl; eauto.
+all: simpl in *; cleanup; eauto.
+all: eauto.
 {
   pose proof File.DiskAllocatorParams.blocks_fit_in_disk.
   pose proof File.DiskAllocatorParams.num_of_blocks_in_bounds.
@@ -479,10 +482,9 @@ simpl; intuition eauto.
 eapply have_same_structure_InodeAllocator_read; eauto.
 eapply lift2_invert_exec in H0; cleanup.
 eapply lift2_invert_exec in H1; cleanup.
-eapply map_ext_eq in H0.
-2: intros; cleanup; intuition congruence.
+eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
 subst.
-eapply Inode.InodeAllocator.read_finished_oracle_eq in H3; eauto.
+eapply Inode.InodeAllocator.read_finished_oracle_eq in H4; eauto.
 cleanup.
 destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
@@ -606,16 +608,16 @@ unfold refines, File.files_rep in *; cleanup.
 eapply have_same_structure_get_inode; eauto.
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply HC_map_ext_eq in H1; subst.
-eapply_fresh Inode.get_inode_finished_oracle_eq in H5; eauto.
+apply HC_map_ext_eq_prefix in H2; cleanup.
+eapply_fresh Inode.get_inode_finished_oracle_eq in H6; eauto.
 destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 eapply have_same_structure_set_inode.
 unfold File.files_inner_rep in *; cleanup.
-eapply Inode.get_inode_finished in H5; eauto.
-eapply Inode.get_inode_finished in H3; eauto.
+eapply Inode.get_inode_finished in H6; eauto.
+eapply Inode.get_inode_finished in H4; eauto.
 cleanup.
-clear H H5.
+clear H0 H6.
 
 unfold File.files_inner_rep; 
 do 2 eexists; intuition eauto.
@@ -644,16 +646,16 @@ unfold refines, File.files_rep in *; cleanup.
 eapply have_same_structure_get_inode; eauto.
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply HC_map_ext_eq in H1; subst.
-eapply_fresh Inode.get_inode_finished_oracle_eq in H5; eauto.
+apply HC_map_ext_eq_prefix in H2; cleanup.
+eapply_fresh Inode.get_inode_finished_oracle_eq in H6; eauto.
 destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 eapply have_same_structure_set_inode.
 unfold File.files_inner_rep in *; cleanup.
-eapply Inode.get_inode_finished in H5; eauto.
-eapply Inode.get_inode_finished in H3; eauto.
+eapply Inode.get_inode_finished in H6; eauto.
+eapply Inode.get_inode_finished in H4; eauto.
 cleanup.
-clear H H5.
+clear H0 H6.
 
 unfold File.files_inner_rep; 
 do 2 eexists; intuition eauto.
@@ -687,19 +689,18 @@ eapply addrs_match_exactly_sym; eauto.
 
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply map_ext_eq in H1; subst.
-2: intros; cleanup; intuition congruence.
+eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
 unfold File.files_inner_rep in *; cleanup.
-eapply_fresh Inode.get_block_number_finished_oracle_eq in H5; eauto.
+eapply_fresh Inode.get_block_number_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 intuition.
-eapply Inode.get_block_number_finished in H5; eauto.
-eapply Inode.get_block_number_finished in H3; eauto.
+eapply Inode.get_block_number_finished in H6; eauto.
+eapply Inode.get_block_number_finished in H4; eauto.
 repeat split_ors; cleanup.
 
 eapply have_same_structure_DiskAllocator_read; eauto.
-clear H3 H5.
+clear H4 H6.
 do 2 eexists; intuition eauto.
 
 unfold File.files_inner_rep; 
@@ -821,19 +822,18 @@ eapply addrs_match_exactly_sym; eauto.
 
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply map_ext_eq in H1; subst.
-2: intros; cleanup; intuition congruence.
+eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
 unfold File.files_inner_rep in *; cleanup.
-eapply_fresh Inode.get_block_number_finished_oracle_eq in H5; eauto.
+eapply_fresh Inode.get_block_number_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 intuition.
-eapply Inode.get_block_number_finished in H5; eauto.
-eapply Inode.get_block_number_finished in H3; eauto.
+eapply Inode.get_block_number_finished in H6; eauto.
+eapply Inode.get_block_number_finished in H4; eauto.
 repeat split_ors; cleanup.
 
 eapply have_same_structure_DiskAllocator_write; eauto.
-clear H3 H5.
+clear H4 H6.
 do 2 eexists; intuition eauto.
 
 unfold File.files_inner_rep; 
@@ -952,19 +952,18 @@ eapply addrs_match_exactly_sym; eauto.
 
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply map_ext_eq in H1; subst.
-2: intros; cleanup; intuition congruence.
+eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
 unfold File.files_inner_rep in *; cleanup.
-eapply_fresh Inode.get_block_number_finished_oracle_eq in H5; eauto.
+eapply_fresh Inode.get_block_number_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 intuition.
-eapply Inode.get_block_number_finished in H5; eauto.
-eapply Inode.get_block_number_finished in H3; eauto.
+eapply Inode.get_block_number_finished in H6; eauto.
+eapply Inode.get_block_number_finished in H4; eauto.
 repeat split_ors; cleanup.
 
 eapply have_same_structure_DiskAllocator_write; eauto.
-clear H3 H5.
+clear H4 H6.
 do 2 eexists; intuition eauto.
 
 unfold File.files_inner_rep; 
@@ -1076,20 +1075,20 @@ eapply have_same_structure_DiskAllocator_alloc; eauto.
 cleanup; eapply free_block_exists_iff; eauto.
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply HC_map_ext_eq in H1; subst.
+eapply_fresh HC_map_ext_eq_prefix in H2; subst.
 unfold File.files_inner_rep, Inode.inode_rep in *; cleanup.
-eapply_fresh File.DiskAllocator.alloc_finished_oracle_eq in H5; eauto.
+eapply_fresh File.DiskAllocator.alloc_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 
-eapply File.DiskAllocator.alloc_finished in H3; eauto.
-eapply File.DiskAllocator.alloc_finished in H5; eauto.
+eapply File.DiskAllocator.alloc_finished in H4; eauto.
+eapply File.DiskAllocator.alloc_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 repeat cleanup_pairs.
 eapply have_same_structure_Inode_extend; simpl; eauto.
 unfold File.files_inner_rep, File.file_map_rep, 
 FD_related_states, same_for_user_except in *; cleanup.
-simpl. exists x3, x0; intuition eauto.
+simpl. exists x6, x5; intuition eauto.
 
 
 unfold File.files_inner_rep, Inode.inode_rep in *; cleanup.
@@ -1131,20 +1130,20 @@ eapply have_same_structure_DiskAllocator_alloc; eauto.
 cleanup; eapply free_block_exists_iff; eauto.
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply HC_map_ext_eq in H1; subst.
+eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
 unfold File.files_inner_rep, Inode.inode_rep in *; cleanup.
-eapply_fresh File.DiskAllocator.alloc_finished_oracle_eq in H5; eauto.
+eapply_fresh File.DiskAllocator.alloc_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 
-eapply File.DiskAllocator.alloc_finished in H3; eauto.
-eapply File.DiskAllocator.alloc_finished in H5; eauto.
+eapply File.DiskAllocator.alloc_finished in H4; eauto.
+eapply File.DiskAllocator.alloc_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 repeat cleanup_pairs.
 eapply have_same_structure_Inode_extend; simpl; eauto.
 unfold File.files_inner_rep, File.file_map_rep, 
 FD_related_states, same_for_user_except in *; cleanup.
-simpl. exists x3, x0; intuition eauto.
+simpl. exists x6, x5; intuition eauto.
 
 
 unfold File.files_inner_rep, Inode.inode_rep in *; cleanup.
@@ -1219,7 +1218,7 @@ Proof.
 
   eapply lift2_invert_exec in H6.
 eapply lift2_invert_exec in H29; cleanup.
-apply HC_map_ext_eq in H7; subst.
+eapply_fresh HC_map_ext_eq_prefix in H30; subst.
 unfold File.files_inner_rep in *; cleanup.
 eapply_fresh File.DiskAllocator.free_finished_oracle_eq in H15; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
@@ -1312,15 +1311,15 @@ eapply addrs_match_exactly_sym; eauto.
 
 eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply HC_map_ext_eq in H1; subst.
+eapply_fresh HC_map_ext_eq_prefix in H2; subst.
 unfold File.files_inner_rep in *; cleanup.
-eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H5; eauto.
+eapply_fresh Inode.get_all_block_numbers_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 
 intuition eauto.
-eapply Inode.get_all_block_numbers_finished in H3; eauto.
-eapply Inode.get_all_block_numbers_finished in H5; eauto.
+eapply Inode.get_all_block_numbers_finished in H4; eauto.
+eapply Inode.get_all_block_numbers_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 repeat cleanup_pairs.
 eapply have_same_structure_free_all_blocks.
@@ -1332,11 +1331,11 @@ eapply have_same_structure_free_all_blocks.
   eauto.
 
   unfold File.file_map_rep in *; cleanup.
-  eapply_fresh H5 in H2; eauto.
-  eapply_fresh H14 in H3; eauto.
+  eapply_fresh H6 in H3; eauto.
+  eapply_fresh H14 in H4; eauto.
   unfold File.file_rep in *; cleanup.
   unfold FD_related_states, same_for_user_except in *; cleanup.
-  eapply H27 in H2; eauto; cleanup; eauto.
+  eapply H27 in H3; eauto; cleanup; eauto.
 }
 eapply SameRetType.all_block_numbers_in_bound; eauto.
 eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
@@ -1350,8 +1349,8 @@ intros; FileInnerSpecs.solve_bounds.
 
 {
   eapply Forall_forall; intros.
-  eapply in_seln_exists in H2; cleanup.
-  simpl; rewrite <- H3.
+  eapply in_seln_exists in H3; cleanup.
+  simpl; rewrite <- H4.
   eapply used_blocks_are_allocated_2; eauto.
   eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
   intros; FileInnerSpecs.solve_bounds.
@@ -1359,8 +1358,8 @@ intros; FileInnerSpecs.solve_bounds.
 
 {
   eapply Forall_forall; intros.
-  eapply in_seln_exists in H2; cleanup.
-  simpl; rewrite <- H3.
+  eapply in_seln_exists in H3; cleanup.
+  simpl; rewrite <- H4.
   eapply used_blocks_are_allocated_2; eauto.
   eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
   intros; FileInnerSpecs.solve_bounds.
@@ -1384,37 +1383,37 @@ eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; [|
 intros; FileInnerSpecs.solve_bounds]; eauto.
 
 
-eapply lift2_invert_exec in H11.
+eapply lift2_invert_exec in H12.
 eapply lift2_invert_exec in H13; cleanup.
-apply HC_map_ext_eq in H13; subst.
-eapply_fresh SameRetType.free_all_blocks_finished_oracle_eq in H17; eauto.
+eapply_fresh HC_map_ext_eq_prefix in H14; cleanup.
+eapply_fresh SameRetType.free_all_blocks_finished_oracle_eq in H18; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 destruct u0, u1; try solve [intuition congruence];
 simpl; eauto.
 
-eapply FileInnerSpecs.free_all_blocks_finished in H15; eauto.
-eapply FileInnerSpecs.free_all_blocks_finished in H17; eauto.
+eapply FileInnerSpecs.free_all_blocks_finished in H16; eauto.
+eapply FileInnerSpecs.free_all_blocks_finished in H18; eauto.
 repeat (repeat split_ors; cleanup).
 repeat cleanup_pairs.
 eapply have_same_structure_InodeAllocator_free.
 
 2: {
-  eapply Inode.get_all_block_numbers_finished in H3; eauto.
-eapply Inode.get_all_block_numbers_finished in H5; eauto.
+  eapply Inode.get_all_block_numbers_finished in H4; eauto.
+eapply Inode.get_all_block_numbers_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; [|
 intros; FileInnerSpecs.solve_bounds]; eauto.
 }
 2: {
-  eapply Inode.get_all_block_numbers_finished in H3; eauto.
-eapply Inode.get_all_block_numbers_finished in H5; eauto.
+  eapply Inode.get_all_block_numbers_finished in H4; eauto.
+eapply Inode.get_all_block_numbers_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; [|
 intros; FileInnerSpecs.solve_bounds]; eauto.
 }
-eapply Inode.get_all_block_numbers_finished in H3; eauto.
-eapply Inode.get_all_block_numbers_finished in H5; eauto.
+eapply Inode.get_all_block_numbers_finished in H4; eauto.
+eapply Inode.get_all_block_numbers_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 repeat cleanup_pairs.
 unfold File.files_inner_rep, Inode.inode_rep in *; cleanup;
@@ -1431,8 +1430,8 @@ eapply addrs_match_exactly_trans; eauto.
 eapply addrs_match_exactly_trans; eauto.
 eapply addrs_match_exactly_sym; eauto.
 
-eapply Inode.get_all_block_numbers_finished in H3; eauto.
-eapply Inode.get_all_block_numbers_finished in H5; eauto.
+eapply Inode.get_all_block_numbers_finished in H4; eauto.
+eapply Inode.get_all_block_numbers_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 eapply SameRetType.all_block_numbers_in_bound.
 4: eauto.
@@ -1440,8 +1439,8 @@ all: eauto.
 eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; [|
 intros; FileInnerSpecs.solve_bounds]; eauto.
 
-eapply Inode.get_all_block_numbers_finished in H3; eauto.
-eapply Inode.get_all_block_numbers_finished in H5; eauto.
+eapply Inode.get_all_block_numbers_finished in H4; eauto.
+eapply Inode.get_all_block_numbers_finished in H6; eauto.
 repeat (repeat split_ors; cleanup).
 eapply SameRetType.all_block_numbers_in_bound.
 4: eauto.
@@ -1454,50 +1453,48 @@ all: eauto.
 Qed.
 
 
-
-
-
 Lemma get_owner_related_ret_eq:
-forall u u' ex s1 s2 o s1' s2' r1 r2 inum, 
+forall u u' ex s1 s2 o1 o2 o3 o4 s1' s2' r1 r2 inum, 
 AD_related_states u' ex s1 s2 ->
-exec TD u o (snd s1) (Inode.get_owner inum) (Finished s1' r1) ->
-exec TD u o (snd s2) (Inode.get_owner inum) (Finished s2' r2) ->
+exec TD u o1 (snd s1) (Inode.get_owner inum) (Finished s1' r1) ->
+exec TD u o2 (snd s2) (Inode.get_owner inum) (Finished s2' r2) ->
+o1 ++ o3 = o2 ++ o4 ->
 r1 = r2.
 Proof.
   unfold AD_related_states, refines_related, FD_related_states; simpl;
   intros; cleanup.
   unfold refines, File.files_rep, File.files_inner_rep in *.
   cleanup.
-  rewrite <- H8, <- H4 in *.
+  rewrite <- H9, <- H5 in *.
   eapply Inode.get_owner_finished in H0; eauto.
   eapply Inode.get_owner_finished in H1; eauto.
   cleanup; repeat split_ors; cleanup; try lia; eauto.
   {
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
     eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H22; eauto.
     cleanup.
     unfold File.file_map_rep in *; cleanup.
-    eapply_fresh H22 in H1; eauto.
-    eapply_fresh H24 in H0; eauto.
-    destruct H3; cleanup.
-    eapply H27 in H0; eauto; cleanup.
+    eapply_fresh H23 in H1; eauto.
+    eapply_fresh H25 in H0; eauto.
+    destruct H4; cleanup.
+    eapply H28 in H0; eauto; cleanup.
     unfold File.file_rep in *; cleanup; eauto.
   }
   {
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H20; eauto.
-    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H21; eauto.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
+    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H22; eauto.
     cleanup.
-    destruct H3; cleanup.
+    destruct H4; cleanup.
     edestruct H1. 
-    exfalso; eapply H24; eauto. congruence.
+    exfalso; eapply H25; eauto. congruence.
   }
   {
-    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H21; eauto.
-    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H20; eauto.
+    eapply_fresh FileInnerSpecs.inode_exists_then_file_exists in H22; eauto.
+    eapply_fresh FileInnerSpecs.inode_missing_then_file_missing in H21; eauto.
     cleanup.
-    destruct H3; cleanup.
+    destruct H4; cleanup.
     edestruct H1. 
-    exfalso; eapply H23; eauto. congruence.
+    exfalso; eapply H24; eauto. congruence.
   }
 Qed.
 
@@ -1543,20 +1540,20 @@ Proof.
 
   eapply lift2_invert_exec in H2.
 eapply lift2_invert_exec in H3; cleanup.
-apply HC_map_ext_eq in H3; subst.
-eapply_fresh get_owner_related_ret_eq in H5; eauto.
+eapply_fresh HC_map_ext_eq_prefix in H4; cleanup.
+eapply_fresh get_owner_related_ret_eq in H6; eauto.
 
 unfold AD_related_states, refines_related in *; 
 simpl in *; cleanup.
 
 unfold refines, File.files_rep in *; cleanup.
-rewrite <- H8, <- H10 in *; clear H8 H10.
+rewrite <- H10, <- H12 in *; clear H10 H12.
 unfold File.files_inner_rep in *; cleanup.
-eapply Inode.get_owner_finished in H7; eauto.
-eapply Inode.get_owner_finished in H5; eauto.
+eapply Inode.get_owner_finished in H8; eauto.
+eapply Inode.get_owner_finished in H6; eauto.
 repeat split_ors; cleanup.
 
-clear H5 H7. destruct r2; simpl; intuition eauto.
+clear H6 H8. destruct r2; simpl; intuition eauto.
 repeat invert_exec; intuition.
 simpl; intuition eauto.
 apply H; eauto.
@@ -1572,13 +1569,13 @@ eexists; intuition eauto.
 eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
 intros; SameRetType.solve_bounds.
 
-eapply lift2_invert_exec in H5.
-eapply lift2_invert_exec in H7; cleanup.
-apply HC_map_ext_eq in H7; subst.
+eapply lift2_invert_exec in H6.
+eapply lift2_invert_exec in H8; cleanup.
+eapply_fresh HC_map_ext_eq_prefix in H25; cleanup.
 unfold FD_related_states  in *.
 
-eapply H0 in H23. 
-2: eapply H26. 
+eapply H0 in H27. 
+2: eapply H29. 
 all: eauto.
 cleanup. 
 destruct r1, r2; simpl; intuition congruence.
@@ -1594,8 +1591,6 @@ eapply File.DiskAllocator.block_allocator_rep_inbounds_eq; eauto.
 intros; SameRetType.solve_bounds.
 
 simpl; intuition eauto.
-Unshelve.
-eauto.
 Qed.
 
 
@@ -1701,9 +1696,9 @@ eapply addrs_match_exactly_sym; eauto.
   
   eapply lift2_invert_exec in H0.
 eapply lift2_invert_exec in H1; cleanup.
-apply HC_map_ext_eq in H1; subst.
+eapply_fresh HC_map_ext_eq_prefix in H2; cleanup.
 unfold File.files_inner_rep in *; cleanup.
-eapply_fresh Inode.alloc_finished_oracle_eq in H5; eauto.
+eapply_fresh Inode.alloc_finished_oracle_eq in H6; eauto.
 cleanup; destruct r1,r2; try solve [intuition congruence];
 simpl; eauto.
 
