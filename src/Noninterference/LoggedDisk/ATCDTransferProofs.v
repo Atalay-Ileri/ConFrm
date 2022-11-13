@@ -2,7 +2,7 @@ Require Import Eqdep Lia Framework FSParameters FileDiskLayer. (* LoggedDiskLaye
 Require Import FileDiskNoninterference FileDiskRefinement.
 Require Import ATC_ORS ATCDLayer ATC_Simulation HSS ATC_TransferProofs.
 Require Import ATCD_Simulation ATCD_AOE.
-Require Import Not_Init ATCD_ORS ATCD_TIE. (* ATCD_TS. *)
+Require Import Not_Init ATCD_ORS ATCD_TIE ATCD_HSS ATCD_Commit_Pre.
 
 Import FileDiskLayer.
 Set Nested Proofs Allowed.
@@ -24,6 +24,44 @@ Definition compile_to_ATCD {T} (p: prog _ T) :=
 (Simulation.Definitions.compile ATC_Refinement
    (Simulation.Definitions.compile FD.refinement p))).
 
+Definition ATCD_log_equivalent (s1 s2: state ATCDLang) :=
+  (exists (hdr1 hdr2 : Log.header) (merged_disk1 merged_disk2 : total_mem),
+  (exists txns1 : list Log.txn,
+     fst (snd (snd s1)) =
+     Mem.list_upd_batch empty_mem (map Log.addr_list txns1)
+       (map Log.data_blocks txns1) /\
+     Log.log_header_rep hdr1 txns1 (snd (snd (snd s1))) /\
+     merged_disk1 =
+     total_mem_map fst
+       (shift (Nat.add data_start)
+          (list_upd_batch_set (snd (snd (snd (snd s1))))
+             (map Log.addr_list txns1) (map Log.data_blocks txns1))) /\
+     (forall a : nat,
+      a >= data_start -> snd (snd (snd (snd (snd s1))) a) = [])) /\
+  (exists txns2 : list Log.txn,
+     fst (snd (snd s2)) =
+     Mem.list_upd_batch empty_mem (map Log.addr_list txns2)
+       (map Log.data_blocks txns2) /\
+     Log.log_header_rep hdr2 txns2 (snd (snd (snd s2))) /\
+     merged_disk2 =
+     total_mem_map fst
+       (shift (Nat.add data_start)
+          (list_upd_batch_set (snd (snd (snd (snd s2))))
+             (map Log.addr_list txns2) (map Log.data_blocks txns2))) /\
+     (forall a : nat,
+      a >= data_start -> snd (snd (snd (snd (snd s2))) a) = [])) /\
+  Log.count (Log.current_part hdr1) = Log.count (Log.current_part hdr2) /\
+  Forall2
+    (fun rec1 rec2 : Log.txn_record =>
+     Log.addr_count rec1 = Log.addr_count rec2)
+    (Log.records (Log.current_part hdr1))
+    (Log.records (Log.current_part hdr2)) /\
+  Forall2
+    (fun rec1 rec2 : Log.txn_record =>
+     Log.data_count rec1 = Log.data_count rec2)
+    (Log.records (Log.current_part hdr1))
+    (Log.records (Log.current_part hdr2))).
+
 (********** Transfer Theorems ***********)
 Opaque File.read File.recover.
 Theorem ss_ATCD_read:
@@ -40,17 +78,28 @@ Theorem ss_ATCD_read:
   (compile_to_ATCD  (| Read inum off |))
   (compile_to_ATCD (|Recover|)) lo s2 -> 
 
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Read inum off |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Read inum off |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
   RDNI_Weak_explicit u lo s1 s2
     (compile_to_ATCD  (| Read inum off |))
     (compile_to_ATCD  (| Read inum off |))
     (compile_to_ATCD (|Recover|))
     (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
-    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' None)))
+    ((refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' None))))
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
   eapply RDNIW_explicit_transfer.
-  - apply ss_ATC_read.
+  - simpl.
+  apply ss_ATC_read.
   - eapply ATCD_simulation.
     shelve.
   - eapply ATCD_simulation.
@@ -72,14 +121,17 @@ Proof.
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HSS_transfer; simpl; eauto.
+    Transparent File.read.
+    unfold File.read.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_read_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply read_inner_commit_pre; eauto.
     eapply have_same_structure_read; eauto.
-    all: simpl; try solve [try apply not_init_compile; apply not_init_read].
-    eapply TIE_auth_then_exec; eauto.
-    apply TIE_read_inner.
-    unfold refines_related; simpl; intuition eauto.
   }
-Admitted.
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
 
 Opaque File.write File.recover.
 Theorem ss_ATCD_write:
@@ -96,7 +148,17 @@ Theorem ss_ATCD_write:
   (compile_to_ATCD (| Write inum off v |))
   (compile_to_ATCD (|Recover|)) lo s2 -> 
 
-  RDNI_explicit u lo s1 s2
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Write inum off v |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Write inum off v |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
+  RDNI_Weak_explicit u lo s1 s2
     (compile_to_ATCD (| Write inum off v |))
     (compile_to_ATCD (| Write inum off v |))
     (compile_to_ATCD (|Recover|))
@@ -105,17 +167,18 @@ Theorem ss_ATCD_write:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply RDNI_explicit_transfer.
-  - apply ss_ATC_write.
+  eapply RDNIW_explicit_transfer.
+  - simpl.
+  eapply ss_ATC_write.
   - eapply ATCD_simulation.
     shelve.
   - eapply ATCD_simulation.
-    shelve.
-  - intros; apply ATCD_AOE; eauto.               
     shelve.
   - intros; apply ATCD_AOE; eauto.
     shelve.
-  - eapply ATCD_ORS_transfer; simpl.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; eapply ATCD_ORS_transfer; simpl.
     all: shelve.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
@@ -123,20 +186,94 @@ Proof.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
   intros; simpl; eauto.
-  - admit. (* apply ATCD_TS_write. *)
   Unshelve.
   all: simpl; try solve [try apply not_init_compile; apply not_init_write].
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HRDNI_transfer; simpl; eauto.
+    Transparent File.write.
+    unfold File.write.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_write_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply write_inner_commit_pre; eauto.
     eapply have_same_structure_write; eauto.
-    all: simpl; try solve [try apply not_init_compile; apply not_init_write].
-    eapply TIE_auth_then_exec; eauto.
-    intros; eapply TIE_write_inner; eauto.
-    unfold refines_related; simpl; intuition eauto.
+    Opaque File.write.
   }
-Admitted.
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
+
+
+Theorem ss_ATCD_write_input:
+  forall n inum off u u' v1 v2 lo s1 s2,
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (compile_to_ATCD (| Write inum off v1 |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
+
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (compile_to_ATCD (| Write inum off v2 |))
+  (compile_to_ATCD (|Recover|)) lo s2 -> 
+
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Write inum off v1 |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Write inum off v2 |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
+  RDNI_Weak_explicit u lo s1 s2
+    (compile_to_ATCD (| Write inum off v1 |))
+    (compile_to_ATCD (| Write inum off v2 |))
+    (compile_to_ATCD (|Recover|))
+    (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
+    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' (Some inum))))
+    (eq u') (ATCD_reboot_list n).
+Proof.
+  intros.
+  eapply RDNIW_explicit_transfer.
+  - simpl.
+  eapply ss_ATC_write_input.
+  - eapply ATCD_simulation.
+    shelve.
+  - eapply ATCD_simulation.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; eapply ATCD_ORS_transfer; simpl.
+    all: shelve.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  Unshelve.
+  all: simpl; try solve [try apply not_init_compile; apply not_init_write].
+  {
+    unfold refines_related; simpl; intros.
+    cleanup.
+    Transparent File.write.
+    unfold File.write.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_write_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply write_inner_commit_pre; eauto.
+    eapply have_same_structure_write_input; eauto.
+    Opaque File.write.
+  }
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
 
 
 Opaque File.create File.recover.
@@ -147,12 +284,24 @@ Theorem ss_ATCD_create:
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD (| Create v |))
   (compile_to_ATCD (|Recover|)) lo s1 -> 
+
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD (| Create v |))
   (compile_to_ATCD (|Recover|)) lo s2 -> 
-    RDNI_explicit u lo s1 s2
+
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Create v |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Create v |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
+    RDNI_Weak_explicit u lo s1 s2
     (compile_to_ATCD (| Create v |))
     (compile_to_ATCD (| Create v |))
     (compile_to_ATCD (|Recover|))
@@ -161,7 +310,7 @@ Theorem ss_ATCD_create:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply RDNI_explicit_transfer.
+  eapply RDNIW_explicit_transfer.
   - apply ss_ATC_create.
   - eapply ATCD_simulation.
     shelve.
@@ -171,7 +320,7 @@ Proof.
     shelve.
   - intros; apply ATCD_AOE; eauto.
     shelve.
-  - eapply ATCD_ORS_transfer; simpl.
+  - intros; eapply ATCD_ORS_transfer; simpl.
     all: shelve.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
@@ -179,19 +328,16 @@ Proof.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
   intros; simpl; eauto.
-  - admit. (* apply ATCD_TS_write. *)
   Unshelve.
   all: simpl; try solve [try apply not_init_compile; apply not_init_create].
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HRDNI_transfer; simpl; eauto.
+    eapply ATC_HSS_create; eauto.
     eapply have_same_structure_create; eauto.
-    all: simpl; try solve [try apply not_init_compile; apply not_init_create].
-    intros; eapply TIE_create; eauto.
-    unfold refines_related; simpl; intuition eauto.
   }
-Admitted.
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
 
 Opaque File.extend File.recover.
 Theorem ss_ATCD_extend:
@@ -201,12 +347,24 @@ Theorem ss_ATCD_extend:
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD(| Extend inum v |))
   (compile_to_ATCD (|Recover|)) lo s1 -> 
+
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD(| Extend inum v |))
   (compile_to_ATCD (|Recover|))lo s2 -> 
-    RDNI_explicit u lo s1 s2
+
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Extend inum v |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Extend inum v |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
+    RDNI_Weak_explicit u lo s1 s2
     (compile_to_ATCD(| Extend inum v |))
     (compile_to_ATCD(| Extend inum v |))
     (compile_to_ATCD (|Recover|))
@@ -215,7 +373,7 @@ Theorem ss_ATCD_extend:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply RDNI_explicit_transfer.
+  eapply RDNIW_explicit_transfer.
   - apply ss_ATC_extend.
   - eapply ATCD_simulation.
     shelve.
@@ -225,7 +383,7 @@ Proof.
     shelve.
   - intros; apply ATCD_AOE; eauto.
     shelve.
-  - eapply ATCD_ORS_transfer; simpl.
+  - intros; eapply ATCD_ORS_transfer; simpl.
     all: shelve.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
@@ -233,20 +391,93 @@ Proof.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
   intros; simpl; eauto.
-  - admit. (* apply ATCD_TS_write. *)
   Unshelve.
   all: simpl; try solve [try apply not_init_compile; apply not_init_extend].
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HRDNI_transfer; simpl; eauto.
+    Transparent File.extend.
+    unfold File.extend.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_extend_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply extend_inner_commit_pre; eauto.
     eapply have_same_structure_extend; eauto.
-    all: simpl; try solve [try apply not_init_compile; apply not_init_extend].
-    intros; eapply TIE_auth_then_exec; eauto.
-    intros; eapply TIE_extend_inner; eauto.
-    unfold refines_related; simpl; intuition eauto.
+    Opaque File.extend.
   }
-Admitted.
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
+
+Theorem ss_ATCD_extend_input:
+  forall n u u' inum v1 v2 lo s1 s2,
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (compile_to_ATCD(| Extend inum v1 |))
+  (compile_to_ATCD (|Recover|)) lo s1 -> 
+
+  non_colliding_selector_list u
+  (Simulation.Definitions.refines ATCD_Refinement)
+  (Simulation.Definitions.refines_reboot ATCD_Refinement) n
+  (compile_to_ATCD(| Extend inum v2 |))
+  (compile_to_ATCD (|Recover|))lo s2 -> 
+
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Extend inum v1 |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Extend inum v2 |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
+    RDNI_Weak_explicit u lo s1 s2
+    (compile_to_ATCD(| Extend inum v1 |))
+    (compile_to_ATCD(| Extend inum v2 |))
+    (compile_to_ATCD (|Recover|))
+    (refines_valid ATCD_Refinement (refines_valid ATC_Refinement AD_valid_state))
+    (refines_related ATCD_Refinement (refines_related ATC_Refinement (AD_related_states u' (Some inum))))
+    (eq u') (ATCD_reboot_list n).
+Proof.
+  intros.
+  eapply RDNIW_explicit_transfer.
+  - apply ss_ATC_extend_input.
+  - eapply ATCD_simulation.
+    shelve.
+  - eapply ATCD_simulation.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; apply ATCD_AOE; eauto.
+    shelve.
+  - intros; eapply ATCD_ORS_transfer; simpl.
+    all: shelve.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  - unfold exec_compiled_preserves_validity, AD_valid_state, 
+  refines_valid, FD_valid_state; 
+  intros; simpl; eauto.
+  Unshelve.
+  all: simpl; try solve [try apply not_init_compile; apply not_init_extend].
+  {
+    unfold refines_related; simpl; intros.
+    cleanup.
+    Transparent File.extend.
+    unfold File.extend.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_extend_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply extend_inner_commit_pre; eauto.
+    eapply have_same_structure_extend_input; eauto.
+    Opaque File.extend.
+  }
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
+
 
 Opaque File.change_owner File.recover.
 Theorem ss_ATCD_change_owner:
@@ -256,12 +487,24 @@ Theorem ss_ATCD_change_owner:
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD (| ChangeOwner inum v |))
   (compile_to_ATCD (|Recover|)) lo s1 -> 
+
   non_colliding_selector_list u
   (Simulation.Definitions.refines ATCD_Refinement)
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD (| ChangeOwner inum v |))
   (compile_to_ATCD (|Recover|)) lo s2 -> 
-    RDNI_explicit u lo s1 s2
+
+  (forall s1',
+    exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| ChangeOwner inum v |)) (Crashed s1') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+  
+  (forall s2',
+    exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| ChangeOwner inum v |)) (Crashed s2') -> 
+    no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+    ATCD_log_equivalent s1 s2 ->
+
+    RDNI_Weak_explicit u lo s1 s2
     (compile_to_ATCD (| ChangeOwner inum v |))
     (compile_to_ATCD (| ChangeOwner inum v |))
     (compile_to_ATCD (|Recover|))
@@ -271,7 +514,7 @@ Theorem ss_ATCD_change_owner:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply RDNI_explicit_transfer.
+  eapply RDNIW_explicit_transfer.
   - apply ss_ATC_change_owner.
   - eapply ATCD_simulation.
     shelve.
@@ -281,7 +524,7 @@ Proof.
     shelve.
   - intros; apply ATCD_AOE; eauto.
     shelve.
-  - eapply ATCD_ORS_transfer; simpl.
+  - intros; eapply ATCD_ORS_transfer; simpl.
     all: shelve.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
@@ -289,20 +532,23 @@ Proof.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
   intros; simpl; eauto.
-  - admit. (* apply ATCD_TS_write. *)
   Unshelve.
   all: simpl; try solve [try apply not_init_compile; apply not_init_change_owner].
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HRDNI_transfer; simpl; eauto.
+    Transparent File.change_owner.
+    unfold File.change_owner.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_change_owner_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply change_owner_inner_commit_pre; eauto.
     eapply have_same_structure_change_owner; eauto.
-    all: simpl; try solve [try apply not_init_compile; apply not_init_change_owner].
-    intros; eapply TIE_auth_then_exec; eauto.
-    intros. eapply TIE_change_owner_inner; eauto.
-    unfold refines_related; simpl; intuition eauto.
+    Opaque File.change_owner.
   }
-Admitted.
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
 
 
 Opaque File.delete File.recover.
@@ -318,7 +564,18 @@ Theorem ss_ATCD_delete:
   (Simulation.Definitions.refines_reboot ATCD_Refinement) n
   (compile_to_ATCD (| Delete inum |))
   (compile_to_ATCD (|Recover|)) lo s2 -> 
-  RDNI_explicit u lo s1 s2
+
+  (forall s1',
+  exec ATCDLang u (hd [] lo) s1 (compile_to_ATCD  (| Delete inum |)) (Crashed s1') -> 
+  no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s1'))))) ->
+
+(forall s2',
+  exec ATCDLang u (hd [] lo) s2 (compile_to_ATCD  (| Delete inum |)) (Crashed s2') -> 
+  no_accidental_overlap (hd (fun _ => 0) n) (snd (snd (snd (snd s2'))))) ->
+
+  ATCD_log_equivalent s1 s2 ->
+
+  RDNI_Weak_explicit u lo s1 s2
     (compile_to_ATCD (| Delete inum |))
     (compile_to_ATCD (| Delete inum |))
     (compile_to_ATCD (|Recover|))
@@ -328,7 +585,7 @@ Theorem ss_ATCD_delete:
     (eq u') (ATCD_reboot_list n).
 Proof.
   intros.
-  eapply RDNI_explicit_transfer.
+  eapply RDNIW_explicit_transfer.
   - apply ss_ATC_delete.
   - eapply ATCD_simulation.
     shelve.
@@ -338,7 +595,7 @@ Proof.
     shelve.
   - intros; apply ATCD_AOE; eauto.
     shelve.
-  - eapply ATCD_ORS_transfer; simpl.
+  - intros; eapply ATCD_ORS_transfer; simpl.
     all: shelve.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
@@ -346,20 +603,23 @@ Proof.
   - unfold exec_compiled_preserves_validity, AD_valid_state, 
   refines_valid, FD_valid_state; 
   intros; simpl; eauto.
-  - admit. (* apply ATCD_TS_write. *)
   Unshelve.
   all: simpl; try solve [try apply not_init_compile; apply not_init_delete].
   {
     unfold refines_related; simpl; intros.
     cleanup.
-    eapply ATC_HRDNI_transfer; simpl; eauto.
+    Transparent File.delete.
+    unfold File.delete.
+    eapply ATC_HSS_auth_then_exec; eauto.
+    intros.
+    eapply ATC_HSS_delete_inner; eauto.
+    unfold  refines_related; eauto.
+    intros; eapply delete_inner_commit_pre; eauto.
     eapply have_same_structure_delete; eauto.
-    all: simpl; try solve [try apply not_init_compile; apply not_init_delete].
-    intros; eapply TIE_auth_then_exec; eauto.
-    intros. eapply TIE_delete_inner; eauto.
-    unfold refines_related; simpl; intuition eauto.
+    Opaque File.delete.
   }
-Admitted.
+  all: try solve [ intros; cleanup; simpl in *; intuition eauto ].
+Qed.
 
 
 

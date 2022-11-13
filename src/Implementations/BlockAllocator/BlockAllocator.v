@@ -908,7 +908,7 @@ Theorem read_finished_precise:
   forall dh u o s a t s',
     block_allocator_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (read a) (Finished s' t) ->
-    ((exists v, t = Some v /\ dh a = Some v) \/
+    ((exists v, t = Some v /\ dh a = Some v /\ a < num_of_blocks) \/
      (t = None /\ dh a = None)) /\
      s' = s.
 Proof.

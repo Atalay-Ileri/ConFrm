@@ -299,7 +299,8 @@ Theorem get_inode_finished_precise:
   forall dh u o s inum t s',
     inode_rep dh (fst (snd s)) ->
     exec (TDLang data_length) u o s (get_inode inum) (Finished s' t) ->
-    ((exists inode, t = Some inode /\ dh inum = Some inode) \/
+    ((exists inode, t = Some inode /\ dh inum = Some inode /\
+    inum < InodeAllocatorParams.num_of_blocks) \/
      (t = None /\ dh inum = None)) /\
     s' = s.
 Proof.
@@ -571,6 +572,24 @@ Proof.
   unfold get_all_block_numbers; intros; cleanup.
   repeat invert_exec;
   eapply get_inode_finished in H0; eauto;
+  cleanup; eauto;
+  split; eauto.
+  split_ors; cleanup; eauto.
+Qed.
+
+Theorem get_all_block_numbers_finished_precise:
+  forall dh u o s inum t s',
+    inode_rep dh (fst (snd s)) ->
+    exec (TDLang data_length) u o s (get_all_block_numbers inum) (Finished s' t) ->
+    ((exists inode, t = Some (inode.(block_numbers)) /\
+               dh inum = Some inode /\
+               inum < InodeAllocatorParams.num_of_blocks) \/
+     t = None) /\
+    s' = s.
+Proof.
+  unfold get_all_block_numbers; intros; cleanup.
+  repeat invert_exec;
+  eapply get_inode_finished_precise in H0; eauto;
   cleanup; eauto;
   split; eauto.
   split_ors; cleanup; eauto.

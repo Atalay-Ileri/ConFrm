@@ -2393,6 +2393,13 @@ Proof.
   }
 Qed.
 
+(*
+Definition txns_equivalent txns1 txns2 :=
+  fold_left Nat.add (map (fun rec => Log.addr_count rec + Log.data_count rec) (map Log.record txns1)) 0  =
+  fold_left Nat.add (map (fun rec => Log.addr_count rec + Log.data_count rec) (map Log.record txns2)) 0 /\
+  Forall2 (fun rec1 rec2 => Log.addr_count rec1 = Log.addr_count rec2) (map Log.record txns1) (map Log.record txns2) /\
+Forall2 (fun rec1 rec2 => Log.data_count rec1 = Log.data_count rec2) (map Log.record txns1) (map Log.record txns2).
+*)
 
 Lemma ATCD_oracle_refines_impl_eq_crashed:
 forall u T p1 T' p2 s1 s2 s1' s2' s1a s2a o1 o2 o3 o4 oa1 oa2 

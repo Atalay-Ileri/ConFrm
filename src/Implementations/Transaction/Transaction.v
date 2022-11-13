@@ -340,6 +340,16 @@ Proof.
   }
 Qed.
 
+Definition read_finished_state :
+  forall u s o s' r a,
+    exec TransactionCacheLang u o s (read a) (Finished s' r) ->
+    s' = s.
+Proof.
+  unfold read, transaction_rep; intros; cleanup;
+  repeat invert_exec; cleanup;
+  repeat cleanup_pairs; split; eauto.
+Qed.
+
 Definition read_crashed :
   forall u s o s' a,
     exec TransactionCacheLang u o s (read a) (Crashed s') ->
@@ -406,6 +416,31 @@ Proof.
   {
     right; split; eauto.
     split; eauto; lia.
+  }
+  {
+    right; split; eauto.
+    split; eauto; lia.
+  }
+Qed.
+
+Definition write_finished_state :
+  forall u s o s' r a v,
+    exec TransactionCacheLang u o s (write a v) (Finished s' r) ->
+    let new_txn_length := length (addr_list_to_blocks (map fst (fst s) ++ [a])) +
+    length ((map snd (fst s)) ++ [v]) in
+    (r = Some tt /\
+    new_txn_length <= log_length /\
+    s' = ((a, v):: fst s, snd s)) \/
+    (r = None /\
+     (a >= data_length \/
+      (a < data_length /\ new_txn_length > log_length)) /\
+     s' = s).
+Proof.
+  unfold write, transaction_rep; intros; cleanup;
+  repeat invert_exec; cleanup; simpl in *;
+  repeat cleanup_pairs; eauto.
+  {
+    right; intuition lia.
   }
   {
     right; split; eauto.
