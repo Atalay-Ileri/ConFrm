@@ -96,7 +96,6 @@ int main(int argc, char *argv[])
       exit(1);
     }
     close(fd);
-
     end = usec_now();
     if (end - start > 1000000)
       break;

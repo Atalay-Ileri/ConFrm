@@ -23,7 +23,7 @@ Extract Constant value => "Data.ByteString.ByteString".
 Extract Inlined Constant block_size => "8 * 4096". (** 4KB blocks **)
 Extract Constant value0 => "Data.ByteString.pack (Data.List.replicate (div (8 * 4096) 8) (0::Data.Word.Word8))".
 Extract Inlined Constant file_blocks_count => "4096". (** 4K data blocks *)
-Extract Inlined Constant log_length => "512". (** 512 log blocks *)
+Extract Inlined Constant log_length => "1024". (** 1024 log blocks *)
 Extract Inlined Constant inode_count => "4096". (** 4K inodes *)
 Extract Constant disk_size => "4 * 1024 * 1024 * 1024 + 1". (** 4 GB disk *)
 

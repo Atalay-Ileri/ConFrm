@@ -15,5 +15,6 @@ sudo rm -rf results
 sudo ./run-confs.sh $2 $1
 sudo ./run-cfscq.sh $2 $1
 sudo ./run-sfscq.sh $2 $1
+sudo ./run-ext4.sh $2 $1
 
 ./get-stats.sh

@@ -87,14 +87,17 @@ int main(int argc, char *argv[])
     printf("%s: create %s failed %s\n", argv[0], oldname, strerror(errno));
     exit(1);
   }
-  close(fd);  
+  fsync(fd);
+  close(fd);
   for (i = 1; ; i++) {
     if((fd = open(newname, O_RDWR | O_CREAT | O_TRUNC, S_IRWXU)) < 0) {
       printf("%s: create %s failed %s\n", argv[0], newname, strerror(errno));
       exit(1);
     }
+    fsync(fd);
     close(fd);  
     rename(newname, oldname);
+    
     end = usec_now();
     if (end - start > 1000000)
       break;

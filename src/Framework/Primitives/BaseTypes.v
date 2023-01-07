@@ -179,11 +179,23 @@ Axiom key: Type.
 Axiom key0: key.
 Axiom key_eq_dec: EqDec key.
 Axiom encrypt: key -> value -> value.
-Axiom encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
 Axiom decrypt: key -> value -> value.
-Axiom decrypt_ext: forall k v v', decrypt k v = decrypt k v' -> v = v'.
 Axiom encrypt_decrypt: forall k v, decrypt k (encrypt k v) = v.
 Axiom decrypt_encrypt: forall k ev, encrypt k (decrypt k ev) = ev.
+
+Lemma encrypt_ext: forall k v v', encrypt k v = encrypt k v' -> v = v'.
+Proof.
+  intros.
+  assert (decrypt k (encrypt k v) = decrypt k (encrypt k v')) by (rewrite H; eauto).
+  repeat rewrite encrypt_decrypt in H0; eauto.
+Qed.
+
+Lemma decrypt_ext: forall k v v', decrypt k v = decrypt k v' -> v = v'.
+Proof.
+  intros.
+  assert (encrypt k (decrypt k v) = encrypt k (decrypt k v')) by (rewrite H; eauto).
+  repeat rewrite decrypt_encrypt in H0; eauto.
+Qed
 
 (** Access control **) 
 Axiom user : Type.

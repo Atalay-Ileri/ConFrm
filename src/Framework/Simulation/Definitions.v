@@ -230,7 +230,7 @@ Definition Termination_Sensitive u {T} (p1 p2: L_abs.(prog) T)
 Definition RDNI_Weak u {T} (p1 p2: L_abs.(prog) T)
            (rec: L_abs.(prog) unit)
            (valid_state: L_abs.(state) -> Prop)
-           (R: L_abs.(state) -> L_abs.(state) -> Prop)
+           (REL: L_abs.(state) -> L_abs.(state) -> Prop)
            (cond: user -> Prop)
            l_get_reboot_state :=
   forall lo s1 s1' s2 s2',
@@ -238,8 +238,8 @@ Definition RDNI_Weak u {T} (p1 p2: L_abs.(prog) T)
     L_abs.(exec_with_recovery) u lo s2 l_get_reboot_state p2 rec s2' ->
     valid_state s1 ->
     valid_state s2 ->
-    R s1 s2 ->
-    R (extract_state_r s1') (extract_state_r s2') /\
+    REL s1 s2 ->
+    REL (extract_state_r s1') (extract_state_r s2') /\
     (cond u -> extract_ret_r s1' = extract_ret_r s2') /\
     valid_state (extract_state_r s1') /\
     valid_state (extract_state_r s2').

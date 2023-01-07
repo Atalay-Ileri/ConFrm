@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
       printf("%s: create %s failed %s\n", argv[0], name, strerror(errno));
       exit(1);
     }
+    fsync(fd);
     close(fd);
     remove(name);
     end = usec_now();
