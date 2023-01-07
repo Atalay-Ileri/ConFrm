@@ -17,3 +17,5 @@
 *.hse
 /_build
 *.lia.cache
+/bench/tests
+/bench/results
