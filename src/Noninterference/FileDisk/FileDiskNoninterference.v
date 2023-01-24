@@ -2387,6 +2387,7 @@ Qed.
 
 Definition not_change_owner {T} (o : FDOp.(operation) T) :=
   match o with
+  | Init => False
   | ChangeOwner _ _ => False
   | _ => True
   end.
@@ -2404,6 +2405,7 @@ Proof.
   apply ss_FD_create.
   apply ss_FD_delete.
   apply ss_FD_Recover.
+  simpl in *; intuition.
 Qed.
 
 Theorem two_user_exec:

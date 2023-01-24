@@ -65,7 +65,7 @@ def parse_file(filepath):
     print("")
 
 if __name__== "__main__":
-    fs_names = ["ConFs", "Cfscq", "Sfscq", "ext4"]
+    fs_names = ["ConFs", "ConSyncFs", "Cfscq", "Sfscq", "Dfscq", "ext4", "ext4journal"]
     test_names = ["largefile"]
     for test in test_names:
         for fs in fs_names:

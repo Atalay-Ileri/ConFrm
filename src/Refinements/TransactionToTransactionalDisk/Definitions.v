@@ -163,6 +163,22 @@ forall T (p2: abs_op.(Core.operation) T) o1 s1 s1' r u,
     }
   Qed.
 
+  Lemma init_refines:
+    forall u s_imp s_init_imp o_imp r l,
+    exec imp u o_imp s_imp (compile _ (Init l)) (Finished s_init_imp r) ->
+    exists s_init_abs,
+    refines s_init_imp s_init_abs.
+    Proof.
+      intros; unfold refines in *; cleanup.
+      eapply init_finished in H; eauto.
+      cleanup; eauto.
+      unfold transaction_rep in *; cleanup; eauto.
+      exists (Empty, (upd_batch (snd s_imp) (map fst l) (map snd l), upd_batch (snd s_imp) (map fst l) (map snd l))); repeat cleanup_pairs; eauto.
+      intuition eauto.
+      pose proof (addr_list_to_blocks_length_le []); simpl in *; lia.
+      pose proof (addr_list_to_blocks_length_le []); simpl in *.
+      left; intuition lia.
+    Qed.
    
   Definition TDCoreRefinement := Build_CoreRefinement compile refines refines_reboot token_refines exec_compiled_preserves_refinement_finished_core.
   Definition TDRefinement := LiftRefinement abs TDCoreRefinement.

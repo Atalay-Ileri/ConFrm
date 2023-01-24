@@ -10,7 +10,7 @@
 
 /* Measure creating a large file and overwriting that file */
 
-#define WSIZE (32 * 4096)
+#define WSIZE (16 * 4096)
 #define FILESIZE  1 * 1024 * 1024
 #define NAMESIZE 100
 
@@ -74,20 +74,7 @@ int makefile()
     printf("%s: fsync %s failed %s\n", prog, name, strerror(errno));
     exit(1);
   }
-
-  lseek(fd, SEEK_SET, 0);
-  write(fd, buf, WSIZE);
   close(fd);
-  
-  fd = open(".", O_DIRECTORY | O_RDONLY);
-  if (fd < 0) {
-    perror("open dir");
-    exit(-1);
-  }
-  if (fsync(fd) < 0) {
-    perror("fsync");
-    exit(-1);
-  }
 }
 
 int writefile()
@@ -111,14 +98,15 @@ int writefile()
       printf("%s: write %s failed %s\n", prog, name, strerror(errno));
       exit(1);
     }
-    if (((i + 1) * WSIZE) % (64 * 1024) == 0) {
+    /*if (((i + 1) * WSIZE) % (64 * 1024) == 0) {
       if (fsync(fd) < 0) {
 	  printf("%s: fsync %s failed %s\n", prog, name, strerror(errno));
 	  exit(1);
 	}
     }
+    */
   }
-  if ((i * WSIZE) % (64 * 1024) != 0 && fsync(fd) < 0) {
+  if (fsync(fd) < 0) {
     printf("%s: fsync %s failed %s\n", prog, name, strerror(errno));
     exit(1);
   }

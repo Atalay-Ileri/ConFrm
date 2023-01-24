@@ -195,7 +195,7 @@ Proof.
   intros.
   assert (encrypt k (decrypt k v) = encrypt k (decrypt k v')) by (rewrite H; eauto).
   repeat rewrite decrypt_encrypt in H0; eauto.
-Qed
+Qed.
 
 (** Access control **) 
 Axiom user : Type.

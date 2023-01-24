@@ -11,6 +11,12 @@ Local Notation "'refinement'" := FDRefinement.
 
 Section FDSimulation.
 
+  Fixpoint not_init {T} (p: prog abs T) :=
+    match p with
+    | Op _ Init => False
+    | Bind p1 p2 => not_init p1 /\ forall r, not_init (p2 r)
+    | _ => True
+    end.
 
   Definition authenticated_disk_reboot_list n :=
     repeat (fun s: imp.(state) => (fst s, (Empty, (snd (snd (snd s)), snd (snd (snd s)))))) n.
@@ -741,24 +747,24 @@ Section FDSimulation.
     
   Theorem abstract_oracles_exists_file_disk:
     forall T (p_abs: abs.(prog) T) n u, 
+    not_init p_abs ->
       abstract_oracles_exist_wrt refinement refines u p_abs (|Recover|) (authenticated_disk_reboot_list n).
   Proof.
     unfold abstract_oracles_exist_wrt; induction p_abs;
     simpl; intros; cleanup.
-    {(** OPS **)
-      destruct o.
-      eapply abstract_oracles_exist_wrt_read; eauto.
-      eapply abstract_oracles_exist_wrt_write; eauto.
-      eapply abstract_oracles_exist_wrt_extend; eauto.
-      eapply abstract_oracles_exist_wrt_change_owner; eauto.
-      eapply abstract_oracles_exist_wrt_create; eauto.
-      eapply abstract_oracles_exist_wrt_delete; eauto.
-      eapply abstract_oracles_exist_wrt_recover'; eauto.
-    }
+
+    eapply abstract_oracles_exist_wrt_read; eauto.
+    eapply abstract_oracles_exist_wrt_write; eauto.
+    eapply abstract_oracles_exist_wrt_extend; eauto.
+    eapply abstract_oracles_exist_wrt_change_owner; eauto.
+    eapply abstract_oracles_exist_wrt_create; eauto.
+    eapply abstract_oracles_exist_wrt_delete; eauto.
+    eapply abstract_oracles_exist_wrt_recover'; eauto.
+    tauto.
     {
       repeat invert_exec; cleanup.
       {
-        rewrite <- H1; simpl.
+        rewrite <- H2; simpl.
         exists [[LayerImplementation.Cont (FDOperation inode_count) ]]; simpl; intuition.
         left.
         eexists; repeat split; eauto; intros.
@@ -768,13 +774,13 @@ Section FDSimulation.
         destruct n; unfold authenticated_disk_reboot_list in *;
         simpl in *; try congruence; cleanup.
         repeat invert_exec.
-        invert_exec'' H8.
+        invert_exec'' H9.
         simpl in *.
-        eapply abstract_oracles_exist_wrt_recover in H10; eauto.
+        eapply abstract_oracles_exist_wrt_recover in H11; eauto.
         cleanup.
         exists ([LayerImplementation.Crash (FDOperation inode_count)]::x0);
         simpl; intuition eauto.
-        apply recovery_oracles_refine_length in H0; eauto.
+        apply recovery_oracles_refine_length in H1; eauto.
         right.
         eexists; repeat split; eauto; intros.
         econstructor.
@@ -788,16 +794,17 @@ Section FDSimulation.
     {
       repeat invert_exec.
       {
-        invert_exec'' H10.
+        invert_exec'' H12.
         edestruct IHp_abs; eauto.
         instantiate (2:= 0); simpl.
         eapply ExecFinished; eauto.
         edestruct H.
+        eauto.
         2: {
           instantiate (3:= 0); simpl.
           eapply ExecFinished; eauto.
         }
-        eapply exec_compiled_preserves_refinement_finished in H8; eauto.
+        eapply exec_compiled_preserves_refinement_finished in H10; eauto.
         simpl in *; cleanup; try tauto.
         simpl in *.
         exists ([o0 ++ o]); intuition eauto; cleanup; try tauto.
@@ -810,19 +817,20 @@ Section FDSimulation.
       {
         destruct n; unfold authenticated_disk_reboot_list in *;
         simpl in *; try congruence; cleanup.
-        invert_exec'' H9.
+        invert_exec'' H11.
         {
           edestruct IHp_abs; eauto.
           instantiate (2:= 0); simpl.
           instantiate (1:= RFinished d1' r).
           eapply ExecFinished; eauto.
           edestruct H.
+          eauto.
           2: {
             instantiate (3:= S n); simpl.
             instantiate (1:= Recovered (extract_state_r ret)).
             econstructor; eauto.
           }
-          eapply exec_compiled_preserves_refinement_finished in H7; eauto.
+          eapply exec_compiled_preserves_refinement_finished in H9; eauto.
           simpl in *; cleanup; try tauto.
           simpl in *.
           exists ((o0 ++ o)::l); intuition eauto; cleanup; try tauto;

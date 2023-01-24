@@ -18,6 +18,7 @@ Fixpoint compile T (p2: Core.operation abs_core T) : prog impl T.
   exact (create u).
   exact (delete a).
   exact recover.
+  exact init.
 Defined.
 
 Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (get_reboot_state: state impl -> state impl) o1 o2 : Prop :=
@@ -317,6 +318,17 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
             o2 = CrashBefore /\
             files_crash_rep fd d')
        )
+       | Init =>
+       (
+         (exists d',
+            exec impl u o1 d1 init (Finished d' tt) /\
+            o2 = Cont /\
+            files_rep empty_mem d') \/
+         
+         (exists d',
+            exec impl u o1 d1 init (Crashed d') /\
+            o2 = CrashBefore)
+       )
     end.
 
    Definition refines (d1: state impl) (d2: state abs) :=
@@ -366,7 +378,22 @@ Definition token_refines T u (d1: state impl) (p: Core.operation abs_core T) (ge
       unfold files_rep, files_reboot_rep, files_crash_rep in *;
       cleanup; eauto.
     }
+    {
+      eapply init_finished in H0.
+      unfold refines; eauto.
+    }
   Qed.
+
+  Lemma init_refines:
+    forall u s_imp s_init_imp o_imp r,
+    exec impl u o_imp s_imp (compile _ (Init)) (Finished s_init_imp r) ->
+    exists s_init_abs,
+    refines s_init_imp s_init_abs.
+    Proof.
+      intros; destruct r; simpl in *.
+      eapply init_finished in H.
+      unfold refines; eauto.
+    Qed.
 
   Definition FDOperationRefinement := Build_CoreRefinement compile refines refines_reboot token_refines exec_compiled_preserves_refinement_finished_core.
   Definition FDRefinement := LiftRefinement abs FDOperationRefinement.

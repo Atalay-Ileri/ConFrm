@@ -6,3 +6,5 @@ mkdir stats
 #python3 process-internal-times.py > stats/internal-times.txt
 python3 process-results.py > stats/results.txt
 python3 process-results-largefile.py > stats/results-largefile.txt
+python3 process-results-graph.py > stats/results-graph.txt
+python3 process-results-largefile-graph.py > stats/results-largefile-graph.txt

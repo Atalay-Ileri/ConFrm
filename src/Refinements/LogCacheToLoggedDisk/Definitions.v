@@ -265,6 +265,17 @@ Definition token_refines  T u (d1: state impl) (p: Core.operation abs_core T) ge
     }
   Qed.
 
+    Lemma init_refines:
+    forall u s_imp s_init_imp o_imp r l,
+    exec impl u o_imp s_imp (compile _ (Init l)) (Finished s_init_imp r) ->
+    exists s_init_abs,
+    refines s_init_imp s_init_abs.
+    Proof.
+      intros; simpl in *.
+      eapply init_finished in H.
+      unfold refines; simpl; eauto.
+    Qed.
+
   Definition LoggedDiskCoreRefinement := Build_CoreRefinement compile refines refines_reboot token_refines exec_compiled_preserves_refinement_finished_core.
   Definition LoggedDiskRefinement := LiftRefinement (LoggedDiskLang log_length data_length) LoggedDiskCoreRefinement.
 
